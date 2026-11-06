@@ -1,0 +1,7 @@
+goos: darwin
+goarch: arm64
+pkg: example.com/independent-harness/internal/session
+cpu: Apple M5 Pro
+BenchmarkSessionPreview-15    	   19743	     60692 ns/op	  148106 B/op	      32 allocs/op
+PASS
+ok  	example.com/independent-harness/internal/session	1.425s

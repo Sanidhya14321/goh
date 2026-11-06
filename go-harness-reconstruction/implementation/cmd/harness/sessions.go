@@ -13,7 +13,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|show ID|export ID [--output FILE]|import FILE [--project DIR]|fork ID [--session-dir DIR]"
+	usage := "sessions list|preview ID|show ID|export ID [--output FILE]|import FILE [--project DIR]|fork ID [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -21,7 +21,7 @@ func sessions(args []string) error {
 	args = args[1:]
 	subject := ""
 	switch command {
-	case "show", "export", "import", "fork":
+	case "preview", "show", "export", "import", "fork":
 		if len(args) == 0 || args[0] == "" {
 			return errors.New(usage)
 		}
@@ -58,6 +58,12 @@ func sessions(args []string) error {
 	encoder := json.NewEncoder(os.Stdout)
 	encoder.SetIndent("", "  ")
 	switch command {
+	case "preview":
+		info, err := session.Preview(*dir, subject)
+		if err != nil {
+			return err
+		}
+		return encoder.Encode(info)
 	case "list":
 		infos, err := session.List(*dir)
 		if err != nil {

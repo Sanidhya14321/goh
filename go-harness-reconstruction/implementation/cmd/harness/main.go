@@ -50,10 +50,10 @@ func run(args []string) error {
 	if args[0] == "chat" {
 		return chatFirst(args)
 	}
-	return runCommand(args, false)
+	return runCommand(args, false, "")
 }
 
-func runCommand(args []string, skipChooser bool) error {
+func runCommand(args []string, skipChooser bool, notice string) error {
 	if args[0] == "--help" || args[0] == "-h" {
 		fmt.Println(usage)
 		return nil
@@ -184,7 +184,7 @@ func runCommand(args []string, skipChooser bool) error {
 				return x
 			}
 			if len(infos) > 0 {
-				id, ok, x := tui.SelectSession(infos)
+				id, ok, x := tui.SelectSession(infos, c.SessionDir, "", "")
 				if x != nil {
 					return x
 				}
@@ -238,7 +238,7 @@ func runCommand(args []string, skipChooser bool) error {
 	}
 	a.ExternalFactory = func() agent.External { return mcpclient.New(c.MCP, store.Project, a.Permission) }
 	if command == "chat" {
-		return tui.Run(a)
+		return tui.Run(a, notice)
 	}
 	enc := json.NewEncoder(os.Stdout)
 	var emitErr error

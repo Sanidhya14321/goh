@@ -558,7 +558,7 @@ func (m *model) compactView() tea.View {
 	view.AltScreen = true
 	return view
 }
-func Run(a *agent.Agent) error {
+func Run(a *agent.Agent, notice string) error {
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...)}
 	for _, message := range a.History {
 		switch message.Role {
@@ -580,6 +580,10 @@ func Run(a *agent.Agent) error {
 	}
 	if len(m.log) > 128<<10 {
 		m.log = m.log[len(m.log)-(128<<10):]
+	}
+	if notice != "" {
+		m.log += "\n[notice] " + Safe(notice) + "\n"
+		m.status = "Action needs attention"
 	}
 	oldEmit, oldApprove, oldAsk := a.Emit, a.Approve, a.Ask
 	a.Emit = func(e core.Event) {

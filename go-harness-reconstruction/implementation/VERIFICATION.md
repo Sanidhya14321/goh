@@ -6,11 +6,19 @@ Live inference was tested on loopback. Remote publication is pending.
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.9` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.10` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC10 evidence is under `research/evidence/v1-ui-sessions-*`. The PTY flow
+searches an older conversation by title, resumes its original journal, and
+verifies that a second journal is untouched. It also cancels the browser back
+to chat and invokes the CLI preview while the chat writer is active.
+Focused tests check prefix limits, incomplete tails, symlink/traversal refusal,
+unfinished-run status, workspace scope, empty results, and terminal dimensions.
+Preview byte comparisons verify that it leaves the journal contents intact.
 
 RC9 evidence is under `research/evidence/v1-ui-pickers-*`. Its executable PTY
 test selects a named model profile, observes the changed model ID in an actual

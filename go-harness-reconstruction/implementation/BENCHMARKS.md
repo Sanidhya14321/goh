@@ -1,7 +1,7 @@
 # Local measurements
 
 Host: Apple M5 Pro, macOS 26.5.1, ARM64, Go 1.27.3. These are local measurements,
-not a comparison with OpenCode or practical coding success rates.
+with tool and startup workloads recorded separately.
 
 - Search fixture: 128 files totaling approximately 2.36MB; three 200 ms benchmark
   runs measured 7.80–7.93ms/operation and approximately 8.0MB allocated/operation.
@@ -74,4 +74,13 @@ Raw records are `research/evidence/ui-rich-color-benchmark.txt` and
 `research/evidence/ui-rich-render-benchmark.txt`. The latest startup comparison
 uses the same local method and is retained in `ui-startup-comparison.json`.
 
+RC10 adds a bounded journal-preview benchmark. A 1 MiB fixture journal is
+previewed with a 64 KiB prefix budget in approximately 0.061 ms per operation,
+with 148,106 bytes and 32 allocations per operation on the recorded host.
+This is a local repeated-read workload with filesystem caches available.
+See `research/evidence/ui-session-preview-benchmark.txt`. It measures one
+preview read and parse rather than an entire multi-session browser load.
+
 RC9 exercises model/agent dialogs after the first-prompt timing interval. The three-trial startup medians are 45.35 ms for GoHarness and 1386.50 ms for OpenCode. Both executables use isolated homes and a configured loopback fixture. The latest PNG captures include both applications’ model and agent dialogs.
+
+RC10 startup medians were 44.36 ms for GoHarness and 1363.11 ms for OpenCode across three trials. The session-browser captures occur after the first-prompt timing interval.

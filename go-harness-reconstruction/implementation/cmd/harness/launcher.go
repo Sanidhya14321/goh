@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"example.com/independent-harness/internal/core"
+	"example.com/independent-harness/internal/session"
 	"example.com/independent-harness/internal/tui"
 )
 
@@ -159,7 +160,11 @@ func chatFirst(args []string) error {
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
 		}
-		err := runCommand(command, skipChooser)
+		notice := ""
+		if actionErr != nil {
+			notice = actionErr.Error()
+		}
+		err := runCommand(command, skipChooser, notice)
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
@@ -174,7 +179,9 @@ func chatFirst(args []string) error {
 				return err
 			}
 		}
-		sessionID = nav.Session
+		if nav.Config != nil || nav.Session != "" {
+			sessionID = nav.Session
+		}
 		sessionOverride = true
 		skipChooser = true
 		actionErr = nil
@@ -194,7 +201,33 @@ func chatFirst(args []string) error {
 				project, sessionID = next, ""
 			}
 		case "sessions":
-			sessionID, skipChooser = "", false
+			cfg := core.Defaults()
+			if nav.Config != nil {
+				cfg = *nav.Config
+			} else if loaded, err := core.LoadConfig(""); err == nil {
+				cfg = loaded
+			}
+			var infos []session.Info
+			infos, actionErr = session.List(cfg.SessionDir)
+			if actionErr != nil {
+				break
+			}
+			workspace := nav.Project
+			if workspace == "" {
+				workspace = project
+			}
+			if workspace == "" {
+				workspace, _ = os.Getwd()
+			}
+			var selected string
+			var chosen bool
+			selected, chosen, actionErr = tui.SelectSession(infos, cfg.SessionDir, sessionID, workspace)
+			if chosen {
+				sessionID = selected
+				if selected == "" {
+					project = workspace
+				}
+			}
 		case "new":
 			sessionID = ""
 			if nav.Project != "" {

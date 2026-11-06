@@ -20,6 +20,18 @@ setup. Fixing the key retains the session.
 Use `/workspace` to choose a project, `/sessions` to select a saved chat, and
 `/settings` for the settings menu. Closing a settings panel returns to chat.
 
+The session browser shows recently created conversations first and derives titles
+from their first saved user message. Search matches titles, IDs, and workspace
+paths. Ctrl+W toggles the current-workspace filter. Summaries load in background
+batches while the browser accepts input. Wide terminals show a preview pane;
+Tab switches between the list and a full-width preview. PgUp/PgDn scroll the
+preview. Esc returns to the current conversation.
+
+Previews display complete records from the first 64 KiB and label partial views.
+For large journals, their status and excerpts describe that prefix. The CLI
+equivalent is `goh sessions preview ID --session-dir DIR`. Preview reads work
+while another process owns the journal writer lock.
+
 `/models` opens a searchable list of configured model profiles and a provider
 setup entry. `/agents` selects Build, Plan, or a configured custom agent.
 Tab/Shift+Tab cycle agents when the composer is empty. These switches retain the

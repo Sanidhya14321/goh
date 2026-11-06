@@ -6,7 +6,7 @@ is not complete; observed compatibility and remaining gates are separate below.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.9` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.10` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.
@@ -24,6 +24,10 @@ Searchable model-profile and agent selectors are available through /models and
 /agents. Tab/Shift+Tab cycle agents, and /new starts a fresh conversation.
 Model IDs in provider requests and Plan's read-only tool definitions were checked through
 the executable in a disposable terminal.
+The session browser now has title/ID/workspace search, current-workspace scope,
+newest first ordering, and bounded asynchronous conversation previews.
+Narrow terminals can open a full-width preview with Tab. The preview command
+reads complete journal-prefix records and reports unfinished runs.
 An intermittent child-cancellation cleanup result observed under concurrent
 verification remains a release investigation item.
 The previous `harness` command points to the same build. The terminal UI now wraps by

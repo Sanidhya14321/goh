@@ -162,6 +162,37 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert len(list(root.rglob("*.jsonl"))) == 2, list(root.rglob("*.jsonl"))
         time.sleep(.1)
         pos = len(output)
+        second_journal, = [p for p in root.rglob("*.jsonl") if p != journal_before]
+        second_bytes = second_journal.read_bytes()
+        os.write(master, b"/sessions\r")
+        wait_for(b"GoHarness  /  Sessions", pos)
+        os.write(master, b"Hello from setup")
+        wait_for(b"Hello from setup", pos)
+        time.sleep(.2)
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        pos = len(output)
+        os.write(master, b"Resumed journal verification\r")
+        wait_for(b"completed", pos)
+        assert b"Resumed journal verification" in journal_before.read_bytes()
+        assert second_journal.read_bytes() == second_bytes
+        assert len(list(root.rglob("*.jsonl"))) == 2
+        before_preview = journal_before.read_bytes()
+        preview = subprocess.run([binary, "sessions", "preview", journal_before.stem, "--session-dir", str(journal_before.parent)], cwd=project, env=env, capture_output=True, text=True, timeout=8)
+        assert preview.returncode == 0, preview.stderr
+        assert json.loads(preview.stdout)["title"] == "Hello from setup"
+        assert journal_before.read_bytes() == before_preview
+        pos = len(output)
+        os.write(master, b"/sessions\r")
+        wait_for(b"GoHarness  /  Sessions", pos)
+        pos = len(output)
+        os.write(master, b"\x1b")
+        wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        assert journal_before.read_bytes() == before_preview
+        pos = len(output)
         os.write(master, b"/settings\r")
         wait_for(b"Edit advanced settings", pos)
         os.write(master, b"s")
@@ -190,7 +221,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

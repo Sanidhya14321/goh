@@ -1,0 +1,24 @@
+?   	example.com/independent-harness/cmd/acceptance	[no test files]
+ok  	example.com/independent-harness/cmd/harness	1.859s
+?   	example.com/independent-harness/cmd/scripted-model	[no test files]
+?   	example.com/independent-harness/internal/acp	[no test files]
+ok  	example.com/independent-harness/internal/commands	(cached)
+ok  	example.com/independent-harness/internal/core	(cached)
+ok  	example.com/independent-harness/internal/formatters	(cached)
+ok  	example.com/independent-harness/internal/localapi	2.399s
+ok  	example.com/independent-harness/internal/lspclient	(cached)
+ok  	example.com/independent-harness/internal/mcpclient	3.504s
+ok  	example.com/independent-harness/internal/memory	(cached)
+ok  	example.com/independent-harness/internal/provider	(cached)
+ok  	example.com/independent-harness/internal/runtime	10.465s
+ok  	example.com/independent-harness/internal/session	4.159s
+ok  	example.com/independent-harness/internal/skills	(cached)
+ok  	example.com/independent-harness/internal/snapshots	(cached)
+ok  	example.com/independent-harness/internal/structured	(cached)
+?   	example.com/independent-harness/internal/testutil	[no test files]
+ok  	example.com/independent-harness/internal/tools	(cached)
+ok  	example.com/independent-harness/internal/tui	4.398s
+ok  	example.com/independent-harness/internal/webfetch	(cached)
+ok  	example.com/independent-harness/internal/session	1.855s
+ok  	example.com/independent-harness/internal/tui	2.240s
+ok  	example.com/independent-harness/cmd/harness	1.816s

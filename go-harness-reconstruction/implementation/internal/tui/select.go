@@ -1,42 +1,156 @@
 package tui
 
 import (
+	"fmt"
+	"sort"
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 	"example.com/independent-harness/internal/session"
-	"strings"
 )
+
+type previewBatch struct {
+	results map[string]session.PreviewInfo
+	errors  map[string]string
+	next    int
+}
 
 type chooser struct {
 	sessions      []session.Info
+	summaries     map[string]session.PreviewInfo
+	problems      map[string]string
+	dir, project  string
+	current       string
+	query         string
+	allProjects   bool
+	loading       bool
 	index         int
 	chosen        bool
+	selected      string
+	previewOffset int
+	previewOnly   bool
 	width, height int
 }
 
-func (m *chooser) Init() tea.Cmd { return nil }
-func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if size, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width, m.height = size.Width, size.Height
+func (m *chooser) loadBatch(start int) tea.Cmd {
+	dir := m.dir
+	items := append([]session.Info(nil), m.sessions[start:min(start+32, len(m.sessions))]...)
+	return func() tea.Msg {
+		batch := previewBatch{results: map[string]session.PreviewInfo{}, errors: map[string]string{}, next: start + len(items)}
+		for _, info := range items {
+			summary, err := session.Preview(dir, info.ID)
+			if err != nil {
+				batch.errors[info.ID] = err.Error()
+			} else {
+				batch.results[info.ID] = summary
+			}
+		}
+		return batch
 	}
-	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case "up", "k":
-			if m.index > 0 {
-				m.index--
+}
+
+func (m *chooser) Init() tea.Cmd {
+	if m.dir == "" || len(m.sessions) == 0 {
+		return nil
+	}
+	return m.loadBatch(0)
+}
+
+func (m *chooser) matches() []session.Info {
+	var matches []session.Info
+	query := strings.ToLower(strings.TrimSpace(m.query))
+	if query == "" {
+		matches = append(matches, session.Info{})
+	}
+	for _, info := range m.sessions {
+		if !m.allProjects && m.project != "" && info.Project != m.project {
+			continue
+		}
+		title := m.summaries[info.ID].Title
+		if query == "" || strings.Contains(strings.ToLower(title+" "+info.ID+" "+info.Project), query) {
+			matches = append(matches, info)
+		}
+	}
+	return matches
+}
+
+func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch v := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width, m.height = v.Width, v.Height
+	case previewBatch:
+		selected := ""
+		old := m.matches()
+		if m.index < len(old) {
+			selected = old[m.index].ID
+		}
+		if m.summaries == nil {
+			m.summaries, m.problems = map[string]session.PreviewInfo{}, map[string]string{}
+		}
+		for id, summary := range v.results {
+			m.summaries[id] = summary
+		}
+		for id, problem := range v.errors {
+			m.problems[id] = problem
+		}
+		matches := m.matches()
+		m.index = min(m.index, max(0, len(matches)-1))
+		for i, info := range matches {
+			if info.ID == selected {
+				m.index = i
+				break
 			}
-		case "down", "j":
-			if m.index < len(m.sessions) {
-				m.index++
+		}
+		m.loading = v.next < len(m.sessions)
+		if m.loading {
+			return m, m.loadBatch(v.next)
+		}
+	case tea.PasteMsg:
+		if len(m.query)+len(v.Content) <= 256 {
+			m.query += Safe(v.Content)
+			m.index, m.previewOffset = 0, 0
+		}
+	case tea.KeyPressMsg:
+		matches := m.matches()
+		switch v.String() {
+		case "up":
+			m.index, m.previewOffset = max(0, m.index-1), 0
+		case "down":
+			m.index, m.previewOffset = min(max(0, len(matches)-1), m.index+1), 0
+		case "pgup":
+			m.previewOffset = max(0, m.previewOffset-5)
+		case "pgdown":
+			m.previewOffset += 5
+		case "tab":
+			m.previewOnly = !m.previewOnly
+		case "ctrl+w":
+			m.allProjects = !m.allProjects
+			m.index, m.previewOffset = 0, 0
+		case "ctrl+u":
+			m.query, m.index, m.previewOffset = "", 0, 0
+		case "backspace":
+			value := []rune(m.query)
+			if len(value) > 0 {
+				m.query = string(value[:len(value)-1])
 			}
+			m.index, m.previewOffset = 0, 0
 		case "enter":
-			m.chosen = true
-			return m, tea.Quit
+			if len(matches) > 0 {
+				m.selected, m.chosen = matches[min(m.index, len(matches)-1)].ID, true
+				return m, tea.Quit
+			}
 		case "esc", "ctrl+c", "ctrl+d":
 			return m, tea.Quit
+		default:
+			if v.Text != "" && len(m.query)+len(v.Text) <= 256 {
+				m.query += Safe(v.Text)
+				m.index, m.previewOffset = 0, 0
+			}
 		}
 	}
 	return m, nil
 }
+
 func (m *chooser) View() tea.View {
 	width, height := m.width, m.height
 	if width < 1 {
@@ -45,41 +159,112 @@ func (m *chooser) View() tea.View {
 	if height < 1 {
 		height = 24
 	}
-	boxWidth := min(88, max(1, width-4))
-	padding := strings.Repeat(" ", max(0, (width-boxWidth)/2))
-	rows := []string{"", padding + cell("  GoHarness  /  Sessions", boxWidth, foreground, panel),
-		padding + cell("  ↑/↓ select · Enter open · Esc cancel", boxWidth, muted, panel),
-		padding + cell("", boxWidth, foreground, panel)}
-	items := []string{"Start a new session"}
-	for _, s := range m.sessions {
-		items = append(items, s.ID+"  "+Safe(s.Project))
+	previewWidth := 0
+	if width >= 100 && height >= 18 && !m.previewOnly {
+		previewWidth = min(48, width/3)
 	}
-	start := 0
-	visible := max(1, height-5)
-	if m.index >= visible {
-		start = m.index - visible + 1
+	listWidth := width - previewWidth
+	scope := "Current workspace"
+	if m.allProjects || m.project == "" {
+		scope = "All workspaces"
 	}
-	for i := start; i < len(items) && i < start+visible; i++ {
-		mark := "  "
-		fg := muted
-		if i == m.index {
-			mark, fg = "› ", accent
+	matches := m.matches()
+	count := len(matches)
+	if count > 0 && matches[0].ID == "" {
+		count--
+	}
+	rows := []string{
+		cell("  GoHarness  /  Sessions", width, foreground, panel),
+		cell("  Search  "+m.query+" ▏", width, accent, panel),
+		cell(fmt.Sprintf("  %s · %d sessions · Ctrl+W switch scope", scope, count), width, muted, background),
+		"",
+	}
+	visible := max(1, height-6)
+	start := max(0, m.index-visible+1)
+	for i := start; i < min(len(matches), start+visible); i++ {
+		info := matches[i]
+		title := "Start a new session"
+		if info.ID != "" {
+			title = m.summaries[info.ID].Title
+			if title == "" {
+				title = info.ID
+			}
+			if info.ID == m.current {
+				title += " ● current"
+			}
 		}
-		rows = append(rows, padding+cell(mark+items[i], boxWidth, fg, panel))
+		fg, bg, mark := muted, background, "  "
+		if i == m.index {
+			fg, bg, mark = background, accent, "› "
+		}
+		rows = append(rows, cell(mark+title, listWidth, fg, bg))
 	}
+	if len(matches) == 0 {
+		rows = append(rows, cell("  No matching sessions", listWidth, muted, background))
+	}
+	for len(rows) < height-2 {
+		rows = append(rows, cell("", listWidth, foreground, background))
+	}
+	detailWidth := previewWidth
+	if m.previewOnly {
+		detailWidth = width
+	}
+	if detailWidth > 0 {
+		preview := []string{"PREVIEW", "", "Choose a session to inspect its saved conversation."}
+		if len(matches) > 0 {
+			info := matches[min(m.index, len(matches)-1)]
+			if info.ID != "" {
+				summary, ok := m.summaries[info.ID]
+				preview = []string{"PREVIEW", "", info.ID, info.Project}
+				if ok {
+					if summary.Limited {
+						preview = append(preview, "Limited preview · first 64 KiB")
+					}
+					preview = append(preview, summary.Modified.Local().Format("02 Jan 15:04"), summary.Status, "", "YOU", summary.User, "", "ASSISTANT", summary.Assistant)
+				} else if problem := m.problems[info.ID]; problem != "" {
+					preview = append(preview, "", "Preview unavailable", problem)
+				} else {
+					preview = append(preview, "", "Loading preview…")
+				}
+			}
+		}
+		lines := terminalRows(strings.Join(preview, "\n"), max(1, detailWidth-3))
+		start := min(m.previewOffset, max(0, len(lines)-(height-6)))
+		for y := 4; y < len(rows); y++ {
+			text := ""
+			if at := start + y - 4; at < len(lines) {
+				text = lines[at]
+			}
+			if m.previewOnly {
+				rows[y] = cell("  "+text, width, muted, panel)
+			} else {
+				rows[y] = rows[y] + cell("│ "+text, previewWidth, muted, panel)
+			}
+		}
+	}
+	status := "↑/↓ select  Enter open  Esc back  PgUp/PgDn preview"
+	if m.previewOnly {
+		status = "Tab list  PgUp/PgDn scroll  Enter open  Esc back"
+	} else if previewWidth == 0 {
+		status = "Tab preview  Enter open  Esc back  ↑/↓ select"
+	}
+	if m.loading {
+		status += " · Loading summaries…"
+	}
+	rows = append(rows, cell(status, width, muted, panel))
 	return canvas(rows, width, height)
 }
-func SelectSession(infos []session.Info) (string, bool, error) {
-	m := &chooser{sessions: infos}
-	_, e := tea.NewProgram(m).Run()
-	if e != nil {
-		return "", false, e
+
+func SelectSession(infos []session.Info, dir, current, project string) (string, bool, error) {
+	items := append([]session.Info(nil), infos...)
+	sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
+	m := &chooser{sessions: items, dir: dir, current: current, project: project, loading: dir != "" && len(items) > 0}
+	for i, info := range m.matches() {
+		if info.ID == current && current != "" {
+			m.index = i
+			break
+		}
 	}
-	if !m.chosen {
-		return "", false, nil
-	}
-	if m.index == 0 {
-		return "", true, nil
-	}
-	return m.sessions[m.index-1].ID, true, nil
+	_, err := tea.NewProgram(m).Run()
+	return m.selected, m.chosen, err
 }

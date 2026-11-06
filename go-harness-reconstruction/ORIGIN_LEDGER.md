@@ -104,3 +104,10 @@ The Go option picker, configured-profile selection, agent cycling, and new-chat
 navigation are original implementations using the existing Bubble Tea and
 configuration/runtime layers. The Git baseline captures existing RC8 work;
 new UI milestones use actual commit dates.
+
+RC10 UI continuation. OpenCode's pinned session list, timeline, and generic
+selection components were inspected alongside public screenshots and the
+isolated executable. Session filtering, asynchronous preview batches, bounded
+read-only journal excerpts, and browser resume navigation are original Go
+implementations. The existing journal format, runtime resolver, and ANSI
+module are reused. No runtime dependency was added.
