@@ -1,0 +1,14 @@
+.DS_Store
+**/__pycache__/
+**/*.pyc
+go-harness-reconstruction/implementation/bin/
+go-harness-reconstruction/implementation/dist/
+go-harness-reconstruction/research/*
+!go-harness-reconstruction/research/evidence/
+go-harness-reconstruction/research/evidence/*
+!go-harness-reconstruction/research/evidence/v1-*.json
+!go-harness-reconstruction/research/evidence/ui*.json
+!go-harness-reconstruction/research/evidence/ui*.txt
+!go-harness-reconstruction/research/evidence/goh-ui-*.png
+!go-harness-reconstruction/research/evidence/opencode-ui-*.png
+go-harness-reconstruction/reports/

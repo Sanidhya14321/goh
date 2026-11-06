@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "approval": "passed",
+  "cancel_late_approval": "passed",
+  "project_scope": "passed",
+  "durable_resume": "passed",
+  "client_mcp_startup_denial": "passed",
+  "eof_and_signal_shutdown": "passed"
+}

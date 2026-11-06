@@ -1,0 +1,79 @@
+{
+  "version": "1.0.0-rc.2",
+  "server": "llama.cpp b12144",
+  "model": "Qwen3-0.6B-Q4_0",
+  "transport": "loopback Chat Completions SSE",
+  "authentication": "required bearer token via custom environment variable; wrong token rejected",
+  "exit_code": 0,
+  "events": [
+    {
+      "version": 1,
+      "session_id": "20261106T050005-33c2f1398de95e27479700ff",
+      "run_id": "2a4118aa36bcf19f0e53b2b62885718b",
+      "sequence": 1,
+      "timestamp": "2026-11-06T05:00:05.257501Z",
+      "type": "run_started",
+      "data": {
+        "agent": "build",
+        "agent_mode": "build",
+        "model": "qwen3-smoke",
+        "profile": "",
+        "project": "/private/tmp/harness-live.8KpsVRaw/project",
+        "protocol": "chat_completions"
+      }
+    },
+    {
+      "version": 1,
+      "session_id": "20261106T050005-33c2f1398de95e27479700ff",
+      "run_id": "2a4118aa36bcf19f0e53b2b62885718b",
+      "sequence": 2,
+      "timestamp": "2026-11-06T05:00:05.265841Z",
+      "type": "assistant_started",
+      "data": {
+        "turn": 0
+      }
+    },
+    {
+      "version": 1,
+      "session_id": "20261106T050005-33c2f1398de95e27479700ff",
+      "run_id": "2a4118aa36bcf19f0e53b2b62885718b",
+      "sequence": 3,
+      "timestamp": "2026-11-06T05:00:05.577758Z",
+      "type": "assistant_updated",
+      "data": {
+        "text": "READY"
+      }
+    },
+    {
+      "version": 1,
+      "session_id": "20261106T050005-33c2f1398de95e27479700ff",
+      "run_id": "2a4118aa36bcf19f0e53b2b62885718b",
+      "sequence": 4,
+      "timestamp": "2026-11-06T05:00:05.587706Z",
+      "type": "assistant_completed",
+      "data": {
+        "message": {
+          "role": "assistant",
+          "content": "READY"
+        },
+        "usage": {
+          "prompt_tokens": 2381,
+          "completion_tokens": 2,
+          "total_tokens": 2383
+        }
+      }
+    },
+    {
+      "version": 1,
+      "session_id": "20261106T050005-33c2f1398de95e27479700ff",
+      "run_id": "2a4118aa36bcf19f0e53b2b62885718b",
+      "sequence": 5,
+      "timestamp": "2026-11-06T05:00:05.591744Z",
+      "type": "run_finished",
+      "data": {
+        "duration_ms": 330,
+        "status": "completed"
+      }
+    }
+  ]
+}

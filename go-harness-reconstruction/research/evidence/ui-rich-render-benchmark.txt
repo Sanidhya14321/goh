@@ -1,0 +1,8 @@
+goos: darwin
+goarch: arm64
+pkg: example.com/independent-harness/internal/tui
+cpu: Apple M5 Pro
+BenchmarkTranscriptView-15    	    5858	    194819 ns/op	   19163 B/op	     181 allocs/op
+BenchmarkStreamingCode-15     	     318	   3774959 ns/op	 1924699 B/op	   44049 allocs/op
+PASS
+ok  	example.com/independent-harness/internal/tui	2.610s

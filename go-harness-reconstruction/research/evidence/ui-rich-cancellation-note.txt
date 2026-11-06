@@ -1,0 +1,3 @@
+During concurrent UI verification and OpenCode capture, one subagent_cancellation PTY case returned cleanup_incomplete with a durable pending child-shell effect instead of cancelled.
+An isolated repeat completed all 15 PTY scenarios successfully. This repeat does not establish the cause of the earlier failure or cancellation reliability under load.
+The UI rendering changes do not alter subprocess cleanup. Investigate and stress-test this condition before a public V1 release.

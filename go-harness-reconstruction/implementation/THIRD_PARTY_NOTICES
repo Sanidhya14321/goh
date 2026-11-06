@@ -1,0 +1,13 @@
+Third-party notices
+
+Independent Harness original source and project documentation are licensed under Apache-2.0; see LICENSE.
+
+This distribution uses the Go runtime and the pinned Go module graph listed in DEPENDENCIES.md. Exact upstream license and attribution documents are reproduced, without replacing their copyright notices, in licenses/. licenses/inventory.json maps each module/version to copied texts and file digests. Some selected modules are used only by tests or tooling; they are retained in this source distribution inventory.
+
+The MCP Go SDK v1.8.0 upstream LICENSE records a mixed-license transition. New code/specification contributions and consented contributions use Apache-2.0; unconsented formerly MIT contributions retain MIT; documentation excluding specifications uses CC-BY-4.0. The upstream notice and full Apache/MIT text are preserved at licenses/github.com__modelcontextprotocol__go-sdk@v1.8.0/LICENSE.
+
+OpenCode is a separately acquired MIT-licensed behavioral reference in research/reference/. Its source or binary is not incorporated into the independently authored Go implementation. Research tooling and artifacts are excluded from release binaries. OpenCode and upstream project names identify their respective projects and do not imply endorsement.
+
+Contributors and their copyright notices are identified in the preserved upstream license files. This inventory is descriptive and does not provide a legal opinion.
+
+The HTML tokenizer uses golang.org/x/net v0.62.0 (BSD-3-Clause), with exact copyright/license and patent notices retained under licenses/golang.org__x__net@v0.62.0/. See updated dependency inventory for MVS-selected transitive versions.

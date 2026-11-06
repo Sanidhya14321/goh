@@ -1,0 +1,39 @@
+{
+  "goh_version": "1.0.0-rc.6",
+  "opencode_version": "1.19.5",
+  "platform": "macOS-26.5.1-arm64-arm-64bit",
+  "terminal": "120x36 PTY",
+  "scope": "first interactive home prompt, configured loopback provider, no inference",
+  "trials": {
+    "goh": [
+      {
+        "first_prompt_ms": 39.63,
+        "process_rss_kib": 23072
+      },
+      {
+        "first_prompt_ms": 40.3,
+        "process_rss_kib": 22992
+      },
+      {
+        "first_prompt_ms": 45.55,
+        "process_rss_kib": 23008
+      }
+    ],
+    "opencode": [
+      {
+        "first_prompt_ms": 1377.56,
+        "process_rss_kib": 889360
+      },
+      {
+        "first_prompt_ms": 1380.3,
+        "process_rss_kib": 886480
+      },
+      {
+        "first_prompt_ms": 1390.62,
+        "process_rss_kib": 852096
+      }
+    ]
+  },
+  "goh_median_ms": 40.3,
+  "opencode_median_ms": 1380.3
+}
