@@ -85,6 +85,10 @@ def capture(binary, label, trial):
                            "models": {"fixture": {"name": "fixture", "limit": {"context": 131072, "output": 4096}}}
                        }}}))
             marker = "Ask anything"
+        if label == "goh":
+            config_dir = root / "Library/Application Support/independent-harness"
+            config_dir.mkdir(parents=True)
+            (config_dir / "config.json").write_text(json.dumps({"profiles": {"fast": {"model": "fixture-fast"}, "quality": {"model": "fixture-quality"}}, "agents": {"reviewer": {"mode": "plan", "description": "Read-only review", "instructions": "Review the project."}}}))
         master, slave = pty.openpty()
         fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
         screen = pyte.Screen(cols, rows)
@@ -147,11 +151,35 @@ def capture(binary, label, trial):
                     os.write(master, b"\x15Review the generated code\x01Please ")
                     drain(.3)
                     screenshot(screen, "goh-ui-composer")
+                    os.write(master, b"\x15/models\r")
+                    assert drain(5, "Select model profile")
+                    drain(.2)
+                    screenshot(screen, "goh-ui-models")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/agents\r")
+                    assert drain(5, "Select agent")
+                    drain(.2)
+                    screenshot(screen, "goh-ui-agents")
                 else:
                     os.write(master, b"Show a short code and table example\r")
                     assert drain(15, "Verification")
                     drain(.5)
                     screenshot(screen, "opencode-ui-session")
+                    os.write(master, b"/models\r")
+                    if not drain(.5, "Select model"):
+                        os.write(master, b"\r")
+                        assert drain(5, "Select model")
+                    drain(.3)
+                    screenshot(screen, "opencode-ui-models")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/agents\r")
+                    if not drain(.5, "Select agent"):
+                        os.write(master, b"\r")
+                        assert drain(5, "Select agent")
+                    drain(.3)
+                    screenshot(screen, "opencode-ui-agents")
             return {"first_prompt_ms": round(latency, 2), "process_rss_kib": rss}
         finally:
             (evidence / f"{label}-ui-{trial}.ansi").write_bytes(raw)

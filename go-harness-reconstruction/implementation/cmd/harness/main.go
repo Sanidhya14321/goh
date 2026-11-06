@@ -136,6 +136,14 @@ func runCommand(args []string, skipChooser bool) error {
 	if e != nil {
 		return e
 	}
+	f.Visit(func(v *flag.Flag) {
+		switch v.Name {
+		case "profile":
+			c.Profile = *profileName
+		case "agent":
+			c.Agent = *agentName
+		}
+	})
 	c, e = c.Resolve(*profileName, *agentName)
 	if e != nil {
 		return e

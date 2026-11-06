@@ -141,6 +141,8 @@ func editWorkspace(project *string) (bool, error) {
 
 func chatFirst(args []string) error {
 	project, sessionID := "", ""
+	var profile, agent *string
+	sessionOverride := false
 	skipChooser := true
 	var actionErr error
 	for {
@@ -148,7 +150,13 @@ func chatFirst(args []string) error {
 		if project != "" {
 			command = append(command, "--project", project)
 		}
-		if sessionID != "" || !skipChooser {
+		if profile != nil {
+			command = append(command, "--profile="+*profile)
+		}
+		if agent != nil {
+			command = append(command, "--agent="+*agent)
+		}
+		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
 		}
 		err := runCommand(command, skipChooser)
@@ -167,6 +175,7 @@ func chatFirst(args []string) error {
 			}
 		}
 		sessionID = nav.Session
+		sessionOverride = true
 		skipChooser = true
 		actionErr = nil
 		switch nav.Action {
@@ -186,6 +195,43 @@ func chatFirst(args []string) error {
 			}
 		case "sessions":
 			sessionID, skipChooser = "", false
+		case "new":
+			sessionID = ""
+			if nav.Project != "" {
+				project = nav.Project
+			}
+		case "models", "agents", "cycle_agent", "previous_agent":
+			cfg := core.Defaults()
+			if nav.Config != nil {
+				cfg = *nav.Config
+			} else if loaded, err := core.LoadConfig(""); err == nil {
+				cfg = loaded
+			}
+			if nav.Action == "cycle_agent" || nav.Action == "previous_agent" {
+				selected := nextAgent(cfg, nav.Action == "previous_agent")
+				agent = &selected
+				break
+			}
+			title, current, options := "Select model profile", cfg.Profile, modelOptions(cfg)
+			if nav.Action == "agents" {
+				title, current, options = "Select agent", cfg.Agent, agentOptions(cfg)
+				if current == "" {
+					current = "build"
+				}
+			}
+			var selected string
+			var chosen bool
+			selected, chosen, actionErr = tui.SelectOption(title, current, options, nav.Backdrop)
+			if chosen {
+				switch {
+				case nav.Action == "agents":
+					agent = &selected
+				case selected == "@provider":
+					_, actionErr = configureProvider()
+				default:
+					profile = &selected
+				}
+			}
 		}
 	}
 }

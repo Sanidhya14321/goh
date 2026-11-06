@@ -21,6 +21,9 @@ var paletteEntries = []paletteEntry{
 	{"/skills", "View available skills"},
 	{"/sidebar", "Toggle session sidebar"},
 	{"/commands", "List custom commands"},
+	{"/models", "Select a configured model profile"},
+	{"/agents", "Select Build, Plan or a custom agent"},
+	{"/new", "Start a new conversation"},
 }
 
 func (m *model) allPaletteEntries() []paletteEntry {

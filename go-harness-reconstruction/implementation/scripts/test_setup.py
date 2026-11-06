@@ -7,6 +7,7 @@ import pathlib
 import pty
 import select
 import stat
+import sys
 import subprocess
 import tempfile
 import termios
@@ -18,15 +19,19 @@ key = "goh-test-provider-key"
 
 requests = []
 prompts = []
+models = []
+toolsets = []
 
 class Provider(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         requests.append(self.path)
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         prompts.append(body["messages"][-1]["content"])
-        if (self.path, self.headers.get("Authorization"), body["model"]) != (
-            "/proxy/v1/chat/completions", "Bearer " + key, "setup-fixture"
-        ):
+        models.append(body["model"])
+        toolsets.append({t["function"]["name"] for t in body.get("tools", [])})
+        if (self.path != "/proxy/v1/chat/completions" or
+                self.headers.get("Authorization") != "Bearer " + key or
+                body["model"] not in ("setup-fixture", "fixture-fast")):
             self.send_error(401)
             return
         self.send_response(200)
@@ -49,6 +54,9 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
     project.mkdir()
     env = {k: v for k, v in os.environ.items() if not k.startswith("HARNESS_") and k != "OPENAI_API_KEY"}
     env.update(HOME=str(root), XDG_CONFIG_HOME=str(root / ".config"), TERM="xterm-256color")
+    config_dir = root / ("Library/Application Support" if sys.platform == "darwin" else ".config") / "independent-harness"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.json").write_text(json.dumps({"profiles": {"fast": {"model": "fixture-fast"}}}))
     master, slave = pty.openpty()
     original = termios.tcgetattr(slave)
     app = subprocess.Popen([binary], cwd=project, env=env, stdin=slave, stdout=slave, stderr=slave)
@@ -102,6 +110,58 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         # Wait for the recalled prompt's run to settle before navigating.
         time.sleep(.1)
         pos = len(output)
+        os.write(master, b"/models\r")
+        wait_for(b"Select model profile", pos)
+        os.write(master, b"fast")
+        time.sleep(.05)
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b"Agent: build  \xc2\xb7  fixture-fast", pos)
+        time.sleep(.1)
+        pos = len(output)
+        os.write(master, b"Verify selected model\r")
+        wait_for(b"completed", pos)
+        assert models[-1] == "fixture-fast", models
+        assert list(root.rglob("*.jsonl")) == [journal_before]
+        pos = len(output)
+        os.write(master, b"/agents\r")
+        wait_for(b"Select agent", pos)
+        os.write(master, b"plan")
+        time.sleep(.05)
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b"Agent: plan", pos)
+        time.sleep(.1)
+        pos = len(output)
+        os.write(master, b"Inspect in read-only mode\r")
+        wait_for(b"completed", pos)
+        assert not ({"shell", "edit_file", "write_file", "create_file", "apply_patch"} & toolsets[-1]), toolsets[-1]
+        pos = len(output)
+        os.write(master, b"\t")
+        wait_for(b"Agent: build", pos)
+        pos = len(output)
+        os.write(master, b"/models\r")
+        wait_for(b"Select model profile", pos)
+        os.write(master, b"default")
+        time.sleep(.05)
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        pos = len(output)
+        os.write(master, b"Verify default model\r")
+        wait_for(b"completed", pos)
+        assert models[-1] == "setup-fixture", models
+        pos = len(output)
+        os.write(master, b"/new\r")
+        wait_for(b"Agent: build", pos)
+        deadline = time.monotonic()+8
+        while len(list(root.rglob("*.jsonl"))) < 2 and time.monotonic() < deadline:
+            if select.select([master], [], [], .05)[0]:
+                output.extend(os.read(master, 65536))
+        assert len(list(root.rglob("*.jsonl"))) == 2, list(root.rglob("*.jsonl"))
+        time.sleep(.1)
+        pos = len(output)
         os.write(master, b"/settings\r")
         wait_for(b"Edit advanced settings", pos)
         os.write(master, b"s")
@@ -130,7 +190,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

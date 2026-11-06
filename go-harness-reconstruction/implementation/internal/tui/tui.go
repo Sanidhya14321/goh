@@ -19,8 +19,11 @@ import (
 )
 
 type ChatNavigation struct {
-	Action  string
-	Session string
+	Action   string
+	Session  string
+	Project  string
+	Config   *core.Config
+	Backdrop string
 }
 
 func (n *ChatNavigation) Error() string { return "chat navigation: " + n.Action }
@@ -330,8 +333,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			switch strings.TrimSpace(prompt) {
-			case "/provider", "/settings", "/workspace", "/sessions":
+			case "/provider", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
 				m.navigation = strings.TrimSpace(prompt)[1:]
+				m.input, m.inputCursor = "", 0
 				return m, tea.Quit
 			}
 			if m.blocked != "" {
@@ -342,7 +346,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
-				m.log += "\nCommands: /provider, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands\n"
+				m.log += "\nCommands: /provider, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands\n"
 				names := make([]string, 0, len(m.a.Config.Commands))
 				for name := range m.a.Config.Commands {
 					names = append(names, name)
@@ -425,6 +429,14 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if matches := m.slashMatches(); len(matches) > 0 {
 				m.input = matches[0].command
 				m.inputCursor = len([]rune(m.input))
+			} else if m.input == "" && m.a != nil {
+				m.navigation = "cycle_agent"
+				return m, tea.Quit
+			}
+		case "shift+tab":
+			if m.input == "" && m.a != nil {
+				m.navigation = "previous_agent"
+				return m, tea.Quit
 			}
 		case "backspace":
 			m.deleteInput(true)
@@ -628,7 +640,7 @@ func Run(a *agent.Agent) error {
 	a.Approve = oldApprove
 	a.Ask = oldAsk
 	if e == nil && m.navigation != "" {
-		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID}
+		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content}
 	}
 	return e
 }
@@ -638,7 +650,7 @@ func RunBlocked(status, reason string) error {
 	m := &model{width: 80, height: 24, status: status, blocked: reason, log: reason}
 	_, err := tea.NewProgram(m).Run()
 	if err == nil && m.navigation != "" {
-		return &ChatNavigation{Action: m.navigation}
+		return &ChatNavigation{Action: m.navigation, Backdrop: m.View().Content}
 	}
 	return err
 }

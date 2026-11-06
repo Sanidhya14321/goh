@@ -31,7 +31,8 @@ func paint(text, fg, bg string) string {
 }
 
 func cell(text string, width int, fg, bg string) string {
-	text = ansi.Truncate(strings.ReplaceAll(Safe(text), "\t", "    "), max(0, width), "")
+	text = strings.ReplaceAll(strings.ReplaceAll(Safe(text), "\t", "    "), "\n", " ")
+	text = ansi.Truncate(text, max(0, width), "")
 	return paint(text+strings.Repeat(" ", max(0, width-ansi.StringWidth(text))), fg, bg)
 }
 
@@ -117,7 +118,7 @@ func (m *model) View() tea.View {
 	promptRows = append(promptRows,
 		cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel),
 		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName, promptWidth-1, blue, panel))
-	controls := "Enter send  Alt+Enter newline  Ctrl+P commands  Ctrl+D exit"
+	controls := "Enter send  Alt+Enter newline  Ctrl+P commands  Ctrl+D exit  Tab agents"
 	if m.active {
 		controls = "Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
 	}

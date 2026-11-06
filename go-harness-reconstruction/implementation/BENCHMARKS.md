@@ -73,3 +73,5 @@ the render cache on every iteration to represent incoming stream deltas.
 Raw records are `research/evidence/ui-rich-color-benchmark.txt` and
 `research/evidence/ui-rich-render-benchmark.txt`. The latest startup comparison
 uses the same local method and is retained in `ui-startup-comparison.json`.
+
+RC9 exercises model/agent dialogs after the first-prompt timing interval. The three-trial startup medians are 45.35 ms for GoHarness and 1386.50 ms for OpenCode. Both executables use isolated homes and a configured loopback fixture. The latest PNG captures include both applications’ model and agent dialogs.

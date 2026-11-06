@@ -1,0 +1,77 @@
+../research/tooling/go/bin/go test ./internal/provider -run '^$' -fuzz FuzzAnthropicSSE -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/42 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 42/42 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 310 (103/sec), new interesting: 1 (total: 43)
+fuzz: elapsed: 4s, execs: 310 (0/sec), new interesting: 1 (total: 43)
+PASS
+ok  	example.com/independent-harness/internal/provider	4.548s
+../research/tooling/go/bin/go test ./internal/structured -run '^$' -fuzz FuzzStructuredResult -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/79 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 79/79 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 45010 (15000/sec), new interesting: 69 (total: 148)
+fuzz: elapsed: 4s, execs: 45010 (0/sec), new interesting: 69 (total: 148)
+PASS
+ok  	example.com/independent-harness/internal/structured	4.567s
+../research/tooling/go/bin/go test ./internal/provider -run '^$' -fuzz FuzzSSE -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/48 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 48/48 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 69892 (23291/sec), new interesting: 44 (total: 92)
+fuzz: elapsed: 4s, execs: 69892 (0/sec), new interesting: 44 (total: 92)
+PASS
+ok  	example.com/independent-harness/internal/provider	4.298s
+../research/tooling/go/bin/go test ./internal/tools -run '^$' -fuzz FuzzToolArguments -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/275 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 275/275 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 125429 (41799/sec), new interesting: 22 (total: 297)
+fuzz: elapsed: 3s, execs: 125429 (0/sec), new interesting: 22 (total: 297)
+PASS
+ok  	example.com/independent-harness/internal/tools	3.622s
+../research/tooling/go/bin/go test ./internal/session -run '^$' -fuzz FuzzJournal -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/60 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 60/60 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 198769 (66241/sec), new interesting: 17 (total: 77)
+fuzz: elapsed: 3s, execs: 198769 (0/sec), new interesting: 17 (total: 77)
+PASS
+ok  	example.com/independent-harness/internal/session	3.581s
+../research/tooling/go/bin/go test ./internal/skills -run '^$' -fuzz FuzzSkillFrontmatter -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/31 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 31/31 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 186221 (62073/sec), new interesting: 13 (total: 44)
+fuzz: elapsed: 3s, execs: 186221 (0/sec), new interesting: 13 (total: 44)
+PASS
+ok  	example.com/independent-harness/internal/skills	3.904s
+../research/tooling/go/bin/go test ./internal/tools -run '^$' -fuzz FuzzPatchGrammar -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/14 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 14/14 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 147877 (49280/sec), new interesting: 1 (total: 15)
+fuzz: elapsed: 3s, execs: 147877 (0/sec), new interesting: 1 (total: 15)
+PASS
+ok  	example.com/independent-harness/internal/tools	3.272s
+../research/tooling/go/bin/go test ./internal/lspclient -run '^$' -fuzz FuzzLSPFrame -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/13 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 13/13 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 134511 (44836/sec), new interesting: 3 (total: 16)
+fuzz: elapsed: 4s, execs: 134511 (0/sec), new interesting: 3 (total: 16)
+PASS
+ok  	example.com/independent-harness/internal/lspclient	4.496s
+../research/tooling/go/bin/go test ./internal/webfetch -run '^$' -fuzz FuzzWebfetchArguments -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/113 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 113/113 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 66078 (22020/sec), new interesting: 33 (total: 146)
+fuzz: elapsed: 4s, execs: 66078 (0/sec), new interesting: 33 (total: 146)
+PASS
+ok  	example.com/independent-harness/internal/webfetch	4.587s
+../research/tooling/go/bin/go test ./internal/webfetch -run '^$' -fuzz FuzzHTMLConversion -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/64 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 64/64 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 12215 (4071/sec), new interesting: 21 (total: 85)
+fuzz: elapsed: 4s, execs: 12215 (0/sec), new interesting: 21 (total: 85)
+PASS
+ok  	example.com/independent-harness/internal/webfetch	4.304s
+../research/tooling/go/bin/go test ./internal/commands -run '^$' -fuzz FuzzExpansion -fuzztime 3s -parallel 2
+fuzz: elapsed: 0s, gathering baseline coverage: 0/51 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 51/51 completed, now fuzzing with 2 workers
+fuzz: elapsed: 3s, execs: 11873 (3957/sec), new interesting: 10 (total: 61)
+fuzz: elapsed: 4s, execs: 11873 (0/sec), new interesting: 10 (total: 61)
+PASS
+ok  	example.com/independent-harness/internal/commands	4.494s

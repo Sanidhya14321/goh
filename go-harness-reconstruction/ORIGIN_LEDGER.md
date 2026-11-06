@@ -97,3 +97,10 @@ wrapping, narrow-pane fallback, and lexical highlighting use the standard-librar
 scanner and the already pinned ANSI module. Public image search and an isolated
 OpenCode session with a local fixture provided visual reference. No upstream
 rendering code or additional runtime dependency was incorporated.
+
+RC9 UI continuation. The pinned OpenCode model/agent dialogs and command
+bindings, public screenshots, and the isolated executable were consulted.
+The Go option picker, configured-profile selection, agent cycling, and new-chat
+navigation are original implementations using the existing Bubble Tea and
+configuration/runtime layers. The Git baseline captures existing RC8 work;
+new UI milestones use actual commit dates.

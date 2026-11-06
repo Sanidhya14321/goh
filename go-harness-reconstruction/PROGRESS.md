@@ -6,7 +6,7 @@ is not complete; observed compatibility and remaining gates are separate below.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.8` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.9` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.
@@ -20,6 +20,10 @@ in the palette. Conversation rendering adds Markdown headings, lists, quotes,
 and fenced code panels while preserving literal code and approval contents.
 Pipe tables now have aligned grids, wrapping, and a stacked fallback for narrow
 panes. Code panels highlight Go, JSON, JavaScript, and TypeScript lexically.
+Searchable model-profile and agent selectors are available through /models and
+/agents. Tab/Shift+Tab cycle agents, and /new starts a fresh conversation.
+Model IDs in provider requests and Plan's read-only tool definitions were checked through
+the executable in a disposable terminal.
 An intermittent child-cancellation cleanup result observed under concurrent
 verification remains a release investigation item.
 The previous `harness` command points to the same build. The terminal UI now wraps by
@@ -32,7 +36,11 @@ llama.cpp and Qwen3. V1 will ship as one version across macOS, Linux, and Window
 The remaining release gates are a Windows port that preserves process cleanup
 and file safety, native smoke tests on the supported platforms, and
 end-to-end tests of the one-command installers against checksummed artifacts.
-Publication also needs a release repository. Feature expansion resumes after V1.
+The coordinated V1 release follows native platform and installer validation.
+
+The public source repository is [GoHarness](https://github.com/Sanidhya14321/goharness).
+Git history begins with the RC8 implementation baseline and then records
+subsequent UI work. Published V1 acceptance still depends on the gates above.
 
 ## Part checkpoints
 

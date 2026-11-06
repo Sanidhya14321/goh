@@ -20,6 +20,17 @@ setup. Fixing the key retains the session.
 Use `/workspace` to choose a project, `/sessions` to select a saved chat, and
 `/settings` for the settings menu. Closing a settings panel returns to chat.
 
+`/models` opens a searchable list of configured model profiles and a provider
+setup entry. `/agents` selects Build, Plan, or a configured custom agent.
+Tab/Shift+Tab cycle agents when the composer is empty. These switches retain the
+session and re-create the runtime through the existing configuration resolver.
+Plan mode exposes read-only tools. `/new` starts a fresh conversation in the
+current workspace with the selected model and agent.
+
+Selections apply to the current chat process. Set the default `profile` and
+`agent` in advanced settings to use them in future processes. Environment and
+explicit CLI provider overrides follow the documented configuration precedence.
+
 The terminal UI uses a centered welcome screen and prompt panel, a bottom
 workspace bar, and an optional session sidebar on terminals at least 112 columns
 wide. **Ctrl+B** toggles the sidebar. **PgUp/PgDn** scroll the transcript.

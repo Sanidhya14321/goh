@@ -6,11 +6,24 @@ Live inference was tested on loopback. Remote publication is pending.
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.8` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.9` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC9 evidence is under `research/evidence/v1-ui-pickers-*`. Its executable PTY
+test selects a named model profile, observes the changed model ID in an actual
+provider request, returns to the default profile, and verifies the original
+model ID. It selects Plan and checks that shell and mutation tools are absent
+from the provider request. It also cycles to Build and verifies /new creates a
+second journal while retaining the original. Race, vet, CLI, ACP, and the
+isolated 15-case terminal suite pass.
+
+`goh-ui-models.png` and `goh-ui-agents.png` capture the new selectors. Source,
+test evidence, and project stage documents are published through the project
+Git repository. Local toolchains and reference checkouts are excluded by the
+repository ignore rules.
 
 RC8 evidence is under `research/evidence/v1-ui-rich-*`. The race suite, vet,
 CLI, ACP, setup, and isolated 15-case PTY run passed. One PTY run concurrent
