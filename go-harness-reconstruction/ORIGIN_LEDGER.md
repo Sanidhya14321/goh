@@ -111,3 +111,9 @@ isolated executable. Session filtering, asynchronous preview batches, bounded
 read-only journal excerpts, and browser resume navigation are original Go
 implementations. The existing journal format, runtime resolver, and ANSI
 module are reused. No runtime dependency was added.
+
+RC11 UI continuation, 7 November 2026. The pinned OpenCode status dialog,
+public screenshots, and the isolated executable were consulted. The Go local
+snapshot, configuration shortcuts, credential-presence checks, formatter
+discovery integration, and shared modal composition are original code using
+existing runtime, configuration, and rendering layers.

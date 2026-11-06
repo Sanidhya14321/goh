@@ -60,6 +60,9 @@ func (m *model) View() tea.View {
 	if height < 1 {
 		height = 24
 	}
+	if m.infoPanel != nil {
+		return m.statusView(width, height)
+	}
 	if m.palette {
 		return m.paletteView(width, height)
 	}

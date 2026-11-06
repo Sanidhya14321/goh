@@ -1,4 +1,4 @@
-# Verification record — 6 November 2026
+# Verification record — 7 November 2026
 
 This is a working development alpha. Full release acceptance in the supplied plan
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
@@ -6,11 +6,21 @@ Live inference was tested on loopback. Remote publication is pending.
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.10` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.11` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC11 evidence is under `research/evidence/v1-ui-status-*`. The PTY flow opens
+status before provider setup, uses its provider shortcut, then inspects and
+refreshes status after a run. Provider request counts and journal byte comparisons
+verify that opening and refreshing the snapshot create no model request or
+journal mutation. Unit regressions check key/path/query/environment redaction,
+draft preservation, Plan-mode labels, terminal sizes, and scrolling.
+Resumed tool-message regressions check readable saved envelopes, preserved error
+labels, and legacy payloads. The same tool formatter serves live and resumed
+results.
 
 RC10 evidence is under `research/evidence/v1-ui-sessions-*`. The PTY flow
 searches an older conversation by title, resumes its original journal, and

@@ -76,7 +76,10 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"Should stay blocked\r")
         time.sleep(.1)
         assert not requests
-        os.write(master, b"\x10\r")
+        os.write(master, b"/status\r")
+        wait_for(b"GoHarness  /  Status")
+        assert not requests
+        os.write(master, b"p")
         wait_for(b"Provider setup")
         os.write(master, f"http://127.0.0.1:{server.server_port}/proxy/v1".encode() + b"\t\tsetup-fixture\t\t\t" + b"incorrect-test-key")
         wait_for("••••".encode())
@@ -193,6 +196,25 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         time.sleep(.1)
         assert journal_before.read_bytes() == before_preview
         pos = len(output)
+        count = len(requests)
+        before_status = journal_before.read_bytes()
+        os.write(master, b"/status\r")
+        wait_for(b"GoHarness  /  Status", pos)
+        wait_for(b"Local key present", pos)
+        os.write(master, b"\x1b[F")
+        wait_for(b"PERMISSIONS", pos)
+        os.write(master, b"r")
+        time.sleep(.1)
+        assert len(requests) == count
+        pos = len(output)
+        os.write(master, b"p")
+        wait_for(b"Provider setup", pos)
+        pos = len(output)
+        os.write(master, b"\x1b")
+        wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        assert journal_before.read_bytes() == before_status
+        pos = len(output)
         os.write(master, b"/settings\r")
         wait_for(b"Edit advanced settings", pos)
         os.write(master, b"s")
@@ -221,7 +243,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

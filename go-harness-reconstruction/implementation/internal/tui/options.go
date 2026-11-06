@@ -111,10 +111,15 @@ func (m *optionPicker) View() tea.View {
 	}
 	rows = append(rows, padding+cell("", boxWidth, foreground, panel),
 		padding+cell("  ↑/↓ select  Enter apply  Esc back to chat", boxWidth, muted, panel))
-	if m.backdrop == "" {
+	return overlayView(m.backdrop, rows, left, top, width, height)
+}
+
+func overlayView(backdrop string, rows []string, left, top, width, height int) tea.View {
+	if backdrop == "" {
 		return canvas(rows, width, height)
 	}
-	under := strings.Split(ansi.Strip(m.backdrop), "\n")
+	boxWidth := ansi.StringWidth(rows[top]) - left
+	under := strings.Split(ansi.Strip(backdrop), "\n")
 	composed := make([]string, height)
 	for y := range composed {
 		line := ""

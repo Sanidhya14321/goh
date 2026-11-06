@@ -69,6 +69,7 @@ type model struct {
 	wrappedRows     []transcriptRow
 	wrappedWindow   int
 	wrappedReview   bool
+	infoPanel       *statusPanel
 }
 
 func Safe(s string) string {
@@ -230,6 +231,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		return m, nil
 	case tea.PasteMsg:
+		if m.infoPanel != nil {
+			return m, nil
+		}
 		if m.question != nil && m.question.custom {
 			if len(m.question.text)+len(v.Content) <= 4096 {
 				m.question.text += Safe(v.Content)
@@ -244,6 +248,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		key := v.String()
 		if key == "ctrl+l" {
 			return m, tea.ClearScreen
+		}
+		if m.infoPanel != nil {
+			return m.statusKey(key)
 		}
 		if key == "ctrl+c" {
 			if m.active {
@@ -307,6 +314,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "ctrl+b":
 			m.hideSidebar = !m.hideSidebar
 			return m, nil
+		case "ctrl+g":
+			m.openStatus()
+			return m, nil
 		}
 		if key == "esc" {
 			m.palette = false
@@ -322,6 +332,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
+			if strings.TrimSpace(prompt) == "/status" {
+				m.input, m.inputCursor = "", 0
+				m.openStatus()
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/sidebar" {
 				m.input, m.inputCursor = "", 0
 				m.hideSidebar = !m.hideSidebar
@@ -571,11 +586,11 @@ func Run(a *agent.Agent, notice string) error {
 				m.log += "\n[tool] " + Safe(call.Function.Name) + "\n"
 			}
 		case "tool":
-			text := message.Content
+			text := historyToolText(message.Content)
 			if len(text) > 2048 {
 				text = text[:2048] + "…"
 			}
-			m.log += "\n[result] " + Safe(text) + "\n"
+			m.log += "\n" + Safe(text) + "\n"
 		}
 	}
 	if len(m.log) > 128<<10 {

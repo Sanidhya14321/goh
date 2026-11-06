@@ -1,4 +1,4 @@
-# Implementation progress — 6 November 2026
+# Implementation progress — 7 November 2026
 
 A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
@@ -6,7 +6,7 @@ is not complete; observed compatibility and remaining gates are separate below.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.10` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.11` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.
@@ -28,6 +28,12 @@ The session browser now has title/ID/workspace search, current-workspace scope,
 newest first ordering, and bounded asynchronous conversation previews.
 Narrow terminals can open a full-width preview with Tab. The preview command
 reads complete journal-prefix records and reports unfinished runs.
+The local status dialog links provider/model/agent/settings configuration and
+summarizes context budgets, credential presence, explicit grants, integrations,
+and formatter availability. Its snapshot preserves drafts and performs no
+provider request or server startup.
+Resumed tool-result displays now reuse the live result formatter and retain
+error labels while hiding internal transport envelopes.
 An intermittent child-cancellation cleanup result observed under concurrent
 verification remains a release investigation item.
 The previous `harness` command points to the same build. The terminal UI now wraps by

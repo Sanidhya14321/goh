@@ -84,3 +84,7 @@ preview read and parse rather than an entire multi-session browser load.
 RC9 exercises model/agent dialogs after the first-prompt timing interval. The three-trial startup medians are 45.35 ms for GoHarness and 1386.50 ms for OpenCode. Both executables use isolated homes and a configured loopback fixture. The latest PNG captures include both applications’ model and agent dialogs.
 
 RC10 startup medians were 44.36 ms for GoHarness and 1363.11 ms for OpenCode across three trials. The session-browser captures occur after the first-prompt timing interval.
+
+RC11 status rendering measured about 0.411 ms per View call for a cached local snapshot in a 120×36 viewport with NO_COLOR enabled. Credential checks and formatter discovery happen when opening or refreshing the dialog and are outside this rendering interval. See research/evidence/ui-status-benchmark.txt.
+
+RC11 first-prompt startup medians were 40.17 ms for GoHarness and 1375.68 ms for OpenCode over three local trials. No inference occurs in that timing interval.

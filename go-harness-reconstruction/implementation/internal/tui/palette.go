@@ -24,6 +24,7 @@ var paletteEntries = []paletteEntry{
 	{"/models", "Select a configured model profile"},
 	{"/agents", "Select Build, Plan or a custom agent"},
 	{"/new", "Start a new conversation"},
+	{"/status", "Inspect provider, context, permissions and integrations"},
 }
 
 func (m *model) allPaletteEntries() []paletteEntry {

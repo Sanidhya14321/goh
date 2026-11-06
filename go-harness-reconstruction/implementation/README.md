@@ -20,6 +20,17 @@ setup. Fixing the key retains the session.
 Use `/workspace` to choose a project, `/sessions` to select a saved chat, and
 `/settings` for the settings menu. Closing a settings panel returns to chat.
 
+`/status` or Ctrl+G opens a local status snapshot while idle. It shows provider
+configuration, credential presence, context/output budgets, reported usage,
+session grants, configured MCP/LSP servers, and formatter executable availability.
+Integration entries describe configuration rather than live connection health.
+Provider URL paths, query strings, key values, and integration environments are
+excluded from this snapshot.
+
+Use arrows or PgUp/PgDn to scroll, Home/End to jump, and r to refresh. The p/m/a/s
+shortcuts open provider, model, agent, and advanced settings respectively.
+Esc returns to chat and preserves an unfinished draft opened with Ctrl+G.
+
 The session browser shows recently created conversations first and derives titles
 from their first saved user message. Search matches titles, IDs, and workspace
 paths. Ctrl+W toggles the current-workspace filter. Summaries load in background

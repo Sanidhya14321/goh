@@ -3,8 +3,26 @@ package tui
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 )
+
+func historyToolText(raw string) string {
+	var envelope struct {
+		Content *string
+		Error   bool
+	}
+	decoder := json.NewDecoder(strings.NewReader(raw))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(&envelope) == nil && envelope.Content != nil && decoder.Decode(new(any)) == io.EOF {
+		mark := "✓ "
+		if envelope.Error {
+			mark = "[error] "
+		}
+		return mark + toolResultText(*envelope.Content)
+	}
+	return "[result] " + toolResultText(raw)
+}
 
 func toolArgumentText(raw json.RawMessage) string {
 	var args struct {

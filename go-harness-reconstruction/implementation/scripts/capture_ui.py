@@ -167,6 +167,12 @@ def capture(binary, label, trial):
                     assert drain(5, "GoHarness  /  Sessions")
                     drain(.3)
                     screenshot(screen, "goh-ui-sessions")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/status\r")
+                    assert drain(5, "GoHarness  /  Status")
+                    drain(.3)
+                    screenshot(screen, "goh-ui-status")
                 else:
                     os.write(master, b"Show a short code and table example\r")
                     assert drain(15, "Verification")
@@ -194,6 +200,14 @@ def capture(binary, label, trial):
                         assert drain(5, "Sessions")
                     drain(.3)
                     screenshot(screen, "opencode-ui-sessions")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/status\r")
+                    if not drain(.5, "No MCP Servers"):
+                        os.write(master, b"\r")
+                        assert drain(5, "No MCP Servers")
+                    drain(.3)
+                    screenshot(screen, "opencode-ui-status")
             return {"first_prompt_ms": round(latency, 2), "process_rss_kib": rss}
         finally:
             (evidence / f"{label}-ui-{trial}.ansi").write_bytes(raw)
