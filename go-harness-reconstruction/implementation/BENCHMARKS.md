@@ -133,3 +133,22 @@ What it measures: context size and model calls for one compaction. Masking
 avoids a model request of about 25.5K estimated bytes, while summarizing left a
 slightly smaller context. It does not measure answer quality, follow-up
 success, or live latency.
+
+## RC30 startup (regression check)
+
+`scripts/capture_ui.py` (verification-only venv with pyte and Pillow), three
+sequential trials per product in a 120×36 PTY on the development Mac,
+configured loopback provider, isolated homes, no inference. Measures process
+launch to the first interactive home prompt and parent-process RSS.
+
+| Product | Trials (ms) | Median | RSS (KiB) |
+| --- | --- | ---: | --- |
+| GoHarness 1.0.0-rc.30 | 39.27, 39.16, 50.39 | 39.27 ms | 22,960–23,280 |
+| OpenCode 1.19.5 | 1452.88, 1399.61, 1390.43 | 1399.61 ms | 816,176–838,832 |
+
+GoHarness startup is unchanged within noise since RC6 (40.30 ms) and RC17
+(about 36 ms) despite the features added since. OpenCode's median differs from
+the RC17 run (about 974 ms) on the same host, so cross-run comparisons of the
+reference product reflect host variance. Raw data:
+`research/evidence/ui-startup-comparison.json`. Not measured: inference
+latency, interaction latency under a live model, or task throughput.
