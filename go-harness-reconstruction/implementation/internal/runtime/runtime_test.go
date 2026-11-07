@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/testutil"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -102,6 +103,7 @@ func toolResult(t *testing.T, m core.Message) map[string]any {
 	return v
 }
 func TestReadEditShellEndToEndAndResultOrder(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	a, root := testAgent(t)
 	if err := os.WriteFile(filepath.Join(root, "target"), []byte("old\n"), 0644); err != nil {
 		t.Fatal(err)

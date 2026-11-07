@@ -2,6 +2,7 @@ package formatters
 
 import (
 	"example.com/independent-harness/internal/core"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,6 +10,7 @@ import (
 )
 
 func TestExplicitDiscoveryMatchingAndLiteralArguments(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	root := t.TempDir()
 	tool := filepath.Join(root, "formatter with spaces")
 	if err := os.WriteFile(tool, []byte("#!/bin/sh\nexit 0\n"), 0700); err != nil {

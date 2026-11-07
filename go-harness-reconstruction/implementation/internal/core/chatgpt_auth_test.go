@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"io"
 	"net/http"
 	"net/url"
@@ -115,7 +116,7 @@ func TestChatGPTAuthorizationStateIdentityAndRenewal(t *testing.T) {
 		t.Fatalf("unexpected sign-in outcome: %q %v", model, err)
 	}
 	path, _ := chatGPTPath("chatgpt-account.json")
-	if info, err := os.Stat(path); err != nil || info.Mode().Perm() != 0600 {
+	if info, err := os.Stat(path); err != nil || testutil.UnixModes() && info.Mode().Perm() != 0600 {
 		t.Fatal("credentials were not private", err)
 	}
 	account, err := readChatGPTAccount()

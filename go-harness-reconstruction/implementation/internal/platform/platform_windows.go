@@ -34,7 +34,10 @@ func openNoFollow(path string, flags int, perm os.FileMode) (*os.File, error) {
 
 // TryLock takes an exclusive, nonblocking lock on the whole file.
 func TryLock(f *os.File) error {
-	var ol windows.Overlapped
+	// Windows locks are mandatory, so lock one byte far beyond any real data:
+	// writers still exclude each other, while readers such as session previews
+	// can read the file contents.
+	ol := windows.Overlapped{Offset: 0xFFFFFFFE, OffsetHigh: 0x7FFFFFFF}
 	err := windows.LockFileEx(windows.Handle(f.Fd()), windows.LOCKFILE_EXCLUSIVE_LOCK|windows.LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0, &ol)
 	if errors.Is(err, windows.ERROR_LOCK_VIOLATION) {
 		return ErrLocked

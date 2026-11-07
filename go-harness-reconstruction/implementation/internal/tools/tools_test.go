@@ -15,7 +15,7 @@ import (
 
 func engine(t *testing.T) (*Engine, string) {
 	t.Helper()
-	root := t.TempDir()
+	root := testutil.TempDir(t)
 	e, err := New(root, t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -182,6 +182,7 @@ func TestInventorySearchLimitsAndCancellation(t *testing.T) {
 	}
 }
 func TestShellExitAndBoundedOutput(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	e, _ := engine(t)
 	v := object(t, call(t, e, "shell", map[string]any{"command": "printf out; printf err >&2"}))
 	if v["exit_code"] != float64(0) || !strings.Contains(v["output"].(string), "out") || !strings.Contains(v["output"].(string), "err") {
@@ -209,6 +210,7 @@ func TestShellExitAndBoundedOutput(t *testing.T) {
 	}
 }
 func TestShellTimeoutAndChildCleanup(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	e, root := engine(t)
 	start := time.Now()
 	r := call(t, e, "shell", map[string]any{"command": "trap '' TERM; sleep 30 & wait", "timeout_seconds": 1})

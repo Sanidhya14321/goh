@@ -3,12 +3,14 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestLiteralFormatterProcessArguments(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	root := t.TempDir()
 	e, err := New(root, t.TempDir())
 	if err != nil {

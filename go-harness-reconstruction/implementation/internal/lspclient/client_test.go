@@ -118,8 +118,14 @@ func TestLSPDisconnectCancelMalformedAndLarge(t *testing.T) {
 					t.Fatal(r)
 				}
 				m.Close()
-				b, _ := os.ReadFile(log)
-				if !strings.Contains(string(b), "-32601") {
+				// The fixture records the refusal asynchronously; under load
+				// the write can land just after Close returns.
+				refused := false
+				for deadline := time.Now().Add(2 * time.Second); !refused && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+					b, _ := os.ReadFile(log)
+					refused = strings.Contains(string(b), "-32601")
+				}
+				if !refused {
 					t.Fatal("server-requested effect was not refused")
 				}
 			} else if !r.Error {

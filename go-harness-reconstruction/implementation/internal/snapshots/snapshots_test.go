@@ -104,7 +104,7 @@ func TestSnapshotUndoRedoDurableAndIndexUnchanged(t *testing.T) {
 		t.Fatal("created file not removed")
 	}
 	st, _ := os.Stat(filepath.Join(p, "old"))
-	if st.Mode().Perm() != 0640 {
+	if testutil.UnixModes() && st.Mode().Perm() != 0640 {
 		t.Fatalf("mode: %o", st.Mode().Perm())
 	}
 	m.Close()
@@ -144,11 +144,14 @@ func TestSnapshotPrevalidationConflictsAndModes(t *testing.T) {
 		t.Fatal("published before complete prevalidation")
 	}
 	put(t, p, "b", "b")
-	if e := os.Chmod(filepath.Join(p, "b"), 0600); e != nil {
-		t.Fatal(e)
-	}
-	if _, e := m.Undo(context.Background(), id); !errors.Is(e, ErrConflict) {
-		t.Fatalf("expected mode conflict: %v", e)
+	// Windows has no permission bits to conflict on (chmod toggles read-only).
+	if testutil.UnixModes() {
+		if e := os.Chmod(filepath.Join(p, "b"), 0600); e != nil {
+			t.Fatal(e)
+		}
+		if _, e := m.Undo(context.Background(), id); !errors.Is(e, ErrConflict) {
+			t.Fatalf("expected mode conflict: %v", e)
+		}
 	}
 	r, _ := m.Read(id)
 	if r.Status != "recorded" {

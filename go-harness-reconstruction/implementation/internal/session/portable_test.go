@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -87,7 +88,7 @@ func TestPortableRoundTripAndFork(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if info.Mode().Perm() != 0600 {
+		if testutil.UnixModes() && info.Mode().Perm() != 0600 {
 			t.Fatal("derived journal permissions")
 		}
 	}

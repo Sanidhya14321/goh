@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -32,7 +33,7 @@ func TestSessionsPortableFileAndNoOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0600 {
+	if testutil.UnixModes() && info.Mode().Perm() != 0600 {
 		t.Fatal("export file not private")
 	}
 	var portable session.Portable

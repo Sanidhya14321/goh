@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -200,7 +201,7 @@ func globFiles(ctx context.Context, root *os.Root, a args) Result {
 	files := make([]string, 0)
 	visited, regular := 0, 0
 	truncated := false
-	err = fs.WalkDir(root.FS(), a.Path, func(p string, d fs.DirEntry, walkErr error) error {
+	err = fs.WalkDir(root.FS(), filepath.ToSlash(a.Path), func(p string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}

@@ -3,6 +3,7 @@ package session
 import (
 	"bytes"
 	"errors"
+	"example.com/independent-harness/internal/testutil"
 	"io"
 	"os"
 	"path/filepath"
@@ -42,7 +43,7 @@ func TestMarkdownTranscriptAndPrivatePublication(t *testing.T) {
 		t.Fatal(err)
 	}
 	info, err := os.Stat(file)
-	if err != nil || info.Mode().Perm() != 0600 {
+	if err != nil || testutil.UnixModes() && info.Mode().Perm() != 0600 {
 		t.Fatalf("export is not private: %v %v", info, err)
 	}
 	if err := WriteExportFile(file, write); !errors.Is(err, os.ErrExist) {

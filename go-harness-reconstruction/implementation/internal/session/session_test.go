@@ -2,6 +2,7 @@ package session
 
 import (
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -56,7 +57,7 @@ func TestDurableRoundTripAndUncertainEffects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm() != 0600 {
+	if testutil.UnixModes() && info.Mode().Perm() != 0600 {
 		t.Fatalf("permissions %o", info.Mode().Perm())
 	}
 	listed, err := List(dir)

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -21,6 +22,7 @@ func formatterFixture(t *testing.T, root, body string) string {
 	return file
 }
 func TestPostEditFormatterAdmissionAndFinalSnapshot(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	for _, mode := range []string{"allow", "denied", "headless", "failed"} {
 		t.Run(mode, func(t *testing.T) {
 			a, root := testAgent(t)
@@ -99,6 +101,7 @@ func TestPostEditFormatterAdmissionAndFinalSnapshot(t *testing.T) {
 	}
 }
 func TestFormatterCancellationRetainsBothCheckpoints(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	a, root := testAgent(t)
 	a.Config.Snapshots = true
 	program := formatterFixture(t, root, "printf '%s' $$ > formatter-pid\nprintf 'changed' > \"$1\"\nsleep 30")

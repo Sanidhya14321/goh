@@ -631,7 +631,7 @@ func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
 	var files []string
 	visited := 0
 	truncated := false
-	err := fs.WalkDir(r.FS(), a.Path, func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

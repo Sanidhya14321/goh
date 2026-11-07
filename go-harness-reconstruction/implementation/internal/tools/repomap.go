@@ -12,6 +12,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"unicode/utf8"
@@ -233,7 +234,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 	visited, files, bytesRead, skipped, parseErrors, hits := 0, 0, 0, 0, 0, 0
 	truncated := false
 	query := strings.ToLower(a.Query)
-	err = fs.WalkDir(r.FS(), a.Path, func(path string, d fs.DirEntry, walkErr error) error {
+	err = fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(path string, d fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

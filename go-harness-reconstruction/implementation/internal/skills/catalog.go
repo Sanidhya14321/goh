@@ -92,7 +92,7 @@ func New(ctx context.Context, project string, configured []string) (*Catalog, er
 			r.Close()
 			continue
 		}
-		err = fs.WalkDir(r.FS(), target.sub, func(p string, d fs.DirEntry, walkErr error) error {
+		err = fs.WalkDir(r.FS(), filepath.ToSlash(target.sub), func(p string, d fs.DirEntry, walkErr error) error {
 			if err := ctx.Err(); err != nil {
 				return err
 			}
@@ -224,7 +224,7 @@ func (c *Catalog) Load(ctx context.Context, name string) (Loaded, error) {
 	out = Loaded{Info: e.Info, BaseDirectory: filepath.Dir(e.Location), Content: body, Files: []string{}}
 	base := filepath.Dir(e.relative)
 	visited := 0
-	err = fs.WalkDir(r.FS(), base, func(p string, d fs.DirEntry, walkErr error) error {
+	err = fs.WalkDir(r.FS(), filepath.ToSlash(base), func(p string, d fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
