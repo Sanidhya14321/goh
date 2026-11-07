@@ -4,6 +4,17 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC20 undo and redo milestone
+
+`/undo` reverts the files the last turn changed through checkpointed tools and
+continues in a branch that ends before that turn, with the prompt back in the
+composer. `/redo` reapplies them and returns to the original conversation,
+until a new prompt is sent. Effects without checkpoints (shell, MCP) are named,
+not reverted. Files changed outside GoHarness cause a refusal that leaves files
+unchanged. The source journal is never edited. CLI: `goh changes undo-turn` and
+`redo-turn`. The behavior follows OpenCode's observed revert workflow; the
+implementation is original and reuses GoHarness fork and snapshot code.
+
 ## RC19 integration degradation milestone
 
 A failing optional integration no longer fails the run. An approved MCP server

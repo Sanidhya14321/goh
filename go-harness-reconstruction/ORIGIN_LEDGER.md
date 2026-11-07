@@ -154,3 +154,8 @@ and official OpenAI Sign in with ChatGPT documentation informed the connection
 picker and native OpenAI transport. GoHarness retains its local runtime,
 session journal, and approval controls. OAuth state, nonce, PKCE, bounded JWKS
 verification and Responses event processing are implemented in Go.
+
+RC18–RC20 (failover, integration degradation, internal/rewind turn undo/redo)
+are original Apache-2.0 source and tests. Undo/redo follows the user-visible
+OpenCode revert workflow observed in research/reference/source
+packages/opencode/src/session/revert.ts; no code was translated.

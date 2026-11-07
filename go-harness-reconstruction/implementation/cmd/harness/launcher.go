@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"example.com/independent-harness/internal/core"
+	"example.com/independent-harness/internal/rewind"
 	"example.com/independent-harness/internal/session"
 	"example.com/independent-harness/internal/tui"
 )
@@ -152,6 +153,7 @@ func chatFirst(args []string) error {
 	sessionOverride := false
 	skipChooser := true
 	var actionErr error
+	info := "" // non-error notice for the next chat screen
 	for {
 		command := append([]string(nil), args...)
 		if project != "" {
@@ -170,10 +172,11 @@ func chatFirst(args []string) error {
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
 		}
-		notice := ""
+		notice := info
 		if actionErr != nil {
 			notice = actionErr.Error()
 		}
+		info = ""
 		err := runCommand(command, skipChooser, notice, draft)
 		var nav *tui.ChatNavigation
 		if err == nil {
@@ -279,6 +282,22 @@ func chatFirst(args []string) error {
 				if selected == "" {
 					project = workspace
 				}
+			}
+		case "undo", "redo":
+			draft = nav.Draft
+			var result rewind.Result
+			if nav.Action == "undo" {
+				result, actionErr = rewind.Undo(context.Background(), nav.Config.SessionDir, nav.Session)
+			} else {
+				result, actionErr = rewind.Redo(context.Background(), nav.Config.SessionDir, nav.Session)
+			}
+			if actionErr != nil {
+				break
+			}
+			sessionID = result.Session
+			info = result.Summary(nav.Action == "undo")
+			if nav.Action == "undo" {
+				draft = result.Prompt
 			}
 		case "fork":
 			draft = nav.Draft

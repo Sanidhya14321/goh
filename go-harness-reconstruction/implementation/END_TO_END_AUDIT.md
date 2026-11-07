@@ -33,3 +33,9 @@ Recovery for a mutating operation starts by inspecting its recorded state. Autom
 GoHarness uses the [official Sign in with ChatGPT flow](https://developers.openai.com/siwc/token-sharing-open-source/sign-in) and [public Responses endpoint](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference). Browser authorization, tool results, and resumed history passed on this Mac. The current implementation has one authorized account and a local catalog default. Renewal and redirect restrictions were tested with fixtures. Live revocation, token expiry, account policy failures, real third-party integrations and native tests on other systems remain open.
 
 ChatGPT preview restrictions include a stateless HTTP stream and no request-level output token cap. GoHarness uses local context and turn limits, and presents its approved local tools through a namespace. [Preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)
+
+## RC20 turn undo and redo
+
+| Workflow | Implemented | Remaining |
+| --- | --- | --- |
+| Undo/redo | `/undo`, `/redo`, palette entries and `goh changes undo-turn|redo-turn`. File checkpoints from the turn are verified and reverted newest first; a refusal rolls back partial work. Conversation continues in a branch; the source journal is untouched. Unrestorable tools are named. Unit tests and a real PTY scenario. | Undo of more than one turn at a time, a diff preview before confirming, and keybindings such as OpenCode's leader shortcuts. |

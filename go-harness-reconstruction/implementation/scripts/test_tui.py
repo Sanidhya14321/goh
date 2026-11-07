@@ -30,14 +30,18 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     formatter.chmod(0o700)
     formatter_script=root/'formatter-script.json'
     formatter_script.write_text(json.dumps([{'calls':[{'id':'create-format','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'format.fmtcase','content':'raw'})}}]},{'text':'Formatter fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed')]:
+    import tempfile
+    outside_sessions=pathlib.Path(tempfile.mkdtemp(prefix='harness-undo-sessions-'))
+    undo_script=root/'undo-script.json'
+    undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         arguments = [str(base / 'bin/scripted-model'), '--listen', f'127.0.0.1:{port}']
-        arguments += ['--script', str(typed_script if scenario=='typed' else formatter_script if scenario=='formatter' else child_cancel_script if scenario=='child-cancel' else child_script if scenario=='child' else question_script if scenario=='questions' else task_script if scenario=='tasks' else script)] if scenario in ('script','tasks','questions','child','child-cancel','formatter','typed') else ['--scenario', scenario]
+        arguments += ['--script', str(undo_script if scenario=='undo' else typed_script if scenario=='typed' else formatter_script if scenario=='formatter' else child_cancel_script if scenario=='child-cancel' else child_script if scenario=='child' else question_script if scenario=='questions' else task_script if scenario=='tasks' else script)] if scenario in ('script','tasks','questions','child','child-cancel','formatter','typed','undo') else ['--scenario', scenario]
         fixture = subprocess.Popen(arguments, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         master, slave = pty.openpty()
         original = termios.tcgetattr(slave)
@@ -68,13 +72,15 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     time.sleep(.02)
             env = dict(os.environ, TERM='xterm-256color')
             extra=[]
+            if scenario=='undo':
+                extra=['--snapshots']  # snapshot storage must be outside the project
             if scenario=='formatter':
                 for filename in ('format.fmtcase','formatter-pid'):
                     (root/filename).unlink(missing_ok=True)
                 formatter_config=root/'formatter-config.json'
                 formatter_config.write_text(json.dumps({'formatters':{'fixture':{'command':str(formatter),'args':['$FILE'],'extensions':['.fmtcase'],'env':{'MODE':'cancel' if case=='formatter_cancellation' else 'normal'}}}}))
                 extra=['--config',str(formatter_config)]
-            process = subprocess.Popen([str(base / 'bin/goh'), 'chat', '--project', str(root), '--session-dir', str(root / case), '--endpoint', f'http://127.0.0.1:{port}/v1/chat/completions', '--model', 'scripted', '--context-window', '131072',*extra], stdin=slave, stdout=slave, stderr=slave, env=env)
+            process = subprocess.Popen([str(base / 'bin/goh'), 'chat', '--project', str(root), '--session-dir', str(outside_sessions if scenario=='undo' else root / case), '--endpoint', f'http://127.0.0.1:{port}/v1/chat/completions', '--model', 'scripted', '--context-window', '131072',*extra], stdin=slave, stdout=slave, stderr=slave, env=env)
             wait_for(b'Ctrl+D')
             if case == 'termination':
                 process.send_signal(signal.SIGTERM)
@@ -96,6 +102,24 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         if found: break
                         time.sleep(.02)
                     assert found,'typed task result not recorded'
+                elif case=='undo_redo':
+                    target=root/'undo-target.txt'
+                    target.unlink(missing_ok=True)
+                    wait_for(b'APPROVAL: create_file')
+                    os.write(master,b'y')
+                    wait_for(b'Undo fixture complete.')
+                    assert target.read_text()=='made in turn one'
+                    os.write(master,b'/undo\r')
+                    wait_for(b'Undid turn 1')
+                    assert not target.exists(),'undo left the file'
+                    wait_for(b'Exercise the fixture')  # prompt restored to the composer
+                    os.write(master,b'\x10')  # Ctrl+P palette
+                    time.sleep(.3)
+                    os.write(master,b'redo')
+                    time.sleep(.3)
+                    os.write(master,b'\r')
+                    wait_for(b'Redid turn 1')
+                    assert target.read_text()=='made in turn one','redo did not restore the file'
                 elif case.startswith('formatter_'):
                     wait_for(b'APPROVAL: create_file')
                     os.write(master,b'y')
@@ -207,7 +231,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 # journal record, while continuing to drain the pseudo-terminal.
                 parent_finished=False
                 for attempt in range(500):
-                    for journal in (root/case).glob('*.jsonl'):
+                    for journal in (outside_sessions if scenario=='undo' else root/case).glob('*.jsonl'):
                         records=live_records(journal)
                         if any(r['type']=='subagent_parent' for r in records): continue
                         if any(r['type']=='run_finished' for r in records): parent_finished=True

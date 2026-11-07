@@ -405,6 +405,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
 			}
+			if p := strings.TrimSpace(prompt); p == "/undo" || p == "/redo" {
+				m.input, m.inputCursor = "", 0
+				return m, m.requestRewind(p[1:])
+			}
 			if strings.TrimSpace(prompt) == "/timeline" {
 				m.input, m.inputCursor = "", 0
 				m.openTimeline()
@@ -796,4 +800,19 @@ func degradedLine(data any) string {
 		label = "integration"
 	}
 	return "\n[integration] " + label + " " + Safe(d.Name) + " unavailable and stopped: " + Safe(d.Error) + "\nChat and built-in tools continue. Fix its config and start a new run to retry.\n"
+}
+
+// requestRewind hands /undo or /redo to the launcher, which owns session
+// switching. File restoration happens there after the run has settled.
+func (m *model) requestRewind(action string) tea.Cmd {
+	if m.a == nil {
+		m.status = "Configure a provider to " + action + " a turn"
+		return nil
+	}
+	if m.status == "running" {
+		m.status = "Wait for the run to finish, or press Esc to cancel, before /" + action
+		return nil
+	}
+	m.navigation = action
+	return tea.Quit
 }

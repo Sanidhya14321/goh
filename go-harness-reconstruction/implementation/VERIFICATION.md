@@ -4,6 +4,17 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC20 undo and redo
+
+`1.0.0-rc.20` passed `go vet`, the race suite, seven CLI fixture scenarios and
+sixteen PTY scenarios. The new PTY scenario approves a file creation, types
+`/undo`, confirms the file is gone and the prompt is back, then selects Redo in
+the palette and confirms the file is restored. Fixture tests cover a two-turn
+round trip, refusal after an external edit with rollback of the already
+reverted file, shell effects reported as unrestorable, redo refused after a
+new prompt, and forking and continuing an undo branch. Live providers were not
+used.
+
 ## RC19 integration degradation
 
 `1.0.0-rc.19` passed `go vet`, the race suite, seven CLI fixture scenarios and

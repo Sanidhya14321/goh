@@ -54,6 +54,25 @@ for editing. The branch shares the workspace on disk, so its files reflect
 the current workspace. Conversation state is copied without session grants
 or tool execution.
 
+Use `/undo` to take back the last turn. GoHarness restores the files that
+turn changed through built-in file tools, newest change first, then continues
+in a branch that ends before that turn and puts its prompt back in the
+composer. `/redo` (or **Redo** in the palette) reapplies those files and returns
+to the original conversation. Redo is available until you send a new prompt
+from the branch; after that the original conversation stays in `/sessions`.
+The original journal is never edited.
+
+File restoration needs snapshots (`"snapshots": true` or `--snapshots`).
+Without them, `/undo` still rewinds the conversation, and the notice lists the
+tools whose effects remain. Shell commands, MCP tools and any other effect without
+a checkpoint are never reverted; the notice names them. Every file's current
+hash is checked before anything is restored. If a file was changed outside
+GoHarness, undo refuses and puts back anything it had already reverted, so files
+and conversation stay consistent. `/undo` waits for an active run to finish or be
+cancelled. The same operations are available as
+`goh changes undo-turn SESSION` and `goh changes redo-turn SESSION`, which
+print the result as JSON.
+
 Use `/export` or search **export** in the command palette to save a
 Markdown transcript of the current chat. Edit the filename, then press Enter.
 Tab focuses **Include tool details**, and Space toggles it. Relative paths

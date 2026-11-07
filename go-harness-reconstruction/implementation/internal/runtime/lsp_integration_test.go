@@ -149,7 +149,9 @@ func TestLSPMissingExecutableDegradesWithoutPendingEffects(t *testing.T) {
 		t.Fatal(status, e, a.Store.Pending())
 	}
 	// The next run must not be blocked by a start that never spawned.
-	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) { return answer(), nil })
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		return answer(), nil
+	})
 	if status, e := a.Run(context.Background(), "continue"); status != "completed" || e != nil {
 		t.Fatal("follow-up blocked", status, e)
 	}

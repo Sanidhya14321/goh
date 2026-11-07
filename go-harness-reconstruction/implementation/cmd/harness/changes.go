@@ -12,12 +12,13 @@ import (
 	"syscall"
 
 	"example.com/independent-harness/internal/core"
+	"example.com/independent-harness/internal/rewind"
 	"example.com/independent-harness/internal/session"
 	"example.com/independent-harness/internal/snapshots"
 )
 
 func changes(args []string) error {
-	usage := "changes list|diff|undo|redo|acknowledge SESSION --id CHECKPOINT [--session-dir DIR]"
+	usage := "changes list|diff|undo|redo|acknowledge SESSION --id CHECKPOINT [--session-dir DIR]\n       changes undo-turn|redo-turn SESSION [--session-dir DIR]"
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 		fmt.Println(usage)
 		return nil
@@ -31,7 +32,7 @@ func changes(args []string) error {
 	}
 	operation, subject := args[0], args[1]
 	switch operation {
-	case "list", "diff", "undo", "redo", "acknowledge":
+	case "list", "diff", "undo", "redo", "acknowledge", "undo-turn", "redo-turn":
 	default:
 		return errors.New(usage)
 	}
@@ -48,8 +49,25 @@ func changes(args []string) error {
 		}
 		return err
 	}
-	if f.NArg() != 0 || operation != "list" && *id == "" {
+	turnLevel := operation == "undo-turn" || operation == "redo-turn"
+	if f.NArg() != 0 || operation != "list" && !turnLevel && *id == "" {
 		return errors.New(usage)
+	}
+	if turnLevel {
+		// Turn-level rewind opens the session and checkpoints itself.
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer cancel()
+		var result rewind.Result
+		var err error
+		if operation == "undo-turn" {
+			result, err = rewind.Undo(ctx, *dir, subject)
+		} else {
+			result, err = rewind.Redo(ctx, *dir, subject)
+		}
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(os.Stdout).Encode(result)
 	}
 	store, err := session.Open(*dir, subject)
 	if err != nil {
