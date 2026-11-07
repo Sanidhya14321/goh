@@ -964,3 +964,58 @@ func keymapFor(c *core.Config) core.Keymap {
 	}
 	return km
 }
+
+// keyLabel formats the first key bound to action for on-screen hints, such as
+// "Ctrl+B" or "Ctrl+X B" for a leader binding. It returns "" when unbound.
+func (m *model) keyLabel(action string) string {
+	if m.keys.Direct == nil {
+		var c *core.Config
+		if m.a != nil {
+			c = &m.a.Config
+		}
+		m.keys = keymapFor(c)
+	}
+	format := func(k string) string {
+		parts := strings.Split(k, "+")
+		for i, p := range parts {
+			if len(p) > 0 {
+				parts[i] = strings.ToUpper(p[:1]) + p[1:]
+			}
+		}
+		return strings.Join(parts, "+")
+	}
+	var direct, leaderKey []string
+	for k, a := range m.keys.Direct {
+		if a == action {
+			direct = append(direct, k)
+		}
+		if a == "leader" {
+			leaderKey = append(leaderKey, k)
+		}
+	}
+	if len(direct) > 0 {
+		sort.Strings(direct)
+		// Prefer the conventional ctrl+ form when several keys are bound.
+		sort.SliceStable(direct, func(i, j int) bool { return len(direct[i]) < len(direct[j]) })
+		best := direct[0]
+		for _, k := range direct {
+			if strings.HasPrefix(k, "ctrl+") && !strings.HasPrefix(best, "ctrl+") {
+				best = k
+			}
+		}
+		if action == "command_palette" {
+			for _, k := range direct {
+				if k == "ctrl+p" {
+					best = k
+				}
+			}
+		}
+		return format(best)
+	}
+	for k, a := range m.keys.Leader {
+		if a == action && len(leaderKey) > 0 {
+			return format(leaderKey[0]) + " " + strings.ToUpper(k)
+		}
+	}
+	return ""
+}

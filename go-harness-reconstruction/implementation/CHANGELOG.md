@@ -8,6 +8,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 Nothing yet.
 
+## 1.0.0-rc.31 — 2026-11-07
+
+- On-screen shortcut hints (footer and sidebar) show the configured keys
+  and hide hints for unbound actions.
+
 ## 1.0.0-rc.30 — 2026-11-07
 
 - Credential errors name the file and the recovery command

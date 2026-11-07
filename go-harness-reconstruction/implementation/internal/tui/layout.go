@@ -136,7 +136,11 @@ func (m *model) View() tea.View {
 	promptRows = append(promptRows,
 		cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel),
 		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName, promptWidth-1, blue, panel))
-	controls := "Enter send  Alt+Enter newline  Ctrl+P commands  Ctrl+D exit  Tab agents"
+	controls := "Enter send  Alt+Enter newline  "
+	if key := m.keyLabel("command_palette"); key != "" {
+		controls += key + " commands  "
+	}
+	controls += "Ctrl+D exit  Tab agents"
 	if m.active {
 		controls = m.runControls()
 	}
@@ -310,5 +314,13 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 		}
 		rows = append(rows, mark+todo.Content)
 	}
-	return append(rows, "", "Ctrl+B toggle sidebar", "PgUp/PgDn history", "Ctrl+P commands")
+	rows = append(rows, "")
+	if key := m.keyLabel("sidebar_toggle"); key != "" {
+		rows = append(rows, key+" toggle sidebar")
+	}
+	rows = append(rows, "PgUp/PgDn history")
+	if key := m.keyLabel("command_palette"); key != "" {
+		rows = append(rows, key+" commands")
+	}
+	return rows
 }

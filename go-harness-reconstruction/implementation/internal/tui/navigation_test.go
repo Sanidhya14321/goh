@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+
+	"example.com/independent-harness/internal/core"
 )
 
 // topRow renders and returns the first non-blank visible transcript row.
@@ -56,5 +58,23 @@ func TestCopyWithoutReplyExplains(t *testing.T) {
 	m := &model{width: 40, height: 10}
 	if cmd := m.copyLastReply(); cmd != nil {
 		t.Fatal("nothing to copy without an agent")
+	}
+}
+
+func TestShortcutHintsFollowKeymap(t *testing.T) {
+	m := &model{}
+	if m.keyLabel("command_palette") != "Ctrl+P" || m.keyLabel("sidebar_toggle") != "Ctrl+B" || m.keyLabel("editor_open") != "Ctrl+X E" {
+		t.Fatal(m.keyLabel("command_palette"), m.keyLabel("sidebar_toggle"), m.keyLabel("editor_open"))
+	}
+	c := core.Defaults()
+	c.Keybinds = map[string]string{"sidebar_toggle": "<leader>b", "command_palette": "f1", "leader": "ctrl+o"}
+	m = &model{keys: keymapFor(&c)}
+	if m.keyLabel("sidebar_toggle") != "Ctrl+O B" || m.keyLabel("command_palette") != "F1" {
+		t.Fatal(m.keyLabel("sidebar_toggle"), m.keyLabel("command_palette"))
+	}
+	c.Keybinds = map[string]string{"sidebar_toggle": "none"}
+	m = &model{keys: keymapFor(&c)}
+	if m.keyLabel("sidebar_toggle") != "" {
+		t.Fatal("unbound action should have no hint")
 	}
 }
