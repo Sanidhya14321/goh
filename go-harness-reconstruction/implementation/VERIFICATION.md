@@ -15,6 +15,12 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+RC23 native CI (run 42387111774): Ubuntu and macOS passed. Windows still
+fails in cmd/harness, core, formatters, runtime, session, skills, snapshots
+and tools. The directory-sync errors are gone; remaining causes include path
+separators in glob/skill matching, Unix shell test fixtures, and file mode
+assertions. Windows is not yet a supported platform.
+
 ## RC22 Windows build
 
 `1.0.0-rc.22` passed `go vet`, the race suite, seven CLI fixture scenarios,
