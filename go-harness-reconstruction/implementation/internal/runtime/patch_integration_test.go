@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,7 +74,7 @@ func TestActualPatchReadHashApprovalAndDurability(t *testing.T) {
 		}
 	}
 	st, _ := os.Stat(filepath.Join(root, "source.txt"))
-	if st.Mode().Perm() != 0750 {
+	if testutil.UnixModes() && st.Mode().Perm() != 0750 {
 		t.Fatal("mode lost")
 	}
 	if len(a.Store.Pending()) != 0 {

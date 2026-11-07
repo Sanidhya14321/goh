@@ -15,6 +15,17 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC25 edit feedback
+
+Native CI run 42389421084 (RC24): tests passed on Ubuntu and macOS; the
+installer job passed on Ubuntu, macOS and Windows (clean install, tampered
+binary refused, nothing installed). Windows tests had one remaining
+permission-bit assertion, guarded in RC25. Locally `1.0.0-rc.25` passed vet
+(macOS and Windows), the race suite, seven CLI and seventeen PTY scenarios.
+New tests: errors from a running fixture server appear as `lsp_errors` with
+warnings filtered out, and an edit with no running server neither requests
+`lsp_start` nor attaches errors.
+
 ## RC24 installers and portability
 
 Native CI run 42388824277 (portability fixes): macOS passed; Windows had four

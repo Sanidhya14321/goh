@@ -628,10 +628,53 @@ func (a *Agent) execute(ctx context.Context, c core.Call) tools.Result {
 	if err != nil {
 		return tools.Result{Error: true, Content: err.Error()}
 	}
+	var res tools.Result
 	if len(paths) > 0 && (a.Config.Snapshots || len(a.Config.Formatters) > 0) {
-		return a.executeMutation(ctx, c, paths)
+		res = a.executeMutation(ctx, c, paths)
+	} else {
+		res = a.Tools.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
 	}
-	return a.Tools.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
+	if len(paths) > 0 && !res.Error {
+		res = a.withEditErrors(ctx, res, paths)
+	}
+	return res
+}
+
+// withEditErrors adds language-server errors for edited files to a successful
+// mutation result, so the model sees breakage immediately (as in OpenCode, and
+// supported by SWE-agent's lint-gated edit ablation). Only servers already
+// running in this run are consulted; none is started.
+func (a *Agent) withEditErrors(ctx context.Context, res tools.Result, paths []string) tools.Result {
+	if a.LSP == nil {
+		return res
+	}
+	report := map[string]any{}
+	for _, p := range paths {
+		errs, more, ok := a.LSP.EditErrors(ctx, p)
+		if !ok || len(errs) == 0 {
+			continue
+		}
+		entry := map[string]any{"errors": errs}
+		if more > 0 {
+			entry["more"] = more
+		}
+		report[p] = entry
+	}
+	if len(report) == 0 {
+		return res
+	}
+	var body map[string]any
+	if json.Unmarshal([]byte(res.Content), &body) != nil || body == nil {
+		body = map[string]any{"content": res.Content}
+	}
+	body["lsp_errors"] = report
+	body["lsp_note"] = "The edit was applied. The language server reports these errors in the edited files; fix them if they are caused by this change."
+	b, err := json.Marshal(body)
+	if err != nil || len(b) > tools.MaxInline {
+		return res
+	}
+	res.Content = string(b)
+	return res
 }
 func estimate(ms []core.Message, defs []core.Tool) int {
 	b, _ := json.Marshal(ms)

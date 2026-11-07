@@ -72,7 +72,18 @@ func RunLSP() {
 		}
 		if q.Method == "textDocument/didOpen" || q.Method == "textDocument/didChange" {
 			doc, _ := q.Params["textDocument"].(map[string]any)
-			write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": []any{map[string]any{"range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}, "severity": 2, "message": "Fixture diagnostic"}}}})
+			text, _ := doc["text"].(string)
+			if changes, ok := q.Params["contentChanges"].([]any); ok && len(changes) > 0 {
+				if c, ok := changes[len(changes)-1].(map[string]any); ok {
+					text, _ = c["text"].(string)
+				}
+			}
+			diagnostics := []any{map[string]any{"range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}, "severity": 2, "message": "Fixture diagnostic"}}
+			// Documents containing BROKEN also get an error, for edit-feedback tests.
+			if strings.Contains(text, "BROKEN") {
+				diagnostics = append(diagnostics, map[string]any{"range": map[string]any{"start": map[string]int{"line": 1, "character": 4}, "end": map[string]int{"line": 1, "character": 5}}, "severity": 1, "message": "Fixture error: BROKEN"})
+			}
+			write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnostics}})
 			continue
 		}
 		if q.ID == nil {

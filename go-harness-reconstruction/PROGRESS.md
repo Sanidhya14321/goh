@@ -4,14 +4,26 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC25 edit feedback milestone
+
+After a successful built-in edit, GoHarness asks a language server that is
+already running in the run for the edited file's diagnostics and adds
+error-severity items (capped at 20 per file) to the tool result as
+`lsp_errors`, so the model sees breakage in the same turn. It never starts a
+server, so `lsp_start` approval is unchanged, and warnings are not reported.
+This follows OpenCode's post-edit diagnostics and the lint-gated edit
+ablation in SWE-agent recorded in research_notes. Its effect on task success
+has not been measured in GoHarness. RC24 CI passed the installers natively on
+all three systems.
+
 ## RC24 installers, Windows portability and file search milestone
 
 `install.sh` and `install.ps1` install with checksum verification and are
 shipped in the release; a CI job tests a clean and a tampered install natively
 on all three systems. Windows path handling now works for glob, grep, repo map
 and skills (fs.WalkDir requires slash paths), and locks no longer block readers
-of an active journal. Native Windows CI went from about 25 failing tests to 4
-and then to none locally verified (see VERIFICATION). `@` completion honors
+of an active journal. Native Windows CI went from about 25 failing tests to 4,
+then to 1 at RC24 (see VERIFICATION). `@` completion honors
 `.gitignore` rules and refreshes its snapshot after runs or 15 seconds. The LSP
 client now settles replies to server requests before shutdown, fixing a
 flaky refusal check seen on Ubuntu CI.

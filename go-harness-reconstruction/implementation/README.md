@@ -680,6 +680,12 @@ environment plus their configured overlay. They are authorized local processes,
 not a filesystem sandbox; changes outside the edited paths are not checkpointed.
 Child formatter grants use `child:format:NAME`. Plan mode cannot execute formatters.
 
+After a successful built-in edit, if a configured language server for that file
+is already running in the current run, GoHarness adds its error diagnostics for
+the edited file to the tool result (`lsp_errors`, at most 20 per file).
+Warnings are omitted. An edit never starts a language server, so the
+`lsp_start` approval is still required as before.
+
 Enable snapshots in configuration or pass `--snapshots` to run/chat/resume. They
 save before/after states of built-in file operations, including final formatted
 bytes, in a private SESSION-snapshots directory beneath session storage. Storage

@@ -189,7 +189,7 @@ func TestShellExitAndBoundedOutput(t *testing.T) {
 		t.Fatal(v)
 	}
 	st, err := os.Stat(v["artifact"].(string))
-	if err != nil || st.Mode().Perm() != 0600 {
+	if err != nil || testutil.UnixModes() && st.Mode().Perm() != 0600 {
 		t.Fatal(st, err)
 	}
 	r := call(t, e, "shell", map[string]any{"command": "printf fail >&2; exit 7"})
