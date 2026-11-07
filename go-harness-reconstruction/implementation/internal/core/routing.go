@@ -105,3 +105,46 @@ func (c Config) WithModelRole(role string) (Config, error) {
 	}
 	return c, c.ValidateProtocol()
 }
+
+// ValidateFallbackProfiles checks the explicit, ordered failover list. Only
+// profiles the user named here may receive a conversation after a failure.
+func (c Config) ValidateFallbackProfiles() error {
+	if len(c.FallbackProfiles) > 8 {
+		return fmt.Errorf("fallback_profiles allows at most 8 profiles")
+	}
+	seen := map[string]bool{}
+	for _, name := range c.FallbackProfiles {
+		if !profileName.MatchString(name) {
+			return fmt.Errorf("fallback profile %q is not a valid profile name", name)
+		}
+		if _, ok := c.Profiles[name]; !ok {
+			return fmt.Errorf("fallback_profiles references unknown profile %q", name)
+		}
+		if seen[name] {
+			return fmt.Errorf("fallback profile %q is listed twice", name)
+		}
+		seen[name] = true
+	}
+	return nil
+}
+
+// WithFallbackProfile overlays one explicitly listed fallback profile. Like
+// model roles, it changes model routing only, never permissions or history.
+func (c Config) WithFallbackProfile(name string) (Config, error) {
+	if err := c.ValidateFallbackProfiles(); err != nil {
+		return c, err
+	}
+	listed := false
+	for _, n := range c.FallbackProfiles {
+		listed = listed || n == name
+	}
+	if !listed {
+		return c, fmt.Errorf("profile %q is not listed in fallback_profiles", name)
+	}
+	c.Profile = name
+	c.overlayProfile(c.Profiles[name])
+	if err := c.applyEnvironment(); err != nil {
+		return c, err
+	}
+	return c, c.Validate()
+}

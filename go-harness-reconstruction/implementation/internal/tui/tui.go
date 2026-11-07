@@ -194,6 +194,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				b = b[:2048]
 			}
 			m.log += "\n[" + v.Type + "] " + Safe(string(b)) + "\n"
+		case "provider_failover":
+			m.log += failoverLine(v.Data)
 		case "todos_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -761,4 +763,22 @@ func RunBlocked(status, reason, draft string) error {
 		return &ChatNavigation{Action: m.navigation, Backdrop: m.View().Content, Draft: m.input}
 	}
 	return err
+}
+
+// failoverLine describes a routing change in plain language. The data carries
+// profile names and an error class only, never provider bodies or keys.
+func failoverLine(data any) string {
+	b, _ := json.Marshal(data)
+	var d struct {
+		Purpose, From, To, Reason, State, Detail string
+	}
+	json.Unmarshal(b, &d)
+	what := "this turn"
+	if d.Purpose == "compaction" {
+		what = "context compaction"
+	}
+	if d.State == "skipped" {
+		return "\n[provider] skipped fallback " + Safe(d.To) + ": " + Safe(d.Detail) + "\n"
+	}
+	return "\n[provider] " + Safe(d.From) + " failed (" + Safe(d.Reason) + ") before responding; retrying " + what + " with fallback profile " + Safe(d.To) + "\n"
 }

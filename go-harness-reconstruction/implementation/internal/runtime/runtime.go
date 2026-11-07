@@ -323,7 +323,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			return "budget_exhausted", e
 		}
 		a.event("assistant_started", map[string]any{"turn": turn})
-		reply, e := a.Provider.Complete(ctx, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
+		reply, e := a.completeWithFailover(ctx, "turn", a.Provider, a.Config, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
 		if e != nil {
 			var finish *provider.FinishError
 			if errors.As(e, &finish) && finish.Reason == "length" {
@@ -678,7 +678,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if estimate(req, nil) > summaryConfig.ContextWindow-summaryConfig.OutputBudget-1024 {
 		return errors.New("summary input exceeds compaction model context window")
 	}
-	reply, e := summaryModel.Complete(ctx, req, nil, nil)
+	reply, e := a.completeWithFailover(ctx, "compaction", summaryModel, summaryConfig, req, nil, nil)
 	if e != nil {
 		return fmt.Errorf("context compaction failed: %w", e)
 	}

@@ -44,6 +44,7 @@ type Config struct {
 	AllowGeneratedEdits bool                       `json:"allow_generated_edits,omitempty"`
 	Protocol            string                     `json:"protocol,omitempty"`
 	ModelRoles          map[string]string          `json:"model_roles,omitempty"`
+	FallbackProfiles    []string                   `json:"fallback_profiles,omitempty"`
 	Formatters          map[string]FormatterConfig `json:"formatters,omitempty"`
 	Snapshots           bool                       `json:"snapshots,omitempty"`
 	LSP                 map[string]LSPConfig       `json:"lsp,omitempty"`
@@ -134,6 +135,9 @@ func ReadConfigText(path string) (string, error) {
 }
 func (c Config) Validate() error {
 	if err := c.ValidateModelRoles(); err != nil {
+		return err
+	}
+	if err := c.ValidateFallbackProfiles(); err != nil {
 		return err
 	}
 	if err := c.ValidateProtocol(); err != nil {

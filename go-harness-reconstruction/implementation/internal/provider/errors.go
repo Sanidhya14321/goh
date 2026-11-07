@@ -1,6 +1,9 @@
 package provider
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // HTTPError classifies status without exposing remote bodies or credentials.
 type HTTPError struct {
@@ -31,4 +34,16 @@ func classifyHTTP(status int) *HTTPError {
 		kind = "redirect_refused"
 	}
 	return &HTTPError{Status: status, Kind: kind, Retryable: retry}
+}
+
+// Failoverable reports failures that happened before the provider returned any
+// response body: connection failures and retryable HTTP statuses after the
+// client's own bounded retries. No content, tool call or partial stream exists
+// for these, so another explicitly configured route may safely receive the turn.
+func Failoverable(err error) bool {
+	if errors.Is(err, ErrConnection) {
+		return true
+	}
+	var h *HTTPError
+	return errors.As(err, &h) && h.Retryable
 }

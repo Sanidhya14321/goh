@@ -4,6 +4,16 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC18 provider failover
+
+`1.0.0-rc.18` passed `go vet`, the full race suite, seven CLI fixture scenarios
+and fifteen PTY scenarios on this Mac. New tests cover failover after 503,
+connection and 429 failures; chained fallbacks; refusal to reroute after
+authentication errors, partial streams, or with no list configured; config
+validation; and a loopback HTTP run where three 503 attempts on the primary
+route are followed by a streamed reply from the fallback endpoint. Failover was
+not exercised against live providers.
+
 ## V1 release candidate
 
 The installed macOS ARM64 `goh` binary reports `1.0.0-rc.17` and matches the

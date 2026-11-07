@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC18 provider failover milestone
+
+`fallback_profiles` names an ordered list of configured profiles that receive a
+turn or compaction request only when the active route fails before returning
+any response (connection, 408, 429, 5xx after bounded retries). Authentication
+errors, cancellation and failures after a stream began are never rerouted. Each
+attempt or skip is journaled and shown in chat. Verified with fixture models and
+a loopback HTTP test; no live multi-provider run yet.
+
 ## RC17 OpenAI connection milestone
 
 GoHarness supports browser authorization for an eligible ChatGPT plan, an

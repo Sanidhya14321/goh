@@ -713,7 +713,35 @@ not grant tools or change plan mode. Unset roles inherit; explore falls back to
 task, while explicit custom-agent profiles win. Existing HARNESS_* provider
 environment overrides take precedence over profile fields. Compaction checks its
 own model's input budget and records the resolved route. A smaller model is not
-assumed cheaper or adequate; failed compaction preserves history without fallback.
+assumed cheaper or adequate. Failed compaction preserves history; it uses
+`fallback_profiles` (below) only when that list is configured.
+
+### Provider failover
+
+`fallback_profiles` is an ordered list of named profiles that may receive the
+conversation when the active route fails **before returning any response**:
+a connection failure, timeout (408), rate limit (429) or server error (5xx)
+after the client's own three bounded attempts. Each listed profile is tried in
+order, for chat turns and for compaction, and the first success is used.
+
+```json
+{
+  "profiles": {
+    "backup": {"endpoint": "https://gateway.example/v1/chat/completions",
+               "model": "YOUR_BACKUP_MODEL", "api_key_env": "BACKUP_API_KEY"}
+  },
+  "fallback_profiles": ["backup"]
+}
+```
+
+Nothing fails over unless you list it. Authentication failures, request errors,
+cancellation, and any failure after a stream began (partial text, malformed or
+truncated streams) are never sent to another route, so partial output and tool
+calls are never replayed. A fallback whose context window cannot fit the
+conversation is skipped. The chat shows a `[provider]` line for each attempt or
+skip, and the journal records `provider_failover` and `model_route` with profile
+names and the failure class only. Permissions, agent mode and history are
+unchanged by failover.
 
 The task tool optionally accepts `output_schema`, a JSON Schema object<=16KiB.
 For example `{"type":"object","properties":{"ok":{"type":"boolean"}},
