@@ -31,3 +31,50 @@ jobs:
         run: |
           go build -o goh${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/harness
           ./goh${{ runner.os == 'Windows' && '.exe' || '' }} version
+  install:
+    # One-command installers against a local release-layout server, natively.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: go-harness-reconstruction/implementation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-harness-reconstruction/implementation/go.mod
+          cache-dependency-path: go-harness-reconstruction/implementation/go.sum
+      - name: Unix installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: make release GO=go VERSION=ci-${{ github.sha }} && sh scripts/test_install.sh
+      - name: Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP 'release'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          $env:CGO_ENABLED = '0'
+          go build -trimpath -ldflags "-X main.version=ci-${{ github.sha }}" -o "$out\goh-windows-amd64.exe" ./cmd/harness
+          $hash = (Get-FileHash -Algorithm SHA256 "$out\goh-windows-amd64.exe").Hash.ToLowerInvariant()
+          Set-Content -NoNewline -Path "$out\SHA256SUMS" -Value "$hash  goh-windows-amd64.exe`n"
+          $server = Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1','--directory',$out -PassThru
+          Start-Sleep 2
+          try {
+            $env:GOH_BASE_URL = 'http://127.0.0.1:8765'
+            $env:GOH_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'goh-bin'
+            ./scripts/install.ps1
+            $v = & (Join-Path $env:GOH_INSTALL_DIR 'goh.exe') version
+            if ($v -ne "ci-${{ github.sha }}") { throw "installed version $v" }
+            Write-Host "PASS clean install: $v"
+            Add-Content -Path "$out\goh-windows-amd64.exe" -Value 'tampered'
+            $env:GOH_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'goh-bin2'
+            $refused = $false
+            try { ./scripts/install.ps1 } catch { $refused = "$_" -match 'checksum mismatch' }
+            if (-not $refused) { throw 'tampered binary was not refused' }
+            if (Test-Path (Join-Path $env:GOH_INSTALL_DIR 'goh.exe')) { throw 'tampered binary left on disk' }
+            Write-Host 'PASS tampered download refused'
+          } finally { Stop-Process -Id $server.Id -ErrorAction SilentlyContinue }

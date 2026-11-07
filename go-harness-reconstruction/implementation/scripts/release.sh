@@ -17,6 +17,7 @@ cp LICENSE THIRD_PARTY_NOTICES DEPENDENCIES.md README.md VERIFICATION.md BENCHMA
 cp ../ORIGIN_LEDGER.md dist/
 cp ../specs/COMPATIBILITY_MATRIX.md dist/
 cp -R licenses dist/
+cp scripts/install.sh scripts/install.ps1 dist/
 # shasum on macOS, sha256sum on Linux; identical output format.
 if command -v shasum >/dev/null 2>&1; then sum="shasum -a 256"; else sum="sha256sum"; fi
 (cd dist && $sum "$@" > SHA256SUMS && $sum -c SHA256SUMS >/dev/null)
