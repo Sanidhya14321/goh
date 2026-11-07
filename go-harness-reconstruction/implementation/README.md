@@ -65,6 +65,33 @@ outside active context. Tool arguments and results are optional and off by
 default. Exported content can include sensitive text. The journal and provider
 settings stay outside the export flow.
 
+Use `/connect` to choose **Continue with ChatGPT** or API key setup. The
+ChatGPT option opens the official OpenAI authorization page and then loads the
+account's available models. `/models` uses that catalog while connected to
+ChatGPT. A saved model can open chat when the catalog is temporarily unavailable.
+On an unconfigured install, an authorized account with a saved model becomes
+the default for bare `goh`. Existing configured providers keep their default.
+
+The same connection is available in the CLI:
+
+```sh
+goh auth login
+goh auth status
+goh auth models
+goh chat --protocol openai_chatgpt
+```
+
+Use `goh auth logout` to revoke the saved authorization and clear the local
+credentials. GoHarness keeps one ChatGPT authorization on this host. Reopen
+`/connect` and select **Reauthorize ChatGPT** if renewal fails. The
+`openai_chatgpt` protocol is bound to OpenAI's official Responses endpoint
+and uses GoHarness's private OAuth store. For a Responses API key, select
+`openai_responses` instead and configure the URL and key as usual.
+
+Live smoke verification in a disposable project is available with
+`python3 scripts/test_openai_live.py --binary bin/goh`. It uses the saved
+ChatGPT authorization and makes real inference requests.
+
 During a run, Esc or Ctrl+C requests cancellation. While idle, use the
 palette to open provider setup or model selection and retain the draft.
 After transient provider failures, Up recalls the previous prompt and

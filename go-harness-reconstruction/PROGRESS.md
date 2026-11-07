@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC17 OpenAI connection milestone
+
+GoHarness supports browser authorization for an eligible ChatGPT plan, an
+account model catalog, and native streamed OpenAI Responses. The OpenCode-style
+`/connect` selector also keeps API key and compatible gateway setup available.
+The live check verified streamed text, a permission-gated read/edit/verify
+cycle, journal resume, and a terminal conversation opened through `/connect`.
+The audit lists remaining recovery and parity gaps.
+
 ## RC16 recovery milestone
 
 GoHarness preserves drafts while switching provider settings and profiles, and
@@ -49,7 +58,7 @@ added. Source and isolated terminal captures document the reference and result.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.16` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.17` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.

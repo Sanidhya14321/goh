@@ -131,6 +131,14 @@ def capture(binary, label, trial):
             rss = int(subprocess.check_output(["ps", "-o", "rss=", "-p", str(app.pid)], text=True).strip())
             if trial == 0:
                 screenshot(screen, label + "-ui-home")
+                os.write(master, b"/connect\r")
+                if not drain(1, "Connect a provider"):
+                    os.write(master, b"\r")
+                    assert drain(6, "Connect a provider")
+                drain(.3)
+                screenshot(screen, label + "-ui-connect")
+                os.write(master, b"\x1b")
+                drain(.3)
                 os.write(master, b"Inspect @not")
                 assert drain(8, "docs/notes.md"), "\n".join(screen.display)
                 drain(.3)

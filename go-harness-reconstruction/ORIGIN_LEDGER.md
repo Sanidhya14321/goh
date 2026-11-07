@@ -148,3 +148,9 @@ The Go implementation uses the existing settings editor, journal, and
 private file publication. The OpenCode executable provided a PTY reference.
 Reference:
 https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/ui/dialog-export-options.tsx
+
+RC17 connection milestone, 7 November 2026. The OpenCode provider dialog
+and official OpenAI Sign in with ChatGPT documentation informed the connection
+picker and native OpenAI transport. GoHarness retains its local runtime,
+session journal, and approval controls. OAuth state, nonce, PKCE, bounded JWKS
+verification and Responses event processing are implemented in Go.

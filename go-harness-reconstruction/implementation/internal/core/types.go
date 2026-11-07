@@ -16,10 +16,12 @@ type Call struct {
 	} `json:"function"`
 }
 type Message struct {
-	Role       string `json:"role"`
-	Content    string `json:"content"`
-	ToolCalls  []Call `json:"tool_calls,omitempty"`
-	ToolCallID string `json:"tool_call_id,omitempty"`
+	Role               string            `json:"role"`
+	Content            string            `json:"content"`
+	ToolCalls          []Call            `json:"tool_calls,omitempty"`
+	ToolCallID         string            `json:"tool_call_id,omitempty"`
+	ResponsesReasoning []json.RawMessage `json:"responses_reasoning,omitempty"`
+	ResponsesRoute     string            `json:"responses_route,omitempty"`
 }
 type Tool struct {
 	Type     string `json:"type"`

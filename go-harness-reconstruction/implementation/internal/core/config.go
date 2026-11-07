@@ -162,6 +162,15 @@ func (c Config) Validate() error {
 
 // ProviderEndpoint resolves the request URL after configuration overlays.
 func (c Config) ProviderEndpoint() (string, error) {
+	if c.EffectiveProtocol() == ChatGPTProtocol {
+		if (c.Endpoint != "" && c.Endpoint != ChatGPTEndpoint) ||
+			(c.BaseURL != "" && strings.TrimRight(c.BaseURL, "/") != chatGPTResource) ||
+			(c.Endpoint != "" && c.BaseURL != "") {
+			return "", fmt.Errorf("ChatGPT authorization requires the official OpenAI Responses URL")
+		}
+		return ChatGPTEndpoint, nil
+	}
+
 	if c.Endpoint != "" && c.BaseURL != "" {
 		return "", fmt.Errorf("specify either endpoint or base_url")
 	}
@@ -180,6 +189,9 @@ func (c Config) ProviderEndpoint() (string, error) {
 		return "", fmt.Errorf("base_url must not contain a query string; use endpoint for an exact URL")
 	}
 	route := "/chat/completions"
+	if c.EffectiveProtocol() == "openai_responses" {
+		route = "/responses"
+	}
 	if c.EffectiveProtocol() == "anthropic_messages" {
 		route = "/messages"
 	}

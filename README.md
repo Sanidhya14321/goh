@@ -3,7 +3,7 @@
 A Go terminal coding agent with a chat-first interface, configurable model
 providers, explicit tool approvals, and durable sessions.
 
-The current local candidate is 1.0.0-rc.16. Public V1 release gates are tracked in
+The current local candidate is 1.0.0-rc.17. Public V1 release gates are tracked in
 the [progress record](go-harness-reconstruction/PROGRESS.md).
 
 - [Build, configure, and use GoHarness](go-harness-reconstruction/implementation/README.md)
@@ -17,13 +17,16 @@ Build from the implementation directory with a compatible Go toolchain.
 
 ~~~sh
 cd go-harness-reconstruction/implementation
-make VERSION=1.0.0-rc.16 build
+make VERSION=1.0.0-rc.17 build
 ./bin/goh
 ~~~
 
 The executable is named goh. The development machine also has a zsh function
 that opens GoHarness for bare go and delegates Go subcommands to the toolchain.
 That shell customization is local to that machine.
+
+Use `/connect` to authorize an eligible ChatGPT plan or configure an API
+key. `goh auth login` is the CLI entry point for browser authorization.
 
 Use /models to select a configured model profile, /agents to choose Build,
 Plan, or a custom agent, and /new for a fresh conversation. Tab and Shift+Tab

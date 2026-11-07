@@ -31,6 +31,9 @@ func writePrivate(path, data string) error {
 	}
 	defer os.Remove(f.Name())
 	_, writeErr := f.WriteString(data)
+	if writeErr == nil {
+		writeErr = f.Sync()
+	}
 	closeErr := f.Close()
 	if writeErr != nil {
 		return writeErr
@@ -64,6 +67,9 @@ func (c Config) credentialPath() (string, error) {
 // ProviderKey prefers the explicit environment override. The saved credential
 // is scoped to one request URL and protocol and never enters the environment.
 func (c Config) ProviderKey() (string, error) {
+	if c.EffectiveProtocol() == ChatGPTProtocol {
+		return "", nil
+	}
 	env := c.CredentialEnvironment()
 	if key := os.Getenv(env); key != "" {
 		endpoint, err := c.ProviderEndpoint()
@@ -100,6 +106,9 @@ func (c Config) ProviderKey() (string, error) {
 }
 
 func (c Config) SaveProviderKey(key string) error {
+	if c.EffectiveProtocol() == ChatGPTProtocol {
+		return fmt.Errorf("use goh auth login to authorize ChatGPT")
+	}
 	path, err := c.credentialPath()
 	if err != nil {
 		return err

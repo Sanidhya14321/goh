@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/formatters"
 )
 
@@ -35,7 +36,12 @@ func (m *model) openStatus() {
 			configuration = "Configuration needs attention"
 		}
 		keyState := "No local key"
-		if key, err := cfg.ProviderKey(); err != nil {
+		if cfg.EffectiveProtocol() == core.ChatGPTProtocol {
+			keyState = "ChatGPT sign-in required"
+			if _, err := core.ChatGPTModel(); err == nil {
+				keyState = "ChatGPT authorization saved locally"
+			}
+		} else if key, err := cfg.ProviderKey(); err != nil {
 			keyState = "Local key unavailable"
 		} else if key != "" {
 			keyState = "Local key present"

@@ -1,0 +1,7 @@
+{
+  "version": "1.0.0-rc.17",
+  "saved_authorization_detected": true,
+  "bare_chat_uses_account": true,
+  "account_model_picker_reachable": true,
+  "model": "gpt-6.1-sol"
+}

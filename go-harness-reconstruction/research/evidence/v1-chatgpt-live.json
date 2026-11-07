@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0-rc.17",
+  "live_provider": "OpenAI Responses via GoHarness ChatGPT authorization",
+  "model": "gpt-6.1-sol",
+  "streamed_text": true,
+  "permission_gated_read_edit_verify": true,
+  "durable_resume": true,
+  "successful_tools": [
+    "read_file",
+    "edit_file",
+    "read_file"
+  ],
+  "tui_connect_and_send": true
+}

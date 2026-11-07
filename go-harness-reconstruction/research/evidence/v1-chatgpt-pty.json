@@ -1,0 +1,77 @@
+[
+  {
+    "scenario": "text",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "permission_denial",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "edit_approval",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "shell_cancellation",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "termination",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "tasks_and_compaction",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "question_answers",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "question_dismissal",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "question_cancellation",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "subagent_approval",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "subagent_cancellation",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "formatter_approval",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "formatter_denial",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "formatter_cancellation",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  },
+  {
+    "scenario": "typed_child",
+    "exit_code": 0,
+    "terminal_attributes_restored": true
+  }
+]

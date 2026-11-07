@@ -6,11 +6,19 @@ Live inference was tested on loopback. Source milestones are published to Sanidh
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.16` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.17` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC17 evidence is under `research/evidence/v1-chatgpt-*`. The live
+OpenAI test used a user-approved GoHarness ChatGPT grant and the account's
+`gpt-6.1-sol` model. It verified streamed text, a permission-gated file edit,
+read-back, durable resume, and a real model turn through the terminal
+`/connect` picker. Fixture tests cover PKCE and callback state, signed identity,
+private storage, refresh rotation, exact endpoint binding, and refusal to
+execute tool calls from a partial Responses stream.
 
 RC16 evidence is under `research/evidence/v1-audit-*`. Compiled setup tests
 cover provider draft recovery and the gateway fallback. The shell cancellation

@@ -245,10 +245,15 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if v.err != nil {
 			m.log += "\n" + Safe(v.err.Error()) + "\n"
 			var httpErr *provider.HTTPError
-			if errors.As(v.err, &httpErr) {
+			if errors.Is(v.err, core.ErrChatGPTLogin) {
+				m.status = "ChatGPT sign-in required"
+			} else if errors.As(v.err, &httpErr) {
 				switch httpErr.Kind {
 				case "authentication":
 					m.blocked = "Provider rejected the API key. Open /provider to check the key and URL."
+					if m.a != nil && m.a.Config.EffectiveProtocol() == core.ChatGPTProtocol {
+						m.blocked = "ChatGPT authorization was rejected. Run goh auth login to reauthorize, or choose another provider with /connect."
+					}
 					m.status = "Provider authentication failed"
 				case "request":
 					m.log += "Check the API URL, protocol, and model ID with /provider.\n"
@@ -417,7 +422,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			switch strings.TrimSpace(prompt) {
-			case "/provider", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
+			case "/connect", "/provider", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
 				m.navigation = strings.TrimSpace(prompt)[1:]
 				m.input, m.inputCursor = "", 0
 				return m, tea.Quit

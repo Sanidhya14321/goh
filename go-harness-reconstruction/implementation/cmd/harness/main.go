@@ -24,7 +24,7 @@ import (
 
 var version = "0.1.0-dev"
 
-const usage = "usage: goh [setup|settings|run|chat|resume|compact|sessions|changes|memory|serve|acp|doctor|version]; use --help after a command"
+const usage = "usage: goh [auth|setup|settings|run|chat|resume|compact|sessions|changes|memory|serve|acp|doctor|version]; use --help after a command"
 
 func main() {
 	if e := run(os.Args[1:]); e != nil {
@@ -69,6 +69,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		}
 		return launch()
 	}
+	if args[0] == "auth" {
+		return chatGPTAuth(args[1:])
+	}
 	if args[0] == "acp" {
 		return runACP(args[1:])
 	}
@@ -108,7 +111,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	project := f.String("project", ".", "project directory")
 	prompt := f.String("prompt", "", "user request")
 	format := f.String("format", "text", "text or json events")
-	protocol := f.String("protocol", "", "chat_completions or anthropic_messages")
+	protocol := f.String("protocol", "", "chat_completions, anthropic_messages, openai_responses or openai_chatgpt")
 	endpoint := f.String("endpoint", "", "exact provider API URL")
 	baseURL := f.String("base-url", "", "provider API base URL including its version path")
 	apiKeyEnv := f.String("api-key-env", "", "environment variable containing the provider API key")
@@ -148,6 +151,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
+	if *protocol == core.ChatGPTProtocol && *endpoint == "" && *baseURL == "" {
+		c.SetProviderRoute(*protocol, "", "")
+	}
 	if *protocol != "" || *endpoint != "" || *baseURL != "" {
 		nextProtocol, nextEndpoint, nextBase := c.Protocol, c.Endpoint, c.BaseURL
 		if *protocol != "" {
@@ -180,6 +186,23 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 
 	if *sessionDir != "" {
 		c.SessionDir = *sessionDir
+	}
+	if command == "chat" && *configPath == "" && *profileName == "" &&
+		c.Protocol == "" && c.Endpoint == "" && c.BaseURL == "" && c.Model == "" {
+		if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {
+			c.SetProviderRoute(core.ChatGPTProtocol, "", "")
+			c.Model = chosen
+		}
+	}
+	if c.EffectiveProtocol() == core.ChatGPTProtocol {
+		if c.Model == "" || (*protocol == core.ChatGPTProtocol && *model == "") {
+			if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {
+				c.Model = chosen
+			}
+		}
+		if c.ContextWindow == 0 {
+			c.ContextWindow = 32768
+		}
 	}
 	if e = c.Validate(); e != nil {
 		return e
@@ -339,7 +362,10 @@ func doctor(args []string) error {
 	fmt.Printf("file checkpoints enabled: %t\n", c.Snapshots)
 	credential := c.CredentialEnvironment()
 	fmt.Printf("protocol: %s\ncredential variable %s set: %t\n", c.EffectiveProtocol(), tui.Safe(credential), os.Getenv(credential) != "")
-	if key, err := c.ProviderKey(); err == nil {
+	if c.EffectiveProtocol() == core.ChatGPTProtocol {
+		_, err := core.ChatGPTModel()
+		fmt.Printf("ChatGPT authorization saved: %t\n", err == nil)
+	} else if key, err := c.ProviderKey(); err == nil {
 		fmt.Printf("provider key available: %t\n", key != "")
 	} else {
 		fmt.Println("provider key:", err)

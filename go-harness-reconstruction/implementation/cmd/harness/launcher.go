@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/session"
@@ -146,6 +148,7 @@ func editWorkspace(project *string) (bool, error) {
 func chatFirst(args []string) error {
 	project, sessionID, draft := "", "", ""
 	var profile, agent *string
+	chatGPTModel := ""
 	sessionOverride := false
 	skipChooser := true
 	var actionErr error
@@ -160,6 +163,10 @@ func chatFirst(args []string) error {
 		if agent != nil {
 			command = append(command, "--agent="+*agent)
 		}
+		if chatGPTModel != "" {
+			command = append(command, "--protocol="+core.ChatGPTProtocol, "--model="+chatGPTModel,
+				"--base-url=https://api.openai.com/v1", "--endpoint=")
+		}
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
 		}
@@ -173,7 +180,7 @@ func chatFirst(args []string) error {
 			return nil
 		}
 		if !errors.As(err, &nav) {
-			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nPress Ctrl+P or type /provider to configure your API URL, model and key.\nUse /workspace to select your project, or /settings for other options."
+			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nType /connect to use ChatGPT or configure an API key. Ctrl+P opens commands.\nUse /workspace to select your project, or /settings for other options."
 			if actionErr != nil {
 				reason = actionErr.Error() + "\n" + reason
 			}
@@ -190,6 +197,45 @@ func chatFirst(args []string) error {
 		actionErr = nil
 		draft = ""
 		switch nav.Action {
+		case "connect":
+			draft = nav.Draft
+			connections := []tui.Option{
+				{Value: "chatgpt", Label: "Continue with ChatGPT", Description: "Use your eligible ChatGPT plan"},
+				{Value: "api", Label: "API key or compatible gateway", Description: "Edit the provider URL and model"},
+			}
+			_, authErr := core.ChatGPTModel()
+			if authErr == nil {
+				connections = append(connections, tui.Option{Value: "reauthorize", Label: "Reauthorize ChatGPT", Description: "Refresh browser authorization"})
+			}
+			connection, chosen, err := tui.SelectOption("Connect a provider", "", connections, nav.Backdrop)
+			actionErr = err
+			if err != nil || !chosen {
+				break
+			}
+			if connection == "api" {
+				var saved bool
+				saved, actionErr = configureProvider()
+				if saved {
+					chatGPTModel = ""
+				}
+				break
+			}
+			if authErr != nil || connection == "reauthorize" {
+				if actionErr = chatGPTAuth([]string{"login"}); actionErr != nil {
+					break
+				}
+			}
+			current, _ := core.ChatGPTModel()
+			selected, chosen, err := selectChatGPTModel(current, nav.Backdrop)
+			if err != nil && current != "" {
+				chatGPTModel = current
+				actionErr = fmt.Errorf("could not refresh the model catalog; using the saved model: %w", err)
+			} else {
+				actionErr = err
+				if chosen {
+					chatGPTModel = selected
+				}
+			}
 		case "provider":
 			draft = nav.Draft
 			_, actionErr = configureProvider()
@@ -254,6 +300,15 @@ func chatFirst(args []string) error {
 			}
 		case "models", "agents", "cycle_agent", "previous_agent":
 			draft = nav.Draft
+			if nav.Action == "models" && nav.Config != nil && nav.Config.EffectiveProtocol() == core.ChatGPTProtocol {
+				var selected string
+				var chosen bool
+				selected, chosen, actionErr = selectChatGPTModel(nav.Config.Model, nav.Backdrop)
+				if chosen {
+					chatGPTModel = selected
+				}
+				break
+			}
 			cfg := core.Defaults()
 			if nav.Config != nil {
 				cfg = *nav.Config
@@ -287,6 +342,20 @@ func chatFirst(args []string) error {
 			}
 		}
 	}
+}
+
+func selectChatGPTModel(current, backdrop string) (string, bool, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 18*time.Second)
+	defer cancel()
+	models, err := core.ListChatGPTModels(ctx)
+	if err != nil {
+		return "", false, err
+	}
+	options := make([]tui.Option, 0, len(models))
+	for _, model := range models {
+		options = append(options, tui.Option{Value: model.Slug, Label: model.Slug, Description: model.Name})
+	}
+	return tui.SelectOption("Select ChatGPT model", current, options, backdrop)
 }
 
 func launch() error {

@@ -45,19 +45,41 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	if err != nil {
 		return core.Reply{}, err
 	}
+	protocol := c.Config.EffectiveProtocol()
+	chatGPT := protocol == core.ChatGPTProtocol
+	responses := chatGPT || protocol == "openai_responses"
 	key, err := c.Config.ProviderKey()
+	if chatGPT {
+		key, err = core.ChatGPTAccessToken(ctx)
+	}
 	if err != nil {
 		return core.Reply{}, err
 	}
 	var b []byte
 	var e error
 	parse := Parse
-	anthropic := c.Config.EffectiveProtocol() == "anthropic_messages"
+	anthropic := protocol == "anthropic_messages"
 	var body map[string]any
 	if anthropic {
 		b, e = EncodeAnthropic(c.Config, messages, tools)
 		parse = ParseAnthropic
+	} else if responses {
+		b, e = encodeResponses(c.Config, messages, tools)
+		parse = parseResponses
 	} else {
+		var clean []core.Message
+		for i := range messages {
+			if len(messages[i].ResponsesReasoning) != 0 || messages[i].ResponsesRoute != "" {
+				if clean == nil {
+					clean = append([]core.Message(nil), messages...)
+				}
+				clean[i].ResponsesReasoning = nil
+				clean[i].ResponsesRoute = ""
+			}
+		}
+		if clean != nil {
+			messages = clean
+		}
 		body = map[string]any{"model": c.Config.Model, "messages": messages, "stream": true, "stream_options": map[string]any{"include_usage": true}}
 		if len(tools) > 0 {
 			body["tools"] = tools
@@ -97,7 +119,9 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 				req.Header.Set("x-api-key", key)
 			}
 		} else {
-			req.Header.Set("Accept", "text/event-stream, application/json")
+			if !responses {
+				req.Header.Set("Accept", "text/event-stream, application/json")
+			}
 			if key != "" {
 				req.Header.Set("Authorization", "Bearer "+key)
 			}
@@ -113,16 +137,19 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 			if resp.StatusCode == 200 {
 				mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 				read := parse
-				if !anthropic && mediaType == "application/json" {
+				if !anthropic && !responses && mediaType == "application/json" {
 					read = parseJSONCompletion
 				}
 				reply, e := read(resp.Body, delta)
 				resp.Body.Close()
+				if e == nil && responses && len(reply.Message.ResponsesReasoning) != 0 {
+					reply.Message.ResponsesRoute = responsesRoute(c.Config)
+				}
 				return reply, e
 			}
 			// Provider bodies can reflect credentials. Inspect only a bounded
 			// structured capability error and never expose the body.
-			if !anthropic && resp.StatusCode == 400 && attempt < 2 && body["stream_options"] != nil &&
+			if !anthropic && !responses && resp.StatusCode == 400 && attempt < 2 && body["stream_options"] != nil &&
 				rejectsStreamOptions(resp.Body) {
 				resp.Body.Close()
 				delete(body, "stream_options")

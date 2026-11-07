@@ -19,10 +19,10 @@ func (c Config) CredentialEnvironment() string {
 }
 func (c Config) ValidateProtocol() error {
 	switch c.EffectiveProtocol() {
-	case "chat_completions", "anthropic_messages":
+	case "chat_completions", "anthropic_messages", "openai_responses", ChatGPTProtocol:
 		return nil
 	default:
-		return fmt.Errorf("protocol must be chat_completions or anthropic_messages")
+		return fmt.Errorf("protocol must be chat_completions, anthropic_messages, openai_responses or openai_chatgpt")
 	}
 }
 func (c Config) ValidateModelRoles() error {

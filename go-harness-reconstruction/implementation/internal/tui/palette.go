@@ -12,7 +12,8 @@ type paletteEntry struct {
 }
 
 var paletteEntries = []paletteEntry{
-	{"/provider", "Connect or configure a model provider"},
+	{"/provider", "Configure an API key or compatible provider"},
+	{"/connect", "Continue with ChatGPT or select API key setup"},
 	{"/settings", "Settings and advanced configuration"},
 	{"/sessions", "Open a saved session"},
 	{"/workspace", "Choose a workspace"},
@@ -81,7 +82,7 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			entry := entries[min(m.paletteIndex, len(entries)-1)]
 			m.palette = false
 			switch entry.command {
-			case "/provider", "/settings", "/models", "/agents":
+			case "/connect", "/provider", "/settings", "/models", "/agents":
 				m.navigation = entry.command[1:]
 				return m, tea.Quit
 			case "/status":
