@@ -159,3 +159,11 @@ RC18–RC20 (failover, integration degradation, internal/rewind turn undo/redo)
 are original Apache-2.0 source and tests. Undo/redo follows the user-visible
 OpenCode revert workflow observed in research/reference/source
 packages/opencode/src/session/revert.ts; no code was translated.
+
+RC21–RC26 additions (internal/ignore, internal/platform, editor handoff,
+keybinds, post-edit LSP errors, installers) are original Apache-2.0 source.
+Behavior references: OpenCode's editor.ts, keybind.ts and post-edit
+diagnostics in edit.ts (pinned source, observed only); gitignore(5) for the
+ignore format. The installer's "run the new binary before replacing an
+existing install" check is an idea taken from the Harvest README
+(Sanidhya14321/harvest); no Harvest code was copied.

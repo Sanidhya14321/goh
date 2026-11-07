@@ -27,3 +27,15 @@ fi
 grep -q 'checksum mismatch' "$work/err" || { echo "FAIL: unexpected error: $(cat "$work/err")"; exit 1; }
 [ ! -e "$work/bin2/goh" ] || { echo "FAIL: tampered binary left on disk"; exit 1; }
 echo "PASS tampered download refused: $(cat "$work/err")"
+
+# A binary that matches its checksum but cannot run must not replace a
+# working installation.
+mkdir "$work/broken"; cp dist/* "$work/broken/" 2>/dev/null || true
+name="goh-$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')"
+printf '#!/bin/sh\nexit 3\n' > "$work/broken/$name"
+(cd "$work/broken" && { command -v shasum >/dev/null && shasum -a 256 "$name" || sha256sum "$name"; } > SHA256SUMS)
+if GOH_BASE_URL="http://127.0.0.1:$port/broken" GOH_INSTALL_DIR="$work/bin" sh scripts/install.sh 2>"$work/err"; then
+	echo "FAIL: non-running binary was installed"; exit 1
+fi
+[ "$("$work/bin/goh" version)" = "$installed" ] || { echo "FAIL: working installation was replaced"; exit 1; }
+echo "PASS non-running binary refused; existing $installed kept"

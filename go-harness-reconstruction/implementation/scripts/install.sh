@@ -60,12 +60,15 @@ expected="$(awk -v name="$artifact" '$2 == name || $2 == "*" name { print $1 }' 
 actual="$(digest "$tmp/$artifact")"
 [ "$actual" = "$expected" ] || fail "checksum mismatch for $artifact (expected $expected, got $actual); nothing was installed"
 
-mkdir -p "$dest"
 chmod 0755 "$tmp/$artifact"
+# Check the new binary runs here before touching an existing installation
+# (idea from the Harvest installer).
+new_version="$("$tmp/$artifact" version 2>&1)" || fail "downloaded goh does not run on this system: $new_version; existing installation left unchanged"
+mkdir -p "$dest"
 # Install atomically: a running goh is never left half-written.
 mv -f "$tmp/$artifact" "$dest/goh.tmp.$$"
 mv -f "$dest/goh.tmp.$$" "$dest/goh"
-echo "Installed $("$dest/goh" version 2>/dev/null || echo goh) to $dest/goh (sha256 $actual)"
+echo "Installed goh $new_version to $dest/goh (sha256 $actual)"
 case ":$PATH:" in
 	*":$dest:"*) ;;
 	*) echo "Add $dest to your PATH, for example: export PATH=\"$dest:\$PATH\"" ;;

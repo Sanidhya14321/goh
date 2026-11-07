@@ -30,10 +30,13 @@ try {
     if ($actual -ne $entries[0].ToLowerInvariant()) {
         throw "goh install: checksum mismatch for $artifact (expected $($entries[0]), got $actual); nothing was installed"
     }
+    # Check the new binary runs before replacing an existing installation.
+    $newVersion = & (Join-Path $tmp $artifact) version 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "goh install: downloaded goh does not run: $newVersion; existing installation left unchanged" }
     New-Item -ItemType Directory -Force -Path $dest | Out-Null
     $target = Join-Path $dest 'goh.exe'
     Move-Item -Force (Join-Path $tmp $artifact) $target
-    Write-Host "Installed $(& $target version) to $target (sha256 $actual)"
+    Write-Host "Installed goh $newVersion to $target (sha256 $actual)"
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not (($userPath -split ';') -contains $dest)) {
         Write-Host "Add $dest to your Path, for example:"
