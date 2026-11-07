@@ -8,6 +8,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 Nothing yet.
 
+## 1.0.0-rc.32 — 2026-11-07
+
+- Rename (Ctrl+R) and delete (Ctrl+D twice) in the session browser, as in
+  OpenCode; deleted sessions go to a trash folder and
+  `goh sessions restore ID` brings them back.
+- CLI: `goh sessions rename`, `delete` and `restore`.
+
 ## 1.0.0-rc.31 — 2026-11-07
 
 - On-screen shortcut hints (footer and sidebar) show the configured keys

@@ -8,27 +8,34 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/session"
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID [--session-dir DIR]"
+	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
 	command := args[0]
 	args = args[1:]
-	subject := ""
+	subject, title := "", ""
 	switch command {
-	case "preview", "show", "export", "import", "fork", "salvage":
+	case "preview", "show", "export", "import", "fork", "salvage", "rename", "delete", "restore":
 		if len(args) == 0 || args[0] == "" {
 			return errors.New(usage)
 		}
 		if args[0] != "--help" && args[0] != "-h" {
 			subject = args[0]
 			args = args[1:]
+		}
+		if command == "rename" {
+			if len(args) == 0 || strings.HasPrefix(args[0], "--") {
+				return errors.New("usage: sessions rename ID TITLE (an empty TITLE restores the default)")
+			}
+			title, args = args[0], args[1:]
 		}
 	case "list":
 	default:
@@ -82,6 +89,21 @@ func sessions(args []string) error {
 			fmt.Fprintf(os.Stderr, "damaged session %s: %s (recover with: goh sessions salvage %s)\n", d.ID, d.Problem, d.ID)
 		}
 		return encoder.Encode(infos)
+	case "rename":
+		if err := session.SetTitle(*dir, subject, title); err != nil {
+			return err
+		}
+		return encoder.Encode(map[string]string{"id": subject, "title": session.CleanTitle(title)})
+	case "delete":
+		if err := session.Trash(*dir, subject); err != nil {
+			return err
+		}
+		return encoder.Encode(map[string]string{"id": subject, "status": "moved to trash", "restore": "goh sessions restore " + subject})
+	case "restore":
+		if err := session.Restore(*dir, subject); err != nil {
+			return err
+		}
+		return encoder.Encode(map[string]string{"id": subject, "status": "restored"})
 	case "salvage":
 		store, report, err := session.Salvage(*dir, subject)
 		if err != nil {

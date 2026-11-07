@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC32 session management milestone
+
+The session browser renames sessions with Ctrl+R and deletes them with a
+confirmed Ctrl+D, following OpenCode's session list. Deletion is recoverable:
+the journal, title, artifacts and checkpoints move to a trash folder, a
+session open in any process is refused via its writer lock, and restore never
+overwrites. Titles live in a private sidecar so the journal stays append-only.
+RC31 made on-screen shortcut hints follow the keymap.
+
 ## RC30 credential recovery and cancellation-under-load milestone
 
 Damaged ChatGPT credentials now produce errors that name the file and the

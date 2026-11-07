@@ -139,6 +139,17 @@ cancelled. The same operations are available as
 `goh changes undo-turn SESSION` and `goh changes redo-turn SESSION`, which
 print the result as JSON.
 
+In `/sessions`, **Ctrl+R** renames the selected session (an empty title
+restores the default taken from the first prompt) and **Ctrl+D**, pressed
+twice, moves it to the trash. Deleting moves the journal, title, artifacts and
+file checkpoints into a `trash` folder in session storage; nothing is erased.
+`goh sessions restore ID` brings it back and refuses to overwrite anything. A
+session open in any running GoHarness, including the current one, cannot be
+deleted. The CLI equivalents are `goh sessions rename ID TITLE`,
+`goh sessions delete ID` and `goh sessions restore ID`. Titles are stored in a
+private sidecar file, cleaned of control characters and limited to 120
+characters; the journal itself is never edited.
+
 If a session journal is damaged (not just cut off by a crash, which is
 repaired automatically), GoHarness refuses to open it and says so.
 `goh sessions salvage ID` copies the readable conversation before the damage

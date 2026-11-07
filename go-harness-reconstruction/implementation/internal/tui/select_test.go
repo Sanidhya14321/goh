@@ -1,8 +1,12 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"example.com/independent-harness/internal/session"
@@ -47,5 +51,48 @@ func TestSessionBrowserSearchScopeAndSelection(t *testing.T) {
 	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.chosen {
 		t.Fatal("empty search created a session")
+	}
+}
+
+func TestChooserRenameAndDelete(t *testing.T) {
+	dir, project := t.TempDir(), t.TempDir()
+	var ids []string
+	for i := 0; i < 2; i++ {
+		s, err := session.New(dir, project)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids = append(ids, s.ID)
+		s.Close()
+		time.Sleep(1100 * time.Millisecond) // distinct, ordered IDs
+	}
+	infos, _ := session.List(dir)
+	m := &chooser{sessions: infos, dir: dir, current: ids[0], project: infos[0].Project}
+	sort.Slice(m.sessions, func(i, j int) bool { return m.sessions[i].ID > m.sessions[j].ID })
+	m.index = 1 // row 0 is "Start a new session"; row 1 is the newest (ids[1])
+
+	m.Update(tea.KeyPressMsg{Code: 'r', Mod: tea.ModCtrl})
+	for _, r := range "Renamed" {
+		m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if meta, _ := session.ReadMeta(dir, ids[1]); meta.Title != "Renamed" || m.summaries[ids[1]].Title != "Renamed" {
+		t.Fatal("rename not saved", meta, m.notice)
+	}
+
+	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	if _, err := os.Stat(filepath.Join(dir, ids[1]+".jsonl")); err != nil || !strings.Contains(m.notice, "again") {
+		t.Fatal("first Ctrl+D must only ask for confirmation", m.notice)
+	}
+	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	if _, err := os.Stat(filepath.Join(dir, "trash", ids[1]+".jsonl")); err != nil {
+		t.Fatal("second Ctrl+D did not trash the session", m.notice)
+	}
+
+	m.index = 1 // now the current session (ids[0])
+	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	m.Update(tea.KeyPressMsg{Code: 'd', Mod: tea.ModCtrl})
+	if _, err := os.Stat(filepath.Join(dir, ids[0]+".jsonl")); err != nil || !strings.Contains(m.notice, "current session") {
+		t.Fatal("the current session must not be deleted", m.notice)
 	}
 }

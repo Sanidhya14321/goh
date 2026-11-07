@@ -15,6 +15,16 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC32 session management
+
+`1.0.0-rc.32` passed vet (macOS and Windows), the race suite, seven CLI and
+eighteen PTY scenarios. RC30 and RC31 native CI passed all six jobs. New tests
+cover title cleaning (control and bidi characters removed, whitespace kept,
+120-character limit) and clearing; trash and restore of journal, title and
+artifacts; refusal to trash an open session and to overwrite on restore; the
+browser's rename, two-step delete and current-session refusal; and the CLI
+commands.
+
 ## RC30 credentials and cancellation under load
 
 `1.0.0-rc.30` passed vet (macOS and Windows), the race suite, seven CLI and

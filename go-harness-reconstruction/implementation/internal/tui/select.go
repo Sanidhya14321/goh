@@ -30,6 +30,11 @@ type chooser struct {
 	previewOffset int
 	previewOnly   bool
 	width, height int
+	// Session management, as in OpenCode's session list (Ctrl+R / Ctrl+D).
+	renaming      bool
+	renameText    string
+	confirmDelete string
+	notice        string
 }
 
 func (m *chooser) loadBatch(start int) tea.Cmd {
@@ -42,6 +47,9 @@ func (m *chooser) loadBatch(start int) tea.Cmd {
 			if err != nil {
 				batch.errors[info.ID] = err.Error()
 			} else {
+				if meta, metaErr := session.ReadMeta(dir, info.ID); metaErr == nil && meta.Title != "" {
+					summary.Title = meta.Title // a user-chosen title wins
+				}
 				batch.results[info.ID] = summary
 			}
 		}
@@ -112,7 +120,21 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		matches := m.matches()
+		if m.renaming {
+			return m, m.renameKey(v, matches)
+		}
+		if v.String() != "ctrl+d" {
+			m.confirmDelete = ""
+		}
 		switch v.String() {
+		case "ctrl+r":
+			if info, ok := m.selectedSession(matches); ok {
+				m.renaming, m.renameText, m.notice = true, m.summaries[info.ID].Title, ""
+			}
+			return m, nil
+		case "ctrl+d":
+			m.deleteKey(matches)
+			return m, nil
 		case "up":
 			m.index, m.previewOffset = max(0, m.index-1), 0
 		case "down":
@@ -139,7 +161,7 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected, m.chosen = matches[min(m.index, len(matches)-1)].ID, true
 				return m, tea.Quit
 			}
-		case "esc", "ctrl+c", "ctrl+d":
+		case "esc", "ctrl+c":
 			return m, tea.Quit
 		default:
 			if v.Text != "" && len(m.query)+len(v.Text) <= 256 {
@@ -242,7 +264,7 @@ func (m *chooser) View() tea.View {
 			}
 		}
 	}
-	status := "↑/↓ select  Enter open  Esc back  PgUp/PgDn preview"
+	status := "↑/↓ select  Enter open  Ctrl+R rename  Ctrl+D delete  Esc back"
 	if m.previewOnly {
 		status = "Tab list  PgUp/PgDn scroll  Enter open  Esc back"
 	} else if previewWidth == 0 {
@@ -250,6 +272,11 @@ func (m *chooser) View() tea.View {
 	}
 	if m.loading {
 		status += " · Loading summaries…"
+	}
+	if m.renaming {
+		status = "Rename: " + m.renameText + "▏  Enter save · Esc cancel · empty restores the default"
+	} else if m.notice != "" {
+		status = m.notice
 	}
 	rows = append(rows, cell(status, width, muted, panel))
 	return canvas(rows, width, height)
@@ -267,4 +294,82 @@ func SelectSession(infos []session.Info, dir, current, project string) (string, 
 	}
 	_, err := tea.NewProgram(m).Run()
 	return m.selected, m.chosen, err
+}
+
+func (m *chooser) selectedSession(matches []session.Info) (session.Info, bool) {
+	if len(matches) == 0 {
+		return session.Info{}, false
+	}
+	info := matches[min(m.index, len(matches)-1)]
+	return info, info.ID != ""
+}
+
+func (m *chooser) renameKey(v tea.KeyPressMsg, matches []session.Info) tea.Cmd {
+	switch v.String() {
+	case "esc", "ctrl+c":
+		m.renaming = false
+	case "enter":
+		m.renaming = false
+		info, ok := m.selectedSession(matches)
+		if !ok {
+			return nil
+		}
+		if err := session.SetTitle(m.dir, info.ID, m.renameText); err != nil {
+			m.notice = "Rename failed: " + err.Error()
+			return nil
+		}
+		title := session.CleanTitle(m.renameText)
+		summary := m.summaries[info.ID]
+		if title == "" {
+			m.notice = "Title cleared; reopen sessions to see the default"
+		} else {
+			summary.Title = title
+			m.notice = "Renamed to " + title
+		}
+		if m.summaries == nil {
+			m.summaries = map[string]session.PreviewInfo{}
+		}
+		m.summaries[info.ID] = summary
+	case "backspace":
+		if r := []rune(m.renameText); len(r) > 0 {
+			m.renameText = string(r[:len(r)-1])
+		}
+	case "ctrl+u":
+		m.renameText = ""
+	default:
+		if v.Text != "" && len([]rune(m.renameText)) < 120 {
+			m.renameText += Safe(v.Text)
+		}
+	}
+	return nil
+}
+
+// deleteKey moves the selected session to the trash on a second Ctrl+D.
+func (m *chooser) deleteKey(matches []session.Info) {
+	info, ok := m.selectedSession(matches)
+	if !ok {
+		return
+	}
+	if info.ID == m.current {
+		m.notice = "The current session cannot be deleted; open another session first"
+		return
+	}
+	if m.confirmDelete != info.ID {
+		m.confirmDelete = info.ID
+		m.notice = "Press Ctrl+D again to move this session to the trash (goh sessions restore " + info.ID + " brings it back)"
+		return
+	}
+	m.confirmDelete = ""
+	if err := session.Trash(m.dir, info.ID); err != nil {
+		m.notice = "Delete failed: " + err.Error()
+		return
+	}
+	for i, s := range m.sessions {
+		if s.ID == info.ID {
+			m.sessions = append(m.sessions[:i], m.sessions[i+1:]...)
+			break
+		}
+	}
+	m.index = min(m.index, max(0, len(m.matches())-1))
+	m.notice = "Moved " + info.ID + " to the trash"
 }

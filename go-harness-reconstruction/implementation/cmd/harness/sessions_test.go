@@ -129,3 +129,34 @@ func TestSessionsSalvageCLI(t *testing.T) {
 		t.Fatal(turns)
 	}
 }
+
+func TestSessionsRenameDeleteRestoreCLI(t *testing.T) {
+	dir := t.TempDir()
+	store, err := session.New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := store.ID
+	store.Close()
+	if err := sessions([]string{"rename", id, "Parser work", "--session-dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if m, _ := session.ReadMeta(dir, id); m.Title != "Parser work" {
+		t.Fatal(m)
+	}
+	if err := sessions([]string{"rename", id, "--session-dir", dir}); err == nil {
+		t.Fatal("rename without a title accepted")
+	}
+	if err := sessions([]string{"delete", id, "--session-dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if infos, _ := session.List(dir); len(infos) != 0 {
+		t.Fatal("deleted session still listed")
+	}
+	if err := sessions([]string{"restore", id, "--session-dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	if infos, _ := session.List(dir); len(infos) != 1 {
+		t.Fatal("restored session not listed")
+	}
+}
