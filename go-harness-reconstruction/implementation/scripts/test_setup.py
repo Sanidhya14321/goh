@@ -279,6 +279,36 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"Agent: build", pos)
         time.sleep(.1)
         count = len(requests)
+        before_export = journal_before.read_bytes()
+        pos = len(output)
+        os.write(master, b"/export\r")
+        wait_for(b"Export transcript", pos)
+        os.write(master, b"\x15local transcript.md")
+        wait_for(b"local transcript.md", pos)
+        os.write(master, b"\x1b")
+        time.sleep(.15)
+        export = project / "local transcript.md"
+        assert not export.exists()
+        pos = len(output)
+        os.write(master, b"/export\r")
+        wait_for(b"Export transcript", pos)
+        os.write(master, b"\x15local transcript.md\r")
+        wait_for(b"Transcript saved", pos)
+        original_export = export.read_bytes()
+        assert b"## User\n\nHello from setup" in original_export
+        assert b"## Assistant\n\nSetup authenticated" in original_export
+        assert stat.S_IMODE(export.stat().st_mode) == 0o600
+        assert len(requests) == count and journal_before.read_bytes() == before_export
+        os.write(master, b"\x1b")
+        time.sleep(.15)
+        pos = len(output)
+        os.write(master, b"/export\r")
+        wait_for(b"Export transcript", pos)
+        os.write(master, b"\x15local transcript.md\r")
+        wait_for(b"export destination must not exist", pos)
+        assert export.read_bytes() == original_export
+        os.write(master, b"\x1b")
+        time.sleep(.15)
         before_fork = journal_before.read_bytes()
         os.write(master, b"Unfinished source draft\x10")
         wait_for(b"GoHarness  /  Commands", pos)
@@ -325,6 +355,12 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert [json.loads(line)["type"] for line in cli_branch.read_bytes().splitlines()] == [
             "session_start", "session_forked"]
         assert journal_before.read_bytes() == before_fork
+        cli_export = subprocess.run(
+            [binary, "sessions", "export", journal_before.stem, "--session-dir",
+             str(journal_before.parent), "--format", "markdown"],
+            cwd=project, env=env, capture_output=True, timeout=8)
+        assert cli_export.returncode == 0, cli_export.stderr
+        assert cli_export.stdout == original_export
         restored = termios.tcgetattr(slave)
         # Darwin can set PENDIN when returning to canonical mode.
         pending = getattr(termios, "PENDIN", 0)
@@ -341,7 +377,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

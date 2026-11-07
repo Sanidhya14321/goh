@@ -60,6 +60,9 @@ func (m *model) View() tea.View {
 	if height < 1 {
 		height = 24
 	}
+	if m.export != nil {
+		return m.exportView(width, height)
+	}
 	if m.fork != nil {
 		m.fork.width, m.fork.height = width, height
 		return m.fork.View()

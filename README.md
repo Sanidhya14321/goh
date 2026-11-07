@@ -3,7 +3,7 @@
 A Go terminal coding agent with a chat-first interface, configurable model
 providers, explicit tool approvals, and durable sessions.
 
-The current local candidate is 1.0.0-rc.14. Public V1 release gates are tracked in
+The current local candidate is 1.0.0-rc.15. Public V1 release gates are tracked in
 the [progress record](go-harness-reconstruction/PROGRESS.md).
 
 - [Build, configure, and use GoHarness](go-harness-reconstruction/implementation/README.md)
@@ -16,7 +16,7 @@ Build from the implementation directory with a compatible Go toolchain.
 
 ~~~sh
 cd go-harness-reconstruction/implementation
-make VERSION=1.0.0-rc.14 build
+make VERSION=1.0.0-rc.15 build
 ./bin/goh
 ~~~
 
@@ -45,6 +45,9 @@ and recall it with Ctrl+R for editing before sending. Esc preserves your draft.
 
 Use /fork to branch a full conversation or start a separate chat from before
 an earlier turn. The selected prompt opens in the new composer for editing.
+
+Use /export to save a Markdown transcript. The dialog accepts a filename and
+lets you opt into tool details.
 
 ![GoHarness session browser](go-harness-reconstruction/research/evidence/goh-ui-sessions.png)
 

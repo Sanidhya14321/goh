@@ -171,7 +171,7 @@ func (m *model) refreshFileCompletion() {
 	if picker == nil {
 		return
 	}
-	if m.active || m.palette || m.timeline != nil || m.infoPanel != nil {
+	if m.active || m.palette || m.timeline != nil || m.infoPanel != nil || m.fork != nil || m.export != nil {
 		m.fileCompletion = nil
 		return
 	}

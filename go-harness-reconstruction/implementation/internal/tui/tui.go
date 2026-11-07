@@ -77,6 +77,7 @@ type model struct {
 	fileIndex       *fileIndexMsg
 	fork            *optionPicker
 	forkBefore      int
+	export          *exportPanel
 }
 
 func Safe(s string) string {
@@ -110,6 +111,14 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 	}()
 	switch v := msg.(type) {
+	case exportDoneMsg:
+		if m.export != nil {
+			m.export.saving = false
+			m.export.saved = v.err == nil
+			if v.err != nil {
+				m.export.problem = v.err.Error()
+			}
+		}
 	case forkOptionsMsg:
 		if m.fork == v.picker {
 			m.fork.options = v.options
@@ -250,6 +259,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		return m, nil
 	case tea.PasteMsg:
+		if m.export != nil {
+			return m.exportUpdate(v)
+		}
 		if m.fork != nil {
 			return m.forkUpdate(v)
 		}
@@ -273,6 +285,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		key := v.String()
 		if key == "ctrl+l" {
 			return m, tea.ClearScreen
+		}
+		if m.export != nil {
+			return m.exportUpdate(v)
 		}
 		if m.fork != nil {
 			return m.forkUpdate(v)
@@ -369,6 +384,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
+			if strings.TrimSpace(prompt) == "/export" {
+				m.input, m.inputCursor = "", 0
+				m.openExport()
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()

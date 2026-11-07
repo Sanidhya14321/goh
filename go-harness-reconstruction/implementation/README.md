@@ -54,6 +54,17 @@ for editing. The branch shares the workspace on disk, so its files reflect
 the current workspace. Conversation state is copied without session grants
 or tool execution.
 
+Use `/export` or search **export** in the command palette to save a
+Markdown transcript of the current chat. Edit the filename, then press Enter.
+Tab focuses **Include tool details**, and Space toggles it. Relative paths
+start at the session workspace. The export is a new private file. Existing
+destinations are rejected so you can choose another name.
+
+Markdown includes durable user and assistant messages, including older turns
+outside active context. Tool arguments and results are optional and off by
+default. Exported content can include sensitive text. The journal and provider
+settings stay outside the export flow.
+
 `/status` or Ctrl+G opens a local status snapshot while idle. It shows provider
 configuration, credential presence, context/output budgets, reported usage,
 session grants, configured MCP/LSP servers, and formatter executable availability.
@@ -314,6 +325,7 @@ Session management:
 
 ```sh
 goh sessions export SESSION_ID --output new-session.json --session-dir DIR
+goh sessions export SESSION_ID --format markdown --output transcript.md --session-dir DIR
 goh sessions import new-session.json --project EXISTING_PROJECT --session-dir DIR
 goh sessions fork SESSION_ID --session-dir DIR
 goh sessions fork SESSION_ID --before-turn 4 --session-dir DIR
@@ -324,6 +336,10 @@ goh compact SESSION_ID --config config.example.json --session-dir DIR --format j
 prompts and prompts that are no longer in the active context. Earlier
 conversation, compaction, and task records form the branch; the selected turn
 is its boundary.
+
+The CLI defaults to portable JSON. With `--format markdown`, add
+`--include-tools` to include calls and results. Omitting `--output` writes to
+stdout.
 
 Export files are private and never overwrite existing destinations. Import and
 fork create fresh session identities, preserve completed conversation/context/

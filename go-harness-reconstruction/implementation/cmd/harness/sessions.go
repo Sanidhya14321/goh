@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -13,7 +13,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|preview ID|show ID|export ID [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N] [--session-dir DIR]"
+	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N] [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -44,8 +44,11 @@ func sessions(args []string) error {
 	if command == "fork" {
 		f.IntVar(&beforeTurn, "before-turn", 0, "branch before this one-based user turn; zero copies the full session")
 	}
+	exportFormat, includeTools := "json", false
 	if command == "export" {
-		f.StringVar(&output, "output", "", "new private portable JSON file; default stdout")
+		f.StringVar(&exportFormat, "format", "json", "json portable archive or markdown transcript")
+		f.BoolVar(&includeTools, "include-tools", false, "include tool calls and results in Markdown")
+		f.StringVar(&output, "output", "", "new private export file; default stdout")
 	}
 	if command == "import" {
 		f.StringVar(&project, "project", "", "explicit existing project directory for relocated import")
@@ -82,10 +85,29 @@ func sessions(args []string) error {
 		defer store.Close()
 		return encoder.Encode(store.Records())
 	case "export":
-		if output == "" {
-			return session.Export(*dir, subject, os.Stdout)
+		var write func(io.Writer) error
+		switch exportFormat {
+		case "json":
+			if includeTools {
+				return errors.New("--include-tools requires --format markdown")
+			}
+			write = func(w io.Writer) error { return session.Export(*dir, subject, w) }
+		case "markdown":
+			write = func(w io.Writer) error {
+				store, err := session.Open(*dir, subject)
+				if err != nil {
+					return err
+				}
+				defer store.Close()
+				return store.WriteTranscript(w, includeTools)
+			}
+		default:
+			return errors.New("export format must be json or markdown")
 		}
-		return exportSessionFile(*dir, subject, output)
+		if output == "" {
+			return write(os.Stdout)
+		}
+		return session.WriteExportFile(output, write)
 	case "import":
 		if project != "" {
 			var err error
@@ -114,36 +136,4 @@ func sessions(args []string) error {
 		return encoder.Encode(session.Info{ID: store.ID, Project: store.Project})
 	}
 	return errors.New(usage)
-}
-
-func exportSessionFile(dir, id, output string) (err error) {
-	output, err = filepath.Abs(output)
-	if err != nil {
-		return err
-	}
-	file, err := os.CreateTemp(filepath.Dir(output), ".harness-export-")
-	if err != nil {
-		return err
-	}
-	defer os.Remove(file.Name())
-	defer file.Close()
-	if err = session.Export(dir, id, file); err != nil {
-		return err
-	}
-	if err = file.Sync(); err != nil {
-		return err
-	}
-	if err = file.Close(); err != nil {
-		return err
-	}
-	// Publish complete bytes without replacing existing files or symlinks.
-	if err = os.Link(file.Name(), output); err != nil {
-		return fmt.Errorf("export destination must not exist: %w", err)
-	}
-	directory, err := os.Open(filepath.Dir(output))
-	if err != nil {
-		return err
-	}
-	defer directory.Close()
-	return directory.Sync()
 }

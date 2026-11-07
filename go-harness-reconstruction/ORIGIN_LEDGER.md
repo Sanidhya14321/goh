@@ -141,3 +141,10 @@ existing option picker and durable portable journal publication, with a
 one-based journal turn boundary and a separate editable draft.
 Reference:
 https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/routes/session/dialog-fork-from-timeline.tsx
+
+RC15 UI continuation, 7 November 2026. OpenCode's pinned export dialog and
+transcript formatter informed the filename field and the tool-details option.
+The Go implementation uses the existing settings editor, journal, and
+private file publication. The OpenCode executable provided a PTY reference.
+Reference:
+https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/ui/dialog-export-options.tsx

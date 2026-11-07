@@ -202,6 +202,20 @@ def capture(binary, label, trial):
                     assert drain(5, "Full session")
                     drain(.3)
                     screenshot(screen, "goh-ui-fork")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/export\r")
+                    assert drain(5, "Export transcript")
+                    drain(.3)
+                    screenshot(screen, "goh-ui-export")
+                    os.write(master, b"\t ")
+                    assert drain(3, "[x] Include tool details")
+                    os.write(master, b"\r")
+                    assert drain(5, "Transcript saved")
+                    exported, = (root / "project").glob("session-*.md")
+                    transcript = exported.read_text()
+                    assert "### Tool call" in transcript and "    edit_file" in transcript
+                    assert "### Tool result" in transcript and "## Verified change" in transcript
                 else:
                     os.write(master, b"Show a short code and table example\r")
                     assert drain(15, "Verification")
@@ -253,6 +267,14 @@ def capture(binary, label, trial):
                         assert drain(5, "Full session")
                     drain(.3)
                     screenshot(screen, "opencode-ui-fork")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/export\r")
+                    if not drain(.5, "Export Options"):
+                        os.write(master, b"\r")
+                        assert drain(5, "Export Options")
+                    drain(.3)
+                    screenshot(screen, "opencode-ui-export")
             return {"first_prompt_ms": round(latency, 2), "process_rss_kib": rss}
         finally:
             (evidence / f"{label}-ui-{trial}.ansi").write_bytes(raw)

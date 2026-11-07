@@ -106,3 +106,8 @@ RC14 first-prompt startup medians were 41.09 ms for GoHarness and 1421.58 ms
 for OpenCode 1.19.5 across three 120×36 PTY trials on the same Mac. The timing
 ends at the interactive home prompt with a configured loopback provider.
 The fork menu scans journal prompts on demand, after the timed interval.
+
+RC15 first-prompt startup medians were 39.21 ms for GoHarness and 1407.53 ms
+for OpenCode 1.19.5 across three 120×36 PTY trials on the same Mac. The timing
+ends at the interactive prompt with a configured loopback provider. Transcript
+formatting and file writes happen on demand after this interval.

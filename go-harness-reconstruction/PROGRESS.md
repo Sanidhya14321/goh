@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC15 UI milestone
+
+The Go chat now has an /export dialog for Markdown transcripts. It uses the
+durable conversation journal, lets the user edit the filename and opt into
+tool details, and publishes a new private file. The CLI shares the Markdown
+formatter and the existing portable JSON export remains its default.
+
 ## RC14 UI milestone
 
 The Go composer now has a searchable /fork dialog for the full session or an
@@ -34,7 +41,7 @@ added. Source and isolated terminal captures document the reference and result.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.14` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.15` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.
