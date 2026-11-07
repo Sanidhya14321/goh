@@ -16,7 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -98,6 +97,10 @@ func New(dir, project string) (*Store, error) {
 var ErrBusy = errors.New("session already has an active writer")
 var ErrProjectMismatch = errors.New("session belongs to another project")
 
+// ErrDamaged marks a journal whose records cannot be read beyond a torn tail.
+// Salvage can recover the readable conversation into a new session.
+var ErrDamaged = errors.New("session journal is damaged")
+
 func lock(f *os.File) error {
 	if err := platform.TryLock(f); err != nil {
 		return fmt.Errorf("%w: %w", ErrBusy, err)
@@ -139,7 +142,7 @@ func open(dir, id, project string) (*Store, error) {
 	fail := func(err error) (*Store, error) { f.Close(); return nil, err }
 	records, validBytes, torn, err := readRecords(f)
 	if err != nil {
-		return fail(err)
+		return fail(fmt.Errorf("%w: %w", ErrDamaged, err))
 	}
 	if len(records) == 0 || records[0].Type != "session_start" {
 		return fail(errors.New("journal missing session_start"))
@@ -338,52 +341,9 @@ func (s *Store) Close() error {
 	return err
 }
 
+// List returns readable sessions. Damaged journals are skipped (see ListAll)
+// so one bad file never hides the rest.
 func List(dir string) ([]Info, error) {
-	entries, err := os.ReadDir(dir)
-	if os.IsNotExist(err) {
-		return []Info{}, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	var result []Info
-	for _, entry := range entries {
-		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".jsonl") {
-			continue
-		}
-		id := strings.TrimSuffix(entry.Name(), ".jsonl")
-		if !validID.MatchString(id) {
-			continue
-		}
-		f, err := os.OpenFile(filepath.Join(dir, entry.Name()), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
-		if err != nil {
-			return nil, err
-		}
-		scanner := bufio.NewScanner(f)
-		scanner.Buffer(make([]byte, 4096), maxRecordBytes)
-		ok := scanner.Scan()
-		scanErr := scanner.Err()
-		first := append([]byte(nil), scanner.Bytes()...)
-		f.Close()
-		if scanErr != nil {
-			return nil, scanErr
-		}
-		if !ok {
-			continue
-		} // An in-progress creation has not committed metadata yet.
-		var record Record
-		if err := json.Unmarshal(first, &record); err != nil {
-			return nil, fmt.Errorf("session %s header corruption: %w", id, err)
-		}
-		if record.Version != Version {
-			return nil, fmt.Errorf("session %s: unsupported journal version %d", id, record.Version)
-		}
-		var info Info
-		if record.Type != "session_start" || json.Unmarshal(record.Data, &info) != nil || info.ID != id || !filepath.IsAbs(info.Project) {
-			return nil, fmt.Errorf("session %s: invalid identity", id)
-		}
-		result = append(result, info)
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
-	return result, nil
+	infos, _, err := ListAll(dir)
+	return infos, err
 }

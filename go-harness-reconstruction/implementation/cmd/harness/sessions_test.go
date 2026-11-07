@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"example.com/independent-harness/internal/session"
@@ -75,5 +77,55 @@ func TestHelpBeforeSessionIdentity(t *testing.T) {
 		if e := run(args); e != nil {
 			t.Fatalf("%v: %v", args, e)
 		}
+	}
+}
+
+func TestSessionsSalvageCLI(t *testing.T) {
+	dir := t.TempDir()
+	store, err := session.New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := store.ID
+	for _, c := range []string{"keep me", "lost"} {
+		if err := store.Append("message", map[string]string{"role": "user", "content": c}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	store.Close()
+	path := filepath.Join(dir, id+".jsonl")
+	b, _ := os.ReadFile(path)
+	lines := strings.SplitAfter(string(b), "\n")
+	lines[2] = "NOT JSON\n" // damage the second prompt
+	os.WriteFile(path, []byte(strings.Join(lines, "")), 0o600)
+
+	if _, err := session.Open(dir, id); !errors.Is(err, session.ErrDamaged) {
+		t.Fatal("damage not classified", err)
+	}
+	if err := sessions([]string{"list", "--session-dir", dir}); err != nil {
+		t.Fatal("list must not fail because one journal is damaged:", err)
+	}
+	if err := sessions([]string{"salvage", id, "--session-dir", dir}); err != nil {
+		t.Fatal(err)
+	}
+	// List reads headers only; the original's header is intact, so both are
+	// listed and the damage is reported when the original is opened.
+	infos, err := session.List(dir)
+	newID := ""
+	for _, info := range infos {
+		if info.ID != id {
+			newID = info.ID
+		}
+	}
+	if err != nil || len(infos) != 2 || newID == "" {
+		t.Fatal("salvaged session should be listed", infos, err)
+	}
+	salvaged, err := session.Open(dir, newID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer salvaged.Close()
+	if turns := salvaged.RecentUserTurns(5); len(turns) != 1 || turns[0].Prompt != "keep me" {
+		t.Fatal(turns)
 	}
 }

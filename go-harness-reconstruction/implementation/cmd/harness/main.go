@@ -229,6 +229,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	var store *session.Store
 	if resumeID != "" {
 		store, e = session.Open(c.SessionDir, resumeID)
+		if errors.Is(e, session.ErrDamaged) {
+			e = fmt.Errorf("%w\nThe damaged journal was not changed. Recover its readable conversation into a new session with:\n  goh sessions salvage %s", e, resumeID)
+		}
 	} else {
 		root, x := filepath.Abs(*project)
 		if x != nil {

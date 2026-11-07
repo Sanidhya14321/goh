@@ -15,6 +15,15 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC29 damaged-session recovery
+
+`1.0.0-rc.29` passed vet (macOS and Windows), the race suite, seven CLI and
+eighteen PTY scenarios. RC28 native CI (run 42391210737) passed all six jobs.
+New tests: a damaged header no longer hides a healthy session; salvage keeps
+the turns before mid-journal damage and leaves the file byte-identical; an
+unanswered tool call at the cut is dropped; intact and headerless journals are
+refused; the CLI path classifies damage, lists, and salvages.
+
 ## RC28 themes
 
 `1.0.0-rc.28` passed vet (macOS and Windows), the race suite, seven CLI and

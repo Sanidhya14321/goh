@@ -139,6 +139,16 @@ cancelled. The same operations are available as
 `goh changes undo-turn SESSION` and `goh changes redo-turn SESSION`, which
 print the result as JSON.
 
+If a session journal is damaged (not just cut off by a crash, which is
+repaired automatically), GoHarness refuses to open it and says so.
+`goh sessions salvage ID` copies the readable conversation before the damage
+into a new session. Like `/fork`, it never replays tools or carries permission
+grants, and it drops an incomplete tool call at the cut. The damaged file is
+left unchanged for inspection. `goh sessions list` and `/sessions` keep showing
+healthy sessions; journals with a damaged header are reported on stderr with
+the salvage command. Damage past the header is reported when the session is
+opened.
+
 Use `/export` or search **export** in the command palette to save a
 Markdown transcript of the current chat. Edit the filename, then press Enter.
 Tab focuses **Include tool details**, and Space toggles it. Relative paths

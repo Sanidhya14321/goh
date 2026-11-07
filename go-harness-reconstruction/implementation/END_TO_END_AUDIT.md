@@ -39,3 +39,12 @@ ChatGPT preview restrictions include a stateless HTTP stream and no request-leve
 | Workflow | Implemented | Remaining |
 | --- | --- | --- |
 | Undo/redo | `/undo`, `/redo`, palette entries and `goh changes undo-turn|redo-turn`. File checkpoints from the turn are verified and reverted newest first; a refusal rolls back partial work. Conversation continues in a branch; the source journal is untouched. Unrestorable tools are named. Unit tests and a real PTY scenario. | Undo of more than one turn at a time, a diff preview before confirming, and keybindings such as OpenCode's leader shortcuts. |
+
+## RC29 damaged sessions
+
+| Failure | Behavior | State preserved | User sees | Evidence |
+| --- | --- | --- | --- | --- |
+| Torn tail after a crash | Repaired on open; `recovery` record appended | All complete records | Session opens normally | Existing session tests |
+| Damaged header | Skipped in listings | Other sessions; damaged file unchanged | stderr line with salvage command | `TestListSurvivesOneDamagedJournal` |
+| Damage mid-journal | Open refused with `ErrDamaged` | Damaged file unchanged | Error naming `goh sessions salvage ID` | `TestSessionsSalvageCLI` |
+| Salvage | New session from readable prefix; incomplete tool group dropped | Turns before the damage | JSON report (kept records, damage offset) | `TestSalvage*` |

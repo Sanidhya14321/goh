@@ -8,6 +8,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 Nothing yet.
 
+## 1.0.0-rc.29 — 2026-11-07
+
+- One damaged session journal no longer hides every session from
+  `/sessions` and `goh sessions list`.
+- `goh sessions salvage ID` recovers the readable conversation of a damaged
+  session into a new one; opening a damaged session explains how.
+
 ## 1.0.0-rc.28 — 2026-11-07
 
 - Color themes (`dark`, `light`, `high-contrast`) with a `/theme` picker,

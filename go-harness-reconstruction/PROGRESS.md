@@ -4,6 +4,16 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC29 damaged-session recovery milestone
+
+A probe showed that one journal with a damaged header made session listing
+fail, hiding every saved session. Listing now skips and reports damaged
+journals. `goh sessions salvage ID` copies the readable prefix of a damaged
+journal into a new session using the fork validation (no tool replay or
+grants; an incomplete tool group is dropped), and leaves the original
+untouched. Resume errors for damaged journals name the salvage command.
+Torn tails from crashes were already repaired automatically.
+
 ## RC28 themes milestone
 
 Three built-in themes with a searchable picker (`/theme`, `<leader>t`, as in

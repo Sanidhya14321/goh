@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,7 +14,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N] [--session-dir DIR]"
+	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -21,7 +22,7 @@ func sessions(args []string) error {
 	args = args[1:]
 	subject := ""
 	switch command {
-	case "preview", "show", "export", "import", "fork":
+	case "preview", "show", "export", "import", "fork", "salvage":
 		if len(args) == 0 || args[0] == "" {
 			return errors.New(usage)
 		}
@@ -72,11 +73,22 @@ func sessions(args []string) error {
 		}
 		return encoder.Encode(info)
 	case "list":
-		infos, err := session.List(*dir)
+		infos, damaged, err := session.ListAll(*dir)
 		if err != nil {
 			return err
 		}
+		// stdout keeps its JSON array; damaged journals are reported on stderr.
+		for _, d := range damaged {
+			fmt.Fprintf(os.Stderr, "damaged session %s: %s (recover with: goh sessions salvage %s)\n", d.ID, d.Problem, d.ID)
+		}
 		return encoder.Encode(infos)
+	case "salvage":
+		store, report, err := session.Salvage(*dir, subject)
+		if err != nil {
+			return err
+		}
+		defer store.Close()
+		return encoder.Encode(report)
 	case "show":
 		store, err := session.Open(*dir, subject)
 		if err != nil {
