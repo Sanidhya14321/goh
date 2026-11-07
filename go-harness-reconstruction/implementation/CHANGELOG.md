@@ -1,0 +1,85 @@
+# Changelog
+
+GoHarness release candidates in chronological order. Dates are commit dates.
+Each entry lists user-visible changes; evidence for each is in
+[VERIFICATION.md](VERIFICATION.md). No stable release has been published yet.
+
+## Unreleased
+
+- Transcript navigation: first/last, previous/next user turn, half-page
+  scrolling, copy the last reply (OSC 52) and leader shortcuts for undo/redo,
+  all remappable through `keybinds`.
+- `CHANGELOG.md` is included in release packages.
+
+- Windows: process trees are force-stopped on timeout or cancellation, so
+  shell timeouts no longer report `cleanup_incomplete` (`fa7c660`).
+- Installers run the downloaded binary before replacing an existing
+  installation, and keep the old one if it fails (`14f7f54`).
+
+## 1.0.0-rc.26 — 2026-11-07
+
+- `keybinds` configuration remaps the leader, command palette, sidebar,
+  timeline, status and editor shortcuts; bad bindings are rejected at load.
+- Windows CI is required (`af4d792`).
+
+## 1.0.0-rc.25 — 2026-11-07
+
+- Successful edits include error diagnostics from an already-running
+  language server as `lsp_errors` (`3552ee1`).
+
+## 1.0.0-rc.24 — 2026-11-07
+
+- `@` file search honors `.gitignore` and refreshes after runs.
+- One-command installers `install.sh` and `install.ps1` with checksum
+  verification (`346e181`, `aa72fe6`).
+- Windows path, lock and LSP shutdown fixes (`f5ebe0b`).
+
+## 1.0.0-rc.23 — 2026-11-07
+
+- Ctrl+X E and `/editor` edit the draft in `$VISUAL`/`$EDITOR` (`c0e707b`).
+
+## 1.0.0-rc.22 — 2026-11-07
+
+- Windows builds, six-target release with verified `SHA256SUMS`, and CI on
+  Ubuntu, macOS and Windows (`962a084`).
+
+## 1.0.0-rc.21 — 2026-11-07
+
+- Automatic compaction masks old tool output before calling a summary
+  model (`06d4daa`).
+
+## 1.0.0-rc.20 — 2026-11-07
+
+- `/undo` and `/redo` for the last turn, with checkpointed file restore
+  (`1acba9e`).
+
+## 1.0.0-rc.19 — 2026-11-07
+
+- A failing MCP or language server is stopped and skipped; chat continues
+  (`33efb72`).
+
+## 1.0.0-rc.18 — 2026-11-07
+
+- `fallback_profiles`: explicit provider failover for failures before any
+  response (`fe00d08`).
+
+## 1.0.0-rc.17 — 2026-11-07
+
+- Sign in with ChatGPT, native OpenAI Responses streaming, `/connect` and the
+  account model catalog (`c180294`).
+
+## 1.0.0-rc.16 — 2026-11-07
+
+- Provider recovery: drafts survive provider changes, Esc cancels a run,
+  compatible-gateway fallbacks (`a29c816`).
+
+## 1.0.0-rc.9 to rc.15 — 2026-11-06 to 2026-11-07
+
+- rc.9 model and agent selectors (`2f0749a`); rc.10 session browser
+  (`94998fe`); rc.11 `/status` (`274205d`); rc.12 prompt timeline
+  (`8575c79`); rc.13 `@` file completion (`4781697`); rc.14 `/fork`
+  (`3ed4869`); rc.15 Markdown export (`b3e60a7`).
+
+## 1.0.0-rc.8 — 2026-11-06
+
+- Baseline import of the existing implementation (`938df64`).

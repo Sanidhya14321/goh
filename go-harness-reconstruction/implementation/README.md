@@ -90,7 +90,15 @@ Values are comma-separated keys; `<leader>x` means the leader key, then `x`;
 
 Actions and defaults: `leader` (`ctrl+x`), `command_palette` (`ctrl+p,ctrl+k`),
 `sidebar_toggle` (`ctrl+b`), `timeline` (`ctrl+t`), `status` (`ctrl+g`) and
-`editor_open` (`<leader>e`). Unknown actions, malformed keys, a key bound to two
+`editor_open` (`<leader>e`).
+
+Transcript navigation: `messages_first` (`<leader>g`), `messages_last`
+(`ctrl+alt+g`), `messages_previous` / `messages_next` user turn
+(`<leader>k` / `<leader>j`), `messages_half_page_up` / `messages_half_page_down`
+(`ctrl+alt+u` / `ctrl+alt+d`), `messages_copy` (`<leader>y`, copies the last
+assistant reply as Markdown through the terminal clipboard, OSC 52), and
+`messages_undo` / `messages_redo` (`<leader>u` / `<leader>r`, the same as
+`/undo` and `/redo`). PgUp/PgDn still scroll half a page. Unknown actions, malformed keys, a key bound to two
 actions, and keys the composer and approvals rely on (Enter, Esc, Tab, arrows,
 Ctrl+C, Ctrl+D and the editing keys) are rejected when the configuration loads.
 Pressing the leader shows the available follow-up keys.

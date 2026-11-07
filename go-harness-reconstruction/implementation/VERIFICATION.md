@@ -15,6 +15,14 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC27 transcript navigation
+
+`1.0.0-rc.27` passed vet (macOS and Windows), the race suite, seven CLI and
+seventeen PTY scenarios. A new test renders a four-turn transcript and checks
+the visible top row after previous, previous, next and first jumps, and that
+last returns to the bottom. Clipboard delivery depends on the terminal's OSC 52
+support and was not tested in a real terminal.
+
 ## Native Windows shell (after RC26)
 
 New Windows-only tests run the `cmd.exe` shell path natively: output and

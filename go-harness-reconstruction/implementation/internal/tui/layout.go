@@ -271,6 +271,7 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 	}
 	lines := m.wrappedRows
 	if !review {
+		m.lastTranscriptHeight = height
 		offset = min(offset, max(0, len(lines)-height))
 		m.scrollOffset = offset
 	}

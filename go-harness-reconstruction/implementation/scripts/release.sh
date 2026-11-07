@@ -13,7 +13,7 @@ for platform in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/amd64 
       -ldflags "-s -w -X main.version=$VERSION" -o "dist/$artifact" ./cmd/harness
     set -- "$@" "$artifact"
 done
-cp LICENSE THIRD_PARTY_NOTICES DEPENDENCIES.md README.md VERIFICATION.md BENCHMARKS.md config.example.json dist/
+cp LICENSE THIRD_PARTY_NOTICES DEPENDENCIES.md README.md CHANGELOG.md VERIFICATION.md BENCHMARKS.md config.example.json dist/
 cp ../ORIGIN_LEDGER.md dist/
 cp ../specs/COMPATIBILITY_MATRIX.md dist/
 cp -R licenses dist/

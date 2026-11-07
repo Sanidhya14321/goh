@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC27 transcript navigation milestone
+
+Leader and Ctrl+Alt shortcuts jump to the first or last message and between
+user turns, scroll half pages, copy the last assistant reply through the
+terminal clipboard, and undo or redo the last turn. Defaults follow OpenCode's
+`messages_*` actions where the key is free in GoHarness, and every action can
+be remapped. A changelog now records release history and ships with releases.
+
 ## RC26 configurable shortcuts milestone
 
 `keybinds` remaps the chat-level actions (leader, command palette, sidebar,

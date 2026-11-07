@@ -39,49 +39,50 @@ type doneMsg struct {
 	err    error
 }
 type model struct {
-	a               *agent.Agent
-	events          chan tea.Msg
-	input           string
-	inputCursor     int
-	promptHistory   []string
-	historyPosition int
-	historyDraft    string
-	log             string
-	question        *questionState
-	pending         *permissionMsg
-	active          bool
-	cancel          context.CancelFunc
-	reviewOffset    int
-	durationMS      int64
-	todos           []core.Todo
-	usage           int
-	width, height   int
-	status          string
-	closed          chan struct{}
-	runDone         chan struct{}
-	navigation      string
-	blocked         string
-	scrollOffset    int
-	hideSidebar     bool
-	palette         bool
-	paletteQuery    string
-	paletteIndex    int
-	wrappedText     string
-	wrappedWidth    int
-	wrappedRows     []transcriptRow
-	wrappedWindow   int
-	wrappedReview   bool
-	infoPanel       *statusPanel
-	timeline        *timelinePanel
-	fileCompletion  *fileCompletion
-	fileIndex       *fileIndexMsg
-	fileIndexStale  bool // a run finished since the snapshot; files may have changed
-	fileRescanning  bool
-	fork            *optionPicker
-	forkBefore      int
-	leader          bool
-	keys            core.Keymap
-	export          *exportPanel
+	a                    *agent.Agent
+	events               chan tea.Msg
+	input                string
+	inputCursor          int
+	promptHistory        []string
+	historyPosition      int
+	historyDraft         string
+	log                  string
+	question             *questionState
+	pending              *permissionMsg
+	active               bool
+	cancel               context.CancelFunc
+	reviewOffset         int
+	durationMS           int64
+	todos                []core.Todo
+	usage                int
+	width, height        int
+	status               string
+	closed               chan struct{}
+	runDone              chan struct{}
+	navigation           string
+	blocked              string
+	scrollOffset         int
+	lastTranscriptHeight int
+	hideSidebar          bool
+	palette              bool
+	paletteQuery         string
+	paletteIndex         int
+	wrappedText          string
+	wrappedWidth         int
+	wrappedRows          []transcriptRow
+	wrappedWindow        int
+	wrappedReview        bool
+	infoPanel            *statusPanel
+	timeline             *timelinePanel
+	fileCompletion       *fileCompletion
+	fileIndex            *fileIndexMsg
+	fileIndexStale       bool // a run finished since the snapshot; files may have changed
+	fileRescanning       bool
+	fork                 *optionPicker
+	forkBefore           int
+	leader               bool
+	keys                 core.Keymap
+	export               *exportPanel
 }
 
 func Safe(s string) string {
@@ -853,8 +854,86 @@ func (m *model) runKeyAction(action string) (tea.Model, tea.Cmd) {
 		if m.status != "running" {
 			return m, m.openEditor()
 		}
+	case "messages_first":
+		m.scrollOffset = len(m.log) // clamped to the oldest rendered row
+	case "messages_last":
+		m.scrollOffset = 0
+	case "messages_half_page_up":
+		m.scrollOffset += max(1, m.height/2)
+	case "messages_half_page_down":
+		m.scrollOffset = max(0, m.scrollOffset-max(1, m.height/2))
+	case "messages_previous", "messages_next":
+		m.jumpUserTurn(action == "messages_previous")
+	case "messages_copy":
+		return m, m.copyLastReply()
+	case "messages_undo", "messages_redo":
+		return m, m.requestRewind(strings.TrimPrefix(action, "messages_"))
 	}
 	return m, nil
+}
+
+// transcriptHeight is the row count the transcript area used in the last
+// render; jumps place a target turn at the top of that area.
+func (m *model) transcriptHeight() int {
+	if m.lastTranscriptHeight > 0 {
+		return m.lastTranscriptHeight
+	}
+	return max(1, m.height-8)
+}
+
+// jumpUserTurn moves the view to the previous or next "You:" turn relative to
+// the turn currently at the top. Older turns outside the wrapped window are
+// reached by scrolling a page, which widens the window on the next render.
+func (m *model) jumpUserTurn(previous bool) {
+	rows := m.wrappedRows
+	if len(rows) == 0 {
+		return
+	}
+	h := m.transcriptHeight()
+	top := max(0, len(rows)-m.scrollOffset-h)
+	target := -1
+	if previous {
+		for i := top - 1; i >= 0; i-- {
+			if strings.HasPrefix(strings.TrimSpace(rows[i].text), "You:") {
+				target = i
+				break
+			}
+		}
+		if target < 0 {
+			m.scrollOffset += h
+			m.status = "Earlier turns: scrolled up a page"
+			return
+		}
+	} else {
+		for i := top + 1; i < len(rows); i++ {
+			if strings.HasPrefix(strings.TrimSpace(rows[i].text), "You:") {
+				target = i
+				break
+			}
+		}
+		if target < 0 {
+			m.scrollOffset = 0
+			return
+		}
+	}
+	m.scrollOffset = max(0, len(rows)-target-h)
+}
+
+// copyLastReply copies the latest assistant message (Markdown as written by
+// the model) through the terminal clipboard (OSC 52), which also works over SSH
+// in terminals that allow it.
+func (m *model) copyLastReply() tea.Cmd {
+	if m.a == nil {
+		return nil
+	}
+	for i := len(m.a.History) - 1; i >= 0; i-- {
+		if msg := m.a.History[i]; msg.Role == "assistant" && strings.TrimSpace(msg.Content) != "" {
+			m.status = fmt.Sprintf("Copied last reply (%d characters)", len([]rune(msg.Content)))
+			return tea.SetClipboard(msg.Content)
+		}
+	}
+	m.status = "No assistant reply to copy yet"
+	return nil
 }
 
 // keymapFor resolves the configured bindings, falling back to defaults (the

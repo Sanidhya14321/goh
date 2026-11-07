@@ -16,6 +16,17 @@ var DefaultKeybinds = map[string]string{
 	"timeline":        "ctrl+t",
 	"status":          "ctrl+g",
 	"editor_open":     "<leader>e",
+	// Transcript navigation, following OpenCode's messages_* actions where the
+	// default key is free in GoHarness.
+	"messages_first":          "<leader>g",
+	"messages_last":           "ctrl+alt+g",
+	"messages_previous":       "<leader>k",
+	"messages_next":           "<leader>j",
+	"messages_half_page_up":   "ctrl+alt+u",
+	"messages_half_page_down": "ctrl+alt+d",
+	"messages_copy":           "<leader>y",
+	"messages_undo":           "<leader>u",
+	"messages_redo":           "<leader>r",
 }
 
 // Keys the composer, approvals and cancellation depend on cannot be rebound.
