@@ -60,6 +60,9 @@ func (m *model) View() tea.View {
 	if height < 1 {
 		height = 24
 	}
+	if m.timeline != nil {
+		return m.timelineView(width, height)
+	}
 	if m.infoPanel != nil {
 		return m.statusView(width, height)
 	}

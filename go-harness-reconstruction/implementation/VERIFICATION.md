@@ -2,15 +2,24 @@
 
 This is a working development alpha. Full release acceptance in the supplied plan
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
-Live inference was tested on loopback. Remote publication is pending.
+Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.11` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.12` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC12 evidence is under `research/evidence/v1-ui-timeline-*`. The executable
+setup flow searches a prompt from a resumed conversation, opens its preview,
+and recalls it. Request counts and journal byte comparisons verify that browsing
+and recall do not send or persist a turn; a separate Enter sends the exact selected
+prompt. Unit regressions cover draft/cursor preservation, newest-first ordering,
+multiline and Unicode search/recall, empty results, the 200-prompt bound, terminal
+control sanitization, and viewport bounds down to 8×4. Captures include the Go
+list and preview and the reference OpenCode timeline.
 
 RC11 evidence is under `research/evidence/v1-ui-status-*`. The PTY flow opens
 status before provider setup, uses its provider shortcut, then inspects and

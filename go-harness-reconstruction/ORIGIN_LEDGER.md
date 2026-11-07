@@ -117,3 +117,12 @@ public screenshots, and the isolated executable were consulted. The Go local
 snapshot, configuration shortcuts, credential-presence checks, formatter
 discovery integration, and shared modal composition are original code using
 existing runtime, configuration, and rendering layers.
+
+RC12 UI continuation, 7 November 2026. OpenCode's pinned dialog-timeline.tsx and
+dialog-message.tsx were inspected at reference commit
+810c0eba1a7348036f8bdf61e6632d0c36c6876c, alongside the official GitHub source
+and isolated executable. The searchable recent-prompt list, explicit composer
+recall, cached preview, and draft-preserving modal handling are original Go code.
+The existing option picker, prompt history, and safe ANSI composition are reused.
+Upstream revert, fork, and file undo are not part of this milestone.
+Reference: https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/routes/session/dialog-timeline.tsx

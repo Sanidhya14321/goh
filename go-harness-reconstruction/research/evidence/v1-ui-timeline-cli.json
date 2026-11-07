@@ -1,0 +1,44 @@
+[
+  {
+    "scenario": "text",
+    "status": "completed",
+    "events": 8,
+    "exit_code": 0
+  },
+  {
+    "scenario": "multi",
+    "status": "completed",
+    "events": 16,
+    "exit_code": 0
+  },
+  {
+    "scenario": "edit",
+    "status": "completed",
+    "events": 28,
+    "exit_code": 0
+  },
+  {
+    "scenario": "deny",
+    "status": "needs_permission",
+    "events": 13,
+    "exit_code": 3
+  },
+  {
+    "scenario": "drop",
+    "status": "failed",
+    "events": 5,
+    "exit_code": 1
+  },
+  {
+    "scenario": "malformed",
+    "status": "failed",
+    "events": 4,
+    "exit_code": 1
+  },
+  {
+    "scenario": "http-error",
+    "status": "failed",
+    "events": 4,
+    "exit_code": 1
+  }
+]

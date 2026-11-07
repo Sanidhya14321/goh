@@ -70,6 +70,7 @@ type model struct {
 	wrappedWindow   int
 	wrappedReview   bool
 	infoPanel       *statusPanel
+	timeline        *timelinePanel
 }
 
 func Safe(s string) string {
@@ -231,6 +232,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		return m, nil
 	case tea.PasteMsg:
+		if m.timeline != nil {
+			return m.timelineUpdate(v)
+		}
 		if m.infoPanel != nil {
 			return m, nil
 		}
@@ -248,6 +252,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		key := v.String()
 		if key == "ctrl+l" {
 			return m, tea.ClearScreen
+		}
+		if m.timeline != nil {
+			return m.timelineUpdate(v)
 		}
 		if m.infoPanel != nil {
 			return m.statusKey(key)
@@ -314,6 +321,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "ctrl+b":
 			m.hideSidebar = !m.hideSidebar
 			return m, nil
+		case "ctrl+t":
+			m.openTimeline()
+			return m, nil
 		case "ctrl+g":
 			m.openStatus()
 			return m, nil
@@ -332,6 +342,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
+			if strings.TrimSpace(prompt) == "/timeline" {
+				m.input, m.inputCursor = "", 0
+				m.openTimeline()
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/status" {
 				m.input, m.inputCursor = "", 0
 				m.openStatus()

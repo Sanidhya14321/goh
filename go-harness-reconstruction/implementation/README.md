@@ -20,6 +20,19 @@ setup. Fixing the key retains the session.
 Use `/workspace` to choose a project, `/sessions` to select a saved chat, and
 `/settings` for the settings menu. Closing a settings panel returns to chat.
 
+`/timeline` or Ctrl+T opens a searchable list of up to 200 recent prompts while
+idle. Enter opens a multiline preview; arrows, PgUp/PgDn, and Home/End scroll it.
+Ctrl+R replaces the composer with the selected prompt for editing. Send it with
+Enter only when ready. Esc returns to the list and then to chat, preserving the
+original draft unless recall was explicitly chosen. Ctrl+C or Ctrl+D dismisses
+the dialog. The palette also lists /timeline.
+
+This list uses the same bounded history as composer recall, newest first, with
+consecutive duplicates collapsed. On resume it is seeded from retained runtime
+history; prompts removed by context compaction are outside this view. Browsing
+performs no journal reads or writes and makes no provider request. Preview rows
+are cached until the selection or viewport width changes.
+
 `/status` or Ctrl+G opens a local status snapshot while idle. It shows provider
 configuration, credential presence, context/output budgets, reported usage,
 session grants, configured MCP/LSP servers, and formatter executable availability.

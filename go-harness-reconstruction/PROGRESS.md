@@ -4,9 +4,20 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC12 UI milestone
+
+The chat now has /timeline and Ctrl+T, a searchable recent-prompt list inspired
+by OpenCode's timeline dialog. Enter opens a scrollable preview and Ctrl+R
+recalls the prompt into the composer. Cancellation preserves the draft; recall
+requires a separate send action. The list reuses the bounded 200-prompt history
+and includes only retained runtime history after resume. It does not implement
+OpenCode's message revert, file undo, fork, or timeline-to-transcript jump.
+Preview wrapping is cached per selection and width. No runtime dependency was
+added. Source and isolated terminal captures document the reference and result.
+
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.11` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.12` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.

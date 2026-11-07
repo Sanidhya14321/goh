@@ -18,6 +18,7 @@ type optionPicker struct {
 	selected              string
 	chosen                bool
 	backdrop              string
+	footer                string
 }
 
 func (m *optionPicker) matches() []Option {
@@ -109,8 +110,12 @@ func (m *optionPicker) View() tea.View {
 	if len(options) == 0 {
 		rows = append(rows, padding+cell("  No matches", boxWidth, muted, panel))
 	}
+	footer := m.footer
+	if footer == "" {
+		footer = "  ↑/↓ select  Enter apply  Esc back to chat"
+	}
 	rows = append(rows, padding+cell("", boxWidth, foreground, panel),
-		padding+cell("  ↑/↓ select  Enter apply  Esc back to chat", boxWidth, muted, panel))
+		padding+cell(footer, boxWidth, muted, panel))
 	return overlayView(m.backdrop, rows, left, top, width, height)
 }
 

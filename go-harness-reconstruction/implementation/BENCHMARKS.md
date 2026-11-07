@@ -88,3 +88,10 @@ RC10 startup medians were 44.36 ms for GoHarness and 1363.11 ms for OpenCode acr
 RC11 status rendering measured about 0.411 ms per View call for a cached local snapshot in a 120×36 viewport with NO_COLOR enabled. Credential checks and formatter discovery happen when opening or refreshing the dialog and are outside this rendering interval. See research/evidence/ui-status-benchmark.txt.
 
 RC11 first-prompt startup medians were 40.17 ms for GoHarness and 1375.68 ms for OpenCode over three local trials. No inference occurs in that timing interval.
+
+RC12 first-prompt startup medians were 37.67 ms for GoHarness and 923.45 ms for
+OpenCode 1.19.5 over three local trials. This measures the first interactive home
+prompt with a configured loopback provider and no inference, not end-to-end
+agent performance or cold-start latency. The timeline and prompt-preview
+captures happen after this interval. Raw trials and executable versions are in
+`research/evidence/ui-startup-comparison.json`.
