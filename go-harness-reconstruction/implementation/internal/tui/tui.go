@@ -80,6 +80,7 @@ type model struct {
 	fork            *optionPicker
 	forkBefore      int
 	leader          bool
+	keys            core.Keymap
 	export          *exportPanel
 }
 
@@ -373,32 +374,24 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.palette {
 			return m.paletteKey(v)
 		}
-		if m.leader {
-			// Ctrl+X leader, as in OpenCode: the next key selects an action.
-			m.leader = false
-			if key == "e" && m.status != "running" {
-				return m, m.openEditor()
+		if m.keys.Direct == nil {
+			var c *core.Config
+			if m.a != nil {
+				c = &m.a.Config
 			}
+			m.keys = keymapFor(c)
+		}
+		if m.leader {
+			// Leader key, as in OpenCode: the next key selects an action.
+			m.leader = false
 			m.status = ""
+			if action, ok := m.keys.Leader[key]; ok {
+				return m.runKeyAction(action)
+			}
 			return m, nil
 		}
-		switch key {
-		case "ctrl+x":
-			m.leader = true
-			m.status = "Ctrl+X: e edit prompt in $EDITOR"
-			return m, nil
-		case "ctrl+p", "ctrl+k":
-			m.palette, m.paletteQuery, m.paletteIndex = true, "", 0
-			return m, nil
-		case "ctrl+b":
-			m.hideSidebar = !m.hideSidebar
-			return m, nil
-		case "ctrl+t":
-			m.openTimeline()
-			return m, nil
-		case "ctrl+g":
-			m.openStatus()
-			return m, nil
+		if action, ok := m.keys.Direct[key]; ok {
+			return m.runKeyAction(action)
 		}
 		if m.fileCompletion != nil && m.fileCompletionKey(key) {
 			return m, nil
@@ -694,7 +687,7 @@ func (m *model) compactView() tea.View {
 	return view
 }
 func Run(a *agent.Agent, notice, draft string) error {
-	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...)}
+	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config)}
 	m.insertInput(Safe(draft))
 	for _, message := range a.History {
 		switch message.Role {
@@ -787,7 +780,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 
 // RunBlocked renders the chat surface before a usable agent can be created.
 func RunBlocked(status, reason, draft string) error {
-	m := &model{width: 80, height: 24, status: status, blocked: reason, log: reason}
+	m := &model{width: 80, height: 24, status: status, blocked: reason, log: reason, keys: keymapFor(nil)}
 	m.insertInput(Safe(draft))
 	_, err := tea.NewProgram(m).Run()
 	if err == nil && m.navigation != "" {
@@ -840,4 +833,40 @@ func (m *model) requestRewind(action string) tea.Cmd {
 	}
 	m.navigation = action
 	return tea.Quit
+}
+
+// runKeyAction performs a configurable chat action.
+func (m *model) runKeyAction(action string) (tea.Model, tea.Cmd) {
+	switch action {
+	case "leader":
+		m.leader = true
+		m.status = m.keys.Hint
+	case "command_palette":
+		m.palette, m.paletteQuery, m.paletteIndex = true, "", 0
+	case "sidebar_toggle":
+		m.hideSidebar = !m.hideSidebar
+	case "timeline":
+		m.openTimeline()
+	case "status":
+		m.openStatus()
+	case "editor_open":
+		if m.status != "running" {
+			return m, m.openEditor()
+		}
+	}
+	return m, nil
+}
+
+// keymapFor resolves the configured bindings, falling back to defaults (the
+// configuration was already validated when it loaded).
+func keymapFor(c *core.Config) core.Keymap {
+	var user map[string]string
+	if c != nil {
+		user = c.Keybinds
+	}
+	km, err := core.ResolveKeymap(user)
+	if err != nil {
+		km, _ = core.ResolveKeymap(nil)
+	}
+	return km
 }

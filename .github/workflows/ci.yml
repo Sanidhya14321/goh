@@ -13,8 +13,6 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
-    # Windows support is new; keep its results visible without masking the others.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     defaults:
       run:
         working-directory: go-harness-reconstruction/implementation

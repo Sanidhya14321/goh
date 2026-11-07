@@ -46,7 +46,9 @@ type Config struct {
 	ModelRoles          map[string]string `json:"model_roles,omitempty"`
 	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
-	CompactionMasking *bool                      `json:"compaction_masking,omitempty"`
+	CompactionMasking *bool `json:"compaction_masking,omitempty"`
+	// Keybinds remaps chat actions; see DefaultKeybinds.
+	Keybinds          map[string]string          `json:"keybinds,omitempty"`
 	Formatters        map[string]FormatterConfig `json:"formatters,omitempty"`
 	Snapshots         bool                       `json:"snapshots,omitempty"`
 	LSP               map[string]LSPConfig       `json:"lsp,omitempty"`
@@ -140,6 +142,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.ValidateFallbackProfiles(); err != nil {
+		return err
+	}
+	if _, err := ResolveKeymap(c.Keybinds); err != nil {
 		return err
 	}
 	if err := c.ValidateProtocol(); err != nil {

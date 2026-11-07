@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC26 configurable shortcuts milestone
+
+`keybinds` remaps the chat-level actions (leader, command palette, sidebar,
+timeline, status, external editor), following OpenCode's keybind config and
+leader model. Invalid, conflicting or reserved bindings are rejected at load.
+Native CI for RC25 passed on Ubuntu, macOS and Windows for both the test
+suite and the installers; Windows is now a required CI platform.
+
 ## RC25 edit feedback milestone
 
 After a successful built-in edit, GoHarness asks a language server that is

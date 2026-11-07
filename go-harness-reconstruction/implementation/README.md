@@ -78,6 +78,23 @@ for editing. The branch shares the workspace on disk, so its files reflect
 the current workspace. Conversation state is copied without session grants
 or tool execution.
 
+### Shortcuts
+
+Chat-level shortcuts can be changed with `keybinds` in the configuration.
+Values are comma-separated keys; `<leader>x` means the leader key, then `x`;
+`none` removes a binding.
+
+```json
+{"keybinds": {"leader": "ctrl+o", "command_palette": "ctrl+p,f1", "editor_open": "<leader>e", "sidebar_toggle": "none"}}
+```
+
+Actions and defaults: `leader` (`ctrl+x`), `command_palette` (`ctrl+p,ctrl+k`),
+`sidebar_toggle` (`ctrl+b`), `timeline` (`ctrl+t`), `status` (`ctrl+g`) and
+`editor_open` (`<leader>e`). Unknown actions, malformed keys, a key bound to two
+actions, and keys the composer and approvals rely on (Enter, Esc, Tab, arrows,
+Ctrl+C, Ctrl+D and the editing keys) are rejected when the configuration loads.
+Pressing the leader shows the available follow-up keys.
+
 Press **Ctrl+X** then **E**, or use `/editor`, to edit the current draft in
 `$VISUAL` (or `$EDITOR`). The chat suspends while the editor runs in the
 workspace directory, then loads the saved text into the composer. A single

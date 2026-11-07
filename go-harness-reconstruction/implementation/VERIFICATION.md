@@ -15,6 +15,17 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC26 shortcuts and first all-green native CI
+
+Native CI run 42389704720 (RC25): `go vet` and `go test ./...` passed on
+`ubuntu-latest`, `macos-latest` and `windows-latest`, and the installer job
+passed on all three. This is the first fully native pass on Windows; some
+Windows tests skip POSIX-shell fixtures and permission-bit assertions, so the
+Windows shell tool and ACL-based privacy still lack dedicated native tests.
+Windows CI is no longer allowed to fail. Locally `1.0.0-rc.26` passed vet
+(macOS and Windows), the race suite, seven CLI and seventeen PTY scenarios;
+new tests cover keymap overrides, rejection rules and remapped keys in the UI.
+
 ## RC25 edit feedback
 
 Native CI run 42389421084 (RC24): tests passed on Ubuntu and macOS; the
