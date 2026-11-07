@@ -51,15 +51,17 @@ type document struct {
 	text    string
 }
 type Manager struct {
-	config      map[string]core.LSPConfig
-	project     string
-	approve     func(context.Context, core.Permission) (core.Decision, error)
-	OnStarted   func(name string) error
-	mu          sync.Mutex
-	operationMu sync.Mutex
-	servers     map[string]*server
-	closed      bool
-	configErr   error
+	config    map[string]core.LSPConfig
+	project   string
+	approve   func(context.Context, core.Permission) (core.Decision, error)
+	OnStarted func(name string) error
+	// OnStartFailed settles an approved start that left no running process.
+	OnStartFailed func(name string, err error) error
+	mu            sync.Mutex
+	operationMu   sync.Mutex
+	servers       map[string]*server
+	closed        bool
+	configErr     error
 }
 
 func New(config map[string]core.LSPConfig, project string, approve func(context.Context, core.Permission) (core.Decision, error)) *Manager {
@@ -285,7 +287,9 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 	}
 	p, err := startProcess(cfg, m.project)
 	if err != nil {
-		return nil, "interrupted", fmt.Errorf("approved LSP startup failed: %w", err)
+		// Nothing was spawned, so the effect is certain: no process exists.
+		status, failure := m.settleFailedStart(name, nil, fmt.Errorf("approved LSP startup failed: %w", err))
+		return nil, status, failure
 	}
 	s := &server{process: p, documents: map[string]document{}}
 	m.mu.Lock()
@@ -300,28 +304,33 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 	result, err := p.rpc.call(ctx, "initialize", params)
 	if err != nil {
 		s.broken = true
-		return nil, "interrupted", fmt.Errorf("LSP initialize: %w", err)
+		status, failure := m.settleFailedStart(name, p, fmt.Errorf("LSP initialize: %w", err))
+		return nil, status, failure
 	}
 	var initialized struct {
 		Capabilities map[string]json.RawMessage `json:"capabilities"`
 	}
 	if err := json.Unmarshal(result, &initialized); err != nil || initialized.Capabilities == nil {
 		s.broken = true
-		return nil, "interrupted", errors.New("LSP initialize missing capabilities")
+		status, failure := m.settleFailedStart(name, p, errors.New("LSP initialize missing capabilities"))
+		return nil, status, failure
 	}
 	if encoding := initialized.Capabilities["positionEncoding"]; len(encoding) > 0 && string(encoding) != `"utf-16"` {
 		s.broken = true
-		return nil, "interrupted", fmt.Errorf("LSP server requires unsupported position encoding %s", encoding)
+		status, failure := m.settleFailedStart(name, p, fmt.Errorf("LSP server requires unsupported position encoding %s", encoding))
+		return nil, status, failure
 	}
 	s.capabilities = initialized.Capabilities
 	if err := p.rpc.notifyContext(ctx, "initialized", map[string]any{}); err != nil {
 		s.broken = true
-		return nil, "interrupted", err
+		status, failure := m.settleFailedStart(name, p, err)
+		return nil, status, failure
 	}
 	if cfg.Initialization != nil {
 		if err := p.rpc.notifyContext(ctx, "workspace/didChangeConfiguration", map[string]any{"settings": cfg.Initialization}); err != nil {
 			s.broken = true
-			return nil, "interrupted", err
+			status, failure := m.settleFailedStart(name, p, err)
+			return nil, status, failure
 		}
 	}
 	if m.OnStarted != nil {
@@ -331,6 +340,23 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 		}
 	}
 	return s, "", nil
+}
+
+// settleFailedStart stops a broken server and reports the start as settled
+// ("failed") only when no process can remain. If cleanup cannot be confirmed,
+// the effect stays uncertain ("interrupted") for explicit acknowledgement.
+func (m *Manager) settleFailedStart(name string, p *process, err error) (string, error) {
+	if p != nil {
+		if stopErr := p.stop(); stopErr != nil {
+			return "interrupted", err
+		}
+	}
+	if m.OnStartFailed != nil {
+		if e := m.OnStartFailed(name, err); e != nil {
+			return "interrupted", err
+		}
+	}
+	return "failed", err
 }
 func resultError(status string, err error) tools.Result {
 	message := err.Error()

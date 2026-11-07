@@ -246,6 +246,13 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if !a.isPlan() && a.depth == 0 && len(a.Config.LSP) > 0 {
 		a.LSP = lspclient.New(a.Config.LSP, a.Store.Project, a.Permission)
 		a.LSP.OnStarted = func(name string) error { return a.integrationReady("lsp_start:" + name) }
+		a.LSP.OnStartFailed = func(name string, cause error) error {
+			if e := a.integrationDegraded("lsp", name, cause.Error()); e != nil {
+				return e
+			}
+			b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": cause.Error()})
+			return a.integrationSettled("lsp_start:"+name, tools.Result{Content: string(b), Error: true})
+		}
 	}
 	a.tasksRun = 0
 	if a.isPlan() {
@@ -294,7 +301,23 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			}
 			return "failed", e
 		}
+		if reporter, ok := a.External.(interface {
+			Failures() []core.IntegrationFailure
+		}); ok {
+			for _, f := range reporter.Failures() {
+				if e := a.integrationDegraded("mcp", f.Name, f.Error); e != nil {
+					return "failed", e
+				}
+				b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": f.Error})
+				if e := a.integrationSettled("mcp_start:"+f.Name, tools.Result{Content: string(b), Error: true}); e != nil {
+					return "failed", e
+				}
+			}
+		}
 		for _, call := range a.mcpStarts {
+			if a.readyIntegrations[call.ID] {
+				continue // already settled as failed and stopped
+			}
 			if e := a.integrationReady(call.Function.Name); e != nil {
 				return "failed", e
 			}
@@ -761,10 +784,16 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 }
 
 func (a *Agent) integrationReady(tool string) error {
+	return a.integrationSettled(tool, tools.Result{Content: `{"status":"initialized"}`})
+}
+
+// integrationSettled resolves a journaled startup effect. A stopped, failed
+// server is settled too: its process was terminated by GoHarness.
+func (a *Agent) integrationSettled(tool string, result tools.Result) error {
 	for i := len(a.mcpStarts) - 1; i >= 0; i-- {
 		call := a.mcpStarts[i]
 		if call.Function.Name == tool && !a.readyIntegrations[call.ID] {
-			if e := a.finish(call, tools.Result{Content: `{"status":"initialized"}`}); e != nil {
+			if e := a.finish(call, result); e != nil {
 				return e
 			}
 			if a.readyIntegrations == nil {
@@ -806,4 +835,15 @@ func (a *Agent) closeIntegrations() error {
 		err = errors.Join(err, e)
 	}
 	return err
+}
+
+// integrationDegraded records an optional integration that is unavailable for
+// this run. The main chat and built-in tools continue without it.
+func (a *Agent) integrationDegraded(kind, name, detail string) error {
+	if len(detail) > 512 {
+		detail = strings.ToValidUTF8(detail[:512], "") + "…"
+	}
+	data := map[string]any{"kind": kind, "name": name, "error": detail}
+	a.event("integration_degraded", data)
+	return a.Store.Append("integration_degraded", data)
 }

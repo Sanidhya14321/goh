@@ -70,7 +70,9 @@ func TestLSPRuntimeDualApprovalDurabilityAndFailure(t *testing.T) {
 					t.Fatal(status, e)
 				}
 			case "bad-initialize":
-				if status != "failed" || e == nil || len(a.Store.Pending()) != 2 {
+				// The broken server is stopped and settled; the run continues
+				// with the LSP error as a tool result and nothing pending.
+				if status != "completed" || e != nil || len(a.Store.Pending()) != 0 || !strings.Contains(journalText(a), "integration_degraded") {
 					t.Fatal(status, e, a.Store.Pending())
 				}
 			default:
@@ -125,5 +127,30 @@ func TestLSPInterruptedOperationIsNotReplayed(t *testing.T) {
 	}
 	if _, e = resumed.Run(context.Background(), "continue"); e == nil || !strings.Contains(e.Error(), "uncertain") {
 		t.Fatal("uncertain LSP replay allowed", e)
+	}
+}
+
+func TestLSPMissingExecutableDegradesWithoutPendingEffects(t *testing.T) {
+	a, root := runtimeLSP(t, "")
+	a.Config.LSP = map[string]core.LSPConfig{"fixture": {Command: filepath.Join(root, "no-such-lsp"), Extensions: []string{".lsptest"}}}
+	a.Grants["lsp"], a.Grants["lsp_start:fixture"] = true, true
+	turn := 0
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		turn++
+		if turn == 1 {
+			return answer(toolCall("hover", "lsp", map[string]any{"operation": "hover", "filePath": "a.lsptest", "line": 1, "character": 1})), nil
+		}
+		if c := h[len(h)-1].Content; !strings.Contains(c, `\"status\":\"failed\"`) {
+			t.Fatal("expected settled failure", c)
+		}
+		return answer(), nil
+	})
+	if status, e := a.Run(context.Background(), "hover"); status != "completed" || e != nil || len(a.Store.Pending()) != 0 {
+		t.Fatal(status, e, a.Store.Pending())
+	}
+	// The next run must not be blocked by a start that never spawned.
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) { return answer(), nil })
+	if status, e := a.Run(context.Background(), "continue"); status != "completed" || e != nil {
+		t.Fatal("follow-up blocked", status, e)
 	}
 }

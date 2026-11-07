@@ -69,3 +69,9 @@ type Decision struct {
 	Allow   bool
 	Session bool
 }
+
+// IntegrationFailure names one optional integration that could not start.
+type IntegrationFailure struct {
+	Name  string `json:"name"`
+	Error string `json:"error"`
+}

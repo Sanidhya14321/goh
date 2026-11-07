@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
 	"example.com/independent-harness/internal/core"
@@ -164,21 +165,26 @@ func TestAgentMCPStartupRecovery(t *testing.T) {
 			provider := &scriptedModel{tool: "mcp__fixture__echo"}
 			a.Provider = provider
 			status, err := a.Run(context.Background(), "Initialize explicit fixture server")
-			if err == nil {
-				t.Fatal("expected startup failure")
+			if !allow {
+				if err == nil || status != "needs_permission" || provider.turns != 0 {
+					t.Fatalf("status %s turns %d: %v", status, provider.turns, err)
+				}
+				return
 			}
-			want := "needs_permission"
-			if allow {
-				want = "failed"
+			// An approved server that fails discovery degrades: chat continues
+			// with built-in tools, the failure is journaled, nothing is pending.
+			if err != nil || status != "completed" || provider.turns == 0 {
+				t.Fatalf("status %s turns %d: %v", status, provider.turns, err)
 			}
-			if status != want {
-				t.Fatalf("status %s expected %s: %v", status, want, err)
+			if len(store.Pending()) != 0 {
+				t.Fatal("stopped server left an uncertain effect", store.Pending())
 			}
-			if provider.turns != 0 {
-				t.Fatal("provider called after failed startup")
+			found := false
+			for _, r := range store.Records() {
+				found = found || (r.Type == "integration_degraded" && strings.Contains(string(r.Data), "inline schema"))
 			}
-			if got := len(store.Pending()) > 0; got != allow {
-				t.Fatalf("uncertain startup=%v, approved=%v", got, allow)
+			if !found {
+				t.Fatal("degradation not journaled")
 			}
 		})
 	}

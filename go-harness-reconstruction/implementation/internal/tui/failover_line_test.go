@@ -14,3 +14,10 @@ func TestFailoverLine(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestDegradedLine(t *testing.T) {
+	got := degradedLine(map[string]any{"kind": "mcp", "name": "search", "error": "initialization failed"})
+	if !strings.Contains(got, "MCP server search unavailable and stopped: initialization failed") || !strings.Contains(got, "built-in tools continue") {
+		t.Fatal(got)
+	}
+}

@@ -32,7 +32,9 @@ func TestFailoverUsesExplicitProfileAfterPreResponseFailure(t *testing.T) {
 	var routed []string
 	a.RoleModelFactory = func(c core.Config, role string) Model {
 		routed = append(routed, role+":"+c.Profile+":"+c.Model)
-		return modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) { return answer(), nil })
+		return modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+			return answer(), nil
+		})
 	}
 	status, err := a.Run(context.Background(), "hello")
 	if err != nil || status != "completed" || len(routed) != 1 || routed[0] != "fallback:backup:backup-model" {
@@ -55,7 +57,9 @@ func TestFailoverRefusesUnsafeOrUnconfiguredRoutes(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := failoverAgent(t, tc.fallbacks...)
-			a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) { return core.Reply{}, tc.err })
+			a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+				return core.Reply{}, tc.err
+			})
 			a.RoleModelFactory = func(core.Config, string) Model { t.Fatal("conversation sent to fallback"); return nil }
 			if status, err := a.Run(context.Background(), "hello"); err == nil || status != "failed" {
 				t.Fatal(status, err)

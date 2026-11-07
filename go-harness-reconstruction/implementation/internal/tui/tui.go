@@ -196,6 +196,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.log += "\n[" + v.Type + "] " + Safe(string(b)) + "\n"
 		case "provider_failover":
 			m.log += failoverLine(v.Data)
+		case "integration_degraded":
+			m.log += degradedLine(v.Data)
 		case "todos_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -781,4 +783,17 @@ func failoverLine(data any) string {
 		return "\n[provider] skipped fallback " + Safe(d.To) + ": " + Safe(d.Detail) + "\n"
 	}
 	return "\n[provider] " + Safe(d.From) + " failed (" + Safe(d.Reason) + ") before responding; retrying " + what + " with fallback profile " + Safe(d.To) + "\n"
+}
+
+// degradedLine explains that an optional integration is off for this run while
+// chat and built-in tools continue.
+func degradedLine(data any) string {
+	b, _ := json.Marshal(data)
+	var d struct{ Kind, Name, Error string }
+	json.Unmarshal(b, &d)
+	label := map[string]string{"mcp": "MCP server", "lsp": "language server"}[d.Kind]
+	if label == "" {
+		label = "integration"
+	}
+	return "\n[integration] " + label + " " + Safe(d.Name) + " unavailable and stopped: " + Safe(d.Error) + "\nChat and built-in tools continue. Fix its config and start a new run to retry.\n"
 }

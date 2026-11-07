@@ -48,6 +48,7 @@ type Manager struct {
 	closed    bool
 	bindings  map[string]binding
 	processes []*process
+	failures  []Failure
 }
 
 func New(config map[string]core.MCPConfig, project string, approve func(context.Context, core.Permission) (core.Decision, error)) *Manager {
@@ -96,111 +97,160 @@ func (m *Manager) Connect(ctx context.Context) (err error) {
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if !validComponent(name) {
-			return fmt.Errorf("MCP server name %q must use letters, digits, underscore or hyphen without double underscores", name)
-		}
-		cfg := m.config[name]
-		if cfg.Command == "" {
-			return fmt.Errorf("MCP server %s: command required", name)
-		}
-		description, _ := json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15})
-		permission := core.Permission{Tool: "mcp_start:" + name, Preview: string(description), Arguments: description}
-		if m.approve == nil {
-			return ErrPermission
-		}
-		decision, e := m.approve(ctx, permission)
-		if e != nil {
-			return e
-		}
-		if !decision.Allow {
-			return fmt.Errorf("%w: %s", ErrPermission, name)
-		}
-		if e := ctx.Err(); e != nil {
-			return e
-		}
-		p, e := startProcess(cfg, m.project)
-		if e != nil {
-			return fmt.Errorf("MCP server %s: %w", name, e)
-		}
-		m.mu.Lock()
-		if m.closed {
+		if e := m.connectServer(ctx, name); e != nil {
+			// Approval outcomes and cancellation keep their existing meaning.
+			if errors.Is(e, ErrPermission) || ctx.Err() != nil || errors.Is(e, errApproval) {
+				return e
+			}
+			m.mu.Lock()
+			m.failures = append(m.failures, Failure{Name: name, Error: e.Error()})
 			m.mu.Unlock()
-			p.stop()
-			return errors.New("MCP manager closed during initialization")
 		}
-		m.processes = append(m.processes, p)
+	}
+	return nil
+}
+
+var errApproval = errors.New("MCP approval failed")
+
+// Failure records one optional server that could not start. Its process is
+// stopped and its tools are absent; other servers and built-in tools remain.
+type Failure = core.IntegrationFailure
+
+// Failures lists servers skipped during Connect.
+func (m *Manager) Failures() []Failure {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return append([]Failure(nil), m.failures...)
+}
+
+func (m *Manager) dropProcess(p *process) {
+	if p == nil {
+		return
+	}
+	p.stop()
+	m.mu.Lock()
+	for i, q := range m.processes {
+		if q == p {
+			m.processes = append(m.processes[:i], m.processes[i+1:]...)
+			break
+		}
+	}
+	m.mu.Unlock()
+}
+
+func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
+	var p *process
+	defer func() {
+		if err != nil && !errors.Is(err, ErrPermission) {
+			m.dropProcess(p)
+		}
+	}()
+	if !validComponent(name) {
+		return fmt.Errorf("MCP server name %q must use letters, digits, underscore or hyphen without double underscores", name)
+	}
+	cfg := m.config[name]
+	if cfg.Command == "" {
+		return fmt.Errorf("MCP server %s: command required", name)
+	}
+	description, _ := json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15})
+	permission := core.Permission{Tool: "mcp_start:" + name, Preview: string(description), Arguments: description}
+	if m.approve == nil {
+		return ErrPermission
+	}
+	decision, e := m.approve(ctx, permission)
+	if e != nil {
+		return fmt.Errorf("%w: %w", errApproval, e)
+	}
+	if !decision.Allow {
+		return fmt.Errorf("%w: %s", ErrPermission, name)
+	}
+	if e := ctx.Err(); e != nil {
+		return e
+	}
+	p, e = startProcess(cfg, m.project)
+	if e != nil {
+		p = nil
+		return fmt.Errorf("MCP server %s: %w", name, e)
+	}
+	m.mu.Lock()
+	if m.closed {
 		m.mu.Unlock()
-		initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-		client := mcp.NewClient(&mcp.Implementation{Name: "independent-harness", Version: "0.1.0"}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
-		session, e := client.Connect(initCtx, &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}, nil)
+		p.stop()
+		p = nil
+		return fmt.Errorf("%w: MCP manager closed during initialization", errApproval)
+	}
+	m.processes = append(m.processes, p)
+	m.mu.Unlock()
+	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	client := mcp.NewClient(&mcp.Implementation{Name: "independent-harness", Version: "0.1.0"}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
+	session, e := client.Connect(initCtx, &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}, nil)
+	if e != nil {
+		cancel()
+		return fmt.Errorf("MCP server %s initialization failed: %w", name, e)
+	}
+	p.setSession(session)
+	count := 0
+	discovered := map[string]binding{}
+	for tool, e := range session.Tools(initCtx, nil) {
 		if e != nil {
 			cancel()
-			return fmt.Errorf("MCP server %s initialization failed: %w", name, e)
+			return fmt.Errorf("MCP server %s discovery failed: %w", name, e)
 		}
-		p.setSession(session)
-		count := 0
-		discovered := map[string]binding{}
-		for tool, e := range session.Tools(initCtx, nil) {
-			if e != nil {
-				cancel()
-				return fmt.Errorf("MCP server %s discovery failed: %w", name, e)
-			}
-			count++
-			if count > 128 {
-				cancel()
-				return fmt.Errorf("MCP server %s exceeds 128-tool discovery limit", name)
-			}
-			if !validComponent(tool.Name) {
-				cancel()
-				return fmt.Errorf("MCP tool %q uses an unsupported name; alpha supports letters, digits, underscore and hyphen without double underscores", tool.Name)
-			}
-			full := "mcp__" + name + "__" + tool.Name
-			if len(full) > 64 {
-				cancel()
-				return fmt.Errorf("MCP namespaced tool %q exceeds 64 bytes", full)
-			}
-			if _, exists := discovered[full]; exists {
-				cancel()
-				return fmt.Errorf("MCP duplicate tool name %q", full)
-			}
-			schema, ok := tool.InputSchema.(map[string]any)
-			if !ok {
-				cancel()
-				return fmt.Errorf("MCP tool %s requires an object input schema", full)
-			}
-			if e := rejectReferences(schema); e != nil {
-				cancel()
-				return fmt.Errorf("MCP tool %s: %w", full, e)
-			}
-			compiler := jsonschema.NewCompiler()
-			compiler.UseLoader(noLoader{})
-			const schemaURL = "https://harness.invalid/schema"
-			if e := compiler.AddResource(schemaURL, schema); e != nil {
-				cancel()
-				return fmt.Errorf("MCP tool %s schema: %w", full, e)
-			}
-			compiled, e := compiler.Compile(schemaURL)
-			if e != nil {
-				cancel()
-				return fmt.Errorf("MCP tool %s unsupported schema: %w", full, e)
-			}
-			description := tool.Description
-			if len(description) > 8192 {
-				description = description[:8192]
-			}
-			discovered[full] = binding{session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
+		count++
+		if count > 128 {
+			cancel()
+			return fmt.Errorf("MCP server %s exceeds 128-tool discovery limit", name)
 		}
-		cancel()
-		m.mu.Lock()
-		for n, b := range discovered {
-			if _, exists := m.bindings[n]; exists {
-				m.mu.Unlock()
-				return fmt.Errorf("MCP tool namespace collision %q", n)
-			}
-			m.bindings[n] = b
+		if !validComponent(tool.Name) {
+			cancel()
+			return fmt.Errorf("MCP tool %q uses an unsupported name; alpha supports letters, digits, underscore and hyphen without double underscores", tool.Name)
 		}
-		m.mu.Unlock()
+		full := "mcp__" + name + "__" + tool.Name
+		if len(full) > 64 {
+			cancel()
+			return fmt.Errorf("MCP namespaced tool %q exceeds 64 bytes", full)
+		}
+		if _, exists := discovered[full]; exists {
+			cancel()
+			return fmt.Errorf("MCP duplicate tool name %q", full)
+		}
+		schema, ok := tool.InputSchema.(map[string]any)
+		if !ok {
+			cancel()
+			return fmt.Errorf("MCP tool %s requires an object input schema", full)
+		}
+		if e := rejectReferences(schema); e != nil {
+			cancel()
+			return fmt.Errorf("MCP tool %s: %w", full, e)
+		}
+		compiler := jsonschema.NewCompiler()
+		compiler.UseLoader(noLoader{})
+		const schemaURL = "https://harness.invalid/schema"
+		if e := compiler.AddResource(schemaURL, schema); e != nil {
+			cancel()
+			return fmt.Errorf("MCP tool %s schema: %w", full, e)
+		}
+		compiled, e := compiler.Compile(schemaURL)
+		if e != nil {
+			cancel()
+			return fmt.Errorf("MCP tool %s unsupported schema: %w", full, e)
+		}
+		description := tool.Description
+		if len(description) > 8192 {
+			description = description[:8192]
+		}
+		discovered[full] = binding{session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
 	}
+	cancel()
+	m.mu.Lock()
+	for n, b := range discovered {
+		if _, exists := m.bindings[n]; exists {
+			m.mu.Unlock()
+			return fmt.Errorf("MCP tool namespace collision %q", n)
+		}
+		m.bindings[n] = b
+	}
+	m.mu.Unlock()
 	return nil
 }
 

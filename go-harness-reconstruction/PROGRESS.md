@@ -4,6 +4,16 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC19 integration degradation milestone
+
+A failing optional integration no longer fails the run. An approved MCP server
+that cannot start, initialize or present valid tools is stopped and skipped;
+the other servers and built-in tools stay available. An approved language
+server that cannot spawn or initialize is stopped and settled, so it no longer
+leaves an uncertain effect that blocks the next run. Cleanup that cannot be
+confirmed still stays uncertain. Each case is journaled as
+`integration_degraded` and explained in chat. Approval denial is unchanged.
+
 ## RC18 provider failover milestone
 
 `fallback_profiles` names an ordered list of configured profiles that receive a

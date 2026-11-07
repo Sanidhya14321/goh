@@ -106,8 +106,19 @@ func TestPermissionDenialPreventsStart(t *testing.T) {
 }
 func TestRejectSchemaReferences(t *testing.T) {
 	m := manager(t, map[string]string{"HARNESS_MCP_BAD_SCHEMA": "1"}, true)
-	if err := m.Connect(context.Background()); err == nil || !strings.Contains(err.Error(), "inline schema") {
-		t.Fatalf("schema error: %v", err)
+	// An invalid server is skipped and stopped; it no longer fails Connect.
+	if err := m.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	f := m.Failures()
+	if len(f) != 1 || f[0].Name != "fixture" || !strings.Contains(f[0].Error, "inline schema") || len(m.Definitions()) != 0 {
+		t.Fatalf("failures %+v definitions %d", f, len(m.Definitions()))
+	}
+	m.mu.Lock()
+	running := len(m.processes)
+	m.mu.Unlock()
+	if running != 0 {
+		t.Fatal("failed server process kept running")
 	}
 }
 func TestCancellationAndDisconnect(t *testing.T) {
@@ -138,5 +149,32 @@ func TestBoundedResults(t *testing.T) {
 	result := m.Execute(context.Background(), "mcp__fixture__large", json.RawMessage(`{}`))
 	if !result.Error || len(result.Content) > maxResult {
 		t.Fatalf("unbounded result: %d %v", len(result.Content), result.Error)
+	}
+}
+
+func TestFailedServerDoesNotRemoveHealthyServer(t *testing.T) {
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := []string{"-test.run=^TestMCPHelper$"}
+	m := New(map[string]core.MCPConfig{
+		"good":    {Command: binary, Args: args, Env: map[string]string{"HARNESS_MCP_HELPER": "1"}},
+		"broken":  {Command: binary, Args: args, Env: map[string]string{"HARNESS_MCP_HELPER": "1", "HARNESS_MCP_BAD_SCHEMA": "1"}},
+		"missing": {Command: filepath.Join(t.TempDir(), "no-such-server")},
+	}, t.TempDir(), func(context.Context, core.Permission) (core.Decision, error) { return core.Decision{Allow: true}, nil })
+	defer m.Close()
+	if err := m.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	var failed []string
+	for _, f := range m.Failures() {
+		failed = append(failed, f.Name)
+	}
+	if strings.Join(failed, ",") != "broken,missing" || !m.Has("mcp__good__echo") || m.Has("mcp__broken__echo") {
+		t.Fatalf("failed=%v definitions=%d", failed, len(m.Definitions()))
+	}
+	if r := m.Execute(context.Background(), "mcp__good__echo", json.RawMessage(`{"text":"still works"}`)); r.Error || !strings.Contains(r.Content, "still works") {
+		t.Fatal(r)
 	}
 }

@@ -4,6 +4,16 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC19 integration degradation
+
+`1.0.0-rc.19` passed `go vet`, the race suite, seven CLI fixture scenarios and
+fifteen PTY scenarios. New fixture tests start a healthy, a broken and a
+missing MCP server together and invoke the healthy tool; run an agent whose
+only MCP server fails discovery to completion with nothing pending; and run an
+LSP query against a missing executable, then a follow-up turn that is not
+blocked. The existing bad-initialize LSP test now expects completion with the
+server stopped. No third-party servers were tested.
+
 ## RC18 provider failover
 
 `1.0.0-rc.18` passed `go vet`, the full race suite, seven CLI fixture scenarios
