@@ -6,7 +6,8 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
-Nothing yet.
+- Windows: deleting a session from the browser or CLI no longer fails
+  (`29bf905`).
 
 ## 1.0.0-rc.33 — 2026-11-07
 

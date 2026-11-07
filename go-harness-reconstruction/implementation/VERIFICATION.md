@@ -15,6 +15,14 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## Windows session delete (after RC33)
+
+Native CI for RC32 and RC33 failed on Windows only: renaming a journal while
+holding its lock handle is not allowed there, so trashing a session failed.
+Commit `29bf905` keeps the lock held through the move on Unix and closes the
+handle just before the journal moves on Windows. CI on `29bf905` passed all six
+jobs.
+
 ## RC33 queued prompts
 
 `1.0.0-rc.33` passed vet (macOS and Windows), the race suite, seven CLI and
