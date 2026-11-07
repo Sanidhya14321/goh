@@ -75,6 +75,8 @@ type model struct {
 	timeline        *timelinePanel
 	fileCompletion  *fileCompletion
 	fileIndex       *fileIndexMsg
+	fileIndexStale  bool // a run finished since the snapshot; files may have changed
+	fileRescanning  bool
 	fork            *optionPicker
 	forkBefore      int
 	leader          bool
@@ -127,6 +129,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 	case fileIndexMsg:
 		m.fileIndex = &v
+		m.fileRescanning = false
 		if m.fileCompletion != nil {
 			m.fileCompletion.matches = fileMatches(v.files, m.fileCompletion.query)
 		}
@@ -220,6 +223,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.usage += n
 			}
 		case "run_finished":
+			m.fileIndexStale = true
 			m.log += "\n"
 			b, _ := json.Marshal(v.Data)
 			var d struct {

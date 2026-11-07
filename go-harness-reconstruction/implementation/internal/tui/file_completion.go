@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"example.com/independent-harness/internal/ignore"
 	"os"
 	"path"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -25,7 +27,12 @@ type projectFile struct {
 type fileIndexMsg struct {
 	files                  []projectFile
 	ready, limited, failed bool
+	scanned                time.Time
 }
+
+// fileIndexTTL bounds how long a snapshot is reused before a background
+// rescan. Matches from the old snapshot stay visible meanwhile.
+const fileIndexTTL = 15 * time.Second
 
 type fileCompletion struct {
 	start, selected int
@@ -44,8 +51,17 @@ func scanProjectFiles(project string, closed <-chan struct{}) fileIndexMsg {
 	}
 	defer root.Close()
 	remaining := fileScanLimit
+	rules := &ignore.Matcher{}
 	var scan func(string, int)
 	scan = func(dir string, depth int) {
+		// Read this directory's .gitignore before filtering its entries, so
+		// its rules apply to the subtree as in git.
+		if g, err := root.Open(path.Join(dir, ".gitignore")); err == nil {
+			if info, statErr := g.Stat(); statErr == nil && info.Mode().IsRegular() {
+				rules.Add(dir, g)
+			}
+			g.Close()
+		}
 		f, err := root.Open(dir)
 		if err != nil {
 			if dir == "." {
@@ -72,6 +88,9 @@ func scanProjectFiles(project string, closed <-chan struct{}) fileIndexMsg {
 					continue
 				}
 				relative := path.Join(dir, name)
+				if rules.Ignored(relative, entry.IsDir()) {
+					continue
+				}
 				if entry.IsDir() {
 					switch name {
 					case "node_modules", "vendor":
@@ -95,6 +114,7 @@ func scanProjectFiles(project string, closed <-chan struct{}) fileIndexMsg {
 	scan(".", 0)
 	result.limited = result.limited || remaining == 0
 	slices.SortFunc(result.files, func(a, b projectFile) int { return strings.Compare(a.path, b.path) })
+	result.scanned = time.Now()
 	return result
 }
 
@@ -152,8 +172,15 @@ func (m *model) openFileCompletion() tea.Cmd {
 	m.fileCompletion = &fileCompletion{start: start}
 	if m.fileIndex != nil {
 		m.fileCompletion.matches = fileMatches(m.fileIndex.files, "")
-		return nil
+		stale := m.fileIndex.ready && (m.fileIndexStale || time.Since(m.fileIndex.scanned) > fileIndexTTL)
+		if !stale || m.fileRescanning {
+			return nil
+		}
+		m.fileRescanning = true // keep showing the old snapshot until this lands
+	} else {
+		m.fileIndex = &fileIndexMsg{}
 	}
+	m.fileIndexStale = false
 	project := ""
 	if m.a != nil {
 		project = m.a.Store.Project
@@ -161,7 +188,6 @@ func (m *model) openFileCompletion() tea.Cmd {
 	if project == "" {
 		project, _ = os.Getwd()
 	}
-	m.fileIndex = &fileIndexMsg{}
 	closed := m.closed
 	return func() tea.Msg { return scanProjectFiles(project, closed) }
 }

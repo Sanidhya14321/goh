@@ -73,6 +73,7 @@ func (p *process) stop() error {
 	p.once.Do(func() {
 		// Graceful protocol shutdown has a strict deadline; blocked pipes are then
 		// closed before group termination, including server-owned descendants.
+		p.rpc.settleServerRequests(200 * time.Millisecond)
 		ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 		_, _ = p.rpc.call(ctx, "shutdown", nil)
 		cancel()

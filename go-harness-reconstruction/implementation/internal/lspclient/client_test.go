@@ -118,8 +118,8 @@ func TestLSPDisconnectCancelMalformedAndLarge(t *testing.T) {
 					t.Fatal(r)
 				}
 				m.Close()
-				// The fixture records the refusal asynchronously; under load
-				// the write can land just after Close returns.
+				// Close settles in-flight server-request replies; the fixture
+				// then records the refusal it read.
 				refused := false
 				for deadline := time.Now().Add(2 * time.Second); !refused && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 					b, _ := os.ReadFile(log)

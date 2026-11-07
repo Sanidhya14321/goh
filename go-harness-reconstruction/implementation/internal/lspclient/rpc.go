@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const maxFrame = 1 << 20
@@ -203,6 +204,15 @@ func (c *rpcClient) serverRequest(message rpcMessage) {
 	}
 	if err := c.write(response); err != nil {
 		c.fail(err)
+	}
+}
+
+// settleServerRequests waits, up to limit, for replies to server-initiated
+// requests (refusals included) to be written before shutdown begins.
+func (c *rpcClient) settleServerRequests(limit time.Duration) {
+	deadline := time.Now().Add(limit)
+	for len(c.serverSlots) > 0 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
 	}
 }
 func (c *rpcClient) write(message rpcMessage) error {

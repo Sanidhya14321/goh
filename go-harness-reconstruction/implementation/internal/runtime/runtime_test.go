@@ -23,7 +23,7 @@ func (f modelFunc) Complete(c context.Context, h []core.Message, d []core.Tool, 
 }
 func testAgent(t *testing.T) (*Agent, string) {
 	t.Helper()
-	root := t.TempDir()
+	root := testutil.TempDir(t)
 	c := core.Defaults()
 	c.SessionDir = t.TempDir()
 	c.ContextWindow = 1 << 20

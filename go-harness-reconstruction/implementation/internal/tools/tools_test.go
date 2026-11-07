@@ -63,7 +63,7 @@ func TestEditPreservesBytesPermissionsAndRejectsStale(t *testing.T) {
 		t.Fatal(string(after), err)
 	}
 	st, _ := os.Stat(p)
-	if st.Mode().Perm() != 0751 {
+	if testutil.UnixModes() && st.Mode().Perm() != 0751 {
 		t.Fatal(st.Mode())
 	}
 	if !call(t, e, "edit_file", change).Error {

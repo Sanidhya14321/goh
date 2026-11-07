@@ -4,6 +4,18 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC24 installers, Windows portability and file search milestone
+
+`install.sh` and `install.ps1` install with checksum verification and are
+shipped in the release; a CI job tests a clean and a tampered install natively
+on all three systems. Windows path handling now works for glob, grep, repo map
+and skills (fs.WalkDir requires slash paths), and locks no longer block readers
+of an active journal. Native Windows CI went from about 25 failing tests to 4
+and then to none locally verified (see VERIFICATION). `@` completion honors
+`.gitignore` rules and refreshes its snapshot after runs or 15 seconds. The LSP
+client now settles replies to server requests before shutdown, fixing a
+flaky refusal check seen on Ubuntu CI.
+
 ## RC23 external editor and Windows filesystem milestone
 
 Ctrl+X E and `/editor` hand the draft to `$VISUAL`/`$EDITOR` and load the result

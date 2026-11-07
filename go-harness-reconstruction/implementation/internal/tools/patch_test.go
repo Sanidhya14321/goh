@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/testutil"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,7 +63,7 @@ func TestApplyPatchMultiFileCreateUpdateDeleteMove(t *testing.T) {
 	}
 	for _, p := range []string{"update", "moved"} {
 		st, _ := os.Stat(filepath.Join(root, p))
-		if st.Mode().Perm() != 0751 {
+		if testutil.UnixModes() && st.Mode().Perm() != 0751 {
 			t.Fatal(p, st.Mode())
 		}
 	}
@@ -326,6 +327,9 @@ func TestPatchPreviewBudgetsBothSidesForEveryFile(t *testing.T) {
 	}
 }
 func TestPatchResultBudgetRejectsBeforeMutation(t *testing.T) {
+	if !testutil.UnixModes() {
+		t.Skip("Windows forbids control characters in filenames; such patches are refused earlier")
+	}
 	e, root := engine(t)
 	var lines []string
 	// Control characters are valid filenames but escape to six bytes in JSON. The permission

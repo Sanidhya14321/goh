@@ -15,6 +15,17 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC24 installers and portability
+
+Native CI run 42388824277 (portability fixes): macOS passed; Windows had four
+remaining failures in internal/tools (permission-bit assertions, 8.3 temp
+paths, control-character filenames); Ubuntu hit an LSP refusal race that is
+now fixed in the client (0 failures in 60 local `-race` runs). Those were
+addressed for RC24. Locally `1.0.0-rc.24` passed vet for macOS and Windows,
+the race suite, seven CLI and seventeen PTY scenarios, and
+`scripts/test_install.sh` (clean install; tampered binary refused with
+nothing installed). The RC24 native CI run is the Windows and installer check.
+
 RC23 native CI (run 42387111774): Ubuntu and macOS passed. Windows still
 fails in cmd/harness, core, formatters, runtime, session, skills, snapshots
 and tools. The directory-sync errors are gone; remaining causes include path

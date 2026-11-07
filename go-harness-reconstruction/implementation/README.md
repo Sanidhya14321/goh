@@ -5,6 +5,26 @@ Bubble Tea terminal UI, exact file tools, approved commands, durable sessions,
 and explicitly configured local stdio MCP servers. This is a development alpha,
 with selected OpenCode v1.19.5 behavior comparisons, not full OpenCode equivalence.
 
+## Install
+
+macOS or Linux:
+
+```sh
+curl -fsSL https://github.com/Sanidhya14321/goharness/releases/latest/download/install.sh | sh
+```
+
+Windows (PowerShell):
+
+```powershell
+irm https://github.com/Sanidhya14321/goharness/releases/latest/download/install.ps1 | iex
+```
+
+Both scripts download the binary for your platform with `SHA256SUMS`, refuse to
+install on a missing, duplicated or mismatched checksum, and install to
+`~/.local/bin` (or `%LOCALAPPDATA%\Programs\goh`). Set `GOH_VERSION` to pin a
+release tag or `GOH_INSTALL_DIR` to choose the destination. These URLs work once
+a release is published; no V1 release has been published yet.
+
 ## Build and try locally
 
 With `goh` on your PATH, run `goh` to open chat or `goh --help` for CLI
@@ -27,8 +47,12 @@ are quoted automatically. Esc dismisses the menu and leaves your draft intact.
 The prompt carries the path as text. The agent can read it through its usual
 file tools.
 
-The first search indexes names in the background and reuses that snapshot
-until chat restarts. It shows up to ten results from a scan of up to 12,000
+The first search indexes names in the background. A snapshot is reused for
+15 seconds, and is marked stale when an agent run finishes. A stale snapshot
+still answers immediately while a background rescan replaces it.
+`.gitignore` files are honored, including nested files, negation (`!`),
+directory-only rules, anchored patterns and `**`; ignored directories are not
+scanned. It shows up to ten results from a scan of up to 12,000
 entries and 24 directory levels. The scan skips dot-prefixed entries, symlinks,
 `node_modules`, and `vendor`. It uses the session project, or the current
 directory while chat is waiting for provider setup.
