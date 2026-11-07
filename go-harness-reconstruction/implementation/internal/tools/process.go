@@ -1,10 +1,9 @@
-//go:build darwin || linux
-
 package tools
 
 import (
 	"context"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -12,7 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -81,9 +79,9 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	}
 	defer stderrR.Close()
 	defer stderrW.Close()
-	cmd := exec.Command("/bin/sh", "-c", a.Command)
+	cmd := shellCommand(a.Command)
 	cmd.Dir = filepath.Join(e.root, a.Cwd)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	platform.NewGroup(cmd)
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
 	if err := ctx.Err(); err != nil {
@@ -111,14 +109,8 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	}
 	// Always settle descendants that remain in the owned group, including after
 	// a successful parent exit. Deliberately detached processes are outside scope.
-	signal := func(sig syscall.Signal) error {
-		err := syscall.Kill(-cmd.Process.Pid, sig)
-		if err == syscall.ESRCH {
-			return nil
-		}
-		return err
-	}
-	termErr := signal(syscall.SIGTERM)
+	pid := cmd.Process.Pid
+	termErr := platform.TerminateGroup(pid)
 	cleanupIncomplete := termErr != nil
 	timer := time.NewTimer(2 * time.Second)
 	defer timer.Stop()
@@ -134,7 +126,7 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 			drainDone = true
 			drain = nil
 		case <-timer.C:
-			if err := signal(syscall.SIGKILL); err != nil {
+			if err := platform.KillGroup(pid); err != nil {
 				cleanupIncomplete = true
 			}
 			stdoutR.Close()
@@ -160,10 +152,10 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	}
 	// Quiet descendants can close their pipes while remaining in the group.
 	// Give those processes the same two-second termination window.
-	if syscall.Kill(-cmd.Process.Pid, 0) == nil {
+	if !platform.GroupExited(pid) {
 		<-timer.C
 	}
-	if err := signal(syscall.SIGKILL); err != nil {
+	if err := platform.KillGroup(pid); err != nil {
 		cleanupIncomplete = true
 	}
 settled:

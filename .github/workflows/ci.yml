@@ -1,0 +1,33 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    # Windows support is new; keep its results visible without masking the others.
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
+    defaults:
+      run:
+        working-directory: go-harness-reconstruction/implementation
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-harness-reconstruction/implementation/go.mod
+          cache-dependency-path: go-harness-reconstruction/implementation/go.sum
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: Build and smoke-run the binary
+        run: |
+          go build -o goh${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/harness
+          ./goh${{ runner.os == 'Windows' && '.exe' || '' }} version

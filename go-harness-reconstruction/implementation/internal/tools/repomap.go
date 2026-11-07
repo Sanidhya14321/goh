@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"go/ast"
 	"go/parser"
 	"go/printer"
@@ -13,7 +14,6 @@ import (
 	"os"
 	"sort"
 	"strings"
-	"syscall"
 	"unicode/utf8"
 )
 
@@ -105,7 +105,7 @@ func mapRead(r *os.Root, path string) ([]byte, error) {
 	if err := checked(r, path, false); err != nil {
 		return nil, err
 	}
-	f, err := r.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := r.OpenFile(path, os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if err != nil {
 		return nil, err
 	}

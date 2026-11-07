@@ -2,10 +2,10 @@ package skills
 
 import (
 	"context"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -101,7 +101,7 @@ func TestSkillIdentityAndPathSafety(t *testing.T) {
 	if e = os.Remove(filepath.Join(root, ".agents/skills/a/SKILL.md")); e != nil {
 		t.Fatal(e)
 	}
-	if e = syscall.Mkfifo(filepath.Join(root, ".agents/skills/a/SKILL.md"), 0600); e != nil {
+	if e = testutil.Mkfifo(t, filepath.Join(root, ".agents/skills/a/SKILL.md")); e != nil {
 		t.Fatal(e)
 	}
 	if _, e = c.Load(context.Background(), "local"); e == nil {

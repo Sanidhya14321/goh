@@ -4,6 +4,17 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC22 Windows build
+
+`1.0.0-rc.22` passed `go vet`, the race suite, seven CLI fixture scenarios,
+sixteen PTY scenarios (three consecutive runs) and the ACP suite on this Mac.
+`go vet` (including test compilation) passed for windows/amd64,
+windows/arm64, linux/amd64, linux/arm64 and darwin/amd64. `make release`
+produced six binaries; `file` confirms PE32+ and ELF outputs, and SHA256SUMS
+self-verifies. Not yet exercised natively: Linux and Windows runtime, the
+Windows shell, lock and process cleanup. The CI workflow is the first native
+check. The RC20 undo PTY scenario was timing-sensitive and is fixed here.
+
 ## RC21 compaction masking
 
 `1.0.0-rc.21` passed `go vet`, the race suite, seven CLI fixture scenarios and

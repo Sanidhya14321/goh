@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -15,7 +16,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"example.com/independent-harness/internal/core"
@@ -430,7 +430,7 @@ type process struct {
 func startProcess(cfg core.MCPConfig, project string) (*process, error) {
 	cmd := exec.Command(cfg.Command, cfg.Args...)
 	cmd.Dir = project
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	platform.NewGroup(cmd)
 	cmd.WaitDelay = time.Second
 	env := map[string]string{}
 	for _, v := range os.Environ() {
@@ -494,15 +494,7 @@ func (p *process) stop() error {
 		p.stdin.Close()
 		p.stdout.Close()
 		pgid := p.cmd.Process.Pid
-		syscall.Kill(-pgid, syscall.SIGTERM)
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) {
-			if errors.Is(syscall.Kill(-pgid, 0), syscall.ESRCH) {
-				break
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		if err := platform.StopGroup(pgid, 2*time.Second); err != nil {
 			p.stopErr = fmt.Errorf("MCP cleanup_incomplete: %w", err)
 		}
 		select {

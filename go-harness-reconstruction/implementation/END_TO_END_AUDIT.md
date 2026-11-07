@@ -6,7 +6,7 @@
 
 - Live GoHarness used the account's `gpt-6.1-sol` model on the official OpenAI Responses endpoint. The user authorized GoHarness in the browser. The compiled harness streamed a marker, read a disposable file, applied a permission-gated edit, verified the result, and resumed the same session. A separate live PTY run connected through `/connect`, selected a model and sent a prompt. The [live evidence](../research/evidence/v1-chatgpt-live.json) contains only the check results.
 - Local fixture and unit tests exercised PKCE callback state, ID-token signature and nonce checks, credential rotation, partial stream refusal, and the existing Chat Completions, Anthropic, CLI, TUI and ACP surfaces.
-- RC16's Linux amd64 cross-build passed and Windows amd64 failed. Native Linux and Windows behavior remain release gates. The RC16 platform and vulnerability reports are still retained alongside the RC17 evidence.
+- RC22: Windows amd64/arm64 now cross-compile and vet; native runs come from CI. RC16's Linux amd64 cross-build passed and Windows amd64 failed. Native Linux and Windows behavior remain release gates. The RC16 platform and vulnerability reports are still retained alongside the RC17 evidence.
 
 ## Recovery by area
 

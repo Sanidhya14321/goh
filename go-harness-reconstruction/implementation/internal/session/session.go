@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -18,7 +19,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -99,7 +99,7 @@ var ErrBusy = errors.New("session already has an active writer")
 var ErrProjectMismatch = errors.New("session belongs to another project")
 
 func lock(f *os.File) error {
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := platform.TryLock(f); err != nil {
 		return fmt.Errorf("%w: %w", ErrBusy, err)
 	}
 	return nil
@@ -124,7 +124,7 @@ func open(dir, id, project string) (*Store, error) {
 	}
 	path := filepath.Join(dir, id+".jsonl")
 	// O_NOFOLLOW prevents replacing the journal with a symlink into another path.
-	f, err := os.OpenFile(path, os.O_RDWR|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	f, err := os.OpenFile(path, os.O_RDWR|platform.NoFollow|platform.NonBlock, 0600)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func List(dir string) ([]Info, error) {
 		if !validID.MatchString(id) {
 			continue
 		}
-		f, err := os.OpenFile(filepath.Join(dir, entry.Name()), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+		f, err := os.OpenFile(filepath.Join(dir, entry.Name()), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
 		if err != nil {
 			return nil, err
 		}

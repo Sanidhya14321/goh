@@ -8,12 +8,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"io"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -79,7 +79,7 @@ func (l *Ledger) directoryRoot(create bool) (*os.Root, error) {
 }
 
 func (l *Ledger) read(root *os.Root) ([]Note, error) {
-	file, err := root.OpenFile(l.key+".json", os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	file, err := root.OpenFile(l.key+".json", os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if os.IsNotExist(err) {
 		return []Note{}, nil
 	}
@@ -137,7 +137,7 @@ func (l *Ledger) update(edit func([]Note) ([]Note, error)) error {
 		return err
 	}
 	defer root.Close()
-	lock, err := root.OpenFile(l.key+".lock", os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	lock, err := root.OpenFile(l.key+".lock", os.O_CREATE|os.O_RDWR|platform.NoFollow|platform.NonBlock, 0600)
 	if err != nil {
 		return err
 	}
@@ -146,7 +146,7 @@ func (l *Ledger) update(edit func([]Note) ([]Note, error)) error {
 	if err != nil || !info.Mode().IsRegular() {
 		return errors.New("memory lock must be a regular file")
 	}
-	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := platform.TryLock(lock); err != nil {
 		return errors.New("memory ledger already has an active writer")
 	}
 	notes, err := l.read(root)

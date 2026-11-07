@@ -12,6 +12,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -20,7 +21,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf8"
 )
@@ -149,7 +149,7 @@ func Open(project, directory string) (*Manager, error) {
 		r.Close()
 		return nil, err
 	}
-	f, err := s.OpenFile("lock", os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	f, err := s.OpenFile("lock", os.O_RDWR|os.O_CREATE|platform.NoFollow|platform.NonBlock, 0600)
 	if err != nil {
 		r.Close()
 		s.Close()
@@ -159,7 +159,7 @@ func Open(project, directory string) (*Manager, error) {
 	if st, e := f.Stat(); e != nil || !st.Mode().IsRegular() {
 		return fail(errors.New("snapshot lock must be a regular file"))
 	}
-	if err = syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err = platform.TryLock(f); err != nil {
 		return fail(fmt.Errorf("snapshots already have an active writer: %w", err))
 	}
 	if err = s.Mkdir("blobs", 0700); err != nil && !os.IsExist(err) {
@@ -247,7 +247,7 @@ func (m *Manager) readCurrent(path string) (Entry, []byte, error) {
 	if err := checked(m.root, path, true); err != nil {
 		return e, nil, err
 	}
-	f, err := m.root.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := m.root.OpenFile(path, os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if os.IsNotExist(err) {
 		return e, nil, nil
 	}
@@ -284,7 +284,7 @@ func (m *Manager) saveBlob(e Entry, b []byte) error {
 		return nil
 	}
 	path := filepath.Join("blobs", e.SHA256)
-	f, err := m.store.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|syscall.O_NOFOLLOW, 0600)
+	f, err := m.store.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL|platform.NoFollow, 0600)
 	if os.IsExist(err) {
 		_, err = m.readBlob(e)
 		return err
@@ -314,7 +314,7 @@ func (m *Manager) readBlob(e Entry) ([]byte, error) {
 	if !hashPattern.MatchString(e.SHA256) || e.Size < 0 || e.Size > MaxFile {
 		return nil, errors.New("invalid snapshot blob identity")
 	}
-	f, err := m.store.OpenFile(filepath.Join("blobs", e.SHA256), os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := m.store.OpenFile(filepath.Join("blobs", e.SHA256), os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -377,7 +377,7 @@ func (m *Manager) load(id string) (Record, error) {
 	if !idPattern.MatchString(id) {
 		return r, errors.New("invalid snapshot ID")
 	}
-	f, err := m.store.OpenFile(id+".json", os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := m.store.OpenFile(id+".json", os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if err != nil {
 		return r, err
 	}

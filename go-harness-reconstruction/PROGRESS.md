@@ -4,6 +4,18 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC22 Windows build milestone
+
+GoHarness now compiles and vets for Windows amd64 and arm64, alongside macOS
+and Linux. Locks, no-follow opens and process-group cleanup go through a new
+`internal/platform` package: flock and O_NOFOLLOW on Unix; LockFileEx, a
+reparse-point check and `taskkill /T` on Windows. The shell tool uses
+`/bin/sh -c` on Unix and `cmd.exe /d /s /c` on Windows. The release script
+builds six targets with verified SHA256SUMS. A GitHub Actions workflow runs
+vet and tests natively on Ubuntu, macOS and Windows. Windows is cross-compiled
+only until that workflow reports; its no-follow check is weaker than
+O_NOFOLLOW against a concurrent swap.
+
 ## RC21 compaction masking milestone
 
 Automatic compaction masks old tool output before calling a summary model and

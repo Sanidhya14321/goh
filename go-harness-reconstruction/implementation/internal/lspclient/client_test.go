@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
@@ -90,7 +89,7 @@ func TestLSPAdmissionFailureAndBounds(t *testing.T) {
 		t.Fatal("denied server started")
 	}
 	fifo := filepath.Join(filepath.Dir(path), "fifo.lsptest")
-	if e := syscall.Mkfifo(fifo, 0600); e != nil {
+	if e := testutil.Mkfifo(t, fifo); e != nil {
 		t.Fatal(e)
 	}
 	for _, name := range []string{"../outside.lsptest", "fifo.lsptest"} {

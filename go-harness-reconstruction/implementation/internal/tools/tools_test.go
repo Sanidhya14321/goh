@@ -3,12 +3,12 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -142,7 +142,7 @@ func TestPathAndSpecialFileBoundaries(t *testing.T) {
 	if !call(t, e, "read_file", map[string]any{"path": "binary"}).Error {
 		t.Fatal("accepted binary")
 	}
-	if err := syscall.Mkfifo(filepath.Join(root, "fifo"), 0600); err != nil {
+	if err := testutil.Mkfifo(t, filepath.Join(root, "fifo")); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan Result, 1)

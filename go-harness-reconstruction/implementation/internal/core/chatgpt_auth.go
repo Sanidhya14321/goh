@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"math/big"
@@ -20,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 )
 
@@ -65,7 +65,7 @@ func readChatGPTAccount() (chatGPTAccount, error) {
 	if err != nil {
 		return account, err
 	}
-	f, err := os.OpenFile(path, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	f, err := os.OpenFile(path, os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
 	if os.IsNotExist(err) {
 		return account, ErrChatGPTLogin
 	}
@@ -109,11 +109,11 @@ func chatGPTLock() (func(), error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 		return nil, err
 	}
-	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0600)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|platform.NoFollow|platform.NonBlock, 0600)
 	if err != nil {
 		return nil, err
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	if err := platform.TryLock(f); err != nil {
 		f.Close()
 		return nil, errors.New("another GoHarness process is updating ChatGPT sign-in; try again shortly")
 	}

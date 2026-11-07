@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"net/url"
@@ -16,7 +17,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode/utf16"
 	"unicode/utf8"
@@ -217,7 +217,7 @@ func (m *Manager) readFile(path string) (string, string, error) {
 			return "", "", errors.New("LSP symlink paths are unsupported")
 		}
 	}
-	file, err := root.OpenFile(relative, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	file, err := root.OpenFile(relative, os.O_RDONLY|platform.NonBlock, 0)
 	if err != nil {
 		return "", "", fmt.Errorf("LSP project file: %w", err)
 	}

@@ -3,11 +3,11 @@ package snapshots
 import (
 	"context"
 	"errors"
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -264,7 +264,7 @@ func TestSnapshotPathsAndSpecialFiles(t *testing.T) {
 	if err := os.Symlink(outside, filepath.Join(p, "link")); err != nil {
 		t.Fatal(err)
 	}
-	if err := syscall.Mkfifo(filepath.Join(p, "pipe"), 0600); err != nil {
+	if err := testutil.Mkfifo(t, filepath.Join(p, "pipe")); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{"../outside", outside, ".git/index", "link", "pipe", "missing/child", ".", ""} {

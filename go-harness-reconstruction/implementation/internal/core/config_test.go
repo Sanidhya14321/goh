@@ -1,10 +1,10 @@
 package core
 
 import (
+	"example.com/independent-harness/internal/testutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"testing"
 )
 
@@ -98,7 +98,7 @@ func TestProviderBaseURLAndOverrides(t *testing.T) {
 func TestConfigRejectsSpecialAndOversizedFiles(t *testing.T) {
 	dir := t.TempDir()
 	fifo := filepath.Join(dir, "config.fifo")
-	if e := syscall.Mkfifo(fifo, 0600); e != nil {
+	if e := testutil.Mkfifo(t, fifo); e != nil {
 		t.Fatal(e)
 	}
 	if _, e := LoadConfig(fifo); e == nil {

@@ -3,13 +3,13 @@ package lspclient
 import (
 	"context"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"example.com/independent-harness/internal/core"
@@ -26,7 +26,7 @@ type process struct {
 func startProcess(config core.LSPConfig, project string) (*process, error) {
 	cmd := exec.Command(config.Command, config.Args...)
 	cmd.Dir = project
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	platform.NewGroup(cmd)
 	cmd.WaitDelay = time.Second
 	env := map[string]string{}
 	for _, entry := range os.Environ() {
@@ -84,15 +84,7 @@ func (p *process) stop() error {
 		}
 		p.rpc.fail(errors.New("LSP manager closed"))
 		pgid := p.cmd.Process.Pid
-		syscall.Kill(-pgid, syscall.SIGTERM)
-		deadline := time.Now().Add(2 * time.Second)
-		for time.Now().Before(deadline) {
-			if errors.Is(syscall.Kill(-pgid, 0), syscall.ESRCH) {
-				break
-			}
-			time.Sleep(20 * time.Millisecond)
-		}
-		if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
+		if err := platform.StopGroup(pgid, 2*time.Second); err != nil {
 			p.err = fmt.Errorf("LSP cleanup_incomplete: %w", err)
 		}
 		select {

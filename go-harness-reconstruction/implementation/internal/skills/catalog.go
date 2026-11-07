@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,7 +15,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"syscall"
 	"unicode/utf8"
 )
 
@@ -289,7 +289,7 @@ func read(r *os.Root, p string) ([]byte, error) {
 	if e := noLinks(r, p); e != nil {
 		return nil, e
 	}
-	f, e := r.OpenFile(p, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	f, e := r.OpenFile(p, os.O_RDONLY|platform.NonBlock, 0)
 	if e != nil {
 		return nil, e
 	}

@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"example.com/independent-harness/internal/core"
@@ -33,7 +33,7 @@ func Preview(dir, id string) (PreviewInfo, error) {
 	if !validID.MatchString(id) {
 		return result, errors.New("invalid session ID")
 	}
-	file, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
+	file, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
 	if err != nil {
 		return result, err
 	}

@@ -5,11 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"io"
 	"os"
 	"regexp"
 	"strings"
-	"syscall"
 	"unicode/utf8"
 )
 
@@ -85,7 +85,7 @@ func (e *Engine) readArtifact(ctx context.Context, raw json.RawMessage) Result {
 	if err = checked(root, a.ID, false); err != nil {
 		return failure(err)
 	}
-	f, err := root.OpenFile(a.ID, os.O_RDONLY|syscall.O_NONBLOCK|syscall.O_NOFOLLOW, 0)
+	f, err := root.OpenFile(a.ID, os.O_RDONLY|platform.NonBlock|platform.NoFollow, 0)
 	if err != nil {
 		return failure(err)
 	}

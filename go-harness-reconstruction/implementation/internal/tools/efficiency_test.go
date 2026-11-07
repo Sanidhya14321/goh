@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"example.com/independent-harness/internal/testutil"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 )
 
@@ -75,7 +75,7 @@ func TestArtifactPagingTailExactBytesAndOwnership(t *testing.T) {
 	if r := e.Execute(context.Background(), "read_artifact", json.RawMessage(`{"id":"shell-222.log"}`)); !r.Error {
 		t.Fatal("artifact link read")
 	}
-	if err = syscall.Mkfifo(filepath.Join(artifacts, "shell-333.log"), 0600); err != nil {
+	if err = testutil.Mkfifo(t, filepath.Join(artifacts, "shell-333.log")); err != nil {
 		t.Fatal(err)
 	}
 	if r := e.Execute(context.Background(), "read_artifact", json.RawMessage(`{"id":"shell-333.log"}`)); !r.Error {

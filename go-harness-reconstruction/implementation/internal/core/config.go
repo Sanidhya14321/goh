@@ -2,13 +2,13 @@ package core
 
 import (
 	"encoding/json"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 type MCPConfig struct {
@@ -205,7 +205,7 @@ func (c Config) ProviderEndpoint() (string, error) {
 }
 
 func readConfig(path string) ([]byte, error) {
-	f, e := os.OpenFile(path, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	f, e := os.OpenFile(path, os.O_RDONLY|platform.NonBlock, 0)
 	if e != nil {
 		return nil, e
 	}

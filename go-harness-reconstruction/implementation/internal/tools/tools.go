@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"io/fs"
@@ -19,7 +20,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"unicode/utf8"
 )
 
@@ -254,7 +254,7 @@ func read(r *os.Root, p string) ([]byte, fs.FileMode, error) {
 	if !lst.Mode().IsRegular() {
 		return nil, 0, errors.New("only regular files supported")
 	}
-	f, err := r.OpenFile(p, os.O_RDONLY|syscall.O_NONBLOCK, 0)
+	f, err := r.OpenFile(p, os.O_RDONLY|platform.NonBlock, 0)
 	if err != nil {
 		return nil, 0, err
 	}
