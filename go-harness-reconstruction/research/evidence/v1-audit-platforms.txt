@@ -1,0 +1,26 @@
+linux/amd64 build: pass
+windows/amd64 build: failed
+# example.com/independent-harness/internal/snapshots
+internal/snapshots/snapshots.go:152:61: undefined: syscall.O_NOFOLLOW
+internal/snapshots/snapshots.go:162:19: undefined: syscall.Flock
+internal/snapshots/snapshots.go:162:46: undefined: syscall.LOCK_EX
+internal/snapshots/snapshots.go:162:62: undefined: syscall.LOCK_NB
+internal/snapshots/snapshots.go:250:73: undefined: syscall.O_NOFOLLOW
+internal/snapshots/snapshots.go:287:77: undefined: syscall.O_NOFOLLOW
+internal/snapshots/snapshots.go:317:102: undefined: syscall.O_NOFOLLOW
+internal/snapshots/snapshots.go:380:80: undefined: syscall.O_NOFOLLOW
+# example.com/independent-harness/internal/tools
+internal/tools/artifacts.go:88:71: undefined: syscall.O_NOFOLLOW
+internal/tools/artifacts.go:97:43: undefined: maxArtifact
+internal/tools/artifacts.go:101:44: undefined: maxArtifact
+internal/tools/artifacts.go:105:17: undefined: maxArtifact
+internal/tools/changes.go:104:11: e.shell undefined (type *Engine has no field or method shell)
+internal/tools/repomap.go:108:68: undefined: syscall.O_NOFOLLOW
+internal/tools/tools.go:510:12: e.shell undefined (type *Engine has no field or method shell)
+# example.com/independent-harness/internal/session
+internal/session/preview.go:36:80: undefined: syscall.O_NOFOLLOW
+internal/session/session.go:102:20: undefined: syscall.Flock
+internal/session/session.go:102:47: undefined: syscall.LOCK_EX
+internal/session/session.go:102:63: undefined: syscall.LOCK_NB
+internal/session/session.go:127:48: undefined: syscall.O_NOFOLLOW
+internal/session/session.go:358:79: undefined: syscall.O_NOFOLLOW

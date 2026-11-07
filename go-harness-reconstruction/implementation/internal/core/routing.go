@@ -41,26 +41,35 @@ func (c Config) ValidateModelRoles() error {
 	}
 	return nil
 }
-func (c *Config) overlayProfile(p ModelProfile) {
-	// A protocol change cannot accidentally reuse the parent's credential variable.
-	if p.Protocol != nil {
-		next := *p.Protocol
-		if next == "" {
-			next = "chat_completions"
-		}
-		if next != c.EffectiveProtocol() && p.APIKeyEnv == nil {
-			c.APIKeyEnv = ""
-		}
-		c.Protocol = *p.Protocol
+
+// SetProviderRoute drops inherited gateway credentials when the request binding
+// changes. Callers can then apply a credential explicitly chosen for that route.
+func (c *Config) SetProviderRoute(protocol, endpoint, baseURL string) {
+	oldEndpoint, _ := c.ProviderEndpoint()
+	oldProtocol := c.EffectiveProtocol()
+	c.Protocol, c.Endpoint, c.BaseURL = protocol, endpoint, baseURL
+	newEndpoint, _ := c.ProviderEndpoint()
+	if oldProtocol != c.EffectiveProtocol() || oldEndpoint != newEndpoint {
+		c.APIKeyEnv = ""
 	}
-	if p.Endpoint != nil || p.BaseURL != nil {
-		c.Endpoint, c.BaseURL = "", ""
-		if p.Endpoint != nil {
-			c.Endpoint = *p.Endpoint
+}
+
+func (c *Config) overlayProfile(p ModelProfile) {
+	if p.Protocol != nil || p.Endpoint != nil || p.BaseURL != nil {
+		protocol, endpoint, baseURL := c.Protocol, c.Endpoint, c.BaseURL
+		if p.Protocol != nil {
+			protocol = *p.Protocol
 		}
-		if p.BaseURL != nil {
-			c.BaseURL = *p.BaseURL
+		if p.Endpoint != nil || p.BaseURL != nil {
+			endpoint, baseURL = "", ""
+			if p.Endpoint != nil {
+				endpoint = *p.Endpoint
+			}
+			if p.BaseURL != nil {
+				baseURL = *p.BaseURL
+			}
 		}
+		c.SetProviderRoute(protocol, endpoint, baseURL)
 	}
 	if p.Model != nil {
 		c.Model = *p.Model

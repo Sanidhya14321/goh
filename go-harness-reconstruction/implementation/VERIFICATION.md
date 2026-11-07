@@ -6,11 +6,19 @@ Live inference was tested on loopback. Source milestones are published to Sanidh
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.15` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.16` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC16 evidence is under `research/evidence/v1-audit-*`. Compiled setup tests
+cover provider draft recovery and the gateway fallback. The shell cancellation
+terminal test uses Esc. Unit checks cover credential routing, JSON reply bounds
+and malformed replies. The native OpenAI probe reached HTTP 401 without a key.
+A separate signed-in Codex CLI probe completed. The
+[end-to-end audit](END_TO_END_AUDIT.md) records the remaining account,
+integration, UI and platform checks.
 
 RC15 evidence is under `research/evidence/v1-ui-export-*`. The terminal setup
 flow tests cancellation, successful export, private file mode, collision

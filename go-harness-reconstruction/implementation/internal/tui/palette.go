@@ -80,6 +80,17 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if len(entries) > 0 {
 			entry := entries[min(m.paletteIndex, len(entries)-1)]
 			m.palette = false
+			switch entry.command {
+			case "/provider", "/settings", "/models", "/agents":
+				m.navigation = entry.command[1:]
+				return m, tea.Quit
+			case "/status":
+				m.openStatus()
+				return m, nil
+			case "/timeline":
+				m.openTimeline()
+				return m, nil
+			}
 			if entry.command == "/export" {
 				m.openExport()
 				return m, nil

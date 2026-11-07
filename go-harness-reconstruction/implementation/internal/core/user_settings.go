@@ -64,8 +64,22 @@ func (c Config) credentialPath() (string, error) {
 // ProviderKey prefers the explicit environment override. The saved credential
 // is scoped to one request URL and protocol and never enters the environment.
 func (c Config) ProviderKey() (string, error) {
-	if key := os.Getenv(c.CredentialEnvironment()); key != "" {
-		return key, nil
+	env := c.CredentialEnvironment()
+	if key := os.Getenv(env); key != "" {
+		endpoint, err := c.ProviderEndpoint()
+		if err != nil {
+			return "", err
+		}
+		u, _ := url.Parse(endpoint)
+		host := strings.ToLower(u.Hostname())
+		trusted := u.Scheme == "https" && (u.Port() == "" || u.Port() == "443") && ((env == "OPENAI_API_KEY" && host == "api.openai.com") ||
+			(env == "ANTHROPIC_API_KEY" && host == "api.anthropic.com"))
+		if trusted || (c.APIKeyEnv != "" && env != "OPENAI_API_KEY" && env != "ANTHROPIC_API_KEY") {
+			if u.Scheme != "https" && host != "localhost" && !net.ParseIP(host).IsLoopback() {
+				return "", fmt.Errorf("environment keys require HTTPS or a loopback URL")
+			}
+			return key, nil
+		}
 	}
 	path, err := c.credentialPath()
 	if err != nil {

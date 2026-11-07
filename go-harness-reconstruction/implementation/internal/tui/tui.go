@@ -348,6 +348,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, nil
 		}
 		if m.active {
+			if key == "esc" {
+				m.cancel()
+			}
 			return m, nil
 		}
 		if m.palette {
@@ -420,8 +423,6 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, tea.Quit
 			}
 			if m.blocked != "" {
-				m.input = ""
-				m.inputCursor = 0
 				m.log = m.blocked
 				return m, nil
 			}
@@ -543,6 +544,13 @@ func terminalRows(text string, width int) []string {
 	return rows
 }
 
+func (m *model) runControls() string {
+	if m.pending != nil || m.question != nil {
+		return "Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
+	}
+	return "Esc / Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
+}
+
 func (m *model) compactView() tea.View {
 	width, height := m.width, m.height
 	if width < 1 {
@@ -562,7 +570,7 @@ func (m *model) compactView() tea.View {
 	}
 	body, review := m.log, ""
 	if m.pending != nil {
-		review = "APPROVAL: " + m.pending.request.Tool + " • PgUp/PgDn review • y once / s session / n deny"
+		review = "APPROVAL: " + m.pending.request.Tool + " • PgUp/PgDn review • y once / s session / n or Esc deny"
 		body = m.pending.request.Preview
 	} else if m.question != nil {
 		review = "INTERACTIVE QUESTION • answers grant no permissions • PgUp/PgDn review"
@@ -594,7 +602,9 @@ func (m *model) compactView() tea.View {
 	}
 
 	controls := "Enter send • Alt+Enter newline • Ctrl+C cancel • Ctrl+D exit • /settings"
-	if m.blocked != "" {
+	if m.active {
+		controls = m.runControls()
+	} else if m.blocked != "" {
 		controls = "Ctrl+P provider • /workspace • /settings • Ctrl+D exit"
 	}
 	footer := terminalRows(controls, width)
@@ -738,11 +748,12 @@ func Run(a *agent.Agent, notice, draft string) error {
 }
 
 // RunBlocked renders the chat surface before a usable agent can be created.
-func RunBlocked(status, reason string) error {
+func RunBlocked(status, reason, draft string) error {
 	m := &model{width: 80, height: 24, status: status, blocked: reason, log: reason}
+	m.insertInput(Safe(draft))
 	_, err := tea.NewProgram(m).Run()
 	if err == nil && m.navigation != "" {
-		return &ChatNavigation{Action: m.navigation, Backdrop: m.View().Content}
+		return &ChatNavigation{Action: m.navigation, Backdrop: m.View().Content, Draft: m.input}
 	}
 	return err
 }

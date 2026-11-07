@@ -52,3 +52,15 @@ func TestRoleEnvironmentPrecedence(t *testing.T) {
 		t.Fatal(selected, err)
 	}
 }
+
+func TestProfileChangingEndpointDoesNotInheritGatewayKey(t *testing.T) {
+	cfg := Config{BaseURL: "https://primary.example/v1", APIKeyEnv: "PRIMARY_KEY"}
+	cfg.overlayProfile(ModelProfile{Model: str("same-provider")})
+	if cfg.APIKeyEnv != "PRIMARY_KEY" {
+		t.Fatal("same endpoint lost its key")
+	}
+	cfg.overlayProfile(ModelProfile{BaseURL: str("https://fallback.example/v1")})
+	if cfg.APIKeyEnv != "" {
+		t.Fatal("different endpoint inherited the primary key")
+	}
+}

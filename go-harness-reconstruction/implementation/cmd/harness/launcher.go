@@ -54,13 +54,13 @@ func configureProvider() (bool, error) {
 	}
 	return tui.EditSettings("Provider setup", "Enter the details from your model provider. Keys are saved separately with private file permissions.", fields, false, func(fields []tui.SettingsField) error {
 		next := cfg
-		next.Endpoint, next.BaseURL = "", ""
+		endpoint, baseURL := "", ""
 		address := strings.TrimSpace(fields[0].Value)
 		switch strings.TrimSpace(fields[1].Value) {
 		case "base":
-			next.BaseURL = address
+			baseURL = address
 		case "endpoint":
-			next.Endpoint = address
+			endpoint = address
 		default:
 			return errors.New("URL type must be base or endpoint")
 		}
@@ -69,7 +69,7 @@ func configureProvider() (bool, error) {
 		if err != nil {
 			return errors.New("Context window must be a whole number")
 		}
-		next.Protocol = strings.TrimSpace(fields[4].Value)
+		next.SetProviderRoute(strings.TrimSpace(fields[4].Value), endpoint, baseURL)
 		if err := next.Validate(); err != nil {
 			return err
 		}
@@ -83,6 +83,9 @@ func configureProvider() (bool, error) {
 		}
 		delete(document, "endpoint")
 		delete(document, "base_url")
+		if next.APIKeyEnv != cfg.APIKeyEnv {
+			delete(document, "api_key_env")
+		}
 		for name, value := range map[string]any{"model": next.Model, "context_window": next.ContextWindow, "protocol": next.Protocol} {
 			document[name], _ = json.Marshal(value)
 		}
@@ -165,7 +168,6 @@ func chatFirst(args []string) error {
 			notice = actionErr.Error()
 		}
 		err := runCommand(command, skipChooser, notice, draft)
-		draft = ""
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
@@ -175,7 +177,7 @@ func chatFirst(args []string) error {
 			if actionErr != nil {
 				reason = actionErr.Error() + "\n" + reason
 			}
-			err = tui.RunBlocked("Chat setup required", reason)
+			err = tui.RunBlocked("Chat setup required", reason, draft)
 			if !errors.As(err, &nav) {
 				return err
 			}
@@ -186,10 +188,13 @@ func chatFirst(args []string) error {
 		sessionOverride = true
 		skipChooser = true
 		actionErr = nil
+		draft = ""
 		switch nav.Action {
 		case "provider":
+			draft = nav.Draft
 			_, actionErr = configureProvider()
 		case "settings":
+			draft = nav.Draft
 			actionErr = launch()
 		case "workspace":
 			next := project
@@ -248,6 +253,7 @@ func chatFirst(args []string) error {
 				project = nav.Project
 			}
 		case "models", "agents", "cycle_agent", "previous_agent":
+			draft = nav.Draft
 			cfg := core.Defaults()
 			if nav.Config != nil {
 				cfg = *nav.Config

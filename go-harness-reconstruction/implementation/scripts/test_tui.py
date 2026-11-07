@@ -195,7 +195,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     wait_for(b'APPROVAL: shell')
                     os.write(master, b'y')
                     wait_for('▸ shell'.encode())
-                    os.write(master, b'\x03')
+                    os.write(master, b'\x1b')
                     wait_for(b'cancelled')
                     if process.poll() is not None:
                         raise AssertionError('first cancel exited application')

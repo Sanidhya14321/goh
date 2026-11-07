@@ -133,7 +133,7 @@ func (m *model) View() tea.View {
 		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName, promptWidth-1, blue, panel))
 	controls := "Enter send  Alt+Enter newline  Ctrl+P commands  Ctrl+D exit  Tab agents"
 	if m.active {
-		controls = "Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
+		controls = m.runControls()
 	}
 	if m.blocked != "" {
 		controls = "Ctrl+P provider commands  /provider setup  Ctrl+D exit"
@@ -185,7 +185,7 @@ func (m *model) View() tea.View {
 	body, review := m.log, ""
 	if m.pending != nil {
 		body = m.pending.request.Preview
-		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s session / n deny"
+		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s session / n or Esc deny"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {

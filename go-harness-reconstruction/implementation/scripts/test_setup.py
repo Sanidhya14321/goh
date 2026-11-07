@@ -34,6 +34,18 @@ class Provider(http.server.BaseHTTPRequestHandler):
                 body["model"] not in ("setup-fixture", "fixture-fast")):
             self.send_error(401)
             return
+        if prompts[-1] == "Compatibility fallback":
+            if "stream_options" in body:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":{"code":"unsupported_parameter","param":"stream_options"}}')
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"choices":[{"index":0,"message":{"role":"assistant","content":"Compatible JSON received"},"finish_reason":"stop"}],"usage":{"total_tokens":9}}')
+            return
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
@@ -93,7 +105,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"Should stay blocked\r")
         time.sleep(.1)
         assert not requests
-        os.write(master, b"/status\r")
+        os.write(master, b"\x07")
         wait_for(b"GoHarness  /  Status")
         assert not requests
         os.write(master, b"p")
@@ -104,7 +116,10 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"Agent: build")
         wait_for(b"Ctrl+P commands")
         time.sleep(.1)
-        os.write(master, b"Helo from setup\x01\x1b[C\x1b[Cl\x05\r")
+        pos = len(output)
+        os.write(master, b"\x0c")
+        wait_for(b"Should stay blocked", pos)
+        os.write(master, b"\x15Helo from setup\x01\x1b[C\x1b[Cl\x05\r")
         wait_for(b"Provider authentication failed")
         assert prompts == ["Hello from setup"], prompts
         journal_before, = root.rglob("*.jsonl")
@@ -117,7 +132,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"Provider setup", pos)
         os.write(master, b"\t\t\t\t\t" + key.encode() + b"\x13")
         wait_for(b"Agent: build", pos)
-        os.write(master, b"Retry after fixing key\r")
+        os.write(master, b"\x15Retry after fixing key\r")
         wait_for(b"Setup authenticated")
         assert list(root.rglob("*.jsonl")) == [journal_before]
         wait_for(b"completed")
@@ -130,6 +145,8 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         # Wait for the recalled prompt's run to settle before navigating.
         time.sleep(.1)
         pos = len(output)
+        os.write(master, b"Verify selected model\x10")
+        wait_for(b"GoHarness  /  Commands", pos)
         os.write(master, b"/models\r")
         wait_for(b"Select model profile", pos)
         os.write(master, b"fast")
@@ -139,8 +156,9 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"Agent: build  \xc2\xb7  fixture-fast", pos)
         time.sleep(.1)
         pos = len(output)
-        os.write(master, b"Verify selected model\r")
+        os.write(master, b"\r")
         wait_for(b"completed", pos)
+        assert prompts[-1] == "Verify selected model", prompts
         assert models[-1] == "fixture-fast", models
         assert list(root.rglob("*.jsonl")) == [journal_before]
         pos = len(output)
@@ -344,6 +362,16 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         time.sleep(.1)
         assert len(requests) == count + 1 and prompts[-1] == "Branch experiment", prompts
         assert journal_before.read_bytes() == before_fork
+        branch_offset = branch.stat().st_size
+        pos = len(output)
+        os.write(master, b"Compatibility fallback\r")
+        wait_for(b"Compatible JSON received", pos)
+        wait_finished(branch, branch_offset)
+        assert prompts[-2:] == ["Compatibility fallback", "Compatibility fallback"]
+        records = [json.loads(line) for line in branch.read_bytes()[branch_offset:].splitlines()]
+        user_messages = [r for r in records if r["type"] == "message" and r["data"]["role"] == "user"]
+        assert len(user_messages) == 1
+        time.sleep(.1)
         os.write(master, b"\x04")
         assert app.wait(timeout=8) == 0
         cli_fork = subprocess.run(
@@ -377,7 +405,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "compatibility_fallback_verified": True, "provider_draft_recovery_verified": True, "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

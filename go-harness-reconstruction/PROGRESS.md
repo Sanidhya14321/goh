@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC16 recovery milestone
+
+GoHarness preserves drafts while switching provider settings and profiles, and
+Esc cancels an active run. The Chat Completions adapter handles compatible
+JSON replies and a narrow streaming-option fallback. The audit tracks tested
+recovery paths, the native ChatGPT authorization gap, terminal parity and
+platform release gates. See [the audit](implementation/END_TO_END_AUDIT.md).
+
 ## RC15 UI milestone
 
 The Go chat now has an /export dialog for Markdown transcripts. It uses the
@@ -41,7 +49,7 @@ added. Source and isolated terminal captures document the reference and result.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.15` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.16` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.

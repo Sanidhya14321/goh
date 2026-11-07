@@ -64,7 +64,7 @@ func TestMixedProtocolChildRoleAndTypedRoundTrip(t *testing.T) {
 	a, root := testAgent(t)
 	os.WriteFile(filepath.Join(root, "target"), []byte("local evidence"), 0600)
 	t.Setenv("PARENT_FIXTURE_KEY", "parent-key")
-	t.Setenv("ANTHROPIC_API_KEY", "native-key")
+	t.Setenv("NATIVE_FIXTURE_KEY", "native-key")
 	parentCalls, childCalls := atomic.Int32{}, atomic.Int32{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request map[string]any
@@ -111,11 +111,11 @@ func TestMixedProtocolChildRoleAndTypedRoundTrip(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	protocol, endpoint, model := "anthropic_messages", server.URL+"/messages", "native-model"
+	protocol, endpoint, model, credential := "anthropic_messages", server.URL+"/messages", "native-model", "NATIVE_FIXTURE_KEY"
 	a.Config.Endpoint = server.URL + "/chat"
 	a.Config.Model = "parent-model"
 	a.Config.APIKeyEnv = "PARENT_FIXTURE_KEY"
-	a.Config.Profiles = map[string]core.ModelProfile{"native": {Protocol: &protocol, Endpoint: &endpoint, Model: &model}}
+	a.Config.Profiles = map[string]core.ModelProfile{"native": {Protocol: &protocol, Endpoint: &endpoint, Model: &model, APIKeyEnv: &credential}}
 	a.Config.ModelRoles = map[string]string{"task": "native"}
 	a.Grants["task"] = true
 	a.Provider = api.New(a.Config)

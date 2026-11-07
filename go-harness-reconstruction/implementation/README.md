@@ -65,6 +65,22 @@ outside active context. Tool arguments and results are optional and off by
 default. Exported content can include sensitive text. The journal and provider
 settings stay outside the export flow.
 
+During a run, Esc or Ctrl+C requests cancellation. While idle, use the
+palette to open provider setup or model selection and retain the draft.
+After transient provider failures, Up recalls the previous prompt and
+`/models` lets you select a configured profile.
+
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are reserved for their official HTTPS
+hosts. For a compatible gateway, save a key in `/provider` or configure its
+own environment variable with `api_key_env`. A route change clears an
+inherited gateway variable, so a profile for a different endpoint should
+specify its own. The Chat Completions client accepts a complete JSON reply and
+retries once without optional stream options if the endpoint explicitly rejects
+that field before returning content.
+
+See [the end-to-end audit](END_TO_END_AUDIT.md) for tested recovery paths,
+ChatGPT account connection status, and remaining gaps.
+
 `/status` or Ctrl+G opens a local status snapshot while idle. It shows provider
 configuration, credential presence, context/output budgets, reported usage,
 session grants, configured MCP/LSP servers, and formatter executable availability.

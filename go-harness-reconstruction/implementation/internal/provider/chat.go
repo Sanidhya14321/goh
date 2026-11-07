@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
 	"net/http"
+	"net/url"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +21,9 @@ import (
 )
 
 const maxResponse = 16 << 20
+
+var ErrConnection = errors.New("provider connection failed")
+var ErrInterrupted = errors.New("interrupted stream: missing finish or DONE")
 
 type FinishError struct{ Reason string }
 
@@ -47,16 +52,22 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	var b []byte
 	var e error
 	parse := Parse
-	if c.Config.EffectiveProtocol() == "anthropic_messages" {
+	anthropic := c.Config.EffectiveProtocol() == "anthropic_messages"
+	var body map[string]any
+	if anthropic {
 		b, e = EncodeAnthropic(c.Config, messages, tools)
 		parse = ParseAnthropic
 	} else {
-		body := map[string]any{"model": c.Config.Model, "messages": messages, "stream": true, "stream_options": map[string]any{"include_usage": true}}
+		body = map[string]any{"model": c.Config.Model, "messages": messages, "stream": true, "stream_options": map[string]any{"include_usage": true}}
 		if len(tools) > 0 {
 			body["tools"] = tools
 		}
-		if c.Config.OutputParameter != "" {
-			body[c.Config.OutputParameter] = c.Config.OutputBudget
+		if parameter := c.Config.OutputParameter; parameter != "" {
+			u, _ := url.Parse(endpoint)
+			if parameter == "max_tokens" && u.Scheme == "https" && strings.EqualFold(u.Hostname(), "api.openai.com") {
+				parameter = "max_completion_tokens"
+			}
+			body[parameter] = c.Config.OutputBudget
 		}
 		b, e = json.Marshal(body)
 	}
@@ -80,29 +91,47 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 		}
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept", "text/event-stream")
-		if c.Config.EffectiveProtocol() == "anthropic_messages" {
+		if anthropic {
 			req.Header.Set("anthropic-version", "2023-06-01")
 			if key != "" {
 				req.Header.Set("x-api-key", key)
 			}
-		} else if key != "" {
-			req.Header.Set("Authorization", "Bearer "+key)
+		} else {
+			req.Header.Set("Accept", "text/event-stream, application/json")
+			if key != "" {
+				req.Header.Set("Authorization", "Bearer "+key)
+			}
 		}
 		resp, err := client.Do(req)
 		retry := err != nil
 		if err != nil {
-			err = errors.New("provider connection failed")
+			err = ErrConnection
 		}
 		delay := time.Duration(attempt+1) * 100 * time.Millisecond
 		if err == nil {
 			retry = resp.StatusCode == 429 || resp.StatusCode == 408 || resp.StatusCode >= 500
 			if resp.StatusCode == 200 {
-				reply, e := parse(resp.Body, delta)
+				mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+				read := parse
+				if !anthropic && mediaType == "application/json" {
+					read = parseJSONCompletion
+				}
+				reply, e := read(resp.Body, delta)
 				resp.Body.Close()
 				return reply, e
 			}
-			// Provider bodies can reflect credentials; retain only status in diagnostics.
-			io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+			// Provider bodies can reflect credentials. Inspect only a bounded
+			// structured capability error and never expose the body.
+			if !anthropic && resp.StatusCode == 400 && attempt < 2 && body["stream_options"] != nil &&
+				rejectsStreamOptions(resp.Body) {
+				resp.Body.Close()
+				delete(body, "stream_options")
+				b, e = json.Marshal(body)
+				if e != nil {
+					return core.Reply{}, e
+				}
+				continue
+			}
 			resp.Body.Close()
 			err = classifyHTTP(resp.StatusCode)
 			if n, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && n >= 0 {
@@ -252,7 +281,7 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 		}
 	}
 	if !finished || !done {
-		return reply, errors.New("interrupted stream: missing finish or DONE")
+		return reply, ErrInterrupted
 	}
 	if reply.Finish != "stop" && reply.Finish != "tool_calls" {
 		return reply, &FinishError{Reason: reply.Finish}

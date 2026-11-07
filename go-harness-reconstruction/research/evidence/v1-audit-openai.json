@@ -1,0 +1,14 @@
+{
+  "goh_version": "1.0.0-rc.16",
+  "openai_chat_completions_without_credential": {
+    "http_status": 401,
+    "run_status": "failed",
+    "classification": "authentication"
+  },
+  "signed_in_codex_cli": {
+    "exit_code": 0,
+    "completed": true,
+    "marker_verified": true
+  },
+  "authenticated_native_goh_openai_inference": "not_run"
+}

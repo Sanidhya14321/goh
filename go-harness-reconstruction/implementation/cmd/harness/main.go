@@ -148,11 +148,19 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
-	if *protocol != "" {
-		c.Protocol = *protocol
-	}
-	if *endpoint != "" || *baseURL != "" {
-		c.Endpoint, c.BaseURL = *endpoint, *baseURL
+	if *protocol != "" || *endpoint != "" || *baseURL != "" {
+		nextProtocol, nextEndpoint, nextBase := c.Protocol, c.Endpoint, c.BaseURL
+		if *protocol != "" {
+			nextProtocol = *protocol
+		}
+		if *endpoint != "" || *baseURL != "" {
+			nextEndpoint, nextBase = *endpoint, *baseURL
+		}
+		c.SetProviderRoute(nextProtocol, nextEndpoint, nextBase)
+		// A process-wide override is explicitly selected by the caller.
+		if v, ok := os.LookupEnv("HARNESS_API_KEY_ENV"); ok {
+			c.APIKeyEnv = v
+		}
 	}
 	if *model != "" {
 		c.Model = *model

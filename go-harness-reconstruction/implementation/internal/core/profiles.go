@@ -106,10 +106,17 @@ func (c Config) Resolve(profile, agent string) (Config, error) {
 func (c *Config) applyEnvironment() error {
 	endpoint, hasEndpoint := os.LookupEnv("HARNESS_ENDPOINT")
 	baseURL, hasBaseURL := os.LookupEnv("HARNESS_BASE_URL")
-	if hasEndpoint || hasBaseURL {
-		c.Endpoint, c.BaseURL = endpoint, baseURL
+	protocol, hasProtocol := os.LookupEnv("HARNESS_PROTOCOL")
+	if !hasProtocol {
+		protocol = c.Protocol
 	}
-	for key, p := range map[string]*string{"HARNESS_PROTOCOL": &c.Protocol, "HARNESS_MODEL": &c.Model, "HARNESS_API_KEY_ENV": &c.APIKeyEnv, "HARNESS_SESSION_DIR": &c.SessionDir} {
+	if !hasEndpoint && !hasBaseURL {
+		endpoint, baseURL = c.Endpoint, c.BaseURL
+	}
+	if hasEndpoint || hasBaseURL || hasProtocol {
+		c.SetProviderRoute(protocol, endpoint, baseURL)
+	}
+	for key, p := range map[string]*string{"HARNESS_MODEL": &c.Model, "HARNESS_API_KEY_ENV": &c.APIKeyEnv, "HARNESS_SESSION_DIR": &c.SessionDir} {
 		if v, ok := os.LookupEnv(key); ok {
 			*p = v
 		}

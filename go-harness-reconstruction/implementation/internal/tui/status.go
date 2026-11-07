@@ -125,10 +125,10 @@ func (m *model) statusKey(key string) (tea.Model, tea.Cmd) {
 	case "r":
 		m.openStatus()
 	case "p", "m", "a", "s":
-		action := map[string]string{"p": "/provider", "m": "/models", "a": "/agents", "s": "/settings"}[key]
+		action := map[string]string{"p": "provider", "m": "models", "a": "agents", "s": "settings"}[key]
 		m.infoPanel = nil
-		m.input, m.inputCursor = action, len(action)
-		return m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+		m.navigation = action
+		return m, tea.Quit
 	}
 	return m, nil
 }
