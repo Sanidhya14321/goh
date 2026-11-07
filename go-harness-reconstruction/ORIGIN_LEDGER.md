@@ -126,3 +126,10 @@ recall, cached preview, and draft-preserving modal handling are original Go code
 The existing option picker, prompt history, and safe ANSI composition are reused.
 Upstream revert, fork, and file undo are not part of this milestone.
 Reference: https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/routes/session/dialog-timeline.tsx
+
+RC13 UI continuation, 7 November 2026. OpenCode's pinned prompt autocomplete
+component, the official TUI documentation, and the isolated v1.19.5 executable
+informed the placement and keyboard interaction of the file menu. GoHarness
+implements its own batched Go directory scan, fuzzy ranking, and text path
+insertion using the existing composer. The source reference is
+https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/component/prompt/autocomplete.tsx

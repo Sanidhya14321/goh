@@ -20,6 +20,19 @@ setup. Fixing the key retains the session.
 Use `/workspace` to choose a project, `/sessions` to select a saved chat, and
 `/settings` for the settings menu. Closing a settings panel returns to chat.
 
+Type `@` at the start of a word in the composer to search project files. The
+menu matches filenames and relative paths, including fuzzy abbreviations.
+Use ↑/↓ to select and Tab or Enter to insert the path. Paths containing spaces
+are quoted automatically. Esc dismisses the menu and leaves your draft intact.
+The prompt carries the path as text. The agent can read it through its usual
+file tools.
+
+The first search indexes names in the background and reuses that snapshot
+until chat restarts. It shows up to ten results from a scan of up to 12,000
+entries and 24 directory levels. The scan skips dot-prefixed entries, symlinks,
+`node_modules`, and `vendor`. It uses the session project, or the current
+directory while chat is waiting for provider setup.
+
 `/timeline` or Ctrl+T opens a searchable list of up to 200 recent prompts while
 idle. Enter opens a multiline preview; arrows, PgUp/PgDn, and Home/End scroll it.
 Ctrl+R replaces the composer with the selected prompt for editing. Send it with

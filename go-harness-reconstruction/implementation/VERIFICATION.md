@@ -6,11 +6,19 @@ Live inference was tested on loopback. Source milestones are published to Sanidh
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.12` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.13` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC13 evidence is under `research/evidence/v1-ui-files-*`. The terminal setup
+flow finds a file with spaces using a fuzzy abbreviation. It checks that
+selection leaves provider request counts and journal bytes unchanged, then
+sends the quoted relative path with a separate Enter. The provider fixture
+receives the exact prompt text. Focused checks cover Unicode, cursor placement,
+narrow terminals, draft preservation, and hidden and symlink exclusions.
+Paired PTY captures show the GoHarness and OpenCode composer menus.
 
 RC12 evidence is under `research/evidence/v1-ui-timeline-*`. The executable
 setup flow searches a prompt from a resumed conversation, opens its preview,

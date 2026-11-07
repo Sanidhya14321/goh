@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC13 UI milestone
+
+The composer now opens a project file menu above the draft when the user types
+`@`. The Go search ranks names and paths, supports fuzzy abbreviations, and
+inserts a quoted relative path when needed. It scans directory entries in the
+background on first use and caches the bounded index for the chat. Selecting a
+path keeps the draft editable. Fixture tests verify a separate send action and
+that the provider receives the path without the file body.
+
 ## RC12 UI milestone
 
 The chat now has /timeline and Ctrl+T, a searchable recent-prompt list inspired
@@ -17,7 +26,7 @@ added. Source and isolated terminal captures document the reference and result.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.12` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.13` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.

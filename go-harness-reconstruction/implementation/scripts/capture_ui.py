@@ -73,6 +73,9 @@ def capture(binary, label, trial):
             fixture = subprocess.Popen([str(base / "bin/scripted-model"), "--listen", f"127.0.0.1:{port}", "--script", str(script)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             provider_url = f"http://127.0.0.1:{port}/v1"
             (root / "project/note.txt").write_text("alpha\n")
+            (root / "project/docs").mkdir()
+            (root / "project/docs/notes.md").write_text("# Notes\n")
+            (root / "project/docs/notation.md").write_text("# Notation\n")
         if label == "goh":
             env.update(HARNESS_BASE_URL=provider_url, HARNESS_MODEL="fixture",
                        HARNESS_CONTEXT_WINDOW="131072", HARNESS_API_KEY_ENV="UNSET_UI_FIXTURE")
@@ -128,6 +131,14 @@ def capture(binary, label, trial):
             rss = int(subprocess.check_output(["ps", "-o", "rss=", "-p", str(app.pid)], text=True).strip())
             if trial == 0:
                 screenshot(screen, label + "-ui-home")
+                os.write(master, b"Inspect @not")
+                assert drain(8, "docs/notes.md"), "\n".join(screen.display)
+                drain(.3)
+                screenshot(screen, label + "-ui-file-completion")
+                os.write(master, b"\x1b")
+                drain(.2)
+                os.write(master, b"\x15")
+                drain(.2)
                 if label == "goh":
                     os.write(master, b"\x10")
                     assert drain(3, "Search")

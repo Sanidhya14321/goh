@@ -110,7 +110,7 @@ func (m *model) View() tea.View {
 		draftRows = terminalRows("▏ "+draft, promptWidth-5)
 	}
 	draftRows = draftRows[max(0, len(draftRows)-3):]
-	var promptRows []string
+	promptRows := m.fileCompletionRows(promptWidth, min(6, max(1, height-16)))
 	if matches := m.slashMatches(); len(matches) > 0 && m.input != matches[0].command {
 		for _, match := range matches[:min(3, len(matches))] {
 			promptRows = append(promptRows, cell("  "+match.command+"  "+match.label, promptWidth, muted, panel))

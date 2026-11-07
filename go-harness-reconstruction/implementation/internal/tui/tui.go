@@ -71,6 +71,8 @@ type model struct {
 	wrappedReview   bool
 	infoPanel       *statusPanel
 	timeline        *timelinePanel
+	fileCompletion  *fileCompletion
+	fileIndex       *fileIndexMsg
 }
 
 func Safe(s string) string {
@@ -94,14 +96,21 @@ func (m *model) wait() tea.Cmd {
 }
 func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 	hadSuggestions := m.hasSlashSuggestions()
+	hadFiles := m.fileCompletion != nil
 	defer func() {
+		m.refreshFileCompletion()
 		// The composer changes height when its completion panel opens or
 		// closes. Invalidate the terminal diff to retire the old panel.
-		if hadSuggestions != m.hasSlashSuggestions() {
+		if hadSuggestions != m.hasSlashSuggestions() || hadFiles != (m.fileCompletion != nil) {
 			command = tea.Batch(command, tea.ClearScreen)
 		}
 	}()
 	switch v := msg.(type) {
+	case fileIndexMsg:
+		m.fileIndex = &v
+		if m.fileCompletion != nil {
+			m.fileCompletion.matches = fileMatches(v.files, m.fileCompletion.query)
+		}
 	case tea.WindowSizeMsg:
 		m.width = v.Width
 		m.height = v.Height
@@ -328,6 +337,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.openStatus()
 			return m, nil
 		}
+		if m.fileCompletion != nil && m.fileCompletionKey(key) {
+			return m, nil
+		}
 		if key == "esc" {
 			m.palette = false
 			return m, nil
@@ -475,6 +487,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		default:
 			if v.Text != "" {
 				m.insertInput(Safe(v.Text))
+				if v.Text == "@" && m.fileCompletion == nil {
+					return m, m.openFileCompletion()
+				}
 			}
 		}
 	}
@@ -562,6 +577,8 @@ func (m *model) compactView() tea.View {
 	draftRows := min(3, max(1, height-len(footer)-2))
 	input = input[max(0, len(input)-draftRows):]
 	available := height - len(footer) - len(input)
+	files := m.fileCompletionRows(width, min(5, max(0, available-1)))
+	available -= len(files)
 	reviewRows := []string{}
 	if review != "" {
 		reviewRows = terminalRows(review, width)
@@ -582,6 +599,7 @@ func (m *model) compactView() tea.View {
 		start = min(m.reviewOffset, max(0, len(lines)-visible))
 	}
 	rows = append(rows, lines[start:min(start+visible, len(lines))]...)
+	rows = append(rows, files...)
 	rows = append(rows, input...)
 	rows = append(rows, footer...)
 	view := tea.NewView(strings.Join(rows, "\n"))

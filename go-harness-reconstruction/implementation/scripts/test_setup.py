@@ -52,6 +52,8 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
     root = pathlib.Path(temporary)
     project = root / "project"
     project.mkdir()
+    (project / "docs").mkdir()
+    (project / "docs/query fixture.md").write_text("FILE_BODY_MUST_STAY_LOCAL")
     env = {k: v for k, v in os.environ.items() if not k.startswith("HARNESS_") and k != "OPENAI_API_KEY"}
     env.update(HOME=str(root), XDG_CONFIG_HOME=str(root / ".config"), TERM="xterm-256color")
     config_dir = root / ("Library/Application Support" if sys.platform == "darwin" else ".config") / "independent-harness"
@@ -216,6 +218,36 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         time.sleep(.1)
         count = len(requests)
         pos = len(output)
+        before_files = journal_before.read_bytes()
+        os.write(master, b"Inspect @qf")
+        wait_for(b"docs/query fixture.md", pos)
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b'@"docs/query fixture.md"', pos)
+        assert len(requests) == count
+        assert journal_before.read_bytes() == before_files
+        os.write(master, b"\r")
+        # A fast turn can finish without the renderer repainting the
+        # already visible "completed" status. Wait for the new journal record.
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            added = journal_before.read_bytes()[len(before_files):]
+            complete = added[:added.rfind(b"\n")+1].splitlines()
+            if complete:
+                last = json.loads(complete[-1])
+                if last["type"] == "run_finished":
+                    assert last["data"]["status"] == "completed", last
+                    break
+            if select.select([master], [], [], .05)[0]:
+                output.extend(os.read(master, 65536))
+        else:
+            raise AssertionError("File reference turn did not finish")
+        assert len(requests) == count+1
+        assert prompts[-1] == 'Inspect @"docs/query fixture.md" ', prompts
+        assert b"FILE_BODY_MUST_STAY_LOCAL" not in output
+        time.sleep(.1)
+        count = len(requests)
+        pos = len(output)
         before_status = journal_before.read_bytes()
         os.write(master, b"/status\r")
         wait_for(b"GoHarness  /  Status", pos)
@@ -262,7 +294,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()
