@@ -32,16 +32,18 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     formatter_script.write_text(json.dumps([{'calls':[{'id':'create-format','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'format.fmtcase','content':'raw'})}}]},{'text':'Formatter fixture complete.'}]))
     import tempfile
     outside_sessions=pathlib.Path(tempfile.mkdtemp(prefix='harness-undo-sessions-'))
+    queue_script=root/'queue-script.json'
+    queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
             sock.bind(('127.0.0.1', 0))
             port = sock.getsockname()[1]
         arguments = [str(base / 'bin/scripted-model'), '--listen', f'127.0.0.1:{port}']
-        arguments += ['--script', str(undo_script if scenario=='undo' else typed_script if scenario=='typed' else formatter_script if scenario=='formatter' else child_cancel_script if scenario=='child-cancel' else child_script if scenario=='child' else question_script if scenario=='questions' else task_script if scenario=='tasks' else script)] if scenario in ('script','tasks','questions','child','child-cancel','formatter','typed','undo') else ['--scenario', scenario]
+        arguments += ['--script', str(queue_script if scenario=='queue' else undo_script if scenario=='undo' else typed_script if scenario=='typed' else formatter_script if scenario=='formatter' else child_cancel_script if scenario=='child-cancel' else child_script if scenario=='child' else question_script if scenario=='questions' else task_script if scenario=='tasks' else script)] if scenario in ('script','tasks','questions','child','child-cancel','formatter','typed','undo','queue') else ['--scenario', scenario]
         fixture = subprocess.Popen(arguments, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         master, slave = pty.openpty()
         original = termios.tcgetattr(slave)
@@ -122,6 +124,19 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         if found: break
                         time.sleep(.02)
                     assert found,'typed task result not recorded'
+                elif case=='queued_prompt':
+                    time.sleep(.6)  # the first run is active (reply delayed 2.5 s)
+                    os.write(master, b'Second prompt')
+                    time.sleep(.2)
+                    os.write(master, b'\r')
+                    wait_for(b'[queued] Second prompt')
+                    wait_for(b'Second reply.', timeout=12)
+                    prompts=[]
+                    for attempt in range(250):
+                        prompts=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']
+                        if len(prompts)==2: break
+                        time.sleep(.02)
+                    assert prompts==['Exercise the fixture','Second prompt'],prompts
                 elif case=='theme_light':
                     wait_for(b'Fixture response')
                     assert b'48;2;250;250;250' in output, 'light theme background not rendered'

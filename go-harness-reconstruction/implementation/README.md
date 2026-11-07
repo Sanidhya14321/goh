@@ -198,6 +198,13 @@ Live smoke verification in a disposable project is available with
 `python3 scripts/test_openai_live.py --binary bin/goh`. It uses the saved
 ChatGPT authorization and makes real inference requests.
 
+You can keep typing while the agent works. Enter queues the draft (up to
+five prompts; the footer shows the count) and each queued prompt is sent in
+order after the current run **completes**. If a run fails, is cancelled, or
+stops for approval or a question, nothing is sent: the queued prompts return
+to the composer as an editable draft. Slash commands are not queued, and
+palette or dialog shortcuts wait until the run ends.
+
 During a run, Esc or Ctrl+C requests cancellation. While idle, use the
 palette to open provider setup or model selection and retain the draft.
 After transient provider failures, Up recalls the previous prompt and

@@ -87,3 +87,18 @@ Before calling a model to summarize, drop stale tool output. Old observations do
 ### Gaps
 
 Not verified: the exact per-model tables in The Complexity Trap, and whether its window size transfers to GoHarness's tool output sizes. Experiment 1 must tune and report its own window.
+
+### Status update (RC33, 7 Nov 2026)
+
+- Experiment 1 (masking) shipped in RC21; fixture measurement in BENCHMARKS.md.
+- Experiment 2 (lint-gated edits) shipped in RC25 as `lsp_errors` from an
+  already-running language server; task-success effect unmeasured.
+- Experiment 3 (placement) is blocked on live checks. Finding: task state is
+  appended to the system message, so every todo update changes the start of
+  the request and defeats provider prompt-prefix caching for the whole
+  conversation. Moving it to a trailing position helps both caching and the
+  recency side of the U-shaped curve, but the encoding differs across Chat
+  Completions, Responses and Anthropic Messages and must be verified live.
+- Memory: the existing ledger already pins notes to file hashes and rejects
+  stale evidence, matching the applicability findings above. The paired
+  memory-on/off experiment needs a live model.

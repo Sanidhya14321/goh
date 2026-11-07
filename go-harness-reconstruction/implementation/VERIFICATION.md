@@ -15,6 +15,16 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC33 queued prompts
+
+`1.0.0-rc.33` passed vet (macOS and Windows), the race suite, seven CLI and
+nineteen PTY scenarios. The new `queued_prompt` scenario types a second prompt
+while a 2.5 s reply is in flight, checks the `[queued]` marker, waits for the
+second reply and confirms both prompts are journaled in order. Unit tests
+cover slash-command and queue-limit refusals that keep the draft, blocked
+dialog shortcuts during a run, the return of queued prompts after a cancelled
+run, and scheduling after a completed one.
+
 ## RC32 session management
 
 `1.0.0-rc.32` passed vet (macOS and Windows), the race suite, seven CLI and

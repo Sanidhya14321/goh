@@ -8,6 +8,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 Nothing yet.
 
+## 1.0.0-rc.33 — 2026-11-07
+
+- Type while the agent works: the composer stays editable during a run and
+  Enter queues prompts, sent in order after successful runs. Failed or
+  cancelled runs return queued prompts to the composer instead.
+
 ## 1.0.0-rc.32 — 2026-11-07
 
 - Rename (Ctrl+R) and delete (Ctrl+D twice) in the session browser, as in

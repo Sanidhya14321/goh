@@ -4,6 +4,16 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC33 queued prompts milestone
+
+The composer previously ignored every key except Esc and paging while a run
+was active. It now stays editable, and Enter queues up to five prompts that are
+sent in order after completed runs, following OpenCode's queued prompts. Any
+other outcome returns the queue to the composer, so a failed, cancelled or
+approval-blocked run never triggers further sends. Research follow-up noted:
+todo state is appended to the system message, which changes the cached prompt
+prefix on every update; moving it needs live checks on all four protocols.
+
 ## RC32 session management milestone
 
 The session browser renames sessions with Ctrl+R and deletes them with a

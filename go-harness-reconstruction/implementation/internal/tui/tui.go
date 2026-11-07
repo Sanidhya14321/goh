@@ -83,6 +83,7 @@ type model struct {
 	leader               bool
 	keys                 core.Keymap
 	themePicker          *optionPicker
+	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
 }
 
@@ -252,6 +253,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.pending = &v
 		m.reviewOffset = 0
 		return m, m.wait()
+	case queuedSubmitMsg:
+		return m.submitQueued()
 	case doneMsg:
 		m.active = false
 		m.pending = nil
@@ -277,7 +280,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				}
 			}
 		}
-		return m, nil
+		return m, m.afterRun(v)
 	case tea.PasteMsg:
 		if m.export != nil {
 			return m.exportUpdate(v)
@@ -374,10 +377,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, nil
 		}
 		if m.active {
-			if key == "esc" {
-				m.cancel()
-			}
-			return m, nil
+			return m.activeKey(v)
 		}
 		if m.palette {
 			return m.paletteKey(v)
@@ -592,7 +592,11 @@ func (m *model) runControls() string {
 	if m.pending != nil || m.question != nil {
 		return "Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
 	}
-	return "Esc / Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
+	controls := "Esc / Ctrl+C cancel  ·  Enter queues a prompt  ·  Ctrl+D exits after cleanup"
+	if n := len(m.queue); n > 0 {
+		controls = fmt.Sprintf("%d queued  ·  ", n) + controls
+	}
+	return controls
 }
 
 func (m *model) compactView() tea.View {
