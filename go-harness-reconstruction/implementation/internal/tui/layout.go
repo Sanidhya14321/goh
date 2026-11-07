@@ -12,7 +12,8 @@ import (
 
 // Only these trusted theme sequences reach the terminal. User/model content is
 // sanitized before styling, including text received inside code fences.
-const (
+// The values come from the fixed theme table in theme.go.
+var (
 	background = "10;10;10"
 	panel      = "24;24;24"
 	foreground = "230;230;230"
@@ -66,6 +67,10 @@ func (m *model) View() tea.View {
 	if m.fork != nil {
 		m.fork.width, m.fork.height = width, height
 		return m.fork.View()
+	}
+	if m.themePicker != nil {
+		m.themePicker.width, m.themePicker.height = width, height
+		return m.themePicker.View()
 	}
 	if m.timeline != nil {
 		return m.timelineView(width, height)

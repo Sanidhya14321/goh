@@ -6,11 +6,19 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+Nothing yet.
+
+## 1.0.0-rc.28 — 2026-11-07
+
+- Color themes (`dark`, `light`, `high-contrast`) with a `/theme` picker,
+  `<leader>t`, and a validated `theme` setting.
+
+## 1.0.0-rc.27 — 2026-11-07
+
 - Transcript navigation: first/last, previous/next user turn, half-page
   scrolling, copy the last reply (OSC 52) and leader shortcuts for undo/redo,
-  all remappable through `keybinds`.
+  all remappable through `keybinds` (`91712ba`).
 - `CHANGELOG.md` is included in release packages.
-
 - Windows: process trees are force-stopped on timeout or cancellation, so
   shell timeouts no longer report `cleanup_incomplete` (`fa7c660`).
 - Installers run the downloaded binary before replacing an existing

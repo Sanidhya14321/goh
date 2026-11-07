@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     outside_sessions=pathlib.Path(tempfile.mkdtemp(prefix='harness-undo-sessions-'))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -77,6 +77,10 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 fake_editor.chmod(0o700)
                 env['VISUAL']=str(fake_editor)
             extra=[]
+            if case=='theme_light':
+                theme_config=root/'theme-config.json'
+                theme_config.write_text(json.dumps({'theme':'light'}))
+                extra=['--config',str(theme_config)]
             if scenario=='undo':
                 extra=['--snapshots']  # snapshot storage must be outside the project
             if scenario=='formatter':
@@ -118,6 +122,10 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         if found: break
                         time.sleep(.02)
                     assert found,'typed task result not recorded'
+                elif case=='theme_light':
+                    wait_for(b'Fixture response')
+                    assert b'48;2;250;250;250' in output, 'light theme background not rendered'
+                    assert b'48;2;10;10;10m' not in output[-4000:], 'dark background still rendered after start'
                 elif case=='editor_handoff':
                     wait_for(b'Fixture response')
                     sent=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']

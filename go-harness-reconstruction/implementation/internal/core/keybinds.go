@@ -16,6 +16,7 @@ var DefaultKeybinds = map[string]string{
 	"timeline":        "ctrl+t",
 	"status":          "ctrl+g",
 	"editor_open":     "<leader>e",
+	"theme_list":      "<leader>t",
 	// Transcript navigation, following OpenCode's messages_* actions where the
 	// default key is free in GoHarness.
 	"messages_first":          "<leader>g",
@@ -94,4 +95,22 @@ func ResolveKeymap(user map[string]string) (Keymap, error) {
 	}
 	km.Hint = strings.ToUpper(leader[:1]) + leader[1:] + ": " + strings.Join(hints, " · ")
 	return km, nil
+}
+
+// ThemeNames is installed by the terminal UI, which owns the theme table.
+var ThemeNames func() []string
+
+// ValidateTheme rejects unknown theme names when the UI table is available.
+func (c Config) ValidateTheme() error {
+	if c.Theme == "" || ThemeNames == nil {
+		return nil
+	}
+	for _, n := range ThemeNames() {
+		if n == c.Theme {
+			return nil
+		}
+	}
+	names := ThemeNames()
+	sort.Strings(names)
+	return fmt.Errorf("unknown theme %q (choose %s)", c.Theme, strings.Join(names, ", "))
 }

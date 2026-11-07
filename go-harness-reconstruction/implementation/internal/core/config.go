@@ -48,7 +48,9 @@ type Config struct {
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
-	Keybinds          map[string]string          `json:"keybinds,omitempty"`
+	Keybinds map[string]string `json:"keybinds,omitempty"`
+	// Theme selects a built-in color theme (dark, light, high-contrast).
+	Theme             string                     `json:"theme,omitempty"`
 	Formatters        map[string]FormatterConfig `json:"formatters,omitempty"`
 	Snapshots         bool                       `json:"snapshots,omitempty"`
 	LSP               map[string]LSPConfig       `json:"lsp,omitempty"`
@@ -145,6 +147,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if _, err := ResolveKeymap(c.Keybinds); err != nil {
+		return err
+	}
+	if err := c.ValidateTheme(); err != nil {
 		return err
 	}
 	if err := c.ValidateProtocol(); err != nil {

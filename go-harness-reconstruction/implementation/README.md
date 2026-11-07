@@ -78,6 +78,15 @@ for editing. The branch shares the workspace on disk, so its files reflect
 the current workspace. Conversation state is copied without session grants
 or tool execution.
 
+### Themes
+
+`/theme` or **Ctrl+X T** opens the theme picker: `dark` (default), `light` and
+`high-contrast`. A choice applies to the current session; set `"theme"` in
+the configuration to keep it. Unknown names are rejected when the
+configuration loads. Themes select from a fixed built-in palette, so no
+configured value is written to the terminal as an escape sequence.
+`NO_COLOR` still disables color entirely.
+
 ### Shortcuts
 
 Chat-level shortcuts can be changed with `keybinds` in the configuration.
@@ -90,7 +99,7 @@ Values are comma-separated keys; `<leader>x` means the leader key, then `x`;
 
 Actions and defaults: `leader` (`ctrl+x`), `command_palette` (`ctrl+p,ctrl+k`),
 `sidebar_toggle` (`ctrl+b`), `timeline` (`ctrl+t`), `status` (`ctrl+g`) and
-`editor_open` (`<leader>e`).
+`editor_open` (`<leader>e`), `theme_list` (`<leader>t`).
 
 Transcript navigation: `messages_first` (`<leader>g`), `messages_last`
 (`ctrl+alt+g`), `messages_previous` / `messages_next` user turn

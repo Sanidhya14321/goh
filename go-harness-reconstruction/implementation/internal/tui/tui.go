@@ -82,6 +82,7 @@ type model struct {
 	forkBefore           int
 	leader               bool
 	keys                 core.Keymap
+	themePicker          *optionPicker
 	export               *exportPanel
 }
 
@@ -284,6 +285,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.fork != nil {
 			return m.forkUpdate(v)
 		}
+		if m.themePicker != nil {
+			return m.themeUpdate(v)
+		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
 		}
@@ -310,6 +314,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if m.fork != nil {
 			return m.forkUpdate(v)
+		}
+		if m.themePicker != nil {
+			return m.themeUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -419,6 +426,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
+			}
+			if strings.TrimSpace(prompt) == "/theme" {
+				m.input, m.inputCursor = "", 0
+				m.openThemePicker()
+				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/editor" {
 				m.input, m.inputCursor = "", 0
@@ -688,6 +700,7 @@ func (m *model) compactView() tea.View {
 	return view
 }
 func Run(a *agent.Agent, notice, draft string) error {
+	applyTheme(a.Config.Theme)
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config)}
 	m.insertInput(Safe(draft))
 	for _, message := range a.History {
@@ -854,6 +867,8 @@ func (m *model) runKeyAction(action string) (tea.Model, tea.Cmd) {
 		if m.status != "running" {
 			return m, m.openEditor()
 		}
+	case "theme_list":
+		m.openThemePicker()
 	case "messages_first":
 		m.scrollOffset = len(m.log) // clamped to the oldest rendered row
 	case "messages_last":

@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC28 themes milestone
+
+Three built-in themes with a searchable picker (`/theme`, `<leader>t`, as in
+OpenCode's `theme_list`) and a `theme` setting validated at load. Palettes
+come from a fixed table, preserving the rule that only trusted sequences
+reach the terminal. A new PTY scenario checks the light background is
+actually rendered.
+
 ## RC27 transcript navigation milestone
 
 Leader and Ctrl+Alt shortcuts jump to the first or last message and between

@@ -15,6 +15,14 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC28 themes
+
+`1.0.0-rc.28` passed vet (macOS and Windows), the race suite, seven CLI and
+eighteen PTY scenarios. The new `theme_light` PTY scenario starts chat with
+`"theme": "light"` and checks the terminal output carries the light background
+and not the dark one. Unit tests cover the picker (Esc keeps the theme, Enter
+applies and drops cached rows) and rejection of unknown theme names.
+
 ## RC27 transcript navigation
 
 `1.0.0-rc.27` passed vet (macOS and Windows), the race suite, seven CLI and
