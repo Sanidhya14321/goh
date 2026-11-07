@@ -65,8 +65,11 @@ func taskkill(pid int, force bool) error {
 	return nil
 }
 
-// TerminateGroup asks the process tree rooted at pid to exit.
-func TerminateGroup(pid int) error { return taskkill(pid, false) }
+// TerminateGroup stops the process tree rooted at pid. Windows has no
+// graceful stop signal for console process trees: taskkill without /F fails
+// for them ("can only be terminated forcefully"), so this kills forcefully.
+// Native CI found the non-forced form reporting false cleanup failures.
+func TerminateGroup(pid int) error { return taskkill(pid, true) }
 
 // KillGroup forcibly stops the tree rooted at pid.
 func KillGroup(pid int) error { return taskkill(pid, true) }
