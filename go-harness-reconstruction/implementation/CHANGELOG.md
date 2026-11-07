@@ -8,6 +8,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 Nothing yet.
 
+## 1.0.0-rc.30 — 2026-11-07
+
+- Credential errors name the file and the recovery command
+  (`goh auth login` or `/connect`); signing in again replaces a corrupt or
+  wrongly permissioned credential file.
+- Load test for cancelling parent and child tasks.
+
 ## 1.0.0-rc.29 — 2026-11-07
 
 - One damaged session journal no longer hides every session from

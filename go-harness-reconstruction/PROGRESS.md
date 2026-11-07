@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC30 credential recovery and cancellation-under-load milestone
+
+Damaged ChatGPT credentials now produce errors that name the file and the
+recovery command, and a test shows a new sign-in replaces corrupt or
+world-readable files. A load test cancels six concurrent parents while their
+child tasks run a long shell command; 15 repetitions under the race detector
+(90 cancellations) returned promptly, left no child process alive, and kept
+each interrupted effect pending so the next run required acknowledgement.
+
 ## RC29 damaged-session recovery milestone
 
 A probe showed that one journal with a damaged header made session listing

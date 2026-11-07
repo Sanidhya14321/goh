@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -145,6 +146,41 @@ func TestChatGPTEndpointRejectsCustomDestinations(t *testing.T) {
 		"https://api.openai.com/v1/responses?extra=1"} {
 		if _, err := (Config{Protocol: ChatGPTProtocol, Endpoint: endpoint}).ProviderEndpoint(); err == nil {
 			t.Fatal("accepted a different ChatGPT token destination")
+		}
+	}
+}
+
+func TestCorruptCredentialsAreReplacedBySignIn(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	path, err := chatGPTPath("chatgpt-account.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, setup := range map[string]func(){
+		"corrupt":    func() { os.WriteFile(path, []byte("{not json"), 0o600) },
+		"world-read": func() { os.WriteFile(path, []byte("{}"), 0o644); os.Chmod(path, 0o644) },
+	} {
+		setup()
+		_, err := ChatGPTModel()
+		if err == nil || !strings.Contains(err.Error(), "goh auth login") {
+			t.Fatalf("%s: error should name the recovery command: %v", name, err)
+		}
+		if name == "world-read" && testutil.UnixModes() && !strings.Contains(err.Error(), path) {
+			t.Fatalf("permission error should name the file: %v", err)
+		}
+		// A new sign-in saves over the damaged file.
+		var tokens chatGPTTokens
+		tokens.Scope = "openid chatgpt.tokens.use.direct"
+		tokens.Access = "token"
+		if err := saveChatGPTAccount(chatGPTAccount{Tokens: tokens, ClientID: "c", Subject: "s", Model: "m", Expires: time.Now().Add(time.Hour)}); err != nil {
+			t.Fatalf("%s: sign-in could not replace the file: %v", name, err)
+		}
+		if model, err := ChatGPTModel(); err != nil || model != "m" {
+			t.Fatalf("%s: credentials unreadable after sign-in: %v", name, err)
 		}
 	}
 }

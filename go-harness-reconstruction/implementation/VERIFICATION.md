@@ -15,6 +15,18 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## RC30 credentials and cancellation under load
+
+`1.0.0-rc.30` passed vet (macOS and Windows), the race suite, seven CLI and
+eighteen PTY scenarios. `TestParentChildCancellationUnderLoad` ran 15 times
+with `-race` (90 parent/child cancellations): each returned within the 6 s
+bound, each child shell process was gone (checked by PID; `pgrep` found no
+leftover `sleep 30` afterwards), and each follow-up run refused with the
+acknowledgement requirement without calling the model. The test is Unix-only
+(it uses POSIX shell and signals); Windows process-tree cleanup is covered by
+the native shell timeout test. `TestCorruptCredentialsAreReplacedBySignIn`
+covers corrupt and world-readable credential files.
+
 ## RC29 damaged-session recovery
 
 `1.0.0-rc.29` passed vet (macOS and Windows), the race suite, seven CLI and

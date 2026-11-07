@@ -70,16 +70,16 @@ func readChatGPTAccount() (chatGPTAccount, error) {
 		return account, ErrChatGPTLogin
 	}
 	if err != nil {
-		return account, errors.New("could not open the private ChatGPT credential file")
+		return account, fmt.Errorf("could not open the ChatGPT credential file %s; run `goh auth login` (or /connect) to replace it", path)
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || !platform.PrivateFile(info, 0600) || info.Size() > 1<<20 {
-		return account, errors.New("ChatGPT credentials must be a private regular file")
+		return account, fmt.Errorf("ChatGPT credentials at %s must be a private regular file (mode 0600); run `goh auth login` (or /connect) to replace it", path)
 	}
 	if json.NewDecoder(io.LimitReader(f, 1<<20)).Decode(&account) != nil ||
 		account.ClientID == "" || account.Subject == "" || !hasPlanScope(account.Tokens.Scope) {
-		return account, errors.New("invalid saved ChatGPT credentials; sign in again")
+		return account, errors.New("invalid saved ChatGPT credentials; sign in again with `goh auth login` or /connect")
 	}
 	return account, nil
 }
