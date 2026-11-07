@@ -39,6 +39,8 @@ func contextAgent(t *testing.T) *Agent {
 }
 func TestCompactionPreservesRequestAndRecentGroups(t *testing.T) {
 	a := contextAgent(t)
+	off := false
+	a.Config.CompactionMasking = &off // this test covers the summarizer path
 	a.History = append(a.History, core.Message{Role: "user", Content: "active task: fix the parser"})
 	for i := 0; i < 6; i++ {
 		call := core.Call{ID: ID(), Type: "function"}

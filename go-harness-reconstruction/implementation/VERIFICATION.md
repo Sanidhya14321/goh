@@ -4,6 +4,16 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC21 compaction masking
+
+`1.0.0-rc.21` passed `go vet`, the race suite, seven CLI fixture scenarios and
+sixteen PTY scenarios. New tests cover compaction by masking alone with no
+model call, placeholder identity, recent groups left verbatim, the
+`observation_masking` journal record and its restoration on resume, the
+fall-back to summarizing a masked view, and manual compaction still
+summarizing. The existing summarizer-path test now disables masking
+explicitly. Live providers were not used.
+
 ## RC20 undo and redo
 
 `1.0.0-rc.20` passed `go vet`, the race suite, seven CLI fixture scenarios and

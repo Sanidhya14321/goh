@@ -735,6 +735,20 @@ own model's input budget and records the resolved route. A smaller model is not
 assumed cheaper or adequate. Failed compaction preserves history; it uses
 `fallback_profiles` (below) only when that list is configured.
 
+### Compaction masking
+
+When automatic compaction triggers, GoHarness first replaces tool results of at
+least 512 bytes that sit before the preserved recent groups with a short
+placeholder. The placeholder keeps the tool call ID and tool name and says the
+result is in the session journal. If that view fits with headroom (under half
+the context window), it is saved as the compacted context and no summary model
+is called. Otherwise the model summarizes the masked view, which is smaller than
+the original. The full results always stay in the journal, and resume, fork and
+export use the saved view. Manual `/compact` always summarizes. Set
+`"compaction_masking": false` to summarize every time. This follows the
+observation-masking results in [The Complexity Trap](https://arxiv.org/abs/2508.21433);
+GoHarness has not measured solve-rate effects.
+
 ### Provider failover
 
 `fallback_profiles` is an ordered list of named profiles that may receive the

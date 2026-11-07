@@ -63,3 +63,27 @@ Separate deterministic harness correctness from model-dependent task success. Re
 ### Gaps
 
 - No papers were reproduced in this review. Keep current paper-reported metrics and planned local acceptance targets separate.
+
+## Which cheap context and interface choices have evidence? (added 7 Nov 2026)
+
+### Takeaway
+
+Before calling a model to summarize, drop stale tool output. Old observations dominate agent context, and masking them has been reported to match summarization at roughly half the cost of an unmanaged agent. Tool and interface design (search, bounded views, lint-gated edits) changes solve rates more than many model-side tricks. [The Complexity Trap](https://arxiv.org/abs/2508.21433) · [SWE-agent](https://arxiv.org/abs/2405.15793)
+
+### Cited Findings
+
+- **The Complexity Trap** (Lindenbauer et al., Aug 2025 preprint) compares no context management, LLM summarization and observation masking (replacing older tool outputs with a placeholder) for SWE-agent on SWE-bench Verified across five model configurations. Masking roughly halved cost against the unmanaged agent and matched or slightly beat summarization on solve rate. Summaries the paper and Hugging Face page report include Qwen3-Coder 480B moving from 53.8% to 54.8%. A PREreview reports that summarization lengthened trajectories by about 15%. These per-configuration figures were read from the abstract page and the review, not re-derived from the tables. [Paper](https://arxiv.org/abs/2508.21433) · [HF page](https://huggingface.co/papers/2508.21433) · [PREreview](https://zenodo.org/records/23176605)
+- **JetBrains Research follow-up** (Dec 2025, blog) reports that masking matched summarization only after tuning the masking window per scaffold. A hybrid approach (masking first, summarizing when still over budget) cut cost a further 7% vs masking and 11% vs summarization with Qwen3-Coder 480B on SWE-bench Verified. Vendor blog, not peer reviewed. [Blog](https://blog.jetbrains.com/research/2025/12/efficient-context-management/)
+- **SWE-agent** (Yang et al., NeurIPS 2024) argues agents need purpose-built agent-computer interfaces. Reported 12.5% pass@1 on full SWE-bench and 87.7% on HumanEvalFix with GPT-4 Turbo. Its ablations attribute the largest drop to removing the lint-gated edit command. Results are on 2024 models; the absolute numbers are superseded, the ablation direction is the useful part. [Paper](https://arxiv.org/abs/2405.15793)
+- **Agentless** (Xia et al., 2024 preprint) uses a fixed localize, repair, validate pipeline without model-chosen actions. v1 reported 27.33% on SWE-bench Lite at $0.34 per issue; v2 reported 32.00% at $0.70. The figures differ by version. It shows structured pipelines can be strong and cheap baselines. [Paper](https://arxiv.org/abs/2407.01489)
+- **Lost in the Middle** (Liu et al., TACL 2024) finds a U-shaped curve: models use information at the start and end of long inputs better than the middle, and performance drops as inputs lengthen even for long-context models. Measured on multi-document QA and key-value retrieval, not coding. [Paper](https://arxiv.org/abs/2307.03172)
+
+### GoHarness experiments
+
+1. **Observation masking before summarization (being implemented as RC21).** When compaction triggers, first replace tool results older than the latest N turns with a short placeholder that keeps the call ID, tool name, status and byte count. Call the summarizer only if the masked history still exceeds the budget. Measure with the existing compaction fixtures: summarizer calls avoided, tokens sent, and whether follow-up turns keep the needed facts. Keep the full results in the journal, so masking changes only the model view.
+2. **Lint-gated edits.** After an edit, run the configured formatter or LSP diagnostics and return problems with the result. SWE-agent's ablation suggests this is the highest-value interface element. GoHarness already runs formatters; measure diagnostics-on vs off on a small fixed task set.
+3. **Placement.** Put the active task, pending approvals and the latest failing check at the end of the model view, and stable instructions at the start, following the U-shaped finding. Test as a paired change on compaction continuations.
+
+### Gaps
+
+Not verified: the exact per-model tables in The Complexity Trap, and whether its window size transfers to GoHarness's tool output sizes. Experiment 1 must tune and report its own window.

@@ -20,6 +20,8 @@ type Compaction struct {
 	Profile   string             `json:"profile,omitempty"`
 	Protocol  string             `json:"protocol,omitempty"`
 	Receipt   *CompactionReceipt `json:"receipt,omitempty"`
+	// Method is "observation_masking" when no summary model was used.
+	Method string `json:"method,omitempty"`
 }
 
 type CompactionReceipt struct {

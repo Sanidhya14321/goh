@@ -117,3 +117,19 @@ for OpenCode 1.19.5 across three 120×36 PTY trials on the same Mac. Both used
 a configured loopback provider. Browser sign-in, model catalog requests and
 model inference are outside the timed interval. Paired captures include
 each provider picker.
+
+## RC21 compaction masking (fixture)
+
+`go test ./internal/runtime -run TestMaskingMeasurement -v` on a synthetic
+history of six 6,000-byte `read_file` results with a 40,000-token window.
+Sizes use the runtime's conservative UTF-8 byte estimator.
+
+| Mode | Before | After | Summary calls | Summary input |
+| --- | ---: | ---: | ---: | ---: |
+| Masking | 37,901 | 14,625 | 0 | 0 |
+| Summarize only | 37,901 | 13,001 | 1 | 25,530 |
+
+What it measures: context size and model calls for one compaction. Masking
+avoids a model request of about 25.5K estimated bytes, while summarizing left a
+slightly smaller context. It does not measure answer quality, follow-up
+success, or live latency.

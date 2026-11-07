@@ -685,7 +685,33 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		return fmt.Errorf("context budget exhausted: preserved request/tool groups need %d estimated tokens, available %d", used, available)
 	}
 
-	sourceHistory := a.History[1:cut]
+	masking := !force && (a.Config.CompactionMasking == nil || *a.Config.CompactionMasking)
+	view := a.History
+	if masking {
+		var masked int
+		view, masked = maskObservations(a.History, cut)
+		if masked > 0 {
+			size := estimate(a.withTaskContext(view), defs)
+			// Require headroom below the trigger so the next turn does not
+			// immediately compact again; otherwise summarize the masked view.
+			if size < available && size < a.Config.ContextWindow/2 {
+				d := session.Compaction{Messages: view, Before: used, After: size, Estimator: "UTF-8 bytes (conservative)", Method: "observation_masking"}
+				if e := d.SealReceipt(nil); e != nil {
+					return e
+				}
+				if e := ctx.Err(); e != nil {
+					return e
+				}
+				if e := a.Store.Append("context_compacted", d); e != nil {
+					return e
+				}
+				a.History = view
+				a.event("context_compacted", map[string]any{"before": used, "after": size, "manual": false, "method": "observation_masking", "masked": masked})
+				return nil
+			}
+		}
+	}
+	sourceHistory := view[1:cut]
 	if force && cut == 1 {
 		sourceHistory = a.History[1:]
 	}

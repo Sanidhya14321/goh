@@ -40,33 +40,35 @@ type FormatterConfig struct {
 }
 
 type Config struct {
-	Memory              bool                       `json:"memory,omitempty"`
-	AllowGeneratedEdits bool                       `json:"allow_generated_edits,omitempty"`
-	Protocol            string                     `json:"protocol,omitempty"`
-	ModelRoles          map[string]string          `json:"model_roles,omitempty"`
-	FallbackProfiles    []string                   `json:"fallback_profiles,omitempty"`
-	Formatters          map[string]FormatterConfig `json:"formatters,omitempty"`
-	Snapshots           bool                       `json:"snapshots,omitempty"`
-	LSP                 map[string]LSPConfig       `json:"lsp,omitempty"`
-	Commands            map[string]CommandConfig   `json:"commands,omitempty"`
-	Endpoint            string                     `json:"endpoint"`
-	BaseURL             string                     `json:"base_url,omitempty"`
-	Model               string                     `json:"model"`
-	APIKeyEnv           string                     `json:"api_key_env"`
-	ContextWindow       int                        `json:"context_window"`
-	OutputBudget        int                        `json:"output_budget"`
-	OutputParameter     string                     `json:"output_parameter"`
-	MaxTurns            int                        `json:"max_turns"`
-	SessionDir          string                     `json:"session_dir"`
-	MCP                 map[string]MCPConfig       `json:"mcp,omitempty"`
-	Profile             string                     `json:"profile,omitempty"`
-	Agent               string                     `json:"agent,omitempty"`
-	Profiles            map[string]ModelProfile    `json:"profiles,omitempty"`
-	Agents              map[string]AgentProfile    `json:"agents,omitempty"`
-	SkillPaths          []string                   `json:"skill_paths,omitempty"`
-	AgentMode           string                     `json:"-"`
-	AgentInstructions   string                     `json:"-"`
-	AgentDescription    string                     `json:"-"`
+	Memory              bool              `json:"memory,omitempty"`
+	AllowGeneratedEdits bool              `json:"allow_generated_edits,omitempty"`
+	Protocol            string            `json:"protocol,omitempty"`
+	ModelRoles          map[string]string `json:"model_roles,omitempty"`
+	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
+	// CompactionMasking (default true) masks old tool output before summarizing.
+	CompactionMasking *bool                      `json:"compaction_masking,omitempty"`
+	Formatters        map[string]FormatterConfig `json:"formatters,omitempty"`
+	Snapshots         bool                       `json:"snapshots,omitempty"`
+	LSP               map[string]LSPConfig       `json:"lsp,omitempty"`
+	Commands          map[string]CommandConfig   `json:"commands,omitempty"`
+	Endpoint          string                     `json:"endpoint"`
+	BaseURL           string                     `json:"base_url,omitempty"`
+	Model             string                     `json:"model"`
+	APIKeyEnv         string                     `json:"api_key_env"`
+	ContextWindow     int                        `json:"context_window"`
+	OutputBudget      int                        `json:"output_budget"`
+	OutputParameter   string                     `json:"output_parameter"`
+	MaxTurns          int                        `json:"max_turns"`
+	SessionDir        string                     `json:"session_dir"`
+	MCP               map[string]MCPConfig       `json:"mcp,omitempty"`
+	Profile           string                     `json:"profile,omitempty"`
+	Agent             string                     `json:"agent,omitempty"`
+	Profiles          map[string]ModelProfile    `json:"profiles,omitempty"`
+	Agents            map[string]AgentProfile    `json:"agents,omitempty"`
+	SkillPaths        []string                   `json:"skill_paths,omitempty"`
+	AgentMode         string                     `json:"-"`
+	AgentInstructions string                     `json:"-"`
+	AgentDescription  string                     `json:"-"`
 }
 
 func Defaults() Config {

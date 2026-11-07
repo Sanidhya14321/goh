@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC21 compaction masking milestone
+
+Automatic compaction masks old tool output before calling a summary model and
+skips the model when the masked view fits with headroom. The summarizer, when
+still needed, receives the masked view. Full results stay in the journal; manual
+`/compact` and `"compaction_masking": false` keep summarization. Based on the
+observation-masking evidence recorded in research_notes. A fixture
+measurement is in BENCHMARKS.md; solve-rate effects are unmeasured.
+
 ## RC20 undo and redo milestone
 
 `/undo` reverts the files the last turn changed through checkpointed tools and
