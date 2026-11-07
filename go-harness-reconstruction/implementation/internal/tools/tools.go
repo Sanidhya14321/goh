@@ -610,7 +610,7 @@ func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) 
 		if syncErr != nil {
 			return failure(fmt.Errorf("file published but parent directory could not be opened for synchronization: %w", syncErr))
 		}
-		syncErr = parent.Sync()
+		syncErr = platform.SyncDir(parent)
 		parent.Close()
 		if syncErr != nil {
 			return failure(fmt.Errorf("file published but parent directory synchronization failed: %w", syncErr))

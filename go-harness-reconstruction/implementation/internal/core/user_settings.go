@@ -2,6 +2,7 @@ package core
 
 import (
 	"crypto/sha256"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"net"
 	"net/url"
@@ -98,7 +99,7 @@ func (c Config) ProviderKey() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > 4096 {
+	if !info.Mode().IsRegular() || !platform.PrivateFile(info, 0600) || info.Size() > 4096 {
 		return "", fmt.Errorf("saved provider key must be a private regular file of at most 4096 bytes")
 	}
 	b, err := readConfig(path)

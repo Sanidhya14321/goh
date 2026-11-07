@@ -74,7 +74,7 @@ func readChatGPTAccount() (chatGPTAccount, error) {
 	}
 	defer f.Close()
 	info, err := f.Stat()
-	if err != nil || !info.Mode().IsRegular() || info.Mode().Perm() != 0600 || info.Size() > 1<<20 {
+	if err != nil || !info.Mode().IsRegular() || !platform.PrivateFile(info, 0600) || info.Size() > 1<<20 {
 		return account, errors.New("ChatGPT credentials must be a private regular file")
 	}
 	if json.NewDecoder(io.LimitReader(f, 1<<20)).Decode(&account) != nil ||

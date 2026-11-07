@@ -304,7 +304,7 @@ func (m *Manager) saveBlob(e Entry, b []byte) error {
 	if err != nil {
 		return err
 	}
-	return errors.Join(d.Sync(), d.Close())
+	return errors.Join(platform.SyncDir(d), d.Close())
 }
 
 func (m *Manager) readBlob(e Entry) ([]byte, error) {
@@ -369,7 +369,7 @@ func (m *Manager) writeRecord(r Record) error {
 	if err != nil {
 		return err
 	}
-	return errors.Join(d.Sync(), d.Close())
+	return errors.Join(platform.SyncDir(d), d.Close())
 }
 
 func (m *Manager) load(id string) (Record, error) {
@@ -826,7 +826,7 @@ func (m *Manager) publish(ctx context.Context, expected, target Entry) error {
 	if err != nil {
 		return err
 	}
-	return errors.Join(d.Sync(), d.Close())
+	return errors.Join(platform.SyncDir(d), d.Close())
 }
 
 // Diff returns stored before/after comparisons, never a comparison against

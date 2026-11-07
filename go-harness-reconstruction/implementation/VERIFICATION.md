@@ -4,6 +4,17 @@ This is a working development alpha. Full release acceptance in the supplied pla
 is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
 Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
 
+## RC23 editor and Windows filesystem
+
+Native CI at RC22 (run 42386722466): `go vet` and `go test ./...` passed on
+`ubuntu-latest` and `macos-latest`. On `windows-latest` the build and vet
+passed and tests failed, mostly from directory fsync ("Access is denied") and
+permission-bit privacy checks; a formatter test also depends on Unix scripts.
+RC23 addresses the first two. Locally `1.0.0-rc.23` passed `go vet`, the race
+suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
+`editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
+and checks the journal records the rewritten prompt.
+
 ## RC22 Windows build
 
 `1.0.0-rc.22` passed `go vet`, the race suite, seven CLI fixture scenarios,

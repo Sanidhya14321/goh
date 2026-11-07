@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io/fs"
 	"os"
@@ -508,7 +509,7 @@ func syncPatchParent(root *os.Root, path string) error {
 		return err
 	}
 	defer parent.Close()
-	return parent.Sync()
+	return platform.SyncDir(parent)
 }
 func stagePatch(root *os.Root, change *patchChange) error {
 	if change.kind == "delete" {

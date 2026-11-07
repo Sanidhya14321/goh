@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC23 external editor and Windows filesystem milestone
+
+Ctrl+X E and `/editor` hand the draft to `$VISUAL`/`$EDITOR` and load the result
+back into the composer, following OpenCode's leader binding and editor
+behavior. Windows directory syncs are now no-ops and the Unix permission-bit
+privacy checks rely on profile ACLs there, which removes the root causes of
+most native Windows test failures in the first CI run. macOS and Ubuntu passed
+the full suite natively on GitHub Actions at RC22.
+
 ## RC22 Windows build milestone
 
 GoHarness now compiles and vets for Windows amd64 and arm64, alongside macOS

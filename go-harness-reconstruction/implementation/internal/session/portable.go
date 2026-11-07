@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -354,7 +355,7 @@ func derive(dir, project string, records []Record, kind, sourceID string, before
 	if err != nil {
 		return nil, err
 	}
-	err = directory.Sync()
+	err = platform.SyncDir(directory)
 	directory.Close()
 	if err != nil {
 		return nil, err

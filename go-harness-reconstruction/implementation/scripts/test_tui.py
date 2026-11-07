@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     outside_sessions=pathlib.Path(tempfile.mkdtemp(prefix='harness-undo-sessions-'))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -71,6 +71,11 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 except OSError:
                     time.sleep(.02)
             env = dict(os.environ, TERM='xterm-256color')
+            if case=='editor_handoff':
+                fake_editor=root/'fake-editor.sh'
+                fake_editor.write_text('#!/bin/sh\nprintf "%s" "$(cat "$1") rewritten in editor" > "$1"\n')
+                fake_editor.chmod(0o700)
+                env['VISUAL']=str(fake_editor)
             extra=[]
             if scenario=='undo':
                 extra=['--snapshots']  # snapshot storage must be outside the project
@@ -85,7 +90,18 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
             if case == 'termination':
                 process.send_signal(signal.SIGTERM)
             else:
-                os.write(master, b'Exercise the fixture\r')
+                if case=='editor_handoff':
+                    os.write(master, b'Draft')
+                    time.sleep(.2)
+                    os.write(master, b'\x18')  # Ctrl+X leader
+                    time.sleep(.1)
+                    os.write(master, b'e')
+                    # The welcome screen has no status line; the composer shows
+                    # the edited draft once the editor returns.
+                    wait_for(b'rewritten in editor')
+                    os.write(master, b'\r')
+                else:
+                    os.write(master, b'Exercise the fixture\r')
                 if case=='typed_child':
                     wait_for(b'APPROVAL: task')
                     os.write(master,b'y')
@@ -102,6 +118,10 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         if found: break
                         time.sleep(.02)
                     assert found,'typed task result not recorded'
+                elif case=='editor_handoff':
+                    wait_for(b'Fixture response')
+                    sent=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']
+                    assert sent==['Draft rewritten in editor'],sent
                 elif case=='undo_redo':
                     target=root/'undo-target.txt'
                     target.unlink(missing_ok=True)

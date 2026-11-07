@@ -73,3 +73,15 @@ func StopGroup(pid int, grace time.Duration) error {
 	}
 	return KillGroup(pid)
 }
+
+// SyncDir persists directory entries (file creation and renames).
+func SyncDir(d *os.File) error { return d.Sync() }
+
+// PrivateFile reports owner-only access: exact mode want (for example 0600).
+func PrivateFile(info os.FileInfo, want os.FileMode) bool { return info.Mode().Perm() == want }
+
+// PrivateDir reports that no group or other permission bits are set.
+func PrivateDir(info os.FileInfo) bool { return info.Mode().Perm()&0o077 == 0 }
+
+// PrivateNoGroup reports that a file has no group or other permission bits.
+func PrivateNoGroup(info os.FileInfo) bool { return info.Mode().Perm()&0o077 == 0 }

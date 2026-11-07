@@ -72,7 +72,7 @@ func (l *Ledger) directoryRoot(create bool) (*os.Root, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsDir() || info.Mode().Perm()&0077 != 0 {
+	if !info.IsDir() || !platform.PrivateDir(info) {
 		return nil, errors.New("memory directory must be a private directory")
 	}
 	return os.OpenRoot(l.directory)
@@ -91,7 +91,7 @@ func (l *Ledger) read(root *os.Root) ([]Note, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > maxDatabase {
+	if !info.Mode().IsRegular() || !platform.PrivateNoGroup(info) || info.Size() > maxDatabase {
 		return nil, errors.New("memory ledger must be a bounded private regular file")
 	}
 	data, err := io.ReadAll(io.LimitReader(file, maxDatabase+1))
@@ -185,7 +185,7 @@ func (l *Ledger) update(edit func([]Note) ([]Note, error)) error {
 		return err
 	}
 	defer dir.Close()
-	return dir.Sync()
+	return platform.SyncDir(dir)
 }
 
 func (l *Ledger) hash(path string) (string, error) {

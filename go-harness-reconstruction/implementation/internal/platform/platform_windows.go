@@ -92,3 +92,14 @@ func StopGroup(pid int, grace time.Duration) error {
 	}
 	return KillGroup(pid)
 }
+
+// SyncDir is a no-op: Windows cannot flush a directory handle, and NTFS
+// journals directory metadata itself.
+func SyncDir(*os.File) error { return nil }
+
+// On Windows, Unix permission bits do not describe access. Files created under
+// the user profile inherit owner-only ACLs by default; GoHarness relies on
+// that and does not inspect ACLs. This is weaker than the Unix mode check.
+func PrivateFile(info os.FileInfo, _ os.FileMode) bool { return info.Mode().IsRegular() }
+func PrivateDir(info os.FileInfo) bool                 { return info.IsDir() }
+func PrivateNoGroup(info os.FileInfo) bool             { return true }

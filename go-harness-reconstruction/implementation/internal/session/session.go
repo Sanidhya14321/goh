@@ -86,7 +86,7 @@ func New(dir, project string) (*Store, error) {
 		s.Close()
 		return nil, err
 	}
-	err = d.Sync()
+	err = platform.SyncDir(d)
 	d.Close()
 	if err != nil {
 		s.Close()

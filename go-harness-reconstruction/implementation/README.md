@@ -54,6 +54,14 @@ for editing. The branch shares the workspace on disk, so its files reflect
 the current workspace. Conversation state is copied without session grants
 or tool execution.
 
+Press **Ctrl+X** then **E**, or use `/editor`, to edit the current draft in
+`$VISUAL` (or `$EDITOR`). The chat suspends while the editor runs in the
+workspace directory, then loads the saved text into the composer. A single
+trailing newline on a one-line prompt is dropped. If the editor exits with an
+error or saves an empty file, the original draft is kept. Values such as
+`code --wait` are split into arguments; no shell is invoked. The draft is
+not sent until you press Enter.
+
 Use `/undo` to take back the last turn. GoHarness restores the files that
 turn changed through built-in file tools, newest change first, then continues
 in a branch that ends before that turn and puts its prompt back in the

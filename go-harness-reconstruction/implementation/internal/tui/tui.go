@@ -77,6 +77,7 @@ type model struct {
 	fileIndex       *fileIndexMsg
 	fork            *optionPicker
 	forkBefore      int
+	leader          bool
 	export          *exportPanel
 }
 
@@ -233,6 +234,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.log = m.log[len(m.log)-(128<<10):]
 		}
 		return m, m.wait()
+	case editorDoneMsg:
+		m.applyEditor(v)
+		return m, nil
 	case questionMsg:
 		m.question = &questionState{message: v, selected: map[int]bool{}}
 		m.reviewOffset = 0
@@ -365,7 +369,20 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.palette {
 			return m.paletteKey(v)
 		}
+		if m.leader {
+			// Ctrl+X leader, as in OpenCode: the next key selects an action.
+			m.leader = false
+			if key == "e" && m.status != "running" {
+				return m, m.openEditor()
+			}
+			m.status = ""
+			return m, nil
+		}
 		switch key {
+		case "ctrl+x":
+			m.leader = true
+			m.status = "Ctrl+X: e edit prompt in $EDITOR"
+			return m, nil
 		case "ctrl+p", "ctrl+k":
 			m.palette, m.paletteQuery, m.paletteIndex = true, "", 0
 			return m, nil
@@ -404,6 +421,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
+			}
+			if strings.TrimSpace(prompt) == "/editor" {
+				m.input, m.inputCursor = "", 0
+				return m, m.openEditor()
 			}
 			if p := strings.TrimSpace(prompt); p == "/undo" || p == "/redo" {
 				m.input, m.inputCursor = "", 0

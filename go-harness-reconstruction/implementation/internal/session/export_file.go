@@ -1,6 +1,7 @@
 package session
 
 import (
+	"example.com/independent-harness/internal/platform"
 	"fmt"
 	"io"
 	"os"
@@ -37,7 +38,7 @@ func WriteExportFile(output string, write func(io.Writer) error) (err error) {
 		return fmt.Errorf("export published, but directory sync failed: %w", err)
 	}
 	defer directory.Close()
-	if err := directory.Sync(); err != nil {
+	if err := platform.SyncDir(directory); err != nil {
 		return fmt.Errorf("export published, but directory sync failed: %w", err)
 	}
 	return nil

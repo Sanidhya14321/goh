@@ -26,6 +26,7 @@ var paletteEntries = []paletteEntry{
 	{"/agents", "Select Build, Plan or a custom agent"},
 	{"/export", "Save the conversation as a Markdown transcript"},
 	{"/fork", "Branch the full session or start before an earlier turn"},
+	{"/editor", "Edit the prompt in $VISUAL or $EDITOR (Ctrl+X E)"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},
 	{"/redo", "Return to the turn removed by /undo"},
 	{"/new", "Start a new conversation"},
@@ -100,6 +101,10 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if entry.command == "/fork" {
 				return m, m.openFork()
+			}
+			if entry.command == "/editor" {
+				m.palette = false
+				return m, m.openEditor()
 			}
 			if entry.command == "/undo" || entry.command == "/redo" {
 				return m, m.requestRewind(entry.command[1:])
