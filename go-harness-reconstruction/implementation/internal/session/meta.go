@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -133,7 +134,16 @@ func Trash(dir, id string) error {
 		f.Close()
 		return ErrSessionOpen
 	}
-	defer f.Close() // hold the lock until every path has moved
+	// Unix: hold the lock until every path has moved. Windows cannot rename a
+	// file with an open handle, so the handle is closed just before the journal
+	// moves; if another process opens it in that window, Windows refuses the
+	// rename (file in use), which is still a safe refusal.
+	held := f
+	defer func() {
+		if held != nil {
+			held.Close()
+		}
+	}()
 	if err := os.MkdirAll(trashDir(dir), 0o700); err != nil {
 		return err
 	}
@@ -147,7 +157,14 @@ func Trash(dir, id string) error {
 			return err
 		}
 	}
-	return os.Rename(journal, filepath.Join(trashDir(dir), id+".jsonl"))
+	if runtime.GOOS == "windows" {
+		held.Close()
+		held = nil
+	}
+	if err := os.Rename(journal, filepath.Join(trashDir(dir), id+".jsonl")); err != nil {
+		return fmt.Errorf("could not move the journal (is the session open?): %w", err)
+	}
+	return nil
 }
 
 // Restore moves a trashed session back. It refuses to overwrite anything.
