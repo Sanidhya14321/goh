@@ -15,6 +15,17 @@ suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
 `editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
 and checks the journal records the rewritten prompt.
 
+## Native Windows shell (after RC26)
+
+New Windows-only tests run the `cmd.exe` shell path natively: output and
+stderr, verbatim quoting, nonzero exit, and timeout cleanup. The first run
+(42390079332) found that a non-forced `taskkill` cannot stop console process
+trees, so every Windows timeout reported `cleanup_incomplete`; commit
+`fa7c660` forces the tree kill. CI on `fa7c660` passed all six jobs (tests and
+installers on Ubuntu, macOS and Windows). The installers now also refuse a
+checksum-valid binary that does not run, keeping the existing install
+(local test; idea from the Harvest installer).
+
 ## RC26 shortcuts and first all-green native CI
 
 Native CI run 42389704720 (RC25): `go vet` and `go test ./...` passed on
