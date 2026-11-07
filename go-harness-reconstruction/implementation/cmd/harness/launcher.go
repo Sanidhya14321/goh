@@ -141,7 +141,7 @@ func editWorkspace(project *string) (bool, error) {
 }
 
 func chatFirst(args []string) error {
-	project, sessionID := "", ""
+	project, sessionID, draft := "", "", ""
 	var profile, agent *string
 	sessionOverride := false
 	skipChooser := true
@@ -164,7 +164,8 @@ func chatFirst(args []string) error {
 		if actionErr != nil {
 			notice = actionErr.Error()
 		}
-		err := runCommand(command, skipChooser, notice)
+		err := runCommand(command, skipChooser, notice, draft)
+		draft = ""
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
@@ -227,6 +228,19 @@ func chatFirst(args []string) error {
 				if selected == "" {
 					project = workspace
 				}
+			}
+		case "fork":
+			draft = nav.Draft
+			var branch *session.Store
+			var prompt string
+			branch, prompt, actionErr = session.ForkBefore(nav.Config.SessionDir, nav.Session, nav.BeforeTurn)
+			if actionErr != nil {
+				break
+			}
+			sessionID = branch.ID
+			branch.Close()
+			if nav.BeforeTurn > 0 {
+				draft = prompt
 			}
 		case "new":
 			sessionID = ""

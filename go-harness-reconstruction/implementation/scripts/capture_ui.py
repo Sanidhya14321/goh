@@ -194,6 +194,14 @@ def capture(binary, label, trial):
                     assert drain(5, "Prompt preview")
                     drain(.3)
                     screenshot(screen, "goh-ui-prompt-preview")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/fork\r")
+                    assert drain(5, "Full session")
+                    drain(.3)
+                    screenshot(screen, "goh-ui-fork")
                 else:
                     os.write(master, b"Show a short code and table example\r")
                     assert drain(15, "Verification")
@@ -237,6 +245,14 @@ def capture(binary, label, trial):
                         assert drain(5, "Timeline")
                     drain(.3)
                     screenshot(screen, "opencode-ui-timeline")
+                    os.write(master, b"\x1b")
+                    drain(.2)
+                    os.write(master, b"/fork\r")
+                    if not drain(.5, "Full session"):
+                        os.write(master, b"\r")
+                        assert drain(5, "Full session")
+                    drain(.3)
+                    screenshot(screen, "opencode-ui-fork")
             return {"first_prompt_ms": round(latency, 2), "process_rss_kib": rss}
         finally:
             (evidence / f"{label}-ui-{trial}.ansi").write_bytes(raw)

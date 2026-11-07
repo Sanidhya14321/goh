@@ -228,3 +228,61 @@ func TestManualCompactionPortableRecord(t *testing.T) {
 		t.Fatal("identity not forked")
 	}
 }
+
+func TestForkBeforeUsesDurableTurnNumberAcrossCompaction(t *testing.T) {
+	source, dir := completedFixture(t)
+	id := source.ID
+	prompt := "Investigate and remember the task"
+	if err := source.Append("message", core.Message{Role: "user", Content: prompt}); err != nil {
+		t.Fatal(err)
+	}
+	if err := source.Append("message", core.Message{Role: "assistant", Content: "Later reply"}); err != nil {
+		t.Fatal(err)
+	}
+	turns := source.RecentUserTurns(1)
+	if len(turns) != 1 || turns[0] != (UserTurn{Number: 2, Prompt: prompt}) {
+		t.Fatalf("turn number should refer to the durable user record: %+v", turns)
+	}
+	want := portableRecords(source.Records())
+	want = want[:len(want)-2]
+	source.Close()
+	path := filepath.Join(dir, id+".jsonl")
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	branch, draft, err := ForkBefore(dir, id, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer branch.Close()
+	got := portableRecords(branch.Records())
+	if branch.ID == id || branch.Project != source.Project || draft != prompt || len(got) != len(want) {
+		t.Fatalf("incorrect branch or draft: %s %q %d", branch.ID, draft, len(got))
+	}
+	for i := range want {
+		if got[i].Type != want[i].Type || !bytes.Equal(got[i].Data, want[i].Data) {
+			t.Fatalf("branch changed retained record %d", i)
+		}
+	}
+	records := branch.Records()
+	if records[1].Type != "session_forked" || !bytes.Contains(records[1].Data, []byte(`"before_turn":2`)) {
+		t.Fatal("fork provenance omitted its boundary")
+	}
+	if _, _, err := ForkBefore(dir, id, 3); err == nil {
+		t.Fatal("nonexistent turn was accepted")
+	}
+	first, draft, err := ForkBefore(dir, id, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer first.Close()
+	if draft != prompt || len(portableRecords(first.Records())) != 0 {
+		t.Fatal("branch before first turn must start with an empty transcript")
+	}
+	after, err := os.ReadFile(path)
+	if err != nil || !bytes.Equal(before, after) {
+		t.Fatal("source journal changed", err)
+	}
+}

@@ -71,6 +71,21 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
                 output.extend(os.read(master, 65536))
         assert text in output[start:], (text, bytes(output[-900:]))
 
+    def wait_finished(journal, offset):
+        # Fast turns can finish without repainting an already visible status.
+        deadline = time.monotonic() + 8
+        while time.monotonic() < deadline:
+            added = journal.read_bytes()[offset:]
+            complete = added[:added.rfind(b"\n")+1].splitlines()
+            if complete:
+                last = json.loads(complete[-1])
+                if last["type"] == "run_finished":
+                    assert last["data"]["status"] == "completed", last
+                    return
+            if select.select([master], [], [], .05)[0]:
+                output.extend(os.read(master, 65536))
+        raise AssertionError("New turn did not finish")
+
     try:
         wait_for(b"GoHarness")
         wait_for(b"Chat setup required")
@@ -227,21 +242,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert len(requests) == count
         assert journal_before.read_bytes() == before_files
         os.write(master, b"\r")
-        # A fast turn can finish without the renderer repainting the
-        # already visible "completed" status. Wait for the new journal record.
-        deadline = time.monotonic() + 8
-        while time.monotonic() < deadline:
-            added = journal_before.read_bytes()[len(before_files):]
-            complete = added[:added.rfind(b"\n")+1].splitlines()
-            if complete:
-                last = json.loads(complete[-1])
-                if last["type"] == "run_finished":
-                    assert last["data"]["status"] == "completed", last
-                    break
-            if select.select([master], [], [], .05)[0]:
-                output.extend(os.read(master, 65536))
-        else:
-            raise AssertionError("File reference turn did not finish")
+        wait_finished(journal_before, len(before_files))
         assert len(requests) == count+1
         assert prompts[-1] == 'Inspect @"docs/query fixture.md" ', prompts
         assert b"FILE_BODY_MUST_STAY_LOCAL" not in output
@@ -276,8 +277,54 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         pos = len(output)
         os.write(master, b"q")
         wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        count = len(requests)
+        before_fork = journal_before.read_bytes()
+        os.write(master, b"Unfinished source draft\x10")
+        wait_for(b"GoHarness  /  Commands", pos)
+        os.write(master, b"fork\r")
+        wait_for(b"Full session", pos)
+        os.write(master, b"\x1b")
+        time.sleep(.15)
+        pos = len(output)
+        os.write(master, b"\x0c")
+        wait_for(b"Unfinished source draft", pos)
+        os.write(master, b"\x15/fork\r")
+        pos = len(output)
+        wait_for(b"Fork session", pos)
+        os.write(master, b"Before turn 4")
+        wait_for(b"Before turn 4", pos)
+        assert len(list(root.rglob("*.jsonl"))) == 2
+        pos = len(output)
+        os.write(master, b"\r")
+        wait_for(b"\x1b[?1049h", pos)
+        wait_for(b"Verify selected model", output.index(b"\x1b[?1049h", pos))
+        time.sleep(.1)
+        branch, = [p for p in root.rglob("*.jsonl") if p not in (journal_before, second_journal)]
+        branch_snapshot = branch.read_bytes()
+        state = [json.loads(line) for line in branch_snapshot.splitlines()]
+        assert state[1]["type"] == "session_forked"
+        assert state[1]["data"]["source_session_id"] == journal_before.stem
+        assert state[1]["data"]["before_turn"] == 4
+        branch_prompts = [r["data"]["content"] for r in state if r["type"] == "message" and r["data"]["role"] == "user"]
+        assert branch_prompts == ["Hello from setup", "Retry after fixing key", "Retry after fixing key"], branch_prompts
+        assert len(requests) == count and journal_before.read_bytes() == before_fork
+        os.write(master, b"\x15Branch experiment\r")
+        wait_finished(branch, len(branch_snapshot))
+        time.sleep(.1)
+        assert len(requests) == count + 1 and prompts[-1] == "Branch experiment", prompts
+        assert journal_before.read_bytes() == before_fork
         os.write(master, b"\x04")
         assert app.wait(timeout=8) == 0
+        cli_fork = subprocess.run(
+            [binary, "sessions", "fork", journal_before.stem, "--session-dir",
+             str(journal_before.parent), "--before-turn", "1"],
+            cwd=project, env=env, capture_output=True, text=True, timeout=8)
+        assert cli_fork.returncode == 0, cli_fork.stderr
+        cli_branch = journal_before.parent / (json.loads(cli_fork.stdout)["id"] + ".jsonl")
+        assert [json.loads(line)["type"] for line in cli_branch.read_bytes().splitlines()] == [
+            "session_start", "session_forked"]
+        assert journal_before.read_bytes() == before_fork
         restored = termios.tcgetattr(slave)
         # Darwin can set PENDIN when returning to canonical mode.
         pending = getattr(termios, "PENDIN", 0)
@@ -294,7 +341,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

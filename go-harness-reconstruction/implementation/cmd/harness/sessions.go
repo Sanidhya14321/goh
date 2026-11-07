@@ -13,7 +13,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|preview ID|show ID|export ID [--output FILE]|import FILE [--project DIR]|fork ID [--session-dir DIR]"
+	usage := "sessions list|preview ID|show ID|export ID [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N] [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -40,6 +40,10 @@ func sessions(args []string) error {
 	}
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	output, project := "", ""
+	beforeTurn := 0
+	if command == "fork" {
+		f.IntVar(&beforeTurn, "before-turn", 0, "branch before this one-based user turn; zero copies the full session")
+	}
 	if command == "export" {
 		f.StringVar(&output, "output", "", "new private portable JSON file; default stdout")
 	}
@@ -102,7 +106,7 @@ func sessions(args []string) error {
 		defer store.Close()
 		return encoder.Encode(session.Info{ID: store.ID, Project: store.Project})
 	case "fork":
-		store, err := session.Fork(*dir, subject)
+		store, _, err := session.ForkBefore(*dir, subject, beforeTurn)
 		if err != nil {
 			return err
 		}

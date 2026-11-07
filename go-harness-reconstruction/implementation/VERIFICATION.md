@@ -6,11 +6,19 @@ Live inference was tested on loopback. Source milestones are published to Sanidh
 
 ## V1 release candidate
 
-The installed macOS ARM64 `goh` binary reports `1.0.0-rc.13` and matches the
+The installed macOS ARM64 `goh` binary reports `1.0.0-rc.14` and matches the
 local build byte for byte. The race suite, `go vet`, seven CLI fixture scenarios,
 fifteen PTY scenarios, and compiled ACP integration suite passed on this
 candidate. Eleven bounded fuzz targets passed on RC1. A TUI regression covers a
 narrow viewport with wide text, tabbed previews, and long input.
+
+RC14 evidence is under `research/evidence/v1-ui-fork-*`. The terminal setup
+flow cancels a fork without losing the source draft, branches before a numbered
+turn, verifies the separate journal and unchanged source, and sends an edited
+draft from the new chat. It also exercises the CLI boundary before the first
+turn. Focused journal tests verify repeated prompts, retained compaction state,
+branch provenance, and invalid boundaries. Paired PTY captures show both fork
+menus.
 
 RC13 evidence is under `research/evidence/v1-ui-files-*`. The terminal setup
 flow finds a file with spaces using a fuzzy abbreviation. It checks that

@@ -23,6 +23,7 @@ var paletteEntries = []paletteEntry{
 	{"/commands", "List custom commands"},
 	{"/models", "Select a configured model profile"},
 	{"/agents", "Select Build, Plan or a custom agent"},
+	{"/fork", "Branch the full session or start before an earlier turn"},
 	{"/new", "Start a new conversation"},
 	{"/timeline", "Search recent prompts and recall into the composer"},
 	{"/status", "Inspect provider, context, permissions and integrations"},
@@ -78,6 +79,9 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		if len(entries) > 0 {
 			entry := entries[min(m.paletteIndex, len(entries)-1)]
 			m.palette = false
+			if entry.command == "/fork" {
+				return m, m.openFork()
+			}
 			if entry.command == "/sidebar" {
 				m.hideSidebar = !m.hideSidebar
 				return m, nil

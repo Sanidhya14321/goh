@@ -101,3 +101,8 @@ for OpenCode 1.19.5 across three 120×36 PTY trials on the same Mac. The timing
 ends at the interactive home prompt with a configured loopback provider.
 The lazy file scan and inference are outside this interval. The paired file
 menus were captured afterward using the same project fixture.
+
+RC14 first-prompt startup medians were 41.09 ms for GoHarness and 1421.58 ms
+for OpenCode 1.19.5 across three 120×36 PTY trials on the same Mac. The timing
+ends at the interactive home prompt with a configured loopback provider.
+The fork menu scans journal prompts on demand, after the timed interval.

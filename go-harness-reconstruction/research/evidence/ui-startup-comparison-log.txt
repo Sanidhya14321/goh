@@ -1,5 +1,5 @@
 {
-  "goh_version": "1.0.0-rc.13",
+  "goh_version": "1.0.0-rc.14",
   "opencode_version": "1.19.5",
   "platform": "macOS-26.5.1-arm64-arm-64bit",
   "terminal": "120x36 PTY",
@@ -7,33 +7,33 @@
   "trials": {
     "goh": [
       {
-        "first_prompt_ms": 38.67,
-        "process_rss_kib": 22624
+        "first_prompt_ms": 41.09,
+        "process_rss_kib": 22816
       },
       {
-        "first_prompt_ms": 40.01,
-        "process_rss_kib": 22768
+        "first_prompt_ms": 40.07,
+        "process_rss_kib": 22912
       },
       {
-        "first_prompt_ms": 44.81,
+        "first_prompt_ms": 45.44,
         "process_rss_kib": 22736
       }
     ],
     "opencode": [
       {
-        "first_prompt_ms": 1420.45,
-        "process_rss_kib": 829120
+        "first_prompt_ms": 1421.58,
+        "process_rss_kib": 872928
       },
       {
-        "first_prompt_ms": 1380.99,
-        "process_rss_kib": 855920
+        "first_prompt_ms": 1465.37,
+        "process_rss_kib": 828688
       },
       {
-        "first_prompt_ms": 1370.41,
-        "process_rss_kib": 883024
+        "first_prompt_ms": 1417.05,
+        "process_rss_kib": 844784
       }
     ]
   },
-  "goh_median_ms": 40.01,
-  "opencode_median_ms": 1380.99
+  "goh_median_ms": 41.09,
+  "opencode_median_ms": 1421.58
 }

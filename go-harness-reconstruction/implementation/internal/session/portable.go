@@ -105,25 +105,54 @@ func Import(dir string, r io.Reader, projectOverride string) (*Store, error) {
 	if !filepath.IsAbs(project) {
 		return nil, errors.New("import project must be an absolute existing directory; use --project to relocate")
 	}
-	return derive(dir, project, portable.Records, "session_imported", portable.SourceSessionID)
+	return derive(dir, project, portable.Records, "session_imported", portable.SourceSessionID, 0)
 }
 
 // Fork copies completed conversation, compaction and task state. It never
 // replays tools or transfers permission decisions, and refuses uncertain effects.
 func Fork(dir, id string) (*Store, error) {
+	store, _, err := ForkBefore(dir, id, 0)
+	return store, err
+}
+
+// ForkBefore branches immediately before a one-based journal user turn and
+// returns that turn's prompt. Zero copies the full session.
+func ForkBefore(dir, id string, beforeTurn int) (*Store, string, error) {
+	if beforeTurn < 0 {
+		return nil, "", errors.New("fork turn must be positive, or zero for the full session")
+	}
 	source, err := Open(dir, id)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	defer source.Close()
 	if len(source.Pending()) > 0 {
-		return nil, errors.New("cannot fork uncertain tool effects; inspect and acknowledge the source session first")
+		return nil, "", errors.New("cannot fork uncertain tool effects; inspect and acknowledge the source session first")
 	}
-	records := portableRecords(source.Records())
+	records, prompt := source.records, ""
+	if beforeTurn > 0 {
+		turn := 0
+		for i, record := range records {
+			if !isUserRecord(record) {
+				continue
+			}
+			turn++
+			if turn == beforeTurn {
+				prompt = userRecordContent(record)
+				records = records[:i]
+				break
+			}
+		}
+		if turn < beforeTurn {
+			return nil, "", fmt.Errorf("no user turn %d in source session", beforeTurn)
+		}
+	}
+	records = portableRecords(records)
 	if err := validatePortableRecords(records); err != nil {
-		return nil, fmt.Errorf("source transcript cannot be forked: %w", err)
+		return nil, "", fmt.Errorf("source transcript cannot be forked: %w", err)
 	}
-	return derive(dir, source.Project, records, "session_forked", id)
+	store, err := derive(dir, source.Project, records, "session_forked", id, beforeTurn)
+	return store, prompt, err
 }
 
 func validatePortableRecords(records []Record) error {
@@ -282,7 +311,7 @@ func validateGroups(history []core.Message) error {
 // without overwriting an existing destination. The writer lock stays attached
 // to the same inode throughout publication, and no partially copied session is
 // visible to List or Open.
-func derive(dir, project string, records []Record, kind, sourceID string) (result *Store, err error) {
+func derive(dir, project string, records []Record, kind, sourceID string, beforeTurn int) (result *Store, err error) {
 	if err = os.MkdirAll(dir, 0700); err != nil {
 		return nil, err
 	}
@@ -304,7 +333,11 @@ func derive(dir, project string, records []Record, kind, sourceID string) (resul
 			}
 		}
 	}()
-	if err = store.Append(kind, map[string]any{"source_session_id": sourceID, "time": time.Now().UTC()}); err != nil {
+	origin := map[string]any{"source_session_id": sourceID, "time": time.Now().UTC()}
+	if beforeTurn > 0 {
+		origin["before_turn"] = beforeTurn
+	}
+	if err = store.Append(kind, origin); err != nil {
 		return nil, err
 	}
 	for _, record := range records {

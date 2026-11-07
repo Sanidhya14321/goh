@@ -46,6 +46,14 @@ history; prompts removed by context compaction are outside this view. Browsing
 performs no journal reads or writes and makes no provider request. Preview rows
 are cached until the selection or viewport width changes.
 
+Use `/fork` or search **Fork session** in the command palette to branch the
+current conversation. Choose **Full session** to copy the conversation through
+its latest turn, or search up to 200 recent journal prompts and choose a turn
+to branch immediately before it. The selected prompt opens in the new composer
+for editing. The branch shares the workspace on disk, so its files reflect
+the current workspace. Conversation state is copied without session grants
+or tool execution.
+
 `/status` or Ctrl+G opens a local status snapshot while idle. It shows provider
 configuration, credential presence, context/output budgets, reported usage,
 session grants, configured MCP/LSP servers, and formatter executable availability.
@@ -308,8 +316,14 @@ Session management:
 goh sessions export SESSION_ID --output new-session.json --session-dir DIR
 goh sessions import new-session.json --project EXISTING_PROJECT --session-dir DIR
 goh sessions fork SESSION_ID --session-dir DIR
+goh sessions fork SESSION_ID --before-turn 4 --session-dir DIR
 goh compact SESSION_ID --config config.example.json --session-dir DIR --format json
 ```
+
+`--before-turn` counts durable user messages from one, including repeated
+prompts and prompts that are no longer in the active context. Earlier
+conversation, compaction, and task records form the branch; the selected turn
+is its boundary.
 
 Export files are private and never overwrite existing destinations. Import and
 fork create fresh session identities, preserve completed conversation/context/

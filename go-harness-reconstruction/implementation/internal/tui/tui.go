@@ -19,11 +19,13 @@ import (
 )
 
 type ChatNavigation struct {
-	Action   string
-	Session  string
-	Project  string
-	Config   *core.Config
-	Backdrop string
+	Action     string
+	Session    string
+	Project    string
+	Config     *core.Config
+	Backdrop   string
+	Draft      string
+	BeforeTurn int
 }
 
 func (n *ChatNavigation) Error() string { return "chat navigation: " + n.Action }
@@ -73,6 +75,8 @@ type model struct {
 	timeline        *timelinePanel
 	fileCompletion  *fileCompletion
 	fileIndex       *fileIndexMsg
+	fork            *optionPicker
+	forkBefore      int
 }
 
 func Safe(s string) string {
@@ -106,6 +110,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 	}()
 	switch v := msg.(type) {
+	case forkOptionsMsg:
+		if m.fork == v.picker {
+			m.fork.options = v.options
+			m.fork.footer = "  Enter fork  Esc back · copies conversation only"
+		}
 	case fileIndexMsg:
 		m.fileIndex = &v
 		if m.fileCompletion != nil {
@@ -241,6 +250,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		return m, nil
 	case tea.PasteMsg:
+		if m.fork != nil {
+			return m.forkUpdate(v)
+		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
 		}
@@ -261,6 +273,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		key := v.String()
 		if key == "ctrl+l" {
 			return m, tea.ClearScreen
+		}
+		if m.fork != nil {
+			return m.forkUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -354,6 +369,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
+			if strings.TrimSpace(prompt) == "/fork" {
+				m.input, m.inputCursor = "", 0
+				return m, m.openFork()
+			}
 			if strings.TrimSpace(prompt) == "/timeline" {
 				m.input, m.inputCursor = "", 0
 				m.openTimeline()
@@ -606,8 +625,9 @@ func (m *model) compactView() tea.View {
 	view.AltScreen = true
 	return view
 }
-func Run(a *agent.Agent, notice string) error {
+func Run(a *agent.Agent, notice, draft string) error {
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...)}
+	m.insertInput(Safe(draft))
 	for _, message := range a.History {
 		switch message.Role {
 		case "user":
@@ -692,7 +712,7 @@ func Run(a *agent.Agent, notice string) error {
 	a.Approve = oldApprove
 	a.Ask = oldAsk
 	if e == nil && m.navigation != "" {
-		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content}
+		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content, Draft: m.input, BeforeTurn: m.forkBefore}
 	}
 	return e
 }

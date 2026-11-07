@@ -60,6 +60,10 @@ func (m *model) View() tea.View {
 	if height < 1 {
 		height = 24
 	}
+	if m.fork != nil {
+		m.fork.width, m.fork.height = width, height
+		return m.fork.View()
+	}
 	if m.timeline != nil {
 		return m.timelineView(width, height)
 	}

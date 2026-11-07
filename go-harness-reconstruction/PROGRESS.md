@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC14 UI milestone
+
+The Go composer now has a searchable /fork dialog for the full session or an
+earlier durable user turn. Branching reuses the portable journal validation
+and publishes a fresh session with the selected prefix. It opens the chosen
+prompt as an editable draft and shares the source workspace. The CLI accepts
+`sessions fork ID --before-turn N` with the same boundary semantics.
+
 ## RC13 UI milestone
 
 The composer now opens a project file menu above the draft when the user types
@@ -26,7 +34,7 @@ added. Source and isolated terminal captures document the reference and result.
 
 ## V1 release candidate
 
-GoHarness `1.0.0-rc.13` is installed as `goh` on the development Mac.
+GoHarness `1.0.0-rc.14` is installed as `goh` on the development Mac.
 Bare `go` opens chat in the local zsh profile. Incomplete configuration
 displays a setup message in chat and blocks prompt submission. Provider,
 workspace, session selection, and settings are accessible through chat commands.

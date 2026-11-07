@@ -133,3 +133,11 @@ informed the placement and keyboard interaction of the file menu. GoHarness
 implements its own batched Go directory scan, fuzzy ranking, and text path
 insertion using the existing composer. The source reference is
 https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/component/prompt/autocomplete.tsx
+
+RC14 UI continuation, 7 November 2026. OpenCode's pinned
+dialog-fork-from-timeline.tsx and the isolated OpenCode executable informed
+the full-session and before-turn choices. The Go implementation uses its
+existing option picker and durable portable journal publication, with a
+one-based journal turn boundary and a separate editable draft.
+Reference:
+https://github.com/anomalyco/opencode/blob/810c0eba1a7348036f8bdf61e6632d0c36c6876c/packages/tui/src/routes/session/dialog-fork-from-timeline.tsx
