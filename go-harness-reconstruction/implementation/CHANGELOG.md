@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.106 — 2026-11-09
+
+- Skill files that cannot be loaded are listed in `/status` with their
+  path and reason, beside skipped agent and command files. The transcript
+  shows one readable notice per session instead of raw JSON on every run.
+
 ## 1.0.0-rc.105 — 2026-11-09
 
 - Provider cooldowns: when a route fails before any response (rate limit,

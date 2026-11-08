@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC106 skill diagnostics milestone
+
+Skill load problems are readable and listed in /status.
+
 ## RC105 provider cooldowns milestone
 
 Failed routes are skipped for a minute while fallbacks exist; the primary

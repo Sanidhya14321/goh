@@ -112,6 +112,11 @@ func (m *model) openStatus() {
 		for _, skip := range m.a.Config.SkippedAgentFiles {
 			lines = append(lines, "Agent file skipped · "+oneLine(Safe(skip.Path), 60)+": "+skip.Reason)
 		}
+		if m.a.Skills != nil {
+			for _, d := range m.a.Skills.Diagnostics() {
+				lines = append(lines, "Skill skipped · "+oneLine(Safe(d.Path), 60)+": "+Safe(d.Message))
+			}
+		}
 		for _, skip := range m.a.SkippedCommands {
 			lines = append(lines, "Command file skipped · "+oneLine(Safe(skip.Path), 60)+": "+skip.Reason)
 		}

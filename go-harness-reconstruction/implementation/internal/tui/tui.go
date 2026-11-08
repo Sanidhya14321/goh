@@ -100,6 +100,7 @@ type model struct {
 	hideDetails          bool
 	hideThinking         bool
 	sessionTitle         string
+	skillNoticeShown     bool
 	reasoning            strings.Builder
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
@@ -237,12 +238,22 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				mark = "[error] "
 			}
 			m.log += toolResultLines(mark, Safe(content))
-		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "skill_diagnostics", "command_expanded", "images_attached":
+		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "command_expanded", "images_attached":
 			b, _ := json.Marshal(v.Data)
 			if len(b) > 2048 {
 				b = b[:2048]
 			}
 			m.log += "\n[" + v.Type + "] " + Safe(string(b)) + "\n"
+		case "skill_diagnostics":
+			// Readable once per session; details stay in /status.
+			if !m.skillNoticeShown {
+				m.skillNoticeShown = true
+				n := 0
+				if m.a != nil && m.a.Skills != nil {
+					n = len(m.a.Skills.Diagnostics())
+				}
+				m.log += fmt.Sprintf("\n[notice] %d skill file(s) could not be loaded; see /status for the reasons.\n", n)
+			}
 		case "provider_failover":
 			m.log += failoverLine(v.Data)
 		case "integration_degraded":

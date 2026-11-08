@@ -126,3 +126,13 @@ func TestStatusListsSkippedAgentFiles(t *testing.T) {
 		t.Fatal(all)
 	}
 }
+
+func TestSkillDiagnosticsNoticeOnce(t *testing.T) {
+	m := &model{a: &agent.Agent{Config: core.Defaults(), Store: &session.Store{ID: "fixture"}}, width: 80, height: 24}
+	for i := 0; i < 2; i++ {
+		m.Update(core.Event{Type: "skill_diagnostics", Data: []any{}})
+	}
+	if strings.Count(m.log, "skill file(s) could not be loaded") != 1 || strings.Contains(m.log, "[skill_diagnostics]") {
+		t.Fatalf("%q", m.log)
+	}
+}

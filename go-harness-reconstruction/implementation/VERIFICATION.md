@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC106 skill diagnostics
+
+`TestSkillDiagnosticsNoticeOnce` checks that the notice appears once and that no raw JSON is written. `/status` lists `Skills.Diagnostics()`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC105 provider cooldowns
 
 `TestFailedPrimaryCoolsDownWhileFallbacksExist` uses an injected clock to check:
