@@ -340,6 +340,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("expanded command is empty")
 	}
+	prompt, mentioned := a.withAgentMentions(prompt)
+	if len(mentioned) > 0 {
+		a.event("agents_mentioned", map[string]any{"agents": mentioned})
+	}
 	images, imageErr := a.promptImages(prompt)
 	if imageErr != nil {
 		return "failed", imageErr

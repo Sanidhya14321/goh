@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.89 — 2026-11-08
+
+- `@general`, `@explore` or `@<custom subagent>` in a prompt asks the model
+  to delegate that work through the task tool, as OpenCode's agent mentions
+  do. The mention adds a short bracketed note to the saved prompt and grants
+  nothing: the task tool keeps its normal approval, and child agents never
+  receive the note. File mentions such as `@shot.png` are unaffected.
+
 ## 1.0.0-rc.88 — 2026-11-08
 
 - `goh sessions list --format table` prints sessions newest first with ID,

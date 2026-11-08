@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC89 agent mentions
+
+`TestAgentMentions` covers known and custom subagents, punctuation, unknown names, email-like text, file mentions, and that child agents get no note. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC88 session table
 
 `TestSessionTable` covers saved titles, terminal-safe output and the empty case. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

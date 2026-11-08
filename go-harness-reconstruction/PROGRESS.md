@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC89 agent mentions milestone
+
+Prompt-level `@subagent` delegation hints; authority stays with the task
+tool's approval.
+
 ## RC88 session table milestone
 
 Human-readable session listing beside the JSON default.
