@@ -50,8 +50,10 @@ func TestRealClangd(t *testing.T) {
 	}
 	// Diagnostics may arrive after the first request; poll briefly.
 	var errs []string
-	for deadline := time.Now().Add(30 * time.Second); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
-		run("diagnostics", 1, 1)
+	for deadline := time.Now().Add(45 * time.Second); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
+		// "Not published yet" is expected while the server warms up.
+		in, _ := json.Marshal(map[string]any{"operation": "diagnostics", "filePath": "main.c", "line": 1, "character": 1})
+		m.Execute(ctx, "lsp", in)
 		if errs, _, _ = m.EditErrors(ctx, "main.c"); len(errs) > 0 {
 			break
 		}
