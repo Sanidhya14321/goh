@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.74 — 2026-11-08
+
+- `/exit` and `/quit` leave GoHarness, as in OpenCode. During a run they
+  cancel first, like Ctrl+D, rather than leaving mid-effect.
+
 ## 1.0.0-rc.73 — 2026-11-08
 
 - `/rename title` renames the open session from the chat (as in OpenCode);

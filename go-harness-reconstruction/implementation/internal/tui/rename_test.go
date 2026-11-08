@@ -36,3 +36,15 @@ func TestRenameCommandSavesAndResetsTitle(t *testing.T) {
 		t.Fatalf("title not reset: %q", meta.Title)
 	}
 }
+
+func TestExitCommandQuitsWhenIdle(t *testing.T) {
+	m := &model{a: &agent.Agent{Config: core.Defaults(), Store: &session.Store{ID: "fixture"}}, width: 80, height: 24, status: "ready"}
+	m.input = "/quit"
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if cmd == nil {
+		t.Fatal("no quit command")
+	}
+	if _, ok := cmd().(tea.QuitMsg); !ok {
+		t.Fatal("not a quit")
+	}
+}

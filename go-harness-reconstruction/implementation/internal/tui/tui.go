@@ -469,6 +469,16 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
 			}
+			if trimmed := strings.TrimSpace(prompt); trimmed == "/exit" || trimmed == "/quit" {
+				m.input, m.inputCursor = "", 0
+				if m.active {
+					// Same rule as Ctrl+D: never leave a run mid-effect.
+					m.cancel()
+					m.log += "\nCancelling; Ctrl+D exits after cleanup.\n"
+					return m, nil
+				}
+				return m, tea.Quit
+			}
 			if trimmed := strings.TrimSpace(prompt); trimmed == "/rename" || strings.HasPrefix(trimmed, "/rename ") {
 				m.input, m.inputCursor = "", 0
 				m.renameSession(strings.TrimPrefix(trimmed, "/rename"))

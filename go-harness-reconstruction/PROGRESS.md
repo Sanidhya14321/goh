@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC74 exit command milestone
+
+`/exit` and `/quit` follow the Ctrl+D rule: quit when idle, cancel first
+during a run.
+
 ## RC73 session rename milestone
 
 `/rename` in the chat sets or resets the open session's title through the

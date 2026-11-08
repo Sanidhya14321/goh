@@ -39,6 +39,7 @@ var paletteEntries = []paletteEntry{
 	{"/redo", "Return to the turn removed by /undo"},
 	{"/new", "Start a new conversation"},
 	{"/timeline", "Search recent prompts and recall into the composer"},
+	{"/exit", "Quit GoHarness (also /quit, Ctrl+D)"},
 	{"/status", "Inspect provider, context, permissions and integrations"},
 }
 

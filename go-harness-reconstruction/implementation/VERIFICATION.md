@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC74 exit command
+
+`TestExitCommandQuitsWhenIdle` checks that `/quit` quits when idle. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
+
 ## RC73 session rename
 
 `TestRenameCommandSavesAndResetsTitle` checks that the title is cleaned of control characters, saved, and reset. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
