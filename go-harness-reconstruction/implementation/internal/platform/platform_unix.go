@@ -6,6 +6,8 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -85,3 +87,15 @@ func PrivateDir(info os.FileInfo) bool { return info.Mode().Perm()&0o077 == 0 }
 
 // PrivateNoGroup reports that a file has no group or other permission bits.
 func PrivateNoGroup(info os.FileInfo) bool { return info.Mode().Perm()&0o077 == 0 }
+
+// ProcessAlive reports whether a process with this PID exists.
+func ProcessAlive(pid int) bool { return pid > 0 && !errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) }
+
+// ProcessCommand returns the command line of a running process.
+func ProcessCommand(pid int) (string, error) {
+	out, err := exec.Command("ps", "-o", "command=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
+}

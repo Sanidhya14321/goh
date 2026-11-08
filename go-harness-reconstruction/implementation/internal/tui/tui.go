@@ -15,6 +15,7 @@ import (
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/provider"
 	agent "example.com/independent-harness/internal/runtime"
+	"example.com/independent-harness/internal/tools"
 	"github.com/charmbracelet/x/ansi"
 )
 
@@ -91,6 +92,7 @@ type model struct {
 	themePicker          *optionPicker
 	copyPicker           *optionPicker
 	jobsPicker           *optionPicker
+	orphans              map[string]tools.OrphanJob
 	changesPicker        *optionPicker
 	timestamps           bool
 	contextTokens        int

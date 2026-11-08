@@ -50,9 +50,10 @@ func (j *job) Write(p []byte) (int, error) {
 }
 
 type jobTable struct {
-	mu   sync.Mutex
-	jobs map[string]*job
-	next int
+	mu       sync.Mutex
+	jobs     map[string]*job
+	next     int
+	registry string // this engine's file in the job registry
 }
 
 func jobDefinitions(s func(map[string]any, ...string) map[string]any, str func() map[string]any, number func(int, int) map[string]any) []Definition {
@@ -212,6 +213,9 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 	}
 	writer.Close()
 	j.pid = cmd.Process.Pid
+	e.jobs.mu.Lock()
+	e.saveRegistry()
+	e.jobs.mu.Unlock()
 	copied := make(chan struct{})
 	go func() { _, _ = io.Copy(j, reader); reader.Close(); close(copied) }()
 	go func() {
@@ -239,6 +243,9 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 		j.ended = time.Now()
 		j.mu.Unlock()
 		close(j.done)
+		e.jobs.mu.Lock()
+		e.saveRegistry()
+		e.jobs.mu.Unlock()
 	}()
 	return result(map[string]any{"id": j.id, "status": "running", "command": a.Command, "directory": dir,
 		"note": "Use job_output to read output and job_stop to stop it. It stops when GoHarness exits."})

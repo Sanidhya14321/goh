@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC66 orphaned jobs milestone
+
+A private job registry in session storage (one file per GoHarness process)
+survives hard kills. Orphans are only stopped by explicit request and only
+after the live command line matches, avoiding PID-reuse accidents.
+
 ## RC65 compaction threshold milestone
 
 The early compaction trigger is configurable; the fit-based hard trigger

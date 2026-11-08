@@ -5,6 +5,7 @@ import (
 
 	"encoding/json"
 	agent "example.com/independent-harness/internal/runtime"
+	"example.com/independent-harness/internal/tools"
 	"fmt"
 	"strings"
 
@@ -21,11 +22,19 @@ func (m *model) openJobs() {
 		return
 	}
 	jobs := m.a.Tools.Jobs()
-	if len(jobs) == 0 {
+	orphans := m.a.Tools.OrphanedJobs()
+	if len(jobs) == 0 && len(orphans) == 0 {
 		m.status = "No background jobs. The agent can start one with job_start."
 		return
 	}
 	var options []Option
+	m.orphans = map[string]tools.OrphanJob{}
+	for _, o := range orphans {
+		key := fmt.Sprintf("orphan:%d", o.PID)
+		m.orphans[key] = o
+		options = append(options, Option{Value: key, Label: fmt.Sprintf("%s (pid %d)  orphaned", o.ID, o.PID),
+			Description: "left running by a GoHarness that exited · " + oneLine(Safe(o.Command), 50)})
+	}
 	for i := len(jobs) - 1; i >= 0; i-- {
 		j := jobs[i]
 		id, _ := j["id"].(string)
@@ -49,6 +58,15 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			id := matches[min(m.jobsPicker.index, len(matches)-1)].Value
 			m.jobsPicker = nil
+			if o, ok := m.orphans[id]; ok {
+				engine := m.a.Tools
+				return m, func() tea.Msg {
+					if err := engine.StopOrphan(o); err != nil {
+						return jobStoppedMsg{o.ID, "not stopped: " + oneLine(err.Error(), 100)}
+					}
+					return jobStoppedMsg{o.ID, "(orphaned) stopped"}
+				}
+			}
 			m.status = "Stopping " + id + "…"
 			tools := m.a.Tools
 			return m, func() tea.Msg {
@@ -68,6 +86,10 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	id := m.jobsPicker.selected
 	m.jobsPicker = nil
+	if o, ok := m.orphans[id]; ok {
+		m.status = fmt.Sprintf("%s was left running by an earlier GoHarness (pid %d); its output is not available. Ctrl+K in /jobs stops it.", o.ID, o.PID)
+		return m, nil
+	}
 	b, _ := json.Marshal(map[string]any{"id": id, "limit": 16384})
 	r := m.a.Tools.Execute(contextBackground(), "job_output", b)
 	var v struct {
@@ -108,10 +130,13 @@ func jobStatusLines(a *agent.Agent) []string {
 		return nil
 	}
 	jobs := a.Tools.Jobs()
-	if len(jobs) == 0 {
+	var lines []string
+	for _, o := range a.Tools.OrphanedJobs() {
+		lines = append(lines, fmt.Sprintf("%s (pid %d) · orphaned by an exited GoHarness · %s · /jobs to stop", o.ID, o.PID, oneLine(Safe(o.Command), 50)))
+	}
+	if len(jobs) == 0 && len(lines) == 0 {
 		return []string{"No background jobs"}
 	}
-	var lines []string
 	for _, j := range jobs {
 		id, _ := j["id"].(string)
 		status, _ := j["status"].(string)

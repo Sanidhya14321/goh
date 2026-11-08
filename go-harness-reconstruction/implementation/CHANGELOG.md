@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.66 — 2026-11-08
+
+- Background jobs left running after GoHarness was force-killed are found
+  on the next start: `/jobs` and `/status` list them as orphaned, and
+  Ctrl+K stops one after checking the process still runs the recorded
+  command (so a reused process ID is never stopped). On Windows they are
+  listed but must be stopped manually.
+
 ## 1.0.0-rc.65 — 2026-11-08
 
 - `compaction_threshold` (50–95, default 75) sets how full the context gets

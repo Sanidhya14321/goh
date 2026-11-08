@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC66 orphaned background jobs
+
+`1.0.0-rc.66` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios. A Unix test starts a real job, rewrites its
+registry so the owner is an exited process (simulating a hard kill), and
+checks a second engine lists the orphan, refuses to stop it when the
+recorded command does not match (process left running), stops it when it
+matches (process group gone) and prunes the registry. Windows builds and
+vets; orphan stopping there is refused by design.
+
 ## Windows cancellation under load
 
 `TestParentChildCancellationUnderLoad` (six concurrent parents cancelled

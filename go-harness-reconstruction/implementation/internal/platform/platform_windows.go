@@ -109,3 +109,23 @@ func SyncDir(*os.File) error { return nil }
 func PrivateFile(info os.FileInfo, _ os.FileMode) bool { return info.Mode().IsRegular() }
 func PrivateDir(info os.FileInfo) bool                 { return info.IsDir() }
 func PrivateNoGroup(info os.FileInfo) bool             { return true }
+
+// ProcessAlive reports whether a process with this PID exists.
+func ProcessAlive(pid int) bool {
+	if pid <= 0 {
+		return false
+	}
+	h, err := windows.OpenProcess(windows.PROCESS_QUERY_LIMITED_INFORMATION, false, uint32(pid))
+	if err != nil {
+		return false
+	}
+	defer windows.CloseHandle(h)
+	var code uint32
+	return windows.GetExitCodeProcess(h, &code) == nil && code == 259 // STILL_ACTIVE
+}
+
+// ProcessCommand is not available on Windows; orphaned jobs are listed but
+// cannot be verified, so they are never stopped automatically there.
+func ProcessCommand(int) (string, error) {
+	return "", errors.New("verifying a process command line is not supported on Windows")
+}
