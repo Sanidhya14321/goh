@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC58 provider model list
+
+`1.0.0-rc.58` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-three PTY scenarios. Provider tests check the derived `/v1/models`
+URL for all three endpoint shapes, the bearer key from the configured
+variable, sorted de-duplicated IDs, a refused redirect and the ChatGPT
+refusal. The scripted model now serves `/v1/models`, and the built binary
+listed its two models. CI for `5fc2e3c` passed all six jobs, including the
+Windows jobs test.
+
 ## Windows jobs test cleanup
 
 Native CI for `4a9785a` failed on Windows only: `TestJobsPanelShowsOutputAndStops`

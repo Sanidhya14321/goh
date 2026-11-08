@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC58 model list milestone
+
+`goh models` queries the configured provider's model list using the same
+endpoint host and credential selection as chat requests. Live provider
+catalogs are unverified until keys are added.
+
 ## RC57 remote MCP milestone
 
 OpenCode parity for remote MCP using the pinned go-sdk's Streamable HTTP

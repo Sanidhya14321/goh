@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.58 — 2026-11-08
+
+- `goh models` lists the models your configured provider offers (one ID per
+  line), like `opencode models`; `--profile` asks another profile's
+  provider. The key goes only to the configured host and redirects are
+  refused. Sign in with ChatGPT keeps using the account catalog in `/models`.
+- Windows CI is green again after a test cleanup fix (`5fc2e3c`).
+
 ## 1.0.0-rc.57 — 2026-11-08
 
 - Remote MCP servers: set `url` instead of `command` to use an MCP server

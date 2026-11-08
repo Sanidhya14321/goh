@@ -45,6 +45,10 @@ func main() {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/chat/completions", func(w http.ResponseWriter, r *http.Request) { serve(w, r, *scenario) })
+	mux.HandleFunc("/v1/models", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"object":"list","data":[{"id":"scripted"},{"id":"scripted-large"}]}`))
+	})
 	server := &http.Server{Addr: *address, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	log.Printf("scripted endpoint http://%s/v1/chat/completions scenario=%s", *address, *scenario)
 	log.Fatal(server.ListenAndServe())
