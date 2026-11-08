@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC51 project agent files milestone
+
+OpenCode/Claude Code-style agent Markdown files merge under configured
+agents before profile resolution. As with command files, repository content
+cannot select a model profile or provider.
+
 ## RC50 image attachments milestone
 
 Backlog R14 (images): `core.Image` on user messages, journaled with the

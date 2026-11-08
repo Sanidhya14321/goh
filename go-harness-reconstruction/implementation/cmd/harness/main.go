@@ -147,6 +147,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.Agent = *agentName
 		}
 	})
+	if dir, err := filepath.Abs(*project); err == nil {
+		c, _ = c.WithProjectAgents(dir)
+	}
 	c, e = c.Resolve(*profileName, *agentName)
 	if e != nil {
 		return e

@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.51 — 2026-11-08
+
+- Project agent files: `NAME.md` in `.opencode/agent`, `.opencode/agents`,
+  `.claude/agents` or `.harness/agents` defines an agent (frontmatter
+  `description`, `mode: plan` for read-only; the body is its instructions).
+  They appear in the agent picker, Tab cycling and as subagent types.
+  Configured agents win, and a file cannot pick the model profile.
+
 ## 1.0.0-rc.50 — 2026-11-08
 
 - Image attachments: mention a PNG, JPEG, GIF or WebP file with `@` (for

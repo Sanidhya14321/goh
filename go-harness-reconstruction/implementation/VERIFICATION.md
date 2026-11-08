@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC51 project agent files
+
+`1.0.0-rc.51` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Tests cover frontmatter description and plan
+mode, default build mode, an ignored `model` key, folder precedence for
+duplicates, reserved names, empty bodies, configured agents winning, and
+resolving a file-defined agent into plan mode with its instructions. Agent
+files load for `goh`/`goh chat`; `goh serve` and ACP still use configured
+agents only, and skipped files are not yet shown on `/status`.
+
 ## RC50 image attachments
 
 `1.0.0-rc.50` passed vet (macOS and Windows), the race suite, seven CLI and
