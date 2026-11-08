@@ -112,3 +112,38 @@ func globMatch(pattern, s string) bool {
 	}
 	return strings.HasSuffix(s, parts[len(parts)-1])
 }
+
+// FileDecision applies file_rules to the project-relative paths one edit
+// touches (forward slashes; * matches any text including /). It returns
+// "deny" if any path is denied, "allow" only if every path is allowed, "ask"
+// if any path must be asked about, and "" when no rule decides.
+func (c Config) FileDecision(paths []string) string {
+	if len(c.FileRules) == 0 || len(paths) == 0 {
+		return ""
+	}
+	allowed, ask := 0, false
+	for _, p := range paths {
+		p = strings.TrimPrefix(strings.ReplaceAll(p, "\\", "/"), "./")
+		decision := ""
+		for _, r := range c.FileRules {
+			if globMatch(r.Match, p) {
+				decision = r.Action
+			}
+		}
+		switch decision {
+		case "deny":
+			return "deny"
+		case "allow":
+			allowed++
+		case "ask":
+			ask = true
+		}
+	}
+	if ask {
+		return "ask"
+	}
+	if allowed == len(paths) {
+		return "allow"
+	}
+	return ""
+}

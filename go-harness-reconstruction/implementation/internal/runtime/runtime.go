@@ -197,9 +197,16 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 	}
 	a.event("permission_requested", p)
 	rule := shellRuleFor(a.Config, p)
+	if rule == "" {
+		rule = a.fileRuleFor(p)
+	}
 	if rule == "allow" || rule == "deny" {
 		d := core.Decision{Allow: rule == "allow"}
-		data := map[string]any{"tool": p.Tool, "allowed": d.Allow, "session": false, "source": "shell_rules"}
+		source := "shell_rules"
+		if strings.Contains(p.Tool, "file") || strings.Contains(p.Tool, "patch") {
+			source = "file_rules"
+		}
+		data := map[string]any{"tool": p.Tool, "allowed": d.Allow, "session": false, "source": source}
 		if e := a.Store.Append("permission", data); e != nil {
 			return d, e
 		}
@@ -1051,4 +1058,23 @@ func shellRuleFor(c core.Config, p core.Permission) string {
 		return ""
 	}
 	return c.ShellDecision(args.Command)
+}
+
+// fileRuleFor applies file_rules to edit requests (including a subagent's),
+// using the same path extraction as checkpoints.
+func (a *Agent) fileRuleFor(p core.Permission) string {
+	name := strings.TrimPrefix(p.Tool, "child:")
+	switch name {
+	case "create_file", "write_file", "edit_file", "apply_patch":
+	default:
+		return ""
+	}
+	if len(a.Config.FileRules) == 0 || a.Tools == nil {
+		return ""
+	}
+	paths, err := a.Tools.MutationPaths(name, p.Arguments)
+	if err != nil {
+		return ""
+	}
+	return a.Config.FileDecision(paths)
 }

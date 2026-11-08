@@ -422,6 +422,23 @@ you type yourself with `!` are not filtered.
   or `/bin/rm`; prefer patterns like `*rm -rf*`. Treat deny rules as a
   guardrail, not a sandbox.
 
+### File edit rules
+
+`file_rules` works like `shell_rules` for edits (`create_file`,
+`write_file`, `edit_file`, `apply_patch`, including subagents). Patterns
+match project-relative paths with `/`; `*` matches any text.
+
+```jsonc
+"file_rules": [
+  {"match": "*.env*",    "action": "deny"},   // never edit secrets files
+  {"match": "*_test.go", "action": "allow"},  // edit tests without asking
+  {"match": "go.mod",    "action": "ask"}     // always ask, even if edits are approved
+]
+```
+
+A patch is denied if any file it touches is denied, and auto-allowed only
+when every file is allowed.
+
 ## Sessions, recovery and context
 
 Default storage is `~/.local/state/independent-harness/sessions` (override with

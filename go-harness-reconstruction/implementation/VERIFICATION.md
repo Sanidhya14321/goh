@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC63 file edit rules
+
+`1.0.0-rc.63` passed vet (macOS and Windows), the race suite, eight CLI
+scenarios and twenty-four PTY scenarios (three consecutive runs after the
+harness change below). Decision tests cover deny winning across paths,
+allow requiring every path, ask, nested paths and no rules. Runtime tests
+check denials without prompting for `create_file`, `child:create_file` and a
+two-file `apply_patch`, auto-allow for an allowed path, and an `ask` rule
+prompting despite a session grant.
+
+PTY runs failed twice in the undo scenarios waiting for `fixture complete.`
+on screen (split redraw); those waits now also accept the journaled reply.
+CI for `ad25fff` failed on Windows because the ACP test used `/usr/bin/tool`,
+which is not absolute there; fixed in `18d2531`.
+
 ## RC62 context meter
 
 `1.0.0-rc.62` passed vet (macOS and Windows), the race suite, eight CLI and

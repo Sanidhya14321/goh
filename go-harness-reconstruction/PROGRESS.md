@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC63 file rules milestone
+
+Backlog R07 (edit patterns): `file_rules` reuse the shell rule matcher on
+paths extracted by the same code that chooses checkpoint paths, so rules
+see exactly the files an edit or patch touches.
+
 ## RC62 context meter milestone
 
 Sidebar context fill from the latest reply's reported prompt and output

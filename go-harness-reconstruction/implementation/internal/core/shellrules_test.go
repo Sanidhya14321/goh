@@ -75,3 +75,32 @@ func TestReasoningEffortValidation(t *testing.T) {
 		t.Fatal("anthropic must refuse reasoning_effort")
 	}
 }
+
+func TestFileDecision(t *testing.T) {
+	c := Config{FileRules: []ShellRule{
+		{Match: "*.env*", Action: "deny"},
+		{Match: "*_test.go", Action: "allow"},
+		{Match: "docs/*", Action: "allow"},
+		{Match: "go.mod", Action: "ask"},
+	}}
+	for _, tc := range []struct {
+		paths []string
+		want  string
+	}{
+		{[]string{".env"}, "deny"},
+		{[]string{"config/.env.local"}, "deny"},
+		{[]string{"a_test.go", "docs/x.md"}, "allow"},
+		{[]string{"a_test.go", "main.go"}, ""},
+		{[]string{"a_test.go", ".env"}, "deny"},
+		{[]string{"go.mod", "a_test.go"}, "ask"},
+		{[]string{"main.go"}, ""},
+		{nil, ""},
+	} {
+		if got := c.FileDecision(tc.paths); got != tc.want {
+			t.Errorf("%v: got %q want %q", tc.paths, got, tc.want)
+		}
+	}
+	if (Config{}).FileDecision([]string{".env"}) != "" {
+		t.Fatal("no rules must decide nothing")
+	}
+}

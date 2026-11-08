@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.63 — 2026-11-08
+
+- `file_rules`: allow, deny or always ask edits by path pattern (for
+  example never edit `*.env*`, edit `*_test.go` without asking). Applies to
+  every edit tool and subagents; a patch is denied if any file it touches
+  is denied.
+
 ## 1.0.0-rc.62 — 2026-11-08
 
 - Context meter: the sidebar shows how full the context window was at the

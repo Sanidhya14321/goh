@@ -56,6 +56,8 @@ type Config struct {
 	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
 	// ShellRules auto-allow or deny shell commands by pattern; see shellrules.go.
 	ShellRules []ShellRule `json:"shell_rules,omitempty"`
+	// FileRules allow, deny or always ask edits by project path pattern.
+	FileRules []ShellRule `json:"file_rules,omitempty"`
 	// ReasoningEffort asks OpenAI reasoning models for minimal, low, medium or
 	// high effort; empty leaves the provider default.
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
@@ -182,6 +184,9 @@ func (c Config) Validate() error {
 	}
 	if err := c.ValidateShellRules(); err != nil {
 		return err
+	}
+	if err := (Config{ShellRules: c.FileRules}).ValidateShellRules(); err != nil {
+		return fmt.Errorf("file_rules: %w", err)
 	}
 	if err := c.ValidateReasoningEffort(); err != nil {
 		return err

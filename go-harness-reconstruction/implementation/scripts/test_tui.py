@@ -209,7 +209,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     target.unlink(missing_ok=True)
                     wait_for(b'APPROVAL: create_file')
                     os.write(master,b'y')
-                    wait_for(b'fixture complete.')
+                    wait_reply('fixture complete.')
                     for attempt in range(250):
                         settled=any(r['type']=='run_finished' for j in (outside_sessions/case).glob('*.jsonl') for r in live_records(j))
                         if settled: break
@@ -230,7 +230,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     target.unlink(missing_ok=True)
                     wait_for(b'APPROVAL: create_file')
                     os.write(master,b'y')
-                    wait_for(b'fixture complete.')  # the renderer may split the line
+                    wait_reply('fixture complete.')  # the renderer may split the line
                     # Type /undo only once the run has settled; while running the
                     # chat refuses rewind and asks the user to wait.
                     for attempt in range(250):
