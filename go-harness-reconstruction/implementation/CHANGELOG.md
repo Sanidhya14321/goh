@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.107 — 2026-11-09
+
+- An unknown slash command now suggests the nearest defined one ("did you
+  mean /review?"), points to `/commands`, and names the file that would
+  define it (`.opencode/commands/<name>.md`).
+
 ## 1.0.0-rc.106 — 2026-11-09
 
 - Skill files that cannot be loaded are listed in `/status` with their

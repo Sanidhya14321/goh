@@ -43,7 +43,11 @@ func Expand(prompt string, definitions map[string]core.CommandConfig) (string, s
 	}
 	definition, ok := definitions[command]
 	if !ok {
-		return "", command, fmt.Errorf("unknown slash command /%s; configure it in user commands", command)
+		hint := ""
+		if near := closestCommand(command, definitions); near != "" {
+			hint = "did you mean /" + near + "? "
+		}
+		return "", command, fmt.Errorf("unknown slash command /%s; %s/commands lists the available ones, and .opencode/commands/%s.md would define it", command, hint, command)
 	}
 	if err := Validate(definitions); err != nil {
 		return "", command, err
@@ -196,4 +200,38 @@ func parseArguments(raw string) ([]string, error) {
 		return nil, fmt.Errorf("at most 10000 arguments are supported")
 	}
 	return args, nil
+}
+
+// closestCommand returns the defined name nearest to typo (edit distance at
+// most 2, ties broken alphabetically), or "".
+func closestCommand(typo string, definitions map[string]core.CommandConfig) string {
+	best, bestDistance := "", 3
+	for name := range definitions {
+		d := editDistance(typo, name)
+		if d < bestDistance || (d == bestDistance && name < best) {
+			best, bestDistance = name, d
+		}
+	}
+	return best
+}
+
+func editDistance(a, b string) int {
+	ra, rb := []rune(a), []rune(b)
+	prev := make([]int, len(rb)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(ra); i++ {
+		cur := make([]int, len(rb)+1)
+		cur[0] = i
+		for j := 1; j <= len(rb); j++ {
+			cost := 1
+			if ra[i-1] == rb[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev = cur
+	}
+	return prev[len(rb)]
 }

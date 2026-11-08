@@ -40,3 +40,14 @@ func TestReviewBuiltin(t *testing.T) {
 		t.Fatal(got, err)
 	}
 }
+
+func TestUnknownCommandSuggestsNearest(t *testing.T) {
+	_, _, err := Expand("/reviw this", WithBuiltins(nil))
+	if err == nil || !strings.Contains(err.Error(), "did you mean /review?") {
+		t.Fatal(err)
+	}
+	_, _, err = Expand("/zzzzzz", WithBuiltins(nil))
+	if err == nil || strings.Contains(err.Error(), "did you mean") || !strings.Contains(err.Error(), "/commands") {
+		t.Fatal(err)
+	}
+}
