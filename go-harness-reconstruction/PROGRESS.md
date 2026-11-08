@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC71 web search milestone
+
+Backlog T14: an opt-in, keyless search backend (SearXNG JSON) rather than a
+vendor account; queries leave the machine only with explicit configuration
+and per-search approval.
+
 ## RC70 extended thinking milestone
 
 Backlog R01 (Anthropic reasoning): thinking blocks are journaled on the

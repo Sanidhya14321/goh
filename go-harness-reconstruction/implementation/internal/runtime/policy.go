@@ -6,6 +6,7 @@ import (
 
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/webfetch"
+	"example.com/independent-harness/internal/websearch"
 )
 
 func (a *Agent) isPlan() bool { return a.Config.AgentMode == "plan" || a.Config.Agent == "plan" }
@@ -31,6 +32,9 @@ func (a *Agent) checkMode(name string) error {
 }
 func (a *Agent) localDefinitions() []core.Tool {
 	defs := []core.Tool{todoDefinition(), a.skillDefinition(), questionDefinition(), webfetch.Definition()}
+	if a.Config.WebsearchURL != "" {
+		defs = append(defs, websearch.Definition())
+	}
 	if a.depth == 0 {
 		defs = append(defs, a.taskDefinition())
 	}

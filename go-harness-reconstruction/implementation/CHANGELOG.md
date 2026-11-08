@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.71 — 2026-11-08
+
+- `websearch` tool for a SearXNG-compatible search service you configure
+  with `websearch_url` (no third-party account needed). Each search needs
+  approval; results are titles, links and snippets for `webfetch` to read.
+
 ## 1.0.0-rc.70 — 2026-11-08
 
 - Anthropic extended thinking: set `thinking_budget` (at least 1024, below

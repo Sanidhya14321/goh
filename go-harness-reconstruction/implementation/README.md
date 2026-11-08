@@ -501,6 +501,14 @@ Only `https` URLs are accepted (plain `http` only for localhost), redirects
 are refused, and the start approval shows the URL and header names but never
 header values. Starting a remote server still needs approval, like a local one.
 
+### Web search
+
+Set `websearch_url` to a SearXNG-compatible service (for example a
+self-hosted SearXNG with JSON output enabled) to give the agent a
+`websearch` tool. Each search needs approval, results are titles, links and
+short snippets, and `webfetch` reads a chosen page. HTTPS only (HTTP for
+localhost), no redirects. Without `websearch_url` there is no search tool.
+
 ## Verify and package
 
 ```sh

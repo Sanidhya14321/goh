@@ -41,3 +41,25 @@ func TestFileRulesDecideEdits(t *testing.T) {
 		t.Fatal("ask rule must prompt despite a grant; other granted paths must not", asked)
 	}
 }
+
+func TestWebsearchOnlyWhenConfigured(t *testing.T) {
+	a, _ := testAgent(t)
+	has := func() bool {
+		for _, d := range a.localDefinitions() {
+			if d.Function.Name == "websearch" {
+				return true
+			}
+		}
+		return false
+	}
+	if has() {
+		t.Fatal("websearch offered without websearch_url")
+	}
+	a.Config.WebsearchURL = "https://search.example.com"
+	if !has() {
+		t.Fatal("websearch missing when configured")
+	}
+	if _, side, err := a.prepare("websearch", []byte(`{"query":"go"}`)); err != nil || !side {
+		t.Fatal("websearch must need approval", err)
+	}
+}

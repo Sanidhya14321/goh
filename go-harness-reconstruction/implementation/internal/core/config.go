@@ -68,6 +68,8 @@ type Config struct {
 	// ThinkingBudget enables Anthropic extended thinking with this many
 	// tokens (at least 1024 and below output_budget); 0 disables it.
 	ThinkingBudget int `json:"thinking_budget,omitempty"`
+	// WebsearchURL is a SearXNG-compatible base URL enabling the websearch tool.
+	WebsearchURL string `json:"websearch_url,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -204,6 +206,13 @@ func (c Config) Validate() error {
 		}
 		if b < 1024 || b >= c.OutputBudget {
 			return fmt.Errorf("thinking_budget must be at least 1024 and below output_budget (%d)", c.OutputBudget)
+		}
+	}
+	if c.WebsearchURL != "" {
+		u, err := url.Parse(c.WebsearchURL)
+		local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")
+		if err != nil || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || !(u.Scheme == "https" || u.Scheme == "http" && local) {
+			return fmt.Errorf("websearch_url must be an https base URL (http only for localhost) without credentials, query or fragment")
 		}
 	}
 	if t := c.CompactionThreshold; t != 0 && (t < 50 || t > 95) {

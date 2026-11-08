@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC71 web search
+
+`1.0.0-rc.71` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-five PTY scenarios. A test against a local SearXNG-shaped server
+checks the query and `format=json` parameters, whitespace-cleaned snippets,
+dropped non-http(s) links, the result limit, refused redirects, argument
+validation, the approval preview and URL rules. Runtime tests check the tool
+exists only with `websearch_url` and always needs approval. No public search
+service was contacted.
+
 ## RC70 Anthropic extended thinking
 
 `1.0.0-rc.70` passed vet (macOS and Windows), the race suite, eight CLI and
