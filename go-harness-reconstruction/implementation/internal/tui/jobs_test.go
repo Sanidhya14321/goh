@@ -2,6 +2,8 @@ package tui
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"encoding/json"
 	"runtime"
 	"strings"
@@ -12,16 +14,29 @@ import (
 	"example.com/independent-harness/internal/core"
 	agent "example.com/independent-harness/internal/runtime"
 	"example.com/independent-harness/internal/session"
-	"example.com/independent-harness/internal/testutil"
 	"example.com/independent-harness/internal/tools"
 )
 
 func TestJobsPanelShowsOutputAndStops(t *testing.T) {
-	engine, err := tools.New(testutil.TempDir(t), t.TempDir())
+	// Windows releases a killed process's handle on its working folder a
+	// moment after it exits, so remove the project folder with retries.
+	project, err := os.MkdirTemp("", "goh-jobs-")
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(engine.StopJobs)
+	if project, err = filepath.EvalSymlinks(project); err != nil {
+		t.Fatal(err)
+	}
+	engine, err := tools.New(project, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		engine.StopJobs()
+		for i := 0; i < 50 && os.RemoveAll(project) != nil; i++ {
+			time.Sleep(100 * time.Millisecond)
+		}
+	})
 	m := &model{a: &agent.Agent{Tools: engine, Config: core.Defaults(), Store: &session.Store{ID: "fixture", Project: "/tmp/p"}}, width: 100, height: 30, input: "draft", inputCursor: 5}
 	m.openJobs()
 	if m.jobsPicker != nil || !strings.Contains(m.status, "No background jobs") {

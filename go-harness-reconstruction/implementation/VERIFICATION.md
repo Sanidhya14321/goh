@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## Windows jobs test cleanup
+
+Native CI for `4a9785a` failed on Windows only: `TestJobsPanelShowsOutputAndStops`
+passed its checks, but removing the test project folder failed because
+Windows still held a handle from the just-killed `ping` job. The test now
+stops jobs first and removes the folder with retries. Product behavior is
+unchanged; the same test passed on earlier Windows runs.
+
 ## RC57 remote MCP servers
 
 `1.0.0-rc.57` passed vet (macOS and Windows), the race suite, eight CLI and
