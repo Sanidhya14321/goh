@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.85 — 2026-11-08
+
+- Top-level `goh export [ID]` and `goh import FILE`, as in OpenCode. Without
+  an ID, export uses this directory's most recent session. Flags are the
+  same as `goh sessions export` (`--format markdown`, `--output`, ...).
+
 ## 1.0.0-rc.84 — 2026-11-08
 
 - `goh mcp list` shows configured MCP servers (local command or remote URL)

@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC85 export and import milestone
+
+OpenCode-style top-level export/import over the existing portable format.
+
 ## RC84 MCP list milestone
 
 Read-only MCP configuration report with secret-safe output.

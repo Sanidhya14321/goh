@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC85 export and import
+
+`TestExportAliasDefaultsToLatestSession` exports this directory's latest session as Markdown and checks the error when there is no session. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC84 MCP list
 
 `TestWriteMCPHidesSecrets` checks that env values, URL user info, query strings and fragments never appear, and that unset header variables are flagged. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
