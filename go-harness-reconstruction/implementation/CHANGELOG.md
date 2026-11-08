@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.113 — 2026-11-09
+
+- `goh export --format html` (and `goh sessions export`) writes a
+  self-contained HTML page of a conversation, a local, upload-free
+  alternative to OpenCode's share links. Text is HTML-escaped,
+  recognisable credentials are masked as in Markdown exports, and a
+  Content-Security-Policy blocks scripts and remote loads. Light and dark
+  styles; `--include-tools` adds tool calls and results.
+
 ## 1.0.0-rc.112 — 2026-11-09
 
 - `goh run --session ID --fork` (or `--continue --fork`, also for `goh

@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC113 HTML export milestone
+
+Backlog R10: shareable output without uploading anything; publishing
+(share/unshare) still awaits a decision.
+
 ## RC112 run --fork milestone
 
 Backlog R09: continue a copy of a session from the CLI.

@@ -54,7 +54,7 @@ func sessions(args []string) error {
 	}
 	exportFormat, includeTools := "json", false
 	if command == "export" {
-		f.StringVar(&exportFormat, "format", "json", "json portable archive or markdown transcript")
+		f.StringVar(&exportFormat, "format", "json", "json portable archive, markdown transcript, or html page")
 		f.BoolVar(&includeTools, "include-tools", false, "include tool calls and results in Markdown")
 		f.StringVar(&output, "output", "", "new private export file; default stdout")
 	}
@@ -133,7 +133,7 @@ func sessions(args []string) error {
 		switch exportFormat {
 		case "json":
 			if includeTools {
-				return errors.New("--include-tools requires --format markdown")
+				return errors.New("--include-tools requires --format markdown or html")
 			}
 			write = func(w io.Writer) error { return session.Export(*dir, subject, w) }
 		case "markdown":
@@ -145,8 +145,17 @@ func sessions(args []string) error {
 				defer store.Close()
 				return store.WriteTranscript(w, includeTools)
 			}
+		case "html":
+			write = func(w io.Writer) error {
+				store, err := session.Open(*dir, subject)
+				if err != nil {
+					return err
+				}
+				defer store.Close()
+				return store.WriteHTMLTranscript(w, includeTools)
+			}
 		default:
-			return errors.New("export format must be json or markdown")
+			return errors.New("export format must be json, markdown or html")
 		}
 		if output == "" {
 			return write(os.Stdout)
