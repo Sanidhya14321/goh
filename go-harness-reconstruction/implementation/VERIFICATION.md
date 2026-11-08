@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC97 compact --focus
+
+The flag passes through the same `CompactWith` path that RC96 tests; `goh compact --help` lists it. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC96 compaction focus
 
 `TestCompactWithFocus` checks that the focus reaches the summarizer instructions and is cleared afterwards. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

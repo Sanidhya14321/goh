@@ -173,6 +173,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
+	compactFocus := f.String("focus", "", "compact: what the summary should keep (up to 500 characters)")
 	commandName := f.String("command", "", "run a custom command; message words become its arguments")
 	title := f.String("title", "", "title for the session (shown in pickers and lists)")
 	var files []string
@@ -434,7 +435,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	defer cancel()
 	var status string
 	if command == "compact" {
-		status, e = a.Compact(ctx)
+		status, e = a.CompactWith(ctx, *compactFocus)
 	} else {
 		status, e = a.Run(ctx, *prompt)
 	}

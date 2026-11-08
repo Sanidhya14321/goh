@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.97 — 2026-11-08
+
+- `goh compact ID --focus "..."` steers the summary from the command line,
+  like `/compact <focus>` in the TUI.
+
 ## 1.0.0-rc.96 — 2026-11-08
 
 - `/compact <focus>` steers the summary, for example `/compact keep the
