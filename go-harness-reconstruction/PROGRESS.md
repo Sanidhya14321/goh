@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC43 commented configuration milestone
+
+Backlog R06 (partial): JSONC config with comments and trailing commas,
+string-aware and position-preserving. The provider setup's JSON round trip
+now refuses commented files instead of silently dropping comments.
+
 ## RC42 background jobs milestone
 
 Backlog R15: `job_start`/`job_output`/`job_stop` tools on the tool engine,

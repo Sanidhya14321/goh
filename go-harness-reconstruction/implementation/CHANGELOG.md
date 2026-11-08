@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.43 — 2026-11-08
+
+- The config file accepts comments (`//`, `/* */`) and trailing commas, as
+  OpenCode's does. Unknown settings are still rejected. Provider setup
+  refuses to rewrite a commented config rather than erase the comments.
+
 ## 1.0.0-rc.42 — 2026-11-08
 
 - Background jobs: the agent can start long-running commands (dev servers,

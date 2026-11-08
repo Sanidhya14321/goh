@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC43 commented configuration
+
+`1.0.0-rc.43` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. JSONC tests cover line and block comments,
+comment-like text and escapes inside strings, `//` in URLs, trailing commas
+in objects and arrays, unterminated comments, preserved line numbers and
+continued rejection of unknown fields. A new fuzz target
+(`FuzzStripJSONCIdentityOnJSON`, 2.4 million executions in 10 s locally)
+checks that valid JSON passes through byte-for-byte; it is in `make fuzz`.
+
 ## RC42 background jobs
 
 `1.0.0-rc.42` passed vet (macOS and Windows), the race suite, seven CLI and

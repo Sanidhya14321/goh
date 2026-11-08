@@ -77,6 +77,10 @@ func configureProvider() (bool, error) {
 			return err
 		}
 		// Edit only these fields, retaining other settings as written.
+		if core.HasJSONCSyntax(raw) {
+			// Rewriting would silently drop the user's comments.
+			return fmt.Errorf("%s has comments or trailing commas, which provider setup would erase; edit it in Advanced configuration (or by hand) instead", path)
+		}
 		var document map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(raw), &document); err != nil {
 			return err

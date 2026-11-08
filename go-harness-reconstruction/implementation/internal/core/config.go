@@ -124,6 +124,10 @@ func LoadConfig(path string) (Config, error) {
 // DecodeConfig reads file settings without applying environment overrides.
 func DecodeConfig(raw string) (Config, error) {
 	c := Defaults()
+	raw, err := StripJSONC(raw)
+	if err != nil {
+		return c, err
+	}
 	d := json.NewDecoder(strings.NewReader(raw))
 	d.DisallowUnknownFields()
 	if err := d.Decode(&c); err != nil {

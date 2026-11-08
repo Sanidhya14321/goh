@@ -23,6 +23,7 @@ fuzz:
 	$(GO) test ./internal/tools -run '^$$' -fuzz FuzzPatchGrammar -fuzztime 3s -parallel 2
 	$(GO) test ./internal/lspclient -run '^$$' -fuzz FuzzLSPFrame -fuzztime 3s -parallel 2
 	$(GO) test ./internal/webfetch -run '^$$' -fuzz FuzzWebfetchArguments -fuzztime 3s -parallel 2
+	$(GO) test ./internal/core -run '^$$' -fuzz FuzzStripJSONCIdentityOnJSON -fuzztime 3s -parallel 2
 	$(GO) test ./internal/webfetch -run '^$$' -fuzz FuzzHTMLConversion -fuzztime 3s -parallel 2
 	$(GO) test ./internal/commands -run '^$$' -fuzz FuzzExpansion -fuzztime 3s -parallel 2
 acceptance: build
