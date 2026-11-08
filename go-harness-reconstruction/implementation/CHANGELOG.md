@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.83 — 2026-11-08
+
+- `goh agents` lists the built-in, configured and project agents with
+  their mode, description and model profile, plus any project agent files
+  that were skipped and why (like `opencode agent list`).
+- Test hardening: the Windows cancellation-under-load test now allows slow
+  shell start-up and reports early exits (CI had timed out once).
+
 ## 1.0.0-rc.82 — 2026-11-08
 
 - Built-in `/review` command, as in OpenCode: a read-only review of

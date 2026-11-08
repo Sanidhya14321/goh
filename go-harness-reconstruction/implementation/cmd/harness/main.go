@@ -35,6 +35,7 @@ var commandHelp = [][2]string{
 	{"sessions", "list, rename, export, import, delete or salvage sessions"},
 	{"changes", "show files changed in a session"},
 	{"models", "list models available from the configured provider"},
+	{"agents", "list built-in, configured and project agents"},
 	{"stats", "token usage and activity over recent days"},
 	{"auth", "sign in with ChatGPT: login, status, models, logout"},
 	{"setup", "configure a provider"},
@@ -113,6 +114,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "models" {
 		return listModels(args[1:])
+	}
+	if args[0] == "agents" {
+		return listAgents(args[1:])
 	}
 	if args[0] == "stats" {
 		return stats(args[1:])

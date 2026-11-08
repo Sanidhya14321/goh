@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC83 agents list
+
+`TestWriteAgents` covers ordering, defaults, terminal-safe output and the skipped-file report. The usage test confirms that `agents` appears in the help. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites. CI is green on all three platforms after the load-test hardening.
+
 ## RC82 review command
 
 `TestReviewBuiltin` checks the argument and default forms. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
