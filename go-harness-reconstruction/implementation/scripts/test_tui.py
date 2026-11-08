@@ -130,13 +130,17 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     time.sleep(.2)
                     os.write(master, b'\r')
                     wait_for(b'[queued] Second prompt')
-                    wait_for(b'Second reply.', timeout=12)
-                    prompts=[]
-                    for attempt in range(250):
-                        prompts=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']
-                        if len(prompts)==2: break
+                    # The renderer redraws changed cells only, so a reply can reach
+                    # the terminal in fragments; the journal is the source of truth.
+                    prompts,replies=[],[]
+                    for attempt in range(750):
+                        records=[r for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message']
+                        prompts=[r['data']['content'] for r in records if r['data'].get('role')=='user']
+                        replies=[r['data'].get('content','') for r in records if r['data'].get('role')=='assistant']
+                        if len(prompts)==2 and any('Second reply.' in x for x in replies): break
                         time.sleep(.02)
                     assert prompts==['Exercise the fixture','Second prompt'],prompts
+                    assert any('Second reply.' in x for x in replies),replies
                 elif case=='timestamps':
                     wait_for(b'Fixture response')
                     time.sleep(.3)

@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC37 task-state placement milestone
+
+Research experiment 3: the todo list moved from the system message to a
+trailing, request-only user message framed as state data. The request prefix
+now stays stable across todo updates (cache-friendly) and the plan sits at
+the recency end of the context. Live cache and behavior checks remain.
+
 ## RC36 record times milestone
 
 Journal records now carry a write time as version 2; version 1 records stay

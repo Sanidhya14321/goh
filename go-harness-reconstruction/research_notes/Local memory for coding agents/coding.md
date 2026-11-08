@@ -102,3 +102,17 @@ Not verified: the exact per-model tables in The Complexity Trap, and whether its
 - Memory: the existing ledger already pins notes to file hashes and rejects
   stale evidence, matching the applicability findings above. The paired
   memory-on/off experiment needs a live model.
+
+### Status update (RC37, 8 Nov 2026)
+
+- Experiment 3 implemented locally. Task state is now a trailing user
+  message marked "[Session state, not a new request]", added only to the
+  outgoing request (never journaled) and never between a tool call and its
+  result. A unit test confirms every earlier message is byte-identical
+  across todo updates; encoder tests confirm Anthropic Messages and Responses
+  accept a state message after tool results (Chat Completions passes
+  messages through). Still unmeasured: real cache-hit rates
+  (`cache_read` usage) and whether models mistake the state for a request.
+  Both need the live run.
+- Journal records carry times (RC36), so later experiments can measure
+  per-turn latency from the journal alone.

@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.37 — 2026-11-08
+
+- The session task list is sent at the end of each request instead of
+  inside the system message, so todo updates no longer invalidate provider
+  prompt caches. Not yet measured against a live provider.
+
 ## 1.0.0-rc.36 — 2026-11-08
 
 - Session journals record when each entry was written (journal version 2).

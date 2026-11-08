@@ -36,7 +36,7 @@ func TestManualCompactDurableWithoutToolStartup(t *testing.T) {
 	if a.History[1].Role == "system" {
 		t.Fatal("summary elevated to trusted instructions")
 	}
-	if !strings.Contains(a.modelHistory()[0].Content, "verify parser") {
+	if !strings.Contains(lastContent(a.modelHistory()), "verify parser") {
 		t.Fatal("task state lost")
 	}
 	terminal, compacted := 0, 0

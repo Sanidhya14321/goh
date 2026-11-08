@@ -38,7 +38,7 @@ func TestTodoReplacementDurabilityAndIsolation(t *testing.T) {
 	if len(resumed.Grants) != 0 {
 		t.Fatal("authority restored")
 	}
-	if !strings.Contains(resumed.modelHistory()[0].Content, "verify parser") {
+	if !strings.Contains(lastContent(resumed.modelHistory()), "verify parser") {
 		t.Fatal("task state absent from model context")
 	}
 	other := contextAgent(t)
@@ -120,5 +120,33 @@ func TestTodoReopenFromDisk(t *testing.T) {
 	a, e = New(c, s)
 	if e != nil || len(a.Todos) != 1 || a.Todos[0].Status != "cancelled" {
 		t.Fatal(a, e)
+	}
+}
+
+func lastContent(ms []core.Message) string { return ms[len(ms)-1].Content }
+
+func TestTaskStateKeepsRequestPrefixStable(t *testing.T) {
+	a := contextAgent(t)
+	a.History = append(a.History, core.Message{Role: "user", Content: "start"})
+	before := a.modelHistory()
+	a.Todos = []core.Todo{{Content: "first", Status: "pending", Priority: "high"}}
+	one := a.modelHistory()
+	a.Todos = []core.Todo{{Content: "first", Status: "completed", Priority: "high"}}
+	two := a.modelHistory()
+	for i := range before {
+		if one[i].Content != before[i].Content || two[i].Content != before[i].Content {
+			t.Fatal("task update changed message", i)
+		}
+	}
+	if len(two) != len(before)+1 || two[len(two)-1].Role != "user" || !strings.Contains(lastContent(two), `"completed"`) ||
+		!strings.Contains(lastContent(two), "not a new request") {
+		t.Fatal("task state not appended as trailing data", lastContent(two))
+	}
+	if len(a.History) != len(before) {
+		t.Fatal("task state leaked into history")
+	}
+	a.History = append(a.History, core.Message{Role: "assistant", ToolCalls: []core.Call{{ID: "c1", Type: "function"}}})
+	if got := a.modelHistory(); len(got) != len(a.History) {
+		t.Fatal("task state inserted before a pending tool result")
 	}
 }

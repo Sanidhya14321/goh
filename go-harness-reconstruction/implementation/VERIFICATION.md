@@ -23,6 +23,18 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC37 task-state placement
+
+`1.0.0-rc.37` passed vet (macOS and Windows), the race suite, seven CLI
+scenarios and twenty PTY scenarios (three consecutive runs). New tests: all
+earlier request messages are byte-identical across todo updates, task state
+is never journaled or placed after a pending tool call, and the Anthropic and
+Responses encoders accept the trailing state message after tool results.
+One PTY run failed in `queued_prompt` because a redraw split "Second reply."
+on screen; the scenario now confirms the reply from the journal. This may
+also explain the unidentified RC34 flake. Cache-hit effect and model
+behavior are unverified until a live run.
+
 ## RC36 record times and timestamps
 
 `1.0.0-rc.36` passed vet (macOS and Windows), the race suite, seven CLI and

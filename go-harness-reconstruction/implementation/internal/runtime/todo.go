@@ -104,12 +104,19 @@ func (a *Agent) taskContext() string {
 }
 func (a *Agent) modelHistory() []core.Message { return a.withTaskContext(a.History) }
 func (a *Agent) withTaskContext(history []core.Message) []core.Message {
-	if len(a.Todos) == 0 {
+	if len(a.Todos) == 0 || len(history) == 0 {
 		return history
 	}
-	// Task state is attached to the trusted framing as data, never as authority.
-	ms := append([]core.Message(nil), history...)
-	ms[0].Content += "\n" + a.taskContext()
+	// Task state goes after the conversation, not into the system message: the
+	// request prefix then stays byte-identical across todo updates, so
+	// provider prompt caches keep hitting, and the plan sits where models
+	// attend most (recency). It is framed as data, never as authority, and is
+	// never journaled. A pending tool call must be answered first, so nothing
+	// is added after an assistant message that requested tools.
+	if last := history[len(history)-1]; last.Role == "assistant" && len(last.ToolCalls) > 0 {
+		return history
+	}
+	ms := append(append([]core.Message(nil), history...), core.Message{Role: "user", Content: "[Session state, not a new request] " + a.taskContext()})
 	return ms
 }
 func TodoDisplay(todos []core.Todo) string {
