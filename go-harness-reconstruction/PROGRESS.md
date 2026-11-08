@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC49 reasoning effort milestone
+
+Backlog R01 (reasoning, partial): configurable effort for OpenAI protocols.
+Anthropic extended thinking stays refused because thinking blocks would need
+to round-trip through history.
+
 ## RC48 job visibility milestone
 
 Running background jobs are visible in the sidebar and `/status`, so a dev

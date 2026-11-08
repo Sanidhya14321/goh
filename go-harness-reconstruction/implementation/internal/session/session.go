@@ -30,6 +30,7 @@ const Version = 2
 func validVersion(r Record) bool {
 	return (r.Version == 1 && r.Time == 0) || (r.Version == 2 && r.Time > 0)
 }
+
 const maxRecordBytes = 16 << 20
 
 var validID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)

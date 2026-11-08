@@ -57,3 +57,21 @@ func TestGlobMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestReasoningEffortValidation(t *testing.T) {
+	c := Defaults()
+	for _, ok := range []string{"", "minimal", "low", "medium", "high"} {
+		c.ReasoningEffort = ok
+		if c.ValidateReasoningEffort() != nil {
+			t.Fatal(ok)
+		}
+	}
+	c.ReasoningEffort = "max"
+	if c.ValidateReasoningEffort() == nil {
+		t.Fatal("accepted max")
+	}
+	c.ReasoningEffort, c.Protocol = "high", "anthropic_messages"
+	if c.ValidateReasoningEffort() == nil {
+		t.Fatal("anthropic must refuse reasoning_effort")
+	}
+}

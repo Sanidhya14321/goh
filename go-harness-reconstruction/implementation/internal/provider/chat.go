@@ -84,6 +84,9 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 		if len(tools) > 0 {
 			body["tools"] = tools
 		}
+		if c.Config.ReasoningEffort != "" {
+			body["reasoning_effort"] = c.Config.ReasoningEffort
+		}
 		if parameter := c.Config.OutputParameter; parameter != "" {
 			u, _ := url.Parse(endpoint)
 			if parameter == "max_tokens" && u.Scheme == "https" && strings.EqualFold(u.Hostname(), "api.openai.com") {

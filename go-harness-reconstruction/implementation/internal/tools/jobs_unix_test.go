@@ -30,4 +30,3 @@ func TestJobStopKillsProcessTree(t *testing.T) {
 	}
 	waitFor(t, func() bool { return syscall.Kill(grandchild, 0) != nil })
 }
-

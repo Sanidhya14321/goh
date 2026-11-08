@@ -54,7 +54,11 @@ func (m *model) openStatus() {
 				origin = parsed.Scheme + "://" + parsed.Host
 			}
 		}
-		lines = append(lines, configuration, "Model: "+cfg.Model, "Protocol: "+cfg.EffectiveProtocol(),
+		effort := cfg.ReasoningEffort
+		if effort == "" {
+			effort = "provider default"
+		}
+		lines = append(lines, configuration, "Model: "+cfg.Model+" · reasoning: "+effort, "Protocol: "+cfg.EffectiveProtocol(),
 			"Origin: "+origin, keyState, failoverStatus(cfg), "", "# CONTEXT",
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
 			fmt.Sprintf("Output reserve: %d tokens", cfg.OutputBudget),

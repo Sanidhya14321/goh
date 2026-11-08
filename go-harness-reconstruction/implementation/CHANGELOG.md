@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.49 — 2026-11-08
+
+- `reasoning_effort` (`minimal`, `low`, `medium`, `high`) for OpenAI
+  reasoning models over Chat Completions, Responses and Sign in with
+  ChatGPT; shown on `/status`. Refused for Anthropic until extended thinking
+  is supported. Not yet checked against a live provider.
+
 ## 1.0.0-rc.48 — 2026-11-08
 
 - The sidebar shows how many background jobs are running, and `/status`

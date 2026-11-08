@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC49 reasoning effort
+
+`1.0.0-rc.49` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Tests: Chat Completions sends
+`reasoning_effort`, Responses sends `reasoning.effort` only when configured,
+validation accepts the four levels and refuses others and Anthropic.
+Live acceptance of the parameter by OpenAI models is unverified.
+
 ## RC48 job visibility
 
 `1.0.0-rc.48` passed vet (macOS and Windows), the race suite, seven CLI and

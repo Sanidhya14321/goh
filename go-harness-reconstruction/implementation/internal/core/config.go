@@ -47,6 +47,9 @@ type Config struct {
 	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
 	// ShellRules auto-allow or deny shell commands by pattern; see shellrules.go.
 	ShellRules []ShellRule `json:"shell_rules,omitempty"`
+	// ReasoningEffort asks OpenAI reasoning models for minimal, low, medium or
+	// high effort; empty leaves the provider default.
+	ReasoningEffort string `json:"reasoning_effort,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -155,6 +158,9 @@ func (c Config) Validate() error {
 	if err := c.ValidateShellRules(); err != nil {
 		return err
 	}
+	if err := c.ValidateReasoningEffort(); err != nil {
+		return err
+	}
 	if _, err := ResolveKeymap(c.Keybinds); err != nil {
 		return err
 	}
@@ -247,4 +253,19 @@ func readConfig(path string) ([]byte, error) {
 		return nil, fmt.Errorf("configuration exceeds1MiB")
 	}
 	return b, nil
+}
+
+// ValidateReasoningEffort accepts OpenAI effort levels. Anthropic extended
+// thinking needs thinking blocks carried across turns, which GoHarness does not
+// implement yet, so the setting is refused there rather than silently ignored.
+func (c Config) ValidateReasoningEffort() error {
+	switch c.ReasoningEffort {
+	case "", "minimal", "low", "medium", "high":
+	default:
+		return fmt.Errorf("reasoning_effort must be minimal, low, medium or high")
+	}
+	if c.ReasoningEffort != "" && c.EffectiveProtocol() == "anthropic_messages" {
+		return fmt.Errorf("reasoning_effort is not supported for the anthropic protocol yet")
+	}
+	return nil
 }

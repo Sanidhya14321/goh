@@ -61,6 +61,9 @@ func encodeResponses(c core.Config, messages []core.Message, tools []core.Tool) 
 	if !plan && c.OutputBudget > 0 {
 		body["max_output_tokens"] = c.OutputBudget
 	}
+	if c.ReasoningEffort != "" {
+		body["reasoning"] = map[string]any{"effort": c.ReasoningEffort}
+	}
 	if len(tools) > 0 {
 		functions := make([]map[string]any, 0, len(tools))
 		for _, tool := range tools {
