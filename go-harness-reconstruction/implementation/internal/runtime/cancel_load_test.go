@@ -1,5 +1,3 @@
-//go:build darwin || linux
-
 package runtime
 
 import (
@@ -11,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"testing"
 	"time"
 
@@ -47,7 +44,7 @@ func cancelOneParent(t *testing.T, i int) error {
 	a, root := testAgent(t)
 	a.Grants["task"], a.Grants["child:shell"] = true, true
 	pidFile := filepath.Join(root, "child.pid")
-	shell := toolCall("sleep", "shell", map[string]any{"command": "echo $$ > child.pid; exec sleep 30", "timeout_seconds": 60})
+	shell := toolCall("sleep", "shell", map[string]any{"command": sleepWritingPID, "timeout_seconds": 60})
 	a.ChildModelFactory = func(core.Config, *session.Store) Model {
 		turn := 0
 		return modelFunc(func(ctx context.Context, _ []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
@@ -101,11 +98,11 @@ func cancelOneParent(t *testing.T, i int) error {
 	}
 	// The child's shell process (and its group) must be gone.
 	gone := false
-	for deadline := time.Now().Add(3 * time.Second); !gone && time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
-		gone = errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)
+	for deadline := time.Now().Add(5 * time.Second); !gone && time.Now().Before(deadline); time.Sleep(50 * time.Millisecond) {
+		gone = !processAlive(pid)
 	}
 	if !gone {
-		syscall.Kill(pid, syscall.SIGKILL)
+		killProcess(pid)
 		return errors.New("child shell process survived cancellation")
 	}
 	// The interrupted task is an uncertain effect: the next run must refuse
