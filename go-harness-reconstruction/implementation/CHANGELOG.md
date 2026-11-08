@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.62 — 2026-11-08
+
+- Context meter: the sidebar shows how full the context window was at the
+  latest reply (for example `Context: 50% of 200k`), and `/status` shows the
+  token count, as OpenCode does. It appears once the provider reports usage.
+
 ## 1.0.0-rc.61 — 2026-11-08
 
 - ACP: editors can pass remote (HTTP) MCP servers as well as local ones;

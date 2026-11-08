@@ -316,7 +316,11 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 
 func (m *model) sidebar(sessionID, modelName string) []string {
 	rows := []string{"SESSION", "", sessionID, "", "MODEL", modelName,
-		fmt.Sprintf("%d reported tokens", m.usage), "", "TOOLS"}
+		fmt.Sprintf("%d reported tokens", m.usage)}
+	if line := m.contextLine(); line != "" {
+		rows = append(rows, line)
+	}
+	rows = append(rows, "", "TOOLS")
 	if m.a != nil {
 		rows = append(rows, fmt.Sprintf("%d MCP · %d LSP configured", len(m.a.Config.MCP), len(m.a.Config.LSP)))
 		if running := runningJobs(m.a); running > 0 {
@@ -347,4 +351,14 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 		rows = append(rows, key+" commands")
 	}
 	return rows
+}
+
+// contextLine reports how full the context window was at the latest reply,
+// like OpenCode's context meter. Empty until a provider reports usage.
+func (m *model) contextLine() string {
+	if m.a == nil || m.contextTokens <= 0 || m.a.Config.ContextWindow <= 0 {
+		return ""
+	}
+	percent := m.contextTokens * 100 / m.a.Config.ContextWindow
+	return fmt.Sprintf("Context: %d%% of %dk", min(percent, 100), m.a.Config.ContextWindow/1000)
 }

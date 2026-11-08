@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC62 context meter
+
+`1.0.0-rc.62` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios. A TUI test feeds two usage events and checks the
+meter uses the latest reply (50% of 200k), the running total still sums
+both, the sidebar shows the line, nothing appears before usage, and the
+percentage caps at 100.
+
 ## RC61 ACP remote MCP servers
 
 `1.0.0-rc.61` passed vet (macOS and Windows), the race suite, eight CLI and

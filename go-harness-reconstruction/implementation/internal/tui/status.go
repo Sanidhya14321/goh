@@ -63,6 +63,7 @@ func (m *model) openStatus() {
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
 			fmt.Sprintf("Output reserve: %d tokens", cfg.OutputBudget),
 			fmt.Sprintf("Reported usage in this view: %d tokens", m.usage),
+			fmt.Sprintf("Context at latest reply: %d tokens", m.contextTokens),
 			fmt.Sprintf("Turn limit: %d", cfg.MaxTurns), "", "# SESSION",
 			"Agent: "+cfg.Agent+" · "+cfg.AgentMode, "Profile: "+cfg.Profile,
 			"Project: "+m.a.Store.Project, "Session: "+m.a.Store.ID,

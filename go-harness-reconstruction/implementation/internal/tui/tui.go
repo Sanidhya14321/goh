@@ -93,6 +93,7 @@ type model struct {
 	jobsPicker           *optionPicker
 	changesPicker        *optionPicker
 	timestamps           bool
+	contextTokens        int
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
@@ -236,6 +237,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					n = d.Usage.Prompt + d.Usage.Completion
 				}
 				m.usage += n
+				// The latest reply's prompt plus output approximates how full
+				// the context window is now.
+				m.contextTokens = d.Usage.Prompt + d.Usage.Completion
 			}
 		case "run_finished":
 			m.fileIndexStale = true

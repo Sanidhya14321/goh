@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC62 context meter milestone
+
+Sidebar context fill from the latest reply's reported prompt and output
+tokens; providers that report no usage show no meter rather than a guess.
+
 ## RC61 ACP HTTP MCP milestone
 
 ACP `session/new` accepts `type: "http"` MCP servers, mapped to RC57's
