@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC57 remote MCP milestone
+
+OpenCode parity for remote MCP using the pinned go-sdk's Streamable HTTP
+client (no new dependency). Credentials come only from named environment
+variables, redirects are refused so headers cannot leak to another host,
+and approval boundaries are unchanged.
+
 ## RC56 default checkpoints milestone
 
 Checkpoints default to best effort, matching OpenCode's always-on snapshots

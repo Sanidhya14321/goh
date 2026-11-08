@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.57 — 2026-11-08
+
+- Remote MCP servers: set `url` instead of `command` to use an MCP server
+  over Streamable HTTP, with tokens supplied through `headers_env`
+  environment variables. HTTPS only (HTTP for localhost), no redirects,
+  header values never shown in approvals.
+
 ## 1.0.0-rc.56 — 2026-11-08
 
 - File checkpoints are on by default (best effort), as OpenCode snapshots

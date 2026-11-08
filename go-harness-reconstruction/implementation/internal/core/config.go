@@ -12,9 +12,15 @@ import (
 )
 
 type MCPConfig struct {
-	Command string            `json:"command"`
-	Args    []string          `json:"args"`
+	Command string            `json:"command,omitempty"`
+	Args    []string          `json:"args,omitempty"`
 	Env     map[string]string `json:"env,omitempty"`
+	// URL selects a remote MCP server (Streamable HTTP) instead of Command.
+	URL string `json:"url,omitempty"`
+	// HeadersEnv maps an HTTP header to the environment variable holding its
+	// value (for example {"Authorization": "MCP_TOKEN"}), so tokens never sit
+	// in the config file.
+	HeadersEnv map[string]string `json:"headers_env,omitempty"`
 }
 type CommandConfig struct {
 	Description string `json:"description"`

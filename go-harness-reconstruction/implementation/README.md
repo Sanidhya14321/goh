@@ -469,6 +469,21 @@ retries a call. Servers close before the run's terminal event; a new run starts
 fresh servers, with session grants reusable within the TUI process. Remote
 transports, OAuth, sampling and automatic installation are deferred.
 
+### Remote MCP servers
+
+A server with `url` instead of `command` is reached over MCP Streamable
+HTTP. Put tokens in environment variables and name them with `headers_env`:
+
+```jsonc
+"mcp": {
+  "docs": {"url": "https://mcp.example.com/mcp", "headers_env": {"Authorization": "DOCS_MCP_TOKEN"}}
+}
+```
+
+Only `https` URLs are accepted (plain `http` only for localhost), redirects
+are refused, and the start approval shows the URL and header names but never
+header values. Starting a remote server still needs approval, like a local one.
+
 ## Verify and package
 
 ```sh

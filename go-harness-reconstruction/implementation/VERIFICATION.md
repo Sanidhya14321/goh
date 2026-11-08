@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC57 remote MCP servers
+
+`1.0.0-rc.57` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-three PTY scenarios. A test runs an in-process MCP SDK server over
+HTTP: the manager connects after approval, discovers and calls a tool, sends
+the `Authorization` header read from an environment variable, never shows
+its value in the approval preview, and closes cleanly. Refusal tests cover
+non-loopback plain HTTP, other schemes, embedded credentials, fragments, a
+missing header variable, `command` and `url` together, and a redirecting
+server. No third-party remote MCP service was contacted.
+
 ## RC56 default checkpoints
 
 `1.0.0-rc.56` passed vet (macOS and Windows), the race suite, eight CLI and

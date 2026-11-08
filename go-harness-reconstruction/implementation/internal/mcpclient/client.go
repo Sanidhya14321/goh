@@ -149,10 +149,24 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		return fmt.Errorf("MCP server name %q must use letters, digits, underscore or hyphen without double underscores", name)
 	}
 	cfg := m.config[name]
-	if cfg.Command == "" {
-		return fmt.Errorf("MCP server %s: command required", name)
+	if (cfg.Command == "") == (cfg.URL == "") {
+		return fmt.Errorf("MCP server %s: set either command or url", name)
 	}
-	description, _ := json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15})
+	var description []byte
+	if cfg.URL != "" {
+		if err := checkRemoteURL(cfg.URL); err != nil {
+			return fmt.Errorf("MCP server %s: %w", name, err)
+		}
+		headers := make([]string, 0, len(cfg.HeadersEnv))
+		for h := range cfg.HeadersEnv {
+			headers = append(headers, h)
+		}
+		sort.Strings(headers)
+		// Header values are never shown; only their names.
+		description, _ = json.Marshal(map[string]any{"url": cfg.URL, "headers": headers, "initialization_timeout_seconds": 15})
+	} else {
+		description, _ = json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15})
+	}
 	permission := core.Permission{Tool: "mcp_start:" + name, Preview: string(description), Arguments: description}
 	if m.approve == nil {
 		return ErrPermission
@@ -167,7 +181,11 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	if e := ctx.Err(); e != nil {
 		return e
 	}
-	p, e = startProcess(cfg, m.project)
+	if cfg.URL != "" {
+		p, e = &process{done: make(chan struct{})}, nil
+	} else {
+		p, e = startProcess(cfg, m.project)
+	}
 	if e != nil {
 		p = nil
 		return fmt.Errorf("MCP server %s: %w", name, e)
@@ -183,7 +201,16 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	m.mu.Unlock()
 	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	client := mcp.NewClient(&mcp.Implementation{Name: "independent-harness", Version: "0.1.0"}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
-	session, e := client.Connect(initCtx, &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}, nil)
+	var transport mcp.Transport = &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}
+	if cfg.URL != "" {
+		httpClient, err := remoteClient(cfg)
+		if err != nil {
+			cancel()
+			return fmt.Errorf("MCP server %s: %w", name, err)
+		}
+		transport = &mcp.StreamableClientTransport{Endpoint: cfg.URL, HTTPClient: httpClient, MaxRetries: -1, DisableStandaloneSSE: true}
+	}
+	session, e := client.Connect(initCtx, transport, nil)
 	if e != nil {
 		cancel()
 		return fmt.Errorf("MCP server %s initialization failed: %w", name, e)
@@ -490,6 +517,18 @@ func (p *process) stop() error {
 		p.stopping = true
 		session := p.session
 		p.mu.Unlock()
+		if p.cmd == nil { // remote server: closing the session is the whole cleanup
+			if session != nil {
+				done := make(chan struct{})
+				go func() { session.Close(); close(done) }()
+				select {
+				case <-done:
+				case <-time.After(2 * time.Second):
+					p.stopErr = errors.New("MCP cleanup_incomplete: remote session did not close")
+				}
+			}
+			return
+		}
 		// Closing both pipes also interrupts SDK readers/writers before waiting.
 		p.stdin.Close()
 		p.stdout.Close()
