@@ -5,6 +5,7 @@ import (
 	"os"
 	"path"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -171,7 +172,7 @@ func (m *model) openFileCompletion() tea.Cmd {
 	}
 	m.fileCompletion = &fileCompletion{start: start}
 	if m.fileIndex != nil {
-		m.fileCompletion.matches = fileMatches(m.fileIndex.files, "")
+		m.fileCompletion.matches = m.completionMatches(m.fileIndex.files, "")
 		stale := m.fileIndex.ready && (m.fileIndexStale || time.Since(m.fileIndex.scanned) > fileIndexTTL)
 		if !stale || m.fileRescanning {
 			return nil
@@ -215,7 +216,7 @@ func (m *model) refreshFileCompletion() {
 	}
 	if query != picker.query {
 		picker.query, picker.selected = query, 0
-		picker.matches = fileMatches(m.fileIndex.files, query)
+		picker.matches = m.completionMatches(m.fileIndex.files, query)
 	}
 }
 
@@ -285,4 +286,25 @@ func (m *model) fileCompletionRows(width, limit int) []string {
 		}
 	}
 	return rows
+}
+
+// completionMatches lists subagents whose names start with the query (so
+// "@gen" offers "general" for delegation) ahead of project files.
+func (m *model) completionMatches(files []projectFile, query string) []string {
+	var agents []string
+	if m.a != nil && m.a.Store != nil {
+		names := []string{"explore", "general"}
+		for name := range m.a.Config.Agents {
+			if name != "explore" && name != "general" {
+				names = append(names, name)
+			}
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			if strings.HasPrefix(name, strings.ToLower(query)) && len(agents) < 4 {
+				agents = append(agents, Safe(name))
+			}
+		}
+	}
+	return append(agents, fileMatches(files, query)...)
 }

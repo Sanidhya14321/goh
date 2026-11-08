@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.90 — 2026-11-08
+
+- Typing `@` in the TUI now offers subagents (`explore`, `general` and
+  custom ones) whose names match, ahead of project files, so agent mentions
+  can be completed like file mentions.
+
 ## 1.0.0-rc.89 — 2026-11-08
 
 - `@general`, `@explore` or `@<custom subagent>` in a prompt asks the model

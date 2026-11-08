@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC90 agent completion milestone
+
+`@` completion lists matching subagents before files.
+
 ## RC89 agent mentions milestone
 
 Prompt-level `@subagent` delegation hints; authority stays with the task

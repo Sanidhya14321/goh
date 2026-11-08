@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC90 agent completion
+
+`TestCompletionOffersAgentsBeforeFiles` checks ordering and that agents are matched by prefix only. The setup suite's path-only file-completion check still passes. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC89 agent mentions
 
 `TestAgentMentions` covers known and custom subagents, punctuation, unknown names, email-like text, file mentions, and that child agents get no note. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
