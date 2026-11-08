@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC101 slow diagnostics milestone
+
+Real-server CI exposed that slow diagnostics killed healthy servers; fixed
+with a race-free wait.
+
 ## RC100 language server restart milestone
 
 Closes the audit gap on restarting a disconnected server within a run, with

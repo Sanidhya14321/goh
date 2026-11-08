@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.101 — 2026-11-08
+
+- Fixed (found by Windows CI with a real clangd): a language server that
+  was slow to publish diagnostics, which is common on cold start, was
+  treated as disconnected and stopped, so post-edit error reports and later
+  LSP requests failed for the rest of the run. A slow or timed-out
+  diagnostics wait now reports "not published yet" and keeps the server
+  running. A server whose connection actually closed is still stopped. The
+  push-diagnostics wait is now 5 seconds (was 2).
+
 ## 1.0.0-rc.100 — 2026-11-08
 
 - Recovery: a language server that crashes or disconnects during a run can

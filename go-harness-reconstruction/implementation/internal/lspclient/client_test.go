@@ -189,3 +189,28 @@ func TestLSPLanguageAndLongestSuffixSelection(t *testing.T) {
 		t.Fatal(name, e)
 	}
 }
+
+func TestLSPSlowDiagnosticsKeepServer(t *testing.T) {
+	m, _, _ := setup(t, "silent-diagnostics")
+	ctx := context.Background()
+	r := m.Execute(ctx, "lsp", argumentsFor("diagnostics"))
+	if !r.Error || !strings.Contains(r.Content, "not published diagnostics") {
+		t.Fatalf("expected a pending-diagnostics report: %s", r.Content)
+	}
+	if r := m.Execute(ctx, "lsp", argumentsFor("hover")); r.Error {
+		t.Fatalf("server was stopped after slow diagnostics: %s", r.Content)
+	}
+}
+
+func TestLSPDiagnosticsTimeoutKeepsServer(t *testing.T) {
+	m, _, _ := setup(t, "silent-diagnostics")
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	r := m.Execute(ctx, "lsp", argumentsFor("diagnostics"))
+	cancel()
+	if !r.Error {
+		t.Fatal("expected a timeout")
+	}
+	if r := m.Execute(context.Background(), "lsp", argumentsFor("hover")); r.Error {
+		t.Fatalf("server was stopped after a diagnostics timeout: %s", r.Content)
+	}
+}

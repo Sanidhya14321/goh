@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC101 slow diagnostics
+
+- Windows CI failed RC99's `TestRealClangd`: clangd needed more than 2 seconds to publish diagnostics, and the server was then marked broken.
+- New fixture mode `silent-diagnostics`. `TestLSPSlowDiagnosticsKeepServer` and `TestLSPDiagnosticsTimeoutKeepsServer` check that the server stays usable after a pending result or a caller timeout.
+- The race detector found a concurrent-writer bug in the first version of the fix. The waiting goroutine is now drained before the server is reused, and the race suite passed three times.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC100 language server restart
 
 `TestRealClangd` now kills the running clangd mid-run. The next request fails without replay, the following one restarts the server behind exactly one more approval, and the restarted server answers go-to-definition. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

@@ -68,6 +68,12 @@ type Manager struct {
 	configErr     error
 }
 
+// diagnosticsWait bounds the wait for pushed diagnostics; a slow server is
+// reported, not stopped.
+const diagnosticsWait = 5 * time.Second
+
+var errDiagnosticsPending = errors.New("LSP server has not published diagnostics for this file yet; try again shortly")
+
 // maxRestarts bounds approved restarts of one disconnected server per run.
 const maxRestarts = 2
 
@@ -442,7 +448,7 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 		case "diagnostics":
 			capability := s.capabilities["diagnosticProvider"]
 			if len(capability) == 0 || string(capability) == "false" || string(capability) == "null" {
-				timer := time.NewTimer(2 * time.Second)
+				timer := time.NewTimer(diagnosticsWait)
 				defer timer.Stop()
 				for {
 					if data, ok := s.process.rpc.cachedDiagnostics(uri); ok {
@@ -455,7 +461,7 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 					case <-ctx.Done():
 						return nil, ctx.Err()
 					case <-timer.C:
-						return nil, errors.New("LSP server supplied neither pull diagnostics nor a push result within two seconds")
+						return nil, errDiagnosticsPending
 					}
 				}
 			}
@@ -493,10 +499,31 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 	case answerResult = <-done:
 	case <-ctx.Done():
 		answerResult.err = ctx.Err()
+		if args.Operation == "diagnostics" {
+			// The diagnostics wait also watches ctx and returns at once. Let it
+			// finish so the server can be reused without a concurrent writer;
+			// if it does not, fall through and stop the server as before.
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				args.Operation = "diagnostics-stuck"
+			}
+		}
 	}
 	if answerResult.err != nil {
 		var protocolError *rpcError
-		if errors.As(answerResult.err, &protocolError) {
+		alive := true
+		select {
+		case <-s.process.rpc.done:
+			alive = false
+		default:
+		}
+		// Waiting for diagnostics only reads published state, so a timeout
+		// there says nothing about the server's health.
+		if errors.As(answerResult.err, &protocolError) || errors.Is(answerResult.err, errDiagnosticsPending) ||
+			(alive && args.Operation == "diagnostics") {
+			// The server is healthy: it answered with an error, or has simply
+			// not published diagnostics yet (slow cold start). Keep it.
 			return resultError("failed", answerResult.err)
 		}
 		s.broken = true

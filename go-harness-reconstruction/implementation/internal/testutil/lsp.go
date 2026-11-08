@@ -83,7 +83,9 @@ func RunLSP() {
 			if strings.Contains(text, "BROKEN") {
 				diagnostics = append(diagnostics, map[string]any{"range": map[string]any{"start": map[string]int{"line": 1, "character": 4}, "end": map[string]int{"line": 1, "character": 5}}, "severity": 1, "message": "Fixture error: BROKEN"})
 			}
-			write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnostics}})
+			if mode != "silent-diagnostics" {
+				write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnostics}})
+			}
 			continue
 		}
 		if q.ID == nil {
