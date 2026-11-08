@@ -1,0 +1,38 @@
+package tui
+
+import (
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+
+	agent "example.com/independent-harness/internal/runtime"
+	"example.com/independent-harness/internal/core"
+	"example.com/independent-harness/internal/session"
+)
+
+func TestRenameCommandSavesAndResetsTitle(t *testing.T) {
+	dir := t.TempDir()
+	s, err := session.New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	cfg := core.Defaults()
+	cfg.SessionDir = dir
+	m := &model{a: &agent.Agent{Config: cfg, Store: s}, width: 80, height: 24, status: "ready"}
+	m.input = "/rename  Fix\tlogin\x07 bug "
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	meta, err := session.ReadMeta(dir, s.ID)
+	if err != nil || meta.Title != "Fix login bug" {
+		t.Fatalf("title %q, %v", meta.Title, err)
+	}
+	if m.input != "" || !strings.Contains(m.log, "renamed") {
+		t.Fatalf("input %q log %q", m.input, m.log)
+	}
+	m.input = "/rename"
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if meta, _ := session.ReadMeta(dir, s.ID); meta.Title != "" {
+		t.Fatalf("title not reset: %q", meta.Title)
+	}
+}

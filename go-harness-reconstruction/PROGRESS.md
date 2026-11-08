@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC73 session rename milestone
+
+`/rename` in the chat sets or resets the open session's title through the
+same metadata sidecar the session picker uses.
+
 ## RC71 web search milestone
 
 Backlog T14: an opt-in, keyless search backend (SearXNG JSON) rather than a

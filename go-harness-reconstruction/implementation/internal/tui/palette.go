@@ -34,6 +34,7 @@ var paletteEntries = []paletteEntry{
 	{"/timestamps", "Show or hide when each prompt was sent"},
 	{"/details", "Show or hide full tool output"},
 	{"/find", "Search the conversation: /find text"},
+	{"/rename", "Rename this session: /rename title (empty resets)"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},
 	{"/redo", "Return to the turn removed by /undo"},
 	{"/new", "Start a new conversation"},
@@ -111,9 +112,10 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if entry.command == "/fork" {
 				return m, m.openFork()
 			}
-			if entry.command == "/find" {
+			if entry.command == "/find" || entry.command == "/rename" {
 				m.palette = false
-				m.input, m.inputCursor = "/find ", 6
+				m.input = entry.command + " "
+				m.inputCursor = len([]rune(m.input))
 				return m, nil
 			}
 			if entry.command == "/details" {

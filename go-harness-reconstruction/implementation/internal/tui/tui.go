@@ -469,6 +469,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
 			}
+			if trimmed := strings.TrimSpace(prompt); trimmed == "/rename" || strings.HasPrefix(trimmed, "/rename ") {
+				m.input, m.inputCursor = "", 0
+				m.renameSession(strings.TrimPrefix(trimmed, "/rename"))
+				return m, nil
+			}
 			if trimmed := strings.TrimSpace(prompt); trimmed == "/find" || strings.HasPrefix(trimmed, "/find ") {
 				m.input, m.inputCursor = "", 0
 				m.startFind(strings.TrimPrefix(trimmed, "/find"))

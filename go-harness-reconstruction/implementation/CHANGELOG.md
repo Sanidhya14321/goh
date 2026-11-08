@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.73 — 2026-11-08
+
+- `/rename title` renames the open session from the chat (as in OpenCode);
+  `/rename` with no title restores the default from the first prompt. The
+  title is saved beside the journal, which stays unchanged.
+
 ## 1.0.0-rc.72 — 2026-11-08
 
 - Fixed (found in live testing): resuming a session with a small context
