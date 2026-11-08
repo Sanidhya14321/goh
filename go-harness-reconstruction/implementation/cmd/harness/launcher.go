@@ -246,6 +246,12 @@ func chatFirst(args []string) error {
 					chatGPTModel = selected
 				}
 			}
+		case "plan_exit":
+			// The plan was approved in chat: same session, build agent.
+			draft = nav.Draft
+			build := "build"
+			agent = &build
+			info = "Switched to Build to carry out the approved plan. Press Enter to start."
 		case "provider":
 			draft = nav.Draft
 			_, actionErr = configureProvider()

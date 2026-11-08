@@ -70,6 +70,20 @@ func firstLine(s string) string {
 // outcome (failure, cancellation, approval or input needed) returns queued
 // prompts to the composer so nothing is sent without the user seeing it.
 func (m *model) afterRun(done doneMsg) tea.Cmd {
+	if m.a != nil && m.a.HandoffPlan != "" && done.err == nil {
+		// The user approved plan_exit: continue this session in build mode
+		// with the go-ahead ready in the composer (queued prompts kept too).
+		m.a.HandoffPlan = ""
+		draft := "Carry out the approved plan."
+		if len(m.queue) > 0 {
+			draft += "\n\n" + strings.Join(m.queue, "\n\n")
+			m.queue = nil
+		}
+		m.input, m.inputCursor = "", 0
+		m.insertInput(draft)
+		m.navigation = "plan_exit"
+		return tea.Quit
+	}
 	if len(m.queue) == 0 {
 		return nil
 	}

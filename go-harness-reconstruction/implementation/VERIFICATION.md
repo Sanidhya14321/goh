@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC67 plan handoff
+
+`1.0.0-rc.67` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-five PTY scenarios (two consecutive runs). The new `plan_exit`
+scenario starts in plan mode, approves the scripted `plan_exit`, and checks
+the chat restarts in Build in the same session with the go-ahead in the
+composer. Runtime tests: the approval shows the plan; approval records the
+handoff, a decline does not; the tool is absent and refused in build mode
+and for subagents; a headless run stops with `needs_permission`.
+
 ## RC66 orphaned background jobs
 
 `1.0.0-rc.66` passed vet (macOS and Windows), the race suite, eight CLI and

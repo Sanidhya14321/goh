@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC67 plan handoff milestone
+
+Backlog T16: `plan_exit` exists only for the top-level plan agent and always
+goes through the permission prompt. Mode never changes inside a run; the UI
+restarts the same session with the build agent afterwards.
+
 ## RC66 orphaned jobs milestone
 
 A private job registry in session storage (one file per GoHarness process)

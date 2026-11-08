@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.67 — 2026-11-08
+
+- Plan handoff: in plan mode the agent can propose switching to build with
+  its finished plan (`plan_exit`, as in OpenCode). You see the plan in the
+  approval; approving continues the same session in Build with "Carry out
+  the approved plan." ready to send. Declining keeps you in plan mode.
+
 ## 1.0.0-rc.66 — 2026-11-08
 
 - Background jobs left running after GoHarness was force-killed are found

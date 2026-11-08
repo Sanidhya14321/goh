@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo'), ('user_shell','text'), ('background_job','job'), ('provider_models','text')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo'), ('user_shell','text'), ('background_job','job'), ('provider_models','text'), ('plan_exit','planexit')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -100,6 +100,8 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 theme_config=root/'theme-config.json'
                 theme_config.write_text(json.dumps({'theme':'light'}))
                 extra=['--config',str(theme_config)]
+            if scenario=='planexit':
+                extra=['--agent','plan']
             if scenario=='undo':
                 extra=['--snapshots']  # snapshot storage must be outside the project
             if scenario=='formatter':
@@ -335,6 +337,19 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         time.sleep(.02)
                     assert finished, 'manual compaction did not finish durably'
                     time.sleep(.05)
+                elif case == 'plan_exit':
+                    wait_for(b'APPROVAL: plan_exit')
+                    os.write(master, b'y')
+                    wait_for(b'Switched to Build')
+                    wait_for(b'Carry out the approved plan.')
+                    starts=[]
+                    for attempt in range(250):
+                        starts=[r['data'].get('agent_mode') for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='run_started']
+                        if starts: break
+                        time.sleep(.02)
+                    assert starts and starts[0]=='plan', starts
+                    sessions=list((root/case).glob('*.jsonl'))
+                    assert len(sessions)==1, 'handoff must continue the same session'
                 elif case == 'background_job':
                     (root/'job.pid').unlink(missing_ok=True)
                     wait_for(b'APPROVAL: job_start')

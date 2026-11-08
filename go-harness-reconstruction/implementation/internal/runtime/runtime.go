@@ -47,7 +47,10 @@ type Agent struct {
 	fileCommands    map[string]core.CommandConfig
 	SkippedCommands []commands.Skipped
 	// GuidanceFiles lists instruction files added to the system message.
-	GuidanceFiles     []string
+	GuidanceFiles []string
+	// HandoffPlan is set when the user approved plan_exit in this run; the UI
+	// then continues in build mode.
+	HandoffPlan       string
 	lastCall          string
 	repeats           int
 	degraded          map[string]string
@@ -284,6 +287,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	status = "failed"
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
+	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
 	a.LSP = nil
@@ -666,6 +670,9 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 	if name == "todowrite" {
 		return a.prepareTodos(b)
 	}
+	if name == "plan_exit" {
+		return a.preparePlanExit(b)
+	}
 	if len(b) > 1<<20 || !json.Valid(b) {
 		return "", false, errors.New("invalid or oversized tool arguments")
 	}
@@ -698,6 +705,9 @@ func (a *Agent) execute(ctx context.Context, c core.Call) tools.Result {
 	}
 	if c.Function.Name == "todowrite" {
 		return a.executeTodos(ctx, json.RawMessage(c.Function.Arguments))
+	}
+	if c.Function.Name == "plan_exit" {
+		return a.executePlanExit(json.RawMessage(c.Function.Arguments))
 	}
 	if a.External != nil && a.External.Has(c.Function.Name) {
 		return a.External.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))

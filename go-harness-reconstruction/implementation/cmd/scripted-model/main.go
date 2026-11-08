@@ -110,6 +110,12 @@ func serve(w http.ResponseWriter, r *http.Request, scenario string) {
 		default:
 			s.Text = "Fixture edit and verification complete"
 		}
+	case "planexit":
+		if count == 0 {
+			call("plan_exit", map[string]any{"plan": "1. Edit the parser\n2. Add a test"})
+		} else {
+			s.Text = "Handing off to build."
+		}
 	case "job":
 		if count == 0 {
 			call("job_start", map[string]any{"command": "sleep 300 & echo $! > job.pid; echo job-running; wait"})
