@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.103 — 2026-11-08
+
+- The session picker (`/sessions`, and `goh chat` with saved sessions) now
+  lists damaged sessions as "⚠ damaged … · Enter to recover" instead of
+  hiding them. Choosing one leads to the RC102 recovery offer, which asks
+  first and keeps the damaged file unchanged.
+
 ## 1.0.0-rc.102 — 2026-11-08
 
 - Guided recovery: resuming a damaged session in a terminal (`goh resume

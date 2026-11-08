@@ -96,3 +96,18 @@ func TestChooserRenameAndDelete(t *testing.T) {
 		t.Fatal("the current session must not be deleted", m.notice)
 	}
 }
+
+func TestChooserShowsDamagedSessionsForRecovery(t *testing.T) {
+	m := &chooser{project: "/one", width: 120, height: 30, sessions: []session.Info{
+		{ID: "good", Project: "/one"}, {ID: "other", Project: "/two"}, {ID: "broken", Damaged: "unreadable record"}}}
+	ids := []string{}
+	for _, info := range m.matches() {
+		ids = append(ids, info.ID)
+	}
+	if strings.Join(ids, ",") != ",good,broken" {
+		t.Fatalf("damaged session hidden or filter wrong: %v", ids)
+	}
+	if !strings.Contains(m.View().Content, "damaged broken") {
+		t.Fatal("damaged session not labelled for recovery")
+	}
+}

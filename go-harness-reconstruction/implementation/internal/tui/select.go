@@ -71,7 +71,7 @@ func (m *chooser) matches() []session.Info {
 		matches = append(matches, session.Info{})
 	}
 	for _, info := range m.sessions {
-		if !m.allProjects && m.project != "" && info.Project != m.project {
+		if !m.allProjects && m.project != "" && info.Project != m.project && info.Damaged == "" {
 			continue
 		}
 		title := m.summaries[info.ID].Title
@@ -206,7 +206,9 @@ func (m *chooser) View() tea.View {
 	for i := start; i < min(len(matches), start+visible); i++ {
 		info := matches[i]
 		title := "Start a new session"
-		if info.ID != "" {
+		if info.Damaged != "" {
+			title = "⚠ damaged " + Safe(info.ID) + " · Enter to recover"
+		} else if info.ID != "" {
 			title = m.summaries[info.ID].Title
 			if title == "" {
 				title = info.ID

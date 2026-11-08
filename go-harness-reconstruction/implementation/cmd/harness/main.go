@@ -340,7 +340,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	} else if command == "chat" {
 		resumeID = *selectedSession
 		if resumeID == "" && !skipChooser {
-			infos, x := session.List(c.SessionDir)
+			infos, x := session.ListForPicker(c.SessionDir)
 			if x != nil {
 				return x
 			}

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC103 damaged sessions in the picker
+
+`TestChooserShowsDamagedSessionsForRecovery` checks that damaged entries pass the project filter and are labelled. Choosing one opens the session through `chat --session`, which reaches the RC102 `offerSalvage` path. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC102 guided salvage
 
 - `TestOfferSalvage` damages a real journal and checks the decline path (error and hint kept) and the accept path (new session, success message).

@@ -162,3 +162,20 @@ func readPrefix(r io.Reader) ([]Record, int64, string) {
 		offset += int64(len(line))
 	}
 }
+
+// ListForPicker returns readable sessions followed by damaged ones (with
+// Damaged set to the problem), so pickers can offer recovery.
+func ListForPicker(dir string) ([]Info, error) {
+	infos, damaged, err := ListAll(dir)
+	if err != nil {
+		return nil, err
+	}
+	for _, d := range damaged {
+		problem := d.Problem
+		if problem == "" {
+			problem = "unreadable"
+		}
+		infos = append(infos, Info{ID: d.ID, Damaged: problem})
+	}
+	return infos, nil
+}

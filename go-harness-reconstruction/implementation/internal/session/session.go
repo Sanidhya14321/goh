@@ -44,6 +44,8 @@ type Record struct {
 type Info struct {
 	ID      string `json:"id"`
 	Project string `json:"project"`
+	// Damaged is set only by ListForPicker for journals that cannot be read.
+	Damaged string `json:"damaged,omitempty"`
 }
 type Store struct {
 	ID      string

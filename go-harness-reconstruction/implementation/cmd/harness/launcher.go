@@ -276,7 +276,7 @@ func chatFirst(args []string) error {
 				cfg = loaded
 			}
 			var infos []session.Info
-			infos, actionErr = session.List(cfg.SessionDir)
+			infos, actionErr = session.ListForPicker(cfg.SessionDir)
 			if actionErr != nil {
 				break
 			}
