@@ -76,3 +76,13 @@ func attachFiles(project string, paths []string) (string, error) {
 	}
 	return out.String(), nil
 }
+
+// commandPrompt turns `goh run --command NAME words` into "/NAME words",
+// which the runtime expands like a slash command typed in the TUI.
+func commandPrompt(name, message string) (string, error) {
+	name = strings.TrimPrefix(name, "/")
+	if name == "" || strings.ContainsAny(name, " \t\n/") {
+		return "", errors.New("--command needs a single command name")
+	}
+	return strings.TrimSpace("/" + name + " " + message), nil
+}

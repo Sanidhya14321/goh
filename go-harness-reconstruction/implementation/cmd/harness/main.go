@@ -130,6 +130,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
+	commandName := f.String("command", "", "run a custom command; message words become its arguments")
 	title := f.String("title", "", "title for the session (shown in pickers and lists)")
 	var files []string
 	f.Func("file", "attach a project file to the run message (repeatable; images become @path)", func(v string) error {
@@ -166,6 +167,16 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		*prompt = message
 	} else if *prompt == "-" {
 		message, err := runMessage([]string{"-"}, os.Stdin)
+		if err != nil {
+			return err
+		}
+		*prompt = message
+	}
+	if *commandName != "" {
+		if command != "run" {
+			return errors.New("--command is only for run")
+		}
+		message, err := commandPrompt(*commandName, *prompt)
 		if err != nil {
 			return err
 		}

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC78 run --command
+
+`TestCommandPrompt` covers the name forms and refusals. Expansion itself is the existing runtime path covered by the command tests. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
+
 ## RC77 run --title
 
 The acceptance `stdin-words` scenario now passes `--title` and checks the saved metadata. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.

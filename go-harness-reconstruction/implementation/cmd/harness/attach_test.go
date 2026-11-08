@@ -24,3 +24,17 @@ func TestAttachFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandPrompt(t *testing.T) {
+	if got, _ := commandPrompt("/review", "src/a.go"); got != "/review src/a.go" {
+		t.Fatal(got)
+	}
+	if got, _ := commandPrompt("init", ""); got != "/init" {
+		t.Fatal(got)
+	}
+	for _, bad := range []string{"", "/", "a b", "x/y"} {
+		if _, err := commandPrompt(bad, ""); err == nil {
+			t.Fatalf("%q accepted", bad)
+		}
+	}
+}
