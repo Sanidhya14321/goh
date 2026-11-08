@@ -103,6 +103,8 @@ func (m *model) openStatus() {
 		for _, skip := range m.a.SkippedCommands {
 			lines = append(lines, "Command file skipped · "+oneLine(Safe(skip.Path), 60)+": "+skip.Reason)
 		}
+		lines = append(lines, "", "# BACKGROUND JOBS")
+		lines = append(lines, jobStatusLines(m.a)...)
 		lines = append(lines, "", "# PERMISSIONS")
 		if cfg.AgentMode == "plan" {
 			lines = append(lines, "Plan mode blocks mutation tools.")

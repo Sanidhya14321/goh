@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.48 — 2026-11-08
+
+- The sidebar shows how many background jobs are running, and `/status`
+  lists every job with its state and command.
+
 ## 1.0.0-rc.47 — 2026-11-08
 
 - `/init` asks the model to study the project and write or improve

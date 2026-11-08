@@ -315,6 +315,9 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 		fmt.Sprintf("%d reported tokens", m.usage), "", "TOOLS"}
 	if m.a != nil {
 		rows = append(rows, fmt.Sprintf("%d MCP · %d LSP configured", len(m.a.Config.MCP), len(m.a.Config.LSP)))
+		if running := runningJobs(m.a); running > 0 {
+			rows = append(rows, fmt.Sprintf("%d background job(s) · /jobs", running))
+		}
 	}
 	rows = append(rows, "", "TASKS")
 	remaining := 0

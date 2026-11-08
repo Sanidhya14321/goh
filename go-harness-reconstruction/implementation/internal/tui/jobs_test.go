@@ -3,16 +3,17 @@ package tui
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"example.com/independent-harness/internal/core"
+	agent "example.com/independent-harness/internal/runtime"
 	"example.com/independent-harness/internal/session"
 	"example.com/independent-harness/internal/testutil"
 	"example.com/independent-harness/internal/tools"
-	agent "example.com/independent-harness/internal/runtime"
 )
 
 func TestJobsPanelShowsOutputAndStops(t *testing.T) {
@@ -52,6 +53,30 @@ func TestJobsPanelShowsOutputAndStops(t *testing.T) {
 	if m.input != "draft" {
 		t.Fatal("draft changed")
 	}
+	if runningJobs(m.a) != 0 {
+		t.Fatal("exited job counted as running")
+	}
+	longCmd := `{"command":"sleep 30"}`
+	if runtime.GOOS == "windows" {
+		longCmd = `{"command":"ping -n 30 127.0.0.1"}`
+	}
+	long := engine.Execute(context.Background(), "job_start", json.RawMessage(longCmd))
+	if long.Error {
+		t.Fatal(long.Content)
+	}
+	if runningJobs(m.a) != 1 {
+		t.Fatal("running job not counted")
+	}
+	sidebar := strings.Join(m.sidebar("fixture", "model"), "\n")
+	if !strings.Contains(sidebar, "1 background job(s)") {
+		t.Fatal("sidebar missing job count", sidebar)
+	}
+	m.openStatus()
+	status := strings.Join(m.infoPanel.lines, "\n")
+	if !strings.Contains(status, "BACKGROUND JOBS") || !strings.Contains(status, "job-2 · running · ") {
+		t.Fatal("status missing jobs", status)
+	}
+	m.statusKey("esc")
 	m.openJobs()
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
 	if cmd == nil || m.jobsPicker != nil {
@@ -59,7 +84,7 @@ func TestJobsPanelShowsOutputAndStops(t *testing.T) {
 	}
 	msg := cmd()
 	m.Update(msg)
-	if !strings.Contains(m.status, "job-1") {
+	if !strings.Contains(m.status, "job-2") {
 		t.Fatal(m.status)
 	}
 }

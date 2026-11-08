@@ -2,7 +2,9 @@ package tui
 
 import (
 	"context"
+
 	"encoding/json"
+	agent "example.com/independent-harness/internal/runtime"
 	"fmt"
 	"strings"
 
@@ -86,3 +88,35 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func contextBackground() context.Context { return context.Background() }
+
+func runningJobs(a *agent.Agent) int {
+	if a == nil || a.Tools == nil {
+		return 0
+	}
+	n := 0
+	for _, j := range a.Tools.Jobs() {
+		if j["status"] == "running" {
+			n++
+		}
+	}
+	return n
+}
+
+// jobStatusLines summarizes jobs for /status.
+func jobStatusLines(a *agent.Agent) []string {
+	if a == nil || a.Tools == nil {
+		return nil
+	}
+	jobs := a.Tools.Jobs()
+	if len(jobs) == 0 {
+		return []string{"No background jobs"}
+	}
+	var lines []string
+	for _, j := range jobs {
+		id, _ := j["id"].(string)
+		status, _ := j["status"].(string)
+		command, _ := j["command"].(string)
+		lines = append(lines, id+" · "+status+" · "+oneLine(Safe(command), 60))
+	}
+	return lines
+}

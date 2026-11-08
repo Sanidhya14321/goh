@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC48 job visibility milestone
+
+Running background jobs are visible in the sidebar and `/status`, so a dev
+server started by the agent is never invisible.
+
 ## RC47 /init milestone
 
 Built-in default commands sit beneath configured and file commands; the

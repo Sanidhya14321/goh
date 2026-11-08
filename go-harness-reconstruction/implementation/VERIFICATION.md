@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC48 job visibility
+
+`1.0.0-rc.48` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. The jobs TUI test now checks that an exited job
+is not counted, a running one appears in the sidebar count and in the
+`/status` section, using `ping` instead of `sleep` on Windows.
+
 ## RC47 /init
 
 `1.0.0-rc.47` passed vet (macOS and Windows), the race suite, seven CLI and
