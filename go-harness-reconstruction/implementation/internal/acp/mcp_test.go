@@ -2,6 +2,7 @@ package acp
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"example.com/independent-harness/internal/core"
@@ -9,9 +10,10 @@ import (
 
 func TestMergeMCPHTTPAndStdio(t *testing.T) {
 	raw := func(v any) json.RawMessage { b, _ := json.Marshal(v); return b }
+	tool := filepath.Join(t.TempDir(), "tool") // absolute on every OS
 	merged, err := mergeMCP(map[string]core.MCPConfig{"own": {Command: "/bin/own"}}, []json.RawMessage{
 		raw(map[string]any{"type": "http", "name": "docs", "url": "https://mcp.example.com/mcp", "headers": []map[string]string{{"name": "Authorization", "value": "Bearer t"}}}),
-		raw(map[string]any{"name": "local", "command": "/usr/bin/tool", "args": []string{"--x"}}),
+		raw(map[string]any{"name": "local", "command": tool, "args": []string{"--x"}}),
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -19,7 +21,7 @@ func TestMergeMCPHTTPAndStdio(t *testing.T) {
 	if d := merged["docs"]; d.URL != "https://mcp.example.com/mcp" || d.Headers["Authorization"] != "Bearer t" || d.Command != "" {
 		t.Fatalf("%+v", d)
 	}
-	if merged["local"].Command != "/usr/bin/tool" || merged["own"].Command != "/bin/own" {
+	if merged["local"].Command != tool || merged["own"].Command != "/bin/own" {
 		t.Fatal(merged)
 	}
 	for _, bad := range []any{
