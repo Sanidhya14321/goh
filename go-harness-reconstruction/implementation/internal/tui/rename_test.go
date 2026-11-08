@@ -6,8 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	agent "example.com/independent-harness/internal/runtime"
 	"example.com/independent-harness/internal/core"
+	agent "example.com/independent-harness/internal/runtime"
 	"example.com/independent-harness/internal/session"
 )
 
