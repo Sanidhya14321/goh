@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC82 review command milestone
+
+Second built-in command beside `/init`; user command files still win.
+
 ## RC81 ACP reasoning milestone
 
 Reasoning reaches ACP clients as thought chunks.

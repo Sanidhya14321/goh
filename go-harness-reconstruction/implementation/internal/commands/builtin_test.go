@@ -29,3 +29,14 @@ func TestInitBuiltin(t *testing.T) {
 		t.Fatal("builtins pushed past the limit", len(got))
 	}
 }
+
+func TestReviewBuiltin(t *testing.T) {
+	all := WithBuiltins(nil)
+	got, name, err := Expand("/review feature-x", all)
+	if err != nil || name != "review" || !strings.Contains(got, "What to review: feature-x") || !strings.Contains(got, "Do not edit") {
+		t.Fatal(got, name, err)
+	}
+	if got, _, err := Expand("/review", all); err != nil || !strings.Contains(got, "uncommitted changes") {
+		t.Fatal(got, err)
+	}
+}

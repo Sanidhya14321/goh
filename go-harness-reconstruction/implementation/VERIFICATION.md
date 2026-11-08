@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC82 review command
+
+`TestReviewBuiltin` checks the argument and default forms. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC81 ACP reasoning
 
 `TestReasoningBecomesThoughtChunk` checks the ACP update. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

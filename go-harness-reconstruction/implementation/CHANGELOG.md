@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.82 — 2026-11-08
+
+- Built-in `/review` command, as in OpenCode: a read-only review of
+  uncommitted changes by default, or of a commit, branch or path given as
+  the argument (`/review main`, `goh run --command review HEAD~1`). It only
+  expands to a prompt, so the usual tool approvals apply, and a command file
+  named `review` replaces it.
+
 ## 1.0.0-rc.81 — 2026-11-08
 
 - Editors connected over ACP receive the model's reasoning as
