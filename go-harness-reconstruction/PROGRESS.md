@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC112 run --fork milestone
+
+Backlog R09: continue a copy of a session from the CLI.
+
 ## RC111 sidebar cost milestone
 
 Live cost estimate beside reported tokens.

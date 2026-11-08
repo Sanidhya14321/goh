@@ -175,6 +175,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
 	compactFocus := f.String("focus", "", "compact: what the summary should keep (up to 500 characters)")
 	commandName := f.String("command", "", "run a custom command; message words become its arguments")
+	forkSession := f.Bool("fork", false, "continue a copy of --session or --continue; the original is unchanged")
 	title := f.String("title", "", "title for the session (shown in pickers and lists)")
 	var files []string
 	f.Func("file", "attach a project file to the run message (repeatable; images become @path)", func(v string) error {
@@ -357,7 +358,14 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		}
 	}
 	var store *session.Store
-	if resumeID != "" {
+	if resumeID != "" && *forkSession {
+		store, e = session.Fork(c.SessionDir, resumeID)
+		if e == nil {
+			fmt.Fprintf(os.Stderr, "Forked session %s into %s\n", resumeID, store.ID)
+		}
+	} else if *forkSession {
+		return errors.New("--fork needs --session ID or --continue")
+	} else if resumeID != "" {
 		store, e = session.Open(c.SessionDir, resumeID)
 		if errors.Is(e, session.ErrDamaged) {
 			if command != "run" && interactive() {

@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.112 — 2026-11-09
+
+- `goh run --session ID --fork` (or `--continue --fork`, also for `goh
+  chat`) continues a copy of the session and leaves the original unchanged,
+  as OpenCode's `run --fork` does. The fork copies the conversation only:
+  no tools are replayed and no approvals carry over.
+
 ## 1.0.0-rc.111 — 2026-11-09
 
 - The TUI sidebar shows the estimated cost of this view's replies
