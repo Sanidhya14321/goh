@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC104 retry visibility milestone
+
+Retries are reported through a context-scoped notifier, as reasoning text is.
+
 ## RC103 damaged sessions in the picker milestone
 
 Damaged journals are visible and recoverable from the picker.

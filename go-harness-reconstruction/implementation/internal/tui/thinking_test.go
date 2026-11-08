@@ -30,3 +30,11 @@ func TestReasoningBlockAndToggle(t *testing.T) {
 		t.Fatalf("hidden:\n%q", hidden)
 	}
 }
+
+func TestRetryNoticeInStatus(t *testing.T) {
+	m := &model{a: &agent.Agent{Config: core.Defaults(), Store: &session.Store{ID: "fixture"}}, width: 80, height: 24}
+	m.Update(core.Event{Type: "provider_retry", Data: core.RetryNotice{Attempt: 2, Max: 3, DelayMS: 1500, Reason: "provider unavailable"}})
+	if !strings.Contains(m.status, "retrying in 1.5s, attempt 2 of 3") {
+		t.Fatal(m.status)
+	}
+}

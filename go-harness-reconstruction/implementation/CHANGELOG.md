@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.104 — 2026-11-08
+
+- Provider retries are now visible. When a request is retried after a
+  rate limit, timeout or server error, the TUI status line shows the reason,
+  the wait and the attempt ("retrying in 1.5s, attempt 2 of 3"). `goh run`
+  prints the same on stderr, and JSON output carries `provider_retry`
+  events. Retry behaviour itself is unchanged, and a partially streamed
+  reply is still never retried.
+
 ## 1.0.0-rc.103 — 2026-11-08
 
 - The session picker (`/sessions`, and `goh chat` with saved sessions) now

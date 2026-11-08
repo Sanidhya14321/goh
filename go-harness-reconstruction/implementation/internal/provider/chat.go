@@ -192,6 +192,9 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 		if !retry || attempt == 2 {
 			return core.Reply{}, err
 		}
+		if notify := core.RetryNotifier(ctx); notify != nil {
+			notify(core.RetryNotice{Attempt: attempt + 2, Max: 3, DelayMS: delay.Milliseconds(), Reason: err.Error()})
+		}
 		select {
 		case <-ctx.Done():
 			return core.Reply{}, ctx.Err()

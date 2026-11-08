@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC104 retry visibility
+
+- `TestRetryAndNoPartialReplay` now also checks that two retry notices arrive (attempts 2 and 3 of 3, with a positive delay) before the third request succeeds.
+- `TestRetryNoticeInStatus` checks the TUI status wording.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC103 damaged sessions in the picker
 
 `TestChooserShowsDamagedSessionsForRecovery` checks that damaged entries pass the project filter and are labelled. Choosing one opens the session through `chat --session`, which reaches the RC102 `offerSalvage` path. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

@@ -170,6 +170,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.flushReasoning()
+		if v.Type == "provider_retry" {
+			if n, ok := v.Data.(core.RetryNotice); ok {
+				m.status = fmt.Sprintf("Provider busy (%s); retrying in %.1fs, attempt %d of %d", Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)
+			}
+		}
 		if v.Type == "session_titled" {
 			if d, ok := v.Data.(map[string]any); ok {
 				if t, ok := d["title"].(string); ok {

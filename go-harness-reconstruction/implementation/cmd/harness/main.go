@@ -428,6 +428,10 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				if d, ok := e.Data.(map[string]any); ok {
 					fmt.Print(tui.Safe(fmt.Sprint(d["text"])))
 				}
+			case "provider_retry":
+				if n, ok := e.Data.(core.RetryNotice); ok {
+					fmt.Fprintf(os.Stderr, "Provider busy (%s); retrying in %.1fs (attempt %d of %d)\n", tui.Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)
+				}
 			case "permission_requested":
 				p, _ := e.Data.(core.Permission)
 				fmt.Fprintln(os.Stderr, "Approval required:", tui.Safe(p.Tool), tui.Safe(p.Preview))

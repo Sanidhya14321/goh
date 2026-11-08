@@ -72,8 +72,13 @@ func TestRetryAndNoPartialReplay(t *testing.T) {
 	}))
 	defer s.Close()
 	c := New(core.Config{Endpoint: s.URL, Model: "fixture"})
-	if _, e := c.Complete(context.Background(), nil, nil, nil); e != nil || n.Load() != 3 {
+	var notices []core.RetryNotice
+	ctx := core.WithRetryNotices(context.Background(), func(r core.RetryNotice) { notices = append(notices, r) })
+	if _, e := c.Complete(ctx, nil, nil, nil); e != nil || n.Load() != 3 {
 		t.Fatalf("%d %v", n.Load(), e)
+	}
+	if len(notices) != 2 || notices[0].Attempt != 2 || notices[1].Attempt != 3 || notices[0].Max != 3 || notices[0].DelayMS <= 0 {
+		t.Fatalf("retry notices %+v", notices)
 	}
 	n.Store(0)
 	s.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { n.Add(1); io.WriteString(w, textFrame("partial")) })
