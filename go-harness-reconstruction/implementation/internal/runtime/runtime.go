@@ -40,6 +40,10 @@ type Agent struct {
 	LSP               *lspclient.Manager
 	readyIntegrations map[string]bool
 	degradedMu        sync.Mutex
+	// fileCommands are project command files; configured commands win over
+	// them at use. SkippedCommands explains files not loaded.
+	fileCommands      map[string]core.CommandConfig
+	SkippedCommands   []commands.Skipped
 	degraded          map[string]string
 	Config            core.Config
 	Store             *session.Store
@@ -95,6 +99,8 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	if e != nil {
 		return nil, e
 	}
+	files, skipped := commands.Discover(s.Project)
+	a.fileCommands, a.SkippedCommands = files, skipped
 	a.History = []core.Message{{Role: "system", Content: systemPrompt}}
 	if a.isPlan() {
 		a.History[0].Content += "\nRead-only plan mode: investigate with project read tools and explain a plan. File writes, shell commands, task mutations and MCP execution are disabled regardless of grants."
@@ -278,7 +284,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("prompt is required")
 	}
-	expanded, commandName, expandErr := commands.Expand(prompt, a.Config.Commands)
+	expanded, commandName, expandErr := commands.Expand(prompt, a.commandSet())
 	if expandErr != nil {
 		return "failed", expandErr
 	}
@@ -936,3 +942,15 @@ func (a *Agent) DegradedIntegrations() map[string]string {
 	}
 	return out
 }
+
+// commandSet merges at use, so configuration changed during a session (for
+// example a provider switch) still takes precedence over command files.
+func (a *Agent) commandSet() map[string]core.CommandConfig {
+	if len(a.fileCommands) == 0 {
+		return a.Config.Commands
+	}
+	return commands.Merge(a.Config.Commands, a.fileCommands)
+}
+
+// CommandSet exposes the merged command table to the UI.
+func (a *Agent) CommandSet() map[string]core.CommandConfig { return a.commandSet() }

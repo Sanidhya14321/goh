@@ -43,8 +43,8 @@ func (m *model) allPaletteEntries() []paletteEntry {
 	if m.a == nil {
 		return entries
 	}
-	names := make([]string, 0, len(m.a.Config.Commands))
-	for name := range m.a.Config.Commands {
+	names := make([]string, 0, len(m.a.CommandSet()))
+	for name := range m.a.CommandSet() {
 		names = append(names, name)
 	}
 	sort.Strings(names)
@@ -58,7 +58,7 @@ func (m *model) allPaletteEntries() []paletteEntry {
 			}
 		}
 		if !reserved {
-			entries = append(entries, paletteEntry{command, m.a.Config.Commands[name].Description})
+			entries = append(entries, paletteEntry{command, m.a.CommandSet()[name].Description})
 		}
 	}
 	return entries

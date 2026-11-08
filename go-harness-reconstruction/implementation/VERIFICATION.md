@@ -23,6 +23,19 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC40 command files and find highlighting
+
+`1.0.0-rc.40` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-one PTY scenarios (two consecutive runs). Discovery tests cover
+frontmatter, CRLF, reserved and invalid names, empty and unterminated
+frontmatter, oversized files, non-Markdown files, subfolders, symlinks and
+duplicate names across folders; merge tests cover config precedence and the
+256-command limit. A runtime test expands a project file command into the
+exact prompt the model receives. Find tests check the marked match row,
+that non-matches stay unmarked and that marks clear on Esc. A first race run
+failed because file commands were merged once at startup, missing commands
+configured later; they are now merged at use.
+
 ## RC39 transcript search and CLI revert
 
 `1.0.0-rc.39` passed vet (macOS and Windows), the race suite, seven CLI and

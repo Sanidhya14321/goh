@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.40 — 2026-11-08
+
+- `/find` highlights matching lines (with a `▸` marker that also shows
+  under `NO_COLOR`).
+- Project command files: `NAME.md` in `.opencode/command`,
+  `.opencode/commands`, `.claude/commands` or `.harness/commands` defines
+  `/NAME`, with an optional `description` in frontmatter. Commands in your
+  config take precedence; `agent` and `model` frontmatter are ignored.
+  Skipped files are listed on `/status`.
+
 ## 1.0.0-rc.39 — 2026-11-08
 
 - `/find text` searches the whole conversation, including turns scrolled

@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC40 command files milestone
+
+Backlog R05: Markdown command files load from OpenCode-compatible project
+folders. Configured commands always win, and frontmatter `agent`/`model`
+overrides are ignored so repository files cannot change the selected mode,
+model or provider. The compatibility matrix no longer lists Windows,
+subagents and native providers as outside the alpha. `/find` now marks
+matching rows.
+
 ## RC39 transcript search milestone
 
 `/find` searches the full transcript text rather than the wrapped window, then

@@ -222,7 +222,16 @@ func (m *model) View() tea.View {
 		contentHeight = max(0, contentHeight-len(reviewRows))
 	}
 	lines := m.visibleRows(body, columns-2, contentHeight, review != "")
+	needle := ""
+	if m.find != nil && review == "" {
+		needle = strings.ToLower(m.find.query)
+	}
 	for _, row := range lines {
+		if needle != "" && strings.Contains(strings.ToLower(row.text), needle) {
+			// The marker keeps matches visible when NO_COLOR disables colors.
+			rows = append(rows, cell("▸ "+row.text, columns+4, background, accent))
+			continue
+		}
 		rows = append(rows, transcriptCell(row, columns+4))
 	}
 	for count := len(lines); count < contentHeight; count++ {

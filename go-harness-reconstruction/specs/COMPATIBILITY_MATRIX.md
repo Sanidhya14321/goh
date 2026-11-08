@@ -18,7 +18,8 @@ This matrix separates reference observations from Go acceptance tests. Go implem
 | Context and compaction | Reference unobserved | Preserve task/tool relationships; explicit budget outcome | Unverified | Token estimates must be documented |
 | TUI | `reference-tui-ready.json`, `go-tui-selected.json` | Same runtime, approval, cancel, resize, safe text | Compatible selected text/resize/exit; differing session-selection interaction | No visual equivalence claim |
 | Local stdio MCP | `reference-mcp.json`, `reference-mcp-disconnect.json` | Explicit admission/execution, schema checks, no replay | Compatible echo; stricter Go disconnect recovery | No remote transports/OAuth/sampling |
-| Windows, desktop/browser, subagents, plugins, session import, native Responses/Anthropic | Outside alpha | Deferred | Deferred | See original plan |
+| Windows, subagents, native Responses/Anthropic | Implemented (RC17–RC27) | Native CI on Windows; scripted subagent and provider fixtures | Live providers pending user keys | See VERIFICATION.md |
+| Desktop/browser, plugins, upstream session import | Outside V1 | Deferred | Deferred | See original plan |
 
 See [research feature map](../research/FEATURE_MAP.md) for exact Evidence IDs, scopes and findings. Paired capture results, when available, must be saved with equivalent working directory, environment, observed paths and capture settings. REA residual process/environment/network unknowns preclude universal equivalence claims even when selected observations agree.
 
