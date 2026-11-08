@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC60 stats milestone
+
+Each reply with reported usage appends a `usage` record (excluded from
+replay, export and fork). `goh stats` reads journals without locks, so it
+works beside open chats.
+
 ## RC59 /models provider list milestone
 
 The launcher carries a per-chat `--model` override chosen from the

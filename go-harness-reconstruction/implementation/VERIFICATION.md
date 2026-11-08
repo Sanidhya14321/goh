@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC60 usage statistics
+
+`1.0.0-rc.60` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios. `CollectStats` is tested across two projects and
+ages with the project and day filters, per-model totals ordered by tokens,
+and negative counts ignored. Two runs of the built binary against the
+scripted model produced `2 replies, 20 in, 10 out, 30 total` in text and
+JSON output.
+
 ## RC59 provider models in /models
 
 `1.0.0-rc.59` passed vet (macOS and Windows), the race suite, eight CLI and

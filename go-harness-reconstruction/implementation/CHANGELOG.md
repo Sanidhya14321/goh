@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.60 — 2026-11-08
+
+- `goh stats` shows sessions, prompts and token usage per model from your
+  local sessions, like `opencode stats` (`--days N`, `--project DIR`,
+  `--json`). Token usage is saved per reply from this release on, when the
+  provider reports it.
+
 ## 1.0.0-rc.59 — 2026-11-08
 
 - `/models` also lists the models your provider offers, below your

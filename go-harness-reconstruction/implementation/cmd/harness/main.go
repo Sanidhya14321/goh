@@ -85,6 +85,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if args[0] == "models" {
 		return listModels(args[1:])
 	}
+	if args[0] == "stats" {
+		return stats(args[1:])
+	}
 	if args[0] == "memory" {
 		return runMemory(args[1:])
 	}
