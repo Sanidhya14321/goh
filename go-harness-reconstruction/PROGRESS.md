@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC76 run --file milestone
+
+Headless runs can attach project files; reads go through os.Root so the
+project boundary holds.
+
 ## RC75 transcript redaction milestone
 
 Backlog I14 (first slice): shareable Markdown transcripts mask

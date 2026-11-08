@@ -130,6 +130,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
+	var files []string
+	f.Func("file", "attach a project file to the run message (repeatable; images become @path)", func(v string) error {
+		files = append(files, v)
+		return nil
+	})
 	ack := f.Bool("acknowledge-uncertain", false, "acknowledge interrupted effects after inspecting project")
 	// Flags and message words may be interleaved: goh run fix the tests --model x
 	var words []string
@@ -164,6 +169,19 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			return err
 		}
 		*prompt = message
+	}
+	if len(files) > 0 {
+		if command != "run" {
+			return errors.New("--file is only for run")
+		}
+		if strings.TrimSpace(*prompt) == "" {
+			return errors.New("--file needs a message")
+		}
+		attached, err := attachFiles(*project, files)
+		if err != nil {
+			return err
+		}
+		*prompt += attached
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("format must be text or json")

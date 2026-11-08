@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.76 — 2026-11-08
+
+- `goh run --file PATH` (repeatable) attaches project files to the message,
+  as OpenCode's `run --file` does. Text files are included inline (256 KiB
+  each, 1 MiB in total); images become `@path` attachments. Paths outside the
+  project, binary files and symlink escapes are refused.
+
 ## 1.0.0-rc.75 — 2026-11-08
 
 - Markdown transcripts (`/export`) mask well-known credential formats (OpenAI,

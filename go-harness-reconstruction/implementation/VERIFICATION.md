@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC76 run --file
+
+`TestAttachFiles` covers inline text, image mentions, absolute in-project paths and refusal of `../`, binary and missing files. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
+
 ## RC75 transcript redaction
 
 `TestRedactSecrets` covers each pattern, prefix retention and a non-match (`sk-short`). Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
