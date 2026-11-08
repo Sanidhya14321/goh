@@ -39,6 +39,8 @@ type Agent struct {
 	Web               *webfetch.Client
 	LSP               *lspclient.Manager
 	readyIntegrations map[string]bool
+	degradedMu        sync.Mutex
+	degraded          map[string]string
 	Config            core.Config
 	Store             *session.Store
 	Skills            *skills.Catalog
@@ -913,6 +915,24 @@ func (a *Agent) integrationDegraded(kind, name, detail string) error {
 		detail = strings.ToValidUTF8(detail[:512], "") + "…"
 	}
 	data := map[string]any{"kind": kind, "name": name, "error": detail}
+	a.degradedMu.Lock()
+	if a.degraded == nil {
+		a.degraded = map[string]string{}
+	}
+	a.degraded[strings.ToUpper(kind)+" "+name] = detail
+	a.degradedMu.Unlock()
 	a.event("integration_degraded", data)
 	return a.Store.Append("integration_degraded", data)
+}
+
+// DegradedIntegrations returns integrations stopped after failing to start in
+// this process, keyed "MCP name" or "LSP name". Safe to call during a run.
+func (a *Agent) DegradedIntegrations() map[string]string {
+	a.degradedMu.Lock()
+	defer a.degradedMu.Unlock()
+	out := make(map[string]string, len(a.degraded))
+	for k, v := range a.degraded {
+		out[k] = v
+	}
+	return out
 }

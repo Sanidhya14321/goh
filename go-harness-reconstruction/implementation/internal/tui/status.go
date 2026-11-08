@@ -32,8 +32,8 @@ func (m *model) openStatus() {
 	} else {
 		cfg := m.a.Config
 		configuration := "Configuration valid"
-		if cfg.Validate() != nil {
-			configuration = "Configuration needs attention"
+		if err := cfg.Validate(); err != nil {
+			configuration = "Configuration needs attention: " + oneLine(err.Error(), 160)
 		}
 		keyState := "No local key"
 		if cfg.EffectiveProtocol() == core.ChatGPTProtocol {
@@ -54,7 +54,7 @@ func (m *model) openStatus() {
 			}
 		}
 		lines = append(lines, configuration, "Model: "+cfg.Model, "Protocol: "+cfg.EffectiveProtocol(),
-			"Origin: "+origin, keyState, "", "# CONTEXT",
+			"Origin: "+origin, keyState, failoverStatus(cfg), "", "# CONTEXT",
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
 			fmt.Sprintf("Output reserve: %d tokens", cfg.OutputBudget),
 			fmt.Sprintf("Reported usage in this view: %d tokens", m.usage),
@@ -62,13 +62,21 @@ func (m *model) openStatus() {
 			"Agent: "+cfg.Agent+" · "+cfg.AgentMode, "Profile: "+cfg.Profile,
 			"Project: "+m.a.Store.Project, "Session: "+m.a.Store.ID,
 			fmt.Sprintf("Memory: %t · Checkpoints: %t", cfg.Memory, cfg.Snapshots),
+			"Theme: "+currentTheme,
 			"", "# INTEGRATIONS", "Entries describe local configuration.")
 		var entries []string
+		degraded := m.a.DegradedIntegrations()
+		describe := func(key string) string {
+			if detail, ok := degraded[key]; ok {
+				return key + " · failed and stopped: " + oneLine(detail, 120)
+			}
+			return key + " · configured, starts on demand"
+		}
 		for name := range cfg.MCP {
-			entries = append(entries, "MCP "+name+" · configured, starts on demand")
+			entries = append(entries, describe("MCP "+name))
 		}
 		for name := range cfg.LSP {
-			entries = append(entries, "LSP "+name+" · configured, starts on demand")
+			entries = append(entries, describe("LSP "+name))
 		}
 		sort.Strings(entries)
 		lines = append(lines, entries...)
@@ -166,4 +174,21 @@ func (m *model) statusView(width, height int) tea.View {
 	rows = append(rows, padding+cell("  ↑/↓ scroll · PgUp/PgDn · Home/End", boxWidth, muted, panel),
 		padding+cell("  p provider · m models · a agents · s settings", boxWidth, accent, panel))
 	return overlayView(m.infoPanel.backdrop, rows, left, top, width, height)
+}
+
+// failoverStatus summarizes explicit fallback profiles; none means a failed
+// request is reported, never sent elsewhere.
+func failoverStatus(cfg core.Config) string {
+	if len(cfg.FallbackProfiles) == 0 {
+		return "Failover: off (no fallback_profiles)"
+	}
+	return "Failover: " + strings.Join(cfg.FallbackProfiles, " → ") + " (before any response only)"
+}
+
+func oneLine(s string, max int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > max {
+		s = string(r[:max]) + "…"
+	}
+	return s
 }

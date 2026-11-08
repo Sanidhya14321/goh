@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC34 status diagnostics
+
+`1.0.0-rc.34` passed vet (macOS and Windows), the race suite, seven CLI
+scenarios, nineteen PTY scenarios and the install test. One PTY suite run
+failed and two immediate reruns passed; the failing scenario was not
+captured, so it is recorded as an unexplained flake. New tests check the
+validation reason, failover summary, theme line and integration states on
+`/status`, and that `DegradedIntegrations` returns a copy.
+
 ## RC33 queued prompts
 
 `1.0.0-rc.33` passed vet (macOS and Windows), the race suite, seven CLI and

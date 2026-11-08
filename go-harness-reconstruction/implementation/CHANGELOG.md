@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.34 — 2026-11-08
+
+- `/status` explains why the configuration needs attention, shows the
+  theme and explicit failover profiles (or that failover is off), and marks
+  MCP/LSP servers that failed to start and were stopped in this session.
 - Windows: deleting a session from the browser or CLI no longer fails
   (`29bf905`).
 

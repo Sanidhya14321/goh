@@ -1,8 +1,16 @@
-# Implementation progress — 7 November 2026
+# Implementation progress — 8 November 2026
 
 A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
+
+## RC34 status diagnostics milestone
+
+`/status` previously said only "Configuration needs attention". It now shows
+the validation error (validators never echo URLs, so no endpoint secret
+appears), the theme, explicit failover profiles or "Failover: off", and marks
+MCP/LSP servers that failed to start and were stopped in this process, read
+through a mutex-guarded copy so the screen can open during a run.
 
 ## RC33 queued prompts milestone
 

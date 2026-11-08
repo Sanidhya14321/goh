@@ -91,3 +91,27 @@ func TestResumedToolResultPresentation(t *testing.T) {
 		t.Fatal("resume lost a tool error", got)
 	}
 }
+
+func TestStatusExplainsConfigProblemsFailoverAndStoppedIntegrations(t *testing.T) {
+	cfg := core.Defaults()
+	cfg.Endpoint, cfg.Model, cfg.ContextWindow = "https://example.test/v1/chat/completions", "fixture", 32768
+	cfg.Keybinds = map[string]string{"no_such_action": "ctrl+q"}
+	cfg.MCP = map[string]core.MCPConfig{"broken": {Command: "unused"}, "fine": {Command: "unused"}}
+	a := &agent.Agent{Config: cfg, Store: &session.Store{ID: "fixture", Project: "/tmp/project"}, Grants: map[string]bool{}}
+	m := &model{a: a, width: 120, height: 36}
+	m.openStatus()
+	all := strings.Join(m.infoPanel.lines, "\n")
+	for _, expected := range []string{"needs attention: keybinds: unknown action", "Failover: off", "Theme: ",
+		"MCP fine · configured, starts on demand", "MCP broken · configured, starts on demand"} {
+		if !strings.Contains(all, expected) {
+			t.Fatalf("missing %q in:\n%s", expected, all)
+		}
+	}
+	cfg.FallbackProfiles = []string{"backup"}
+	if got := failoverStatus(cfg); !strings.Contains(got, "backup") || !strings.Contains(got, "before any response") {
+		t.Fatal("failover summary", got)
+	}
+	if got := oneLine("a\n\tb   c"+strings.Repeat("x", 300), 20); strings.ContainsAny(got, "\n\t") || len([]rune(got)) != 21 {
+		t.Fatal("oneLine", got)
+	}
+}
