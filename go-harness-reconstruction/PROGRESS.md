@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC56 default checkpoints milestone
+
+Checkpoints default to best effort, matching OpenCode's always-on snapshots
+without letting storage limits block edits. Explicit opt-in keeps the strict
+guarantee. Undo already reports uncheckpointed effects as not restorable.
+
 ## RC55 changes panel milestone
 
 `Agent.Checkpoints`/`CheckpointDiff` expose the snapshot store read-only to

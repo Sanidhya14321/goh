@@ -128,7 +128,11 @@ to the original conversation. Redo is available until you send a new prompt
 from the branch; after that the original conversation stays in `/sessions`.
 The original journal is never edited.
 
-File restoration needs snapshots (`"snapshots": true` or `--snapshots`).
+File restoration uses checkpoints, which are on by default in best-effort
+mode: if a checkpoint cannot be saved (for example storage limits), the edit
+still happens and undo lists it as not restorable. `"snapshots": true` or
+`--snapshots` makes them strict (an edit that cannot be checkpointed is
+refused); `"snapshots": false` turns them off.
 Without them, `/undo` still rewinds the conversation, and the notice lists the
 tools whose effects remain. Shell commands, MCP tools and any other effect without
 a checkpoint are never reverted; the notice names them. Every file's current

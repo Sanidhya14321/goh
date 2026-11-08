@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.56 — 2026-11-08
+
+- File checkpoints are on by default (best effort), as OpenCode snapshots
+  are, so `/undo`, timeline revert and `/changes` restore and show edits
+  without setup. If a checkpoint cannot be saved, the edit still happens and
+  is reported as not restorable. `"snapshots": true` keeps the previous
+  strict behavior; `"snapshots": false` turns them off. `/status` shows the
+  mode.
+- Fixed: an edit whose checkpoint was skipped is no longer reported as
+  interrupted.
+
 ## 1.0.0-rc.55 — 2026-11-08
 
 - `/changes` lists the files the agent changed in this session and shows

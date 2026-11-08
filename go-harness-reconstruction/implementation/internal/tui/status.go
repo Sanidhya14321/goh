@@ -66,7 +66,7 @@ func (m *model) openStatus() {
 			fmt.Sprintf("Turn limit: %d", cfg.MaxTurns), "", "# SESSION",
 			"Agent: "+cfg.Agent+" · "+cfg.AgentMode, "Profile: "+cfg.Profile,
 			"Project: "+m.a.Store.Project, "Session: "+m.a.Store.ID,
-			fmt.Sprintf("Memory: %t · Checkpoints: %t", cfg.Memory, cfg.Snapshots),
+			fmt.Sprintf("Memory: %t · Checkpoints: %s", cfg.Memory, checkpointMode(cfg)),
 			"Theme: "+currentTheme,
 			guidanceStatus(m.a.GuidanceFiles),
 			"", "# INTEGRATIONS", "Entries describe local configuration.")
@@ -218,4 +218,14 @@ func guidanceStatus(files []string) string {
 		return "Instructions: none (no AGENTS.md or CLAUDE.md)"
 	}
 	return "Instructions: " + oneLine(Safe(strings.Join(files, ", ")), 160)
+}
+
+func checkpointMode(cfg core.Config) string {
+	switch {
+	case !cfg.Snapshots:
+		return "off"
+	case cfg.SnapshotsStrict:
+		return "on (strict: an edit that cannot be checkpointed is refused)"
+	}
+	return "on (best effort)"
 }

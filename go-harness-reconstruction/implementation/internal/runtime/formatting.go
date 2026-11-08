@@ -33,20 +33,26 @@ func (a *Agent) executeMutation(ctx context.Context, c core.Call, paths []string
 		return tools.Result{Error: true, Content: err.Error()}
 	}
 	var manager *snapshots.Manager
-	snapshotID := ""
+	snapshotID, skippedCheckpoint := "", ""
 	if a.Config.Snapshots {
 		manager, err = snapshots.Open(a.Store.Project, a.snapshotDirectory())
-		if err != nil {
-			return tools.Result{Error: true, Content: err.Error()}
+		if err == nil {
+			defer manager.Close()
+			snapshotID, err = manager.Capture(ctx, paths)
 		}
-		defer manager.Close()
-		snapshotID, err = manager.Capture(ctx, paths)
-		if err != nil {
-			if snapshotID != "" {
-				return boundedResult(map[string]any{"status": "interrupted", "snapshot_id": snapshotID, "error": err.Error()}, true)
-			}
+		switch {
+		case err == nil:
+		case snapshotID != "":
+			return boundedResult(map[string]any{"status": "interrupted", "snapshot_id": snapshotID, "error": err.Error()}, true)
+		case a.Config.SnapshotsStrict || ctx.Err() != nil:
 			return tools.Result{Error: true, Content: err.Error()}
+		default:
+			// Default (best-effort) checkpoints never block an edit; undo will
+			// list this change as not restorable.
+			skippedCheckpoint = err.Error()
 		}
+	}
+	if snapshotID != "" {
 		data := map[string]any{"id": snapshotID, "paths": paths, "tool_call_id": c.ID}
 		if err = a.Store.Append("snapshot_captured", data); err != nil {
 			return boundedResult(map[string]any{"status": "interrupted", "snapshot_id": snapshotID, "error": err.Error()}, true)
@@ -60,6 +66,9 @@ func (a *Agent) executeMutation(ctx context.Context, c core.Call, paths []string
 	}
 	if snapshotID != "" {
 		body["snapshot_id"] = snapshotID
+	}
+	if skippedCheckpoint != "" {
+		body["checkpoint_skipped"] = skippedCheckpoint
 	}
 	uncertain := ctx.Err() != nil || body["status"] == "interrupted" || body["status"] == "timed_out" || body["status"] == "cancelled" || body["status"] == "cleanup_incomplete"
 	if uncertain {
@@ -120,7 +129,7 @@ func (a *Agent) executeMutation(ctx context.Context, c core.Call, paths []string
 			}
 		}
 	}
-	if manager != nil {
+	if manager != nil && snapshotID != "" {
 		record, e := manager.Seal(ctx, snapshotID)
 		if e != nil {
 			body["status"] = "interrupted"

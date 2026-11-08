@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC56 default checkpoints
+
+`1.0.0-rc.56` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-three PTY scenarios. Config tests: no `snapshots` key means on and
+best effort, `true` means strict, `false` means off, and `Defaults()` stays
+off for tests. A runtime test makes checkpoint storage unusable and checks
+that a default edit succeeds with `checkpoint_skipped` while a strict edit is
+refused with the file unchanged. Writing that test found that a skipped
+capture still attempted to seal an empty checkpoint and reported the edit
+as interrupted; fixed.
+
 ## RC55 changes panel
 
 `1.0.0-rc.55` passed vet (macOS and Windows), the race suite, eight CLI and

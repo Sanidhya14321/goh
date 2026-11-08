@@ -55,25 +55,28 @@ type Config struct {
 	// Keybinds remaps chat actions; see DefaultKeybinds.
 	Keybinds map[string]string `json:"keybinds,omitempty"`
 	// Theme selects a built-in color theme (dark, light, high-contrast).
-	Theme           string                     `json:"theme,omitempty"`
-	Formatters      map[string]FormatterConfig `json:"formatters,omitempty"`
-	Snapshots       bool                       `json:"snapshots,omitempty"`
-	LSP             map[string]LSPConfig       `json:"lsp,omitempty"`
-	Commands        map[string]CommandConfig   `json:"commands,omitempty"`
-	Endpoint        string                     `json:"endpoint"`
-	BaseURL         string                     `json:"base_url,omitempty"`
-	Model           string                     `json:"model"`
-	APIKeyEnv       string                     `json:"api_key_env"`
-	ContextWindow   int                        `json:"context_window"`
-	OutputBudget    int                        `json:"output_budget"`
-	OutputParameter string                     `json:"output_parameter"`
-	MaxTurns        int                        `json:"max_turns"`
-	SessionDir      string                     `json:"session_dir"`
-	MCP             map[string]MCPConfig       `json:"mcp,omitempty"`
-	Profile         string                     `json:"profile,omitempty"`
-	Agent           string                     `json:"agent,omitempty"`
-	Profiles        map[string]ModelProfile    `json:"profiles,omitempty"`
-	Agents          map[string]AgentProfile    `json:"agents,omitempty"`
+	Theme      string                     `json:"theme,omitempty"`
+	Formatters map[string]FormatterConfig `json:"formatters,omitempty"`
+	Snapshots  bool                       `json:"snapshots,omitempty"`
+	// SnapshotsStrict is set when checkpoints were requested explicitly: a
+	// failed capture then blocks the edit. Default checkpoints are best effort.
+	SnapshotsStrict bool                     `json:"-"`
+	LSP             map[string]LSPConfig     `json:"lsp,omitempty"`
+	Commands        map[string]CommandConfig `json:"commands,omitempty"`
+	Endpoint        string                   `json:"endpoint"`
+	BaseURL         string                   `json:"base_url,omitempty"`
+	Model           string                   `json:"model"`
+	APIKeyEnv       string                   `json:"api_key_env"`
+	ContextWindow   int                      `json:"context_window"`
+	OutputBudget    int                      `json:"output_budget"`
+	OutputParameter string                   `json:"output_parameter"`
+	MaxTurns        int                      `json:"max_turns"`
+	SessionDir      string                   `json:"session_dir"`
+	MCP             map[string]MCPConfig     `json:"mcp,omitempty"`
+	Profile         string                   `json:"profile,omitempty"`
+	Agent           string                   `json:"agent,omitempty"`
+	Profiles        map[string]ModelProfile  `json:"profiles,omitempty"`
+	Agents          map[string]AgentProfile  `json:"agents,omitempty"`
 	// SkippedAgentFiles explains project agent files that were not loaded.
 	SkippedAgentFiles []SkippedAgentFile `json:"-"`
 	SkillPaths        []string           `json:"skill_paths,omitempty"`
@@ -113,7 +116,8 @@ func LoadConfig(path string) (Config, error) {
 		if e != nil {
 			return c, e
 		}
-
+	} else {
+		c.Snapshots = true // best-effort checkpoints by default, as with a file
 	}
 	if v, ok := os.LookupEnv("HARNESS_PROFILE"); ok {
 		c.Profile = v
@@ -142,6 +146,16 @@ func DecodeConfig(raw string) (Config, error) {
 	}
 	if err := d.Decode(new(any)); err != io.EOF {
 		return c, fmt.Errorf("configuration contains trailing JSON content")
+	}
+	// File checkpoints default to on (best effort), as OpenCode snapshots
+	// do; an explicit "snapshots" setting is honored, and true is strict.
+	var keys map[string]json.RawMessage
+	if json.Unmarshal([]byte(raw), &keys) == nil {
+		if _, set := keys["snapshots"]; set {
+			c.SnapshotsStrict = c.Snapshots
+		} else {
+			c.Snapshots = true
+		}
 	}
 	return c, nil
 }

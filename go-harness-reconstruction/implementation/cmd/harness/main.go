@@ -207,6 +207,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.APIKeyEnv = *apiKeyEnv
 		case "snapshots":
 			c.Snapshots = *snapshotsEnabled
+			c.SnapshotsStrict = *snapshotsEnabled
 		case "context-window":
 			c.ContextWindow = *window
 		case "output-budget":
