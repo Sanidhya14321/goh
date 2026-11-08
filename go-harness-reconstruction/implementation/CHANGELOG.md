@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.65 — 2026-11-08
+
+- `compaction_threshold` (50–95, default 75) sets how full the context gets
+  before automatic compaction; `/status` shows it. Compaction still runs
+  whenever the next request would not otherwise fit.
+
 ## 1.0.0-rc.64 — 2026-11-08
 
 - `/details` shows or hides full tool output; hidden, each result is one

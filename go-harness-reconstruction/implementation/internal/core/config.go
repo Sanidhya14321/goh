@@ -61,6 +61,10 @@ type Config struct {
 	// ReasoningEffort asks OpenAI reasoning models for minimal, low, medium or
 	// high effort; empty leaves the provider default.
 	ReasoningEffort string `json:"reasoning_effort,omitempty"`
+	// CompactionThreshold is the context fill (percent, 50-95) at which
+	// automatic compaction starts; 0 means the default of 75. Compaction
+	// always runs when the next request would not otherwise fit.
+	CompactionThreshold int `json:"compaction_threshold,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -191,6 +195,9 @@ func (c Config) Validate() error {
 	if err := c.ValidateReasoningEffort(); err != nil {
 		return err
 	}
+	if t := c.CompactionThreshold; t != 0 && (t < 50 || t > 95) {
+		return fmt.Errorf("compaction_threshold must be between 50 and 95 (percent)")
+	}
 	if _, err := ResolveKeymap(c.Keybinds); err != nil {
 		return err
 	}
@@ -298,4 +305,12 @@ func (c Config) ValidateReasoningEffort() error {
 		return fmt.Errorf("reasoning_effort is not supported for the anthropic protocol yet")
 	}
 	return nil
+}
+
+// CompactAt returns the automatic compaction trigger as a percentage.
+func (c Config) CompactAt() int {
+	if c.CompactionThreshold == 0 {
+		return 75
+	}
+	return c.CompactionThreshold
 }

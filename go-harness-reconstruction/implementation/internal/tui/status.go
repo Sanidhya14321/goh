@@ -62,6 +62,7 @@ func (m *model) openStatus() {
 			"Origin: "+origin, keyState, failoverStatus(cfg), "", "# CONTEXT",
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
 			fmt.Sprintf("Output reserve: %d tokens", cfg.OutputBudget),
+			fmt.Sprintf("Automatic compaction at %d%% of the window", cfg.CompactAt()),
 			fmt.Sprintf("Reported usage in this view: %d tokens", m.usage),
 			fmt.Sprintf("Context at latest reply: %d tokens", m.contextTokens),
 			fmt.Sprintf("Turn limit: %d", cfg.MaxTurns), "", "# SESSION",

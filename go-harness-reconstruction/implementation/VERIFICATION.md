@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC65 compaction threshold
+
+`1.0.0-rc.65` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios. A runtime test fills about 60% of a 100k window
+and checks no summary is requested at the default 75% but one is at 55%;
+validation rejects values outside 50–95.
+
 ## RC64 tool details toggle
 
 `1.0.0-rc.64` passed vet (macOS and Windows), the race suite, eight CLI and

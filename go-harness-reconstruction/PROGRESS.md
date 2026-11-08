@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC65 compaction threshold milestone
+
+The early compaction trigger is configurable; the fit-based hard trigger
+is unchanged, so a high threshold cannot cause overflow errors.
+
 ## RC64 tool details milestone
 
 Tool results render through summary/detail marker lines filtered at display

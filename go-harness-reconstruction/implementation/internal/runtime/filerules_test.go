@@ -12,7 +12,10 @@ func TestFileRulesDecideEdits(t *testing.T) {
 	a, _ := testAgent(t)
 	a.Config.FileRules = []core.ShellRule{{Match: "*.env", Action: "deny"}, {Match: "notes/*", Action: "allow"}, {Match: "go.mod", Action: "ask"}}
 	asked := 0
-	a.Approve = func(context.Context, core.Permission) (core.Decision, error) { asked++; return core.Decision{Allow: true}, nil }
+	a.Approve = func(context.Context, core.Permission) (core.Decision, error) {
+		asked++
+		return core.Decision{Allow: true}, nil
+	}
 	perm := func(tool string, args any) bool {
 		b, _ := json.Marshal(args)
 		d, err := a.Permission(context.Background(), core.Permission{Tool: tool, Arguments: b})

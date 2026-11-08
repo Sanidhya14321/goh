@@ -67,4 +67,6 @@ func (m *model) toggleDetails() {
 }
 
 // displayLog is the transcript as rendered (timestamps and details applied).
-func (m *model) displayLog() string { return withDetails(withStamps(m.log, m.timestamps), !m.hideDetails) }
+func (m *model) displayLog() string {
+	return withDetails(withStamps(m.log, m.timestamps), !m.hideDetails)
+}

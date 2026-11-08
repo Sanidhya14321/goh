@@ -769,7 +769,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if available < 1024 {
 		available = a.Config.ContextWindow - a.Config.OutputBudget - 1024
 	}
-	if !force && used < available && used < a.Config.ContextWindow*3/4 {
+	if !force && used < available && used < a.Config.ContextWindow*a.Config.CompactAt()/100 {
 		return nil
 	}
 	// Preserve the active request and the two most recent complete assistant
