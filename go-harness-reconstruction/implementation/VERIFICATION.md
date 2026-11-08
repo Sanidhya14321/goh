@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC54 continue the last session
+
+`1.0.0-rc.54` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-three PTY scenarios. `session.Latest` is tested with sessions of
+different ages across two projects. A manual run of the built binary against
+the scripted model sent `first prompt`, then `--continue second prompt`,
+and both landed in one journal; `--continue` with `--session` and
+`--continue` in a project without sessions were refused with messages.
+
 ## RC53 run with words and piped input
 
 `1.0.0-rc.53` passed vet (macOS and Windows), the race suite, eight CLI

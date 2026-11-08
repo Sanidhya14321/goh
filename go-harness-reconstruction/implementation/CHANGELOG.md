@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.54 — 2026-11-08
+
+- `--continue` (for `goh run` and `goh chat`) resumes this project's most
+  recent session, and `goh run --session ID` continues a specific one, as
+  with `opencode run --continue`. With no previous session, `--continue`
+  says so instead of starting a new one.
+
 ## 1.0.0-rc.53 — 2026-11-08
 
 - `goh run fix the failing tests` takes the message as plain words, like

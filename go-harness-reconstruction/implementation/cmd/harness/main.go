@@ -122,7 +122,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	sessionDir := f.String("session-dir", "", "private session storage")
 	allow := f.String("allow", "", "comma-separated run grants: write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
-	selectedSession := f.String("session", "", "saved session ID for chat")
+	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
+	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
 	ack := f.Bool("acknowledge-uncertain", false, "acknowledge interrupted effects after inspecting project")
 	// Flags and message words may be interleaved: goh run fix the tests --model x
 	var words []string
@@ -236,7 +237,24 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e = c.Validate(); e != nil {
 		return e
 	}
-	if command == "chat" {
+	if (command == "chat" || command == "run") && (*continueLast || *selectedSession != "") {
+		if *continueLast && *selectedSession != "" {
+			return errors.New("use either --continue or --session, not both")
+		}
+		resumeID = *selectedSession
+		if *continueLast {
+			root, x := filepath.Abs(*project)
+			if x == nil {
+				root, x = filepath.EvalSymlinks(root)
+			}
+			if x != nil {
+				return x
+			}
+			if resumeID, x = session.Latest(c.SessionDir, root); x != nil {
+				return x
+			}
+		}
+	} else if command == "chat" {
 		resumeID = *selectedSession
 		if resumeID == "" && !skipChooser {
 			infos, x := session.List(c.SessionDir)

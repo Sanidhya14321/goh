@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC54 continue milestone
+
+`--continue` picks the newest readable session for the canonical project
+path (damaged journals skipped); `run` gains `--session`.
+
 ## RC53 run ergonomics milestone
 
 `goh run` accepts OpenCode-style positional messages with interleaved flags
