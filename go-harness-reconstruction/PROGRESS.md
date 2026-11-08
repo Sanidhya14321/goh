@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC108 file mentions milestone
+
+OpenCode-style content attachments for `@path`, bounded and confined to
+the project.
+
 ## RC107 command suggestions milestone
 
 Helpful failures for mistyped slash commands.

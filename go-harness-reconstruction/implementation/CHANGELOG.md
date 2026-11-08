@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.108 — 2026-11-09
+
+- `@path` mentions of text files now attach the file's contents to the
+  prompt, as in OpenCode, so the model can use them without a read tool
+  call. Limits: up to 5 files, 64 KiB each and 256 KiB in total, regular
+  UTF-8 files inside the project only (read through os.Root, so symlink
+  escapes are refused). Images keep their RC50 attachment path. Missing
+  paths, directories, binaries, oversized files and agent names such as
+  `@general` stay plain mentions.
+
 ## 1.0.0-rc.107 — 2026-11-09
 
 - An unknown slash command now suggests the nearest defined one ("did you

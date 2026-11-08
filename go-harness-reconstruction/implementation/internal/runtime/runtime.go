@@ -347,6 +347,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if len(mentioned) > 0 {
 		a.event("agents_mentioned", map[string]any{"agents": mentioned})
 	}
+	prompt, files := a.withFileMentions(prompt)
+	if len(files) > 0 {
+		a.event("files_attached", map[string]any{"paths": files})
+	}
 	images, imageErr := a.promptImages(prompt)
 	if imageErr != nil {
 		return "failed", imageErr

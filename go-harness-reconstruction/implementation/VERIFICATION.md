@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC108 file mentions
+
+`TestFileMentionsInlineTextFiles` checks that a text file is attached once and that these are not:
+- binaries, directories and missing files;
+- a symlink pointing outside the project;
+- agent names and images.
+
+It also checks that the original prompt text is unchanged. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC107 command suggestions
 
 `TestUnknownCommandSuggestsNearest` covers a typo (suggestion within edit distance 2) and an unrelated name (no suggestion, but still the `/commands` pointer). Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
