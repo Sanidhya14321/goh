@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC77 run --title
+
+The acceptance `stdin-words` scenario now passes `--title` and checks the saved metadata. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
+
 ## RC76 run --file
 
 `TestAttachFiles` covers inline text, image mentions, absolute in-project paths and refusal of `../`, binary and missing files. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.

@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC77 run --title milestone
+
+Headless runs can name their session through the shared metadata sidecar.
+
 ## RC76 run --file milestone
 
 Headless runs can attach project files; reads go through os.Root so the

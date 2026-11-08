@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.77 — 2026-11-08
+
+- `goh run --title TEXT` names the session, as OpenCode's `run --title`
+  does; the title appears in `/sessions` and session lists.
+
 ## 1.0.0-rc.76 — 2026-11-08
 
 - `goh run --file PATH` (repeatable) attaches project files to the message,

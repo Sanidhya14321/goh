@@ -98,7 +98,7 @@ func verify(harness, fixture string) error {
 		}
 		if scenario == "stdin-words" {
 			// Message as words around piped standard input, flags interleaved.
-			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
+			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--title", "Piped fixture", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
 		}
 		cmd := exec.CommandContext(ctx, harness, args...)
 		if scenario == "stdin-words" {
@@ -128,6 +128,12 @@ func verify(harness, fixture string) error {
 		}
 		if len(events) == 0 {
 			return fmt.Errorf("%s missing events: %s", scenario, stderr.String())
+		}
+		if scenario == "stdin-words" {
+			meta, err := os.ReadFile(filepath.Join(root, "sessions", events[0].SessionID+".meta.json"))
+			if err != nil || !strings.Contains(string(meta), "Piped fixture") {
+				return fmt.Errorf("stdin-words: --title not saved: %v %s", err, meta)
+			}
 		}
 		terminal := 0
 		status := ""

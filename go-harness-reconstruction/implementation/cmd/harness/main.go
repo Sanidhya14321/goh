@@ -130,6 +130,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
+	title := f.String("title", "", "title for the session (shown in pickers and lists)")
 	var files []string
 	f.Func("file", "attach a project file to the run message (repeatable; images become @path)", func(v string) error {
 		files = append(files, v)
@@ -322,6 +323,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		return e
 	}
 	defer store.Close()
+	if t := session.CleanTitle(*title); t != "" {
+		if e := session.SetTitle(c.SessionDir, store.ID, t); e != nil {
+			return e
+		}
+	}
 	a, e := agent.New(c, store)
 	if e != nil {
 		return e
