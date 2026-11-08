@@ -98,7 +98,7 @@ func verify(harness, fixture string) error {
 		}
 		if scenario == "stdin-words" {
 			// Message as words around piped standard input, flags interleaved.
-			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--title", "Piped fixture", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
+			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--title", "Piped fixture", "--reasoning-effort", "off", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
 		}
 		cmd := exec.CommandContext(ctx, harness, args...)
 		if scenario == "stdin-words" {

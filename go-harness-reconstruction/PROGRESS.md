@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC87 reasoning-effort flag milestone
+
+Per-invocation effort override, validated with the config rules.
+
 ## RC86 effort command milestone
 
 Session-scoped reasoning effort; the stock provider client is rebuilt

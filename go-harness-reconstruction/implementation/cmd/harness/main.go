@@ -167,6 +167,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	model := f.String("model", "", "model name")
 	window := f.Int("context-window", 0, "configured context window")
 	output := f.Int("output-budget", 0, "response token reserve")
+	effort := f.String("reasoning-effort", "", "minimal, low, medium or high for OpenAI reasoning models; off disables")
 	sessionDir := f.String("session-dir", "", "private session storage")
 	allow := f.String("allow", "", "comma-separated run grants: write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
@@ -290,6 +291,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.ContextWindow = *window
 		case "output-budget":
 			c.OutputBudget = *output
+		case "reasoning-effort":
+			c.ReasoningEffort = strings.ToLower(*effort)
+			if c.ReasoningEffort == "off" {
+				c.ReasoningEffort = ""
+			}
 		}
 	})
 

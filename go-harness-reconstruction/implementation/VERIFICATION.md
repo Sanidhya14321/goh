@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC87 reasoning-effort flag
+
+- The acceptance `stdin-words` scenario passes `--reasoning-effort off`.
+- A manual run confirmed that an invalid level is refused before any request.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC86 effort command
 
 - `TestSetReasoningEffort` checks validation, provider rebuild and turning effort off.

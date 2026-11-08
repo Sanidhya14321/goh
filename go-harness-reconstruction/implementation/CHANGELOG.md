@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.87 — 2026-11-08
+
+- `goh run` and `goh chat` accept `--reasoning-effort
+  minimal|low|medium|high|off`, overriding the configured level for that
+  invocation (the CLI counterpart of `/effort` and OpenCode's `--variant`).
+  Invalid levels are refused before any request.
+
 ## 1.0.0-rc.86 — 2026-11-08
 
 - `/effort minimal|low|medium|high|off` changes reasoning effort for the
