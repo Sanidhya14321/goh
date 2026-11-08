@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.42 — 2026-11-08
+
+- Background jobs: the agent can start long-running commands (dev servers,
+  watchers) with `job_start` (approval required), read their output with
+  `job_output` and stop them with `job_stop`. `/jobs` lists them, shows
+  output and stops one with Ctrl+K. At most 8 run at once; each stop ends
+  the whole process tree. Jobs end when GoHarness exits or the chat
+  switches session, model or agent, and are never restarted on resume.
+  Subagents and plan mode cannot start jobs.
+
 ## 1.0.0-rc.41 — 2026-11-08
 
 - `!command` in the composer runs a shell command directly, as in OpenCode,

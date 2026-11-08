@@ -254,6 +254,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
+	// Background jobs belong to this chat and never outlive it.
+	defer a.Tools.StopJobs()
 	if len(store.Pending()) > 0 && !*ack {
 		return errors.New("uncertain tool effects: inspect session/project, then resume with --acknowledge-uncertain; no tools replayed")
 	}

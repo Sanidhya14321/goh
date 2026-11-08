@@ -336,6 +336,7 @@ func (t *turn) run(ctx context.Context, text string, mcp map[string]core.MCPConf
 	if err != nil {
 		return -32603, "Cannot initialize the runtime"
 	}
+	defer a.Tools.StopJobs() // background jobs end with the prompt
 	a.ExternalFactory = func() agent.External {
 		return mcpclient.New(mcp, store.Project, a.Permission)
 	}

@@ -68,6 +68,10 @@ func (m *model) View() tea.View {
 		m.fork.width, m.fork.height = width, height
 		return m.fork.View()
 	}
+	if m.jobsPicker != nil {
+		m.jobsPicker.width, m.jobsPicker.height = width, height
+		return m.jobsPicker.View()
+	}
 	if m.copyPicker != nil {
 		m.copyPicker.width, m.copyPicker.height = width, height
 		return m.copyPicker.View()

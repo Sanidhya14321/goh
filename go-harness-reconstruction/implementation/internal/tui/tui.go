@@ -90,6 +90,7 @@ type model struct {
 	keys                 core.Keymap
 	themePicker          *optionPicker
 	copyPicker           *optionPicker
+	jobsPicker           *optionPicker
 	timestamps           bool
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
@@ -290,6 +291,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		}
 		return m, m.afterRun(v)
+	case jobStoppedMsg:
+		m.status = v.id + " " + v.status
+		return m, nil
 	case tea.PasteMsg:
 		if m.export != nil {
 			return m.exportUpdate(v)
@@ -302,6 +306,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if m.copyPicker != nil {
 			return m.copyUpdate(v)
+		}
+		if m.jobsPicker != nil {
+			return m.jobsUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -335,6 +342,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if m.copyPicker != nil {
 			return m.copyUpdate(v)
+		}
+		if m.jobsPicker != nil {
+			return m.jobsUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -453,6 +463,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/timestamps" {
 				m.input, m.inputCursor = "", 0
 				m.toggleTimestamps()
+				return m, nil
+			}
+			if strings.TrimSpace(prompt) == "/jobs" {
+				m.input, m.inputCursor = "", 0
+				m.openJobs()
 				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/copy" {

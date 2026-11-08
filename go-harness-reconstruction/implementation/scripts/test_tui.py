@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo'), ('user_shell','text')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo'), ('user_shell','text'), ('background_job','job')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -301,6 +301,16 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         time.sleep(.02)
                     assert finished, 'manual compaction did not finish durably'
                     time.sleep(.05)
+                elif case == 'background_job':
+                    (root/'job.pid').unlink(missing_ok=True)
+                    wait_for(b'APPROVAL: job_start')
+                    os.write(master, b'y')
+                    wait_for(b'Background job started')
+                    for attempt in range(250):
+                        if (root/'job.pid').exists() and (root/'job.pid').read_text().strip(): break
+                        time.sleep(.02)
+                    job_pid=int((root/'job.pid').read_text())
+                    os.kill(job_pid, 0)  # running while the chat is open
                 elif case == 'edit_approval':
                     wait_for(b'APPROVAL: edit_file')
                     os.write(master, b'y')
@@ -359,6 +369,13 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
             restored = after == expected
             if not restored:
                 raise AssertionError(f'{case}: terminal attributes not restored: before={original!r}; after={termios.tcgetattr(slave)!r}')
+            if case == 'background_job':
+                for attempt in range(250):
+                    try: os.kill(job_pid, 0)
+                    except ProcessLookupError: break
+                    time.sleep(.02)
+                else:
+                    raise AssertionError('background job outlived GoHarness')
             if case != 'termination' and code != 0:
                 raise AssertionError(f'{case}: unexpected exit {code}')
             reports.append({'scenario': case, 'exit_code': code, 'terminal_attributes_restored': restored})

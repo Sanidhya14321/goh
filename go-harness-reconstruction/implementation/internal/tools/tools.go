@@ -43,6 +43,7 @@ type Engine struct {
 	mapMu               sync.Mutex
 	mapCache            map[string]mapCacheEntry
 	mapOrder            []string
+	jobs                jobTable
 }
 type args struct {
 	Path     string `json:"path,omitempty"`
@@ -115,7 +116,7 @@ func (*Engine) Definitions() []Definition {
 	edit["new_text"] = str()
 	edit["expected_sha256"] = str()
 	edit["replace_all"] = map[string]any{"type": "boolean"}
-	return []Definition{
+	return append([]Definition{
 		{"repo_map", "Inspect a bounded Go declaration map without function bodies. Optional path/query filters and max500 symbols; reports content hashes, scan bounds and syntax errors. No compile/type-checking or external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
 		{"read_artifact", "Read a retained shell/formatter output artifact by session-local artifact_id; byte offset or tail, max8192 bytes. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}}, "id")},
 		{"list_files", "List project files, skipping .git, node_modules and symlinks; at most 10000 entries.", s(list)},
@@ -128,7 +129,7 @@ func (*Engine) Definitions() []Definition {
 		{"write_file", "Create a file, or replace an existing file with expected_sha256.", s(write, "path", "content")},
 		{"edit_file", "Replace exact text against expected_sha256; one occurrence unless replace_all.", s(edit, "path", "old_text", "new_text", "expected_sha256")},
 		{"shell", "Run a shell command with owned process-group cleanup. This is not sandboxed.", s(map[string]any{"command": str(), "cwd": str(), "timeout_seconds": number(1, 600)}, "command")},
-	}
+	}, jobDefinitions(s, str, number)...)
 }
 func decode(name string, raw json.RawMessage) (args, error) {
 	var a args
@@ -346,6 +347,9 @@ func (e *Engine) mutation(r *os.Root, name string, a args) (before, after []byte
 	return
 }
 func (e *Engine) Prepare(name string, raw json.RawMessage) (string, bool, error) {
+	if isJobTool(name) {
+		return e.prepareJob(name, raw)
+	}
 	if name == "read_artifact" {
 		return e.prepareArtifact(raw)
 	}
@@ -480,6 +484,9 @@ func fileMutation(name string) bool {
 }
 
 func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) Result {
+	if isJobTool(name) {
+		return e.executeJob(ctx, name, raw)
+	}
 	if name == "read_artifact" {
 		return e.readArtifact(ctx, raw)
 	}

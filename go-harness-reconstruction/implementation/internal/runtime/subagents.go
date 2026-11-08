@@ -229,6 +229,7 @@ func (a *Agent) executeTask(ctx context.Context, raw json.RawMessage) tools.Resu
 	if e != nil {
 		return tools.Result{Error: true, Content: e.Error()}
 	}
+	defer child.Tools.StopJobs() // policy already refuses child jobs; belt and braces
 	child.depth = a.depth + 1
 	if a.ChildModelFactory != nil {
 		child.Provider = a.ChildModelFactory(config, store)

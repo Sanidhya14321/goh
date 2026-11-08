@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC42 background jobs
+
+`1.0.0-rc.42` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios (two consecutive runs). The new `background_job`
+scenario approves a scripted `job_start`, confirms the job's grandchild
+process is alive while the chat is open and gone after GoHarness exits.
+Tool tests cover output capture and exit codes, stopping a job together with
+a grandchild (Unix), the eight-job limit, `StopJobs`, argument and
+directory validation, and that only `job_output` skips approval. Policy
+tests: plan mode may read but not start or stop jobs; subagents cannot
+start them. A TUI test lists a job, shows its output under its own title,
+keeps `r` from replacing it and stops the job. Windows job stopping is
+covered only by vet and the shared process-group code, not a native test.
+A hard kill of GoHarness (SIGKILL) cannot run cleanup and may orphan jobs.
+
 ## RC41 typed shell commands
 
 `1.0.0-rc.41` passed vet (macOS and Windows), the race suite, seven CLI and

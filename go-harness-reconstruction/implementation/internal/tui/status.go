@@ -12,6 +12,7 @@ import (
 )
 
 type statusPanel struct {
+	title    string // empty for the status screen; others cannot refresh
 	lines    []string
 	backdrop string
 	offset   int
@@ -140,7 +141,9 @@ func (m *model) statusKey(key string) (tea.Model, tea.Cmd) {
 		width := max(1, min(82, m.width-4)-4)
 		m.infoPanel.offset = len(terminalRows(strings.Join(m.infoPanel.lines, "\n"), width))
 	case "r":
-		m.openStatus()
+		if m.infoPanel.title == "" {
+			m.openStatus()
+		}
 	case "p", "m", "a", "s":
 		action := map[string]string{"p": "provider", "m": "models", "a": "agents", "s": "settings"}[key]
 		m.infoPanel = nil
@@ -169,8 +172,12 @@ func (m *model) statusView(width, height int) tea.View {
 	m.infoPanel.offset = offset
 	top := max(0, (height-visible-5)/2)
 	rows := make([]string, top)
-	rows = append(rows, padding+cell("  GoHarness  /  Status", boxWidth, foreground, panel),
-		padding+cell("  Local snapshot · r refresh · Esc back", boxWidth, muted, panel))
+	title, hint := "Status", "  Local snapshot · r refresh · Esc back"
+	if m.infoPanel.title != "" {
+		title, hint = m.infoPanel.title, "  Snapshot · Esc back"
+	}
+	rows = append(rows, padding+cell("  GoHarness  /  "+title, boxWidth, foreground, panel),
+		padding+cell(hint, boxWidth, muted, panel))
 	for _, row := range content[offset : offset+visible] {
 		rows = append(rows, padding+cell("  "+row.text, boxWidth, row.fg, panel))
 	}

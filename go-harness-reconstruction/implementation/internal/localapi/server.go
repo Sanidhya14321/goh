@@ -248,6 +248,7 @@ func (s *Server) prompt(w http.ResponseWriter, r *http.Request) {
 		problem(w, http.StatusInternalServerError, "cannot initialize session runtime")
 		return
 	}
+	defer a.Tools.StopJobs() // background jobs end with the request
 	a.ExternalFactory = func() agent.External { return mcpclient.New(s.config.MCP, store.Project, a.Permission) }
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	controller := http.NewResponseController(w)

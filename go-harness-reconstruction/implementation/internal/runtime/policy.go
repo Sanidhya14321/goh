@@ -11,7 +11,7 @@ import (
 func (a *Agent) isPlan() bool { return a.Config.AgentMode == "plan" || a.Config.Agent == "plan" }
 func (a *Agent) allowedInPlan(name string) bool {
 	switch name {
-	case "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task":
+	case "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task", "job_output":
 		return true
 	}
 	return false
@@ -20,6 +20,9 @@ func (a *Agent) checkMode(name string) error {
 	base := strings.TrimPrefix(name, "child:")
 	if a.depth >= 1 && name == "task" {
 		return fmt.Errorf("nested subagent delegation is disabled")
+	}
+	if a.depth >= 1 && (base == "job_start" || base == "job_stop") {
+		return fmt.Errorf("subagents cannot manage background jobs; jobs belong to the main chat")
 	}
 	if a.isPlan() && !a.allowedInPlan(base) {
 		return fmt.Errorf("tool %q is disabled by read-only plan mode; grants and instructions cannot enable it", name)

@@ -106,6 +106,12 @@ func serve(w http.ResponseWriter, r *http.Request, scenario string) {
 		default:
 			s.Text = "Fixture edit and verification complete"
 		}
+	case "job":
+		if count == 0 {
+			call("job_start", map[string]any{"command": "sleep 300 & echo $! > job.pid; echo job-running; wait"})
+		} else {
+			s.Text = "Background job started"
+		}
 	case "shell":
 		if count == 0 {
 			call("shell", map[string]any{"command": "printf fixture-shell", "timeout_seconds": 5})

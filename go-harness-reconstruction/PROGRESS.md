@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC42 background jobs milestone
+
+Backlog R15: `job_start`/`job_output`/`job_stop` tools on the tool engine,
+reusing the owned process-group termination from `shell`. Jobs are
+process-lifetime state, never journaled for replay: every agent owner
+(chat, local API, ACP, child) stops its jobs when it is discarded. The
+journal still records the approved `job_start` call, so undo reports it as
+unrestorable.
+
 ## RC41 typed shell milestone
 
 `Agent.RunShell` runs `!command` through the same journaled path as model
