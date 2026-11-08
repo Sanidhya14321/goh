@@ -32,6 +32,7 @@ var paletteEntries = []paletteEntry{
 	{"/jobs", "Background jobs: view output or stop"},
 	{"/changes", "Files changed in this session, with diffs"},
 	{"/timestamps", "Show or hide when each prompt was sent"},
+	{"/effort", "Reasoning effort for this session: /effort low|medium|high|off"},
 	{"/thinking", "Show or hide the model's reasoning"},
 	{"/details", "Show or hide full tool output"},
 	{"/find", "Search the conversation: /find text"},
@@ -114,7 +115,7 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if entry.command == "/fork" {
 				return m, m.openFork()
 			}
-			if entry.command == "/find" || entry.command == "/rename" {
+			if entry.command == "/find" || entry.command == "/rename" || entry.command == "/effort" {
 				m.palette = false
 				m.input = entry.command + " "
 				m.inputCursor = len([]rune(m.input))

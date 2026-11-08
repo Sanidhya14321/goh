@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC86 effort command
+
+- `TestSetReasoningEffort` checks validation, provider rebuild and turning effort off.
+- `TestEffortCommand` covers case handling, refusal of invalid levels, refusal during a run, and off.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC85 export and import
 
 `TestExportAliasDefaultsToLatestSession` exports this directory's latest session as Markdown and checks the error when there is no session. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

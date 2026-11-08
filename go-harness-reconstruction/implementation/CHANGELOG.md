@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.86 — 2026-11-08
+
+- `/effort minimal|low|medium|high|off` changes reasoning effort for the
+  current session from the TUI, as OpenCode's model variants do; `/effort`
+  alone shows the current level. The saved configuration is unchanged, a
+  change waits for the current run to finish, and Anthropic profiles keep
+  using `thinking_budget`.
+
 ## 1.0.0-rc.85 — 2026-11-08
 
 - Top-level `goh export [ID]` and `goh import FILE`, as in OpenCode. Without

@@ -481,6 +481,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
 			}
+			if trimmed := strings.TrimSpace(prompt); trimmed == "/effort" || strings.HasPrefix(trimmed, "/effort ") {
+				m.input, m.inputCursor = "", 0
+				m.setEffort(strings.TrimPrefix(trimmed, "/effort"))
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/thinking" {
 				m.input, m.inputCursor = "", 0
 				m.toggleThinking()

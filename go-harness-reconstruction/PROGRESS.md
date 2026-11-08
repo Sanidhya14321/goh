@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC86 effort command milestone
+
+Session-scoped reasoning effort; the stock provider client is rebuilt
+between runs and injected models are left alone.
+
 ## RC85 export and import milestone
 
 OpenCode-style top-level export/import over the existing portable format.
