@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC99 real language server milestone
+
+First end-to-end run against a real server (clangd) in the test suite.
+
 ## RC98 language server detection milestone
 
 Opt-in discovery of installed language servers; approval boundaries unchanged.

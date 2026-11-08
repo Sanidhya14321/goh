@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.99 — 2026-11-08
+
+- Verification: GoHarness now runs against a real language server in its
+  test suite. With clangd installed (as on macOS runners), the test starts it
+  behind one approval, receives a real error diagnostic, reports it through
+  the post-edit error path the model sees, and resolves a go-to-definition.
+  Where clangd is missing, the test is skipped.
+
 ## 1.0.0-rc.98 — 2026-11-08
 
 - Opt-in `"lsp_auto": true` adds well-known language servers found on PATH,
