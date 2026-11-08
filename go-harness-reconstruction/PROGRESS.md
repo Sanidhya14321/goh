@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC94 sidebar title milestone
+
+Session titles are visible in the chat sidebar.
+
 ## RC93 automatic titles milestone
 
 Opt-in model-written session titles via the `title` role; best-effort and

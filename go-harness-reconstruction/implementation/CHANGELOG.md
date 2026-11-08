@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.94 — 2026-11-08
+
+- The TUI sidebar shows the session title above its ID. It is loaded when
+  a saved session opens and updates right away after `/rename` or an
+  automatic title.
+
 ## 1.0.0-rc.93 — 2026-11-08
 
 - Opt-in `"auto_title": true` asks the model for a short session title after

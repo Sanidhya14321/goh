@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC94 sidebar title
+
+`TestSidebarShowsSessionTitle` checks that an automatic title appears in the sidebar and is terminal-safe. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC93 automatic titles
 
 - `TestAutoTitleAfterFirstRun` covers the request content, cleaning of quotes, extra lines and trailing punctuation, no renaming on later runs, and that a user title is never replaced.

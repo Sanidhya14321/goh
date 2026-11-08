@@ -48,3 +48,12 @@ func TestExitCommandQuitsWhenIdle(t *testing.T) {
 		t.Fatal("not a quit")
 	}
 }
+
+func TestSidebarShowsSessionTitle(t *testing.T) {
+	m := &model{a: &agent.Agent{Config: core.Defaults(), Store: &session.Store{ID: "fixture"}}, width: 80, height: 24}
+	m.Update(core.Event{Type: "session_titled", Data: map[string]any{"title": "Fix\x1b[2J parser"}})
+	side := strings.Join(m.sidebar("fixture", "model"), "\n")
+	if !strings.Contains(side, "Fix") || !strings.Contains(side, "parser") || strings.Contains(side, "\x1b") {
+		t.Fatalf("%q", side)
+	}
+}

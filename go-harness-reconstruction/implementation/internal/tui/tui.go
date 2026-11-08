@@ -15,6 +15,7 @@ import (
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/provider"
 	agent "example.com/independent-harness/internal/runtime"
+	"example.com/independent-harness/internal/session"
 	"example.com/independent-harness/internal/tools"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -98,6 +99,7 @@ type model struct {
 	contextTokens        int
 	hideDetails          bool
 	hideThinking         bool
+	sessionTitle         string
 	reasoning            strings.Builder
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
@@ -168,6 +170,13 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.flushReasoning()
+		if v.Type == "session_titled" {
+			if d, ok := v.Data.(map[string]any); ok {
+				if t, ok := d["title"].(string); ok {
+					m.sessionTitle = Safe(t)
+				}
+			}
+		}
 		switch v.Type {
 		case "subagent_event":
 			b, _ := json.Marshal(v.Data)
@@ -816,7 +825,13 @@ func (m *model) compactView() tea.View {
 }
 func Run(a *agent.Agent, notice, draft string) error {
 	applyTheme(a.Config.Theme)
-	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config)}
+	title := ""
+	if a.Config.SessionDir != "" && a.Store != nil {
+		if meta, err := session.ReadMeta(a.Config.SessionDir, a.Store.ID); err == nil {
+			title = Safe(meta.Title)
+		}
+	}
+	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config), sessionTitle: title}
 	m.insertInput(Safe(draft))
 	var promptTimes map[string][]time.Time
 	if a.Store != nil {

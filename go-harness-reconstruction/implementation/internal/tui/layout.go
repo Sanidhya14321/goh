@@ -315,8 +315,12 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 }
 
 func (m *model) sidebar(sessionID, modelName string) []string {
-	rows := []string{"SESSION", "", sessionID, "", "MODEL", modelName,
-		fmt.Sprintf("%d reported tokens", m.usage)}
+	rows := []string{"SESSION", ""}
+	if m.sessionTitle != "" {
+		rows = append(rows, m.sessionTitle)
+	}
+	rows = append(rows, sessionID, "", "MODEL", modelName,
+		fmt.Sprintf("%d reported tokens", m.usage))
 	if line := m.contextLine(); line != "" {
 		rows = append(rows, line)
 	}

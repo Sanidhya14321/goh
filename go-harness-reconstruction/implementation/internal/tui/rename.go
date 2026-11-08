@@ -19,6 +19,7 @@ func (m *model) renameSession(arg string) {
 		m.log += "\n[notice] Rename failed: " + Safe(err.Error()) + "\n"
 		return
 	}
+	m.sessionTitle = Safe(title)
 	if title == "" {
 		m.log += "\n[notice] Session title reset to the first prompt.\n"
 		return
