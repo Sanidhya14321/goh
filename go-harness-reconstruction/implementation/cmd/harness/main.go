@@ -302,12 +302,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if *sessionDir != "" {
 		c.SessionDir = *sessionDir
 	}
-	if command == "chat" && *configPath == "" && *profileName == "" &&
-		c.Protocol == "" && c.Endpoint == "" && c.BaseURL == "" && c.Model == "" {
-		if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {
-			c.SetProviderRoute(core.ChatGPTProtocol, "", "")
-			c.Model = chosen
-		}
+	if *configPath == "" && *profileName == "" {
+		c = withChatGPTDefault(c)
 	}
 	if c.EffectiveProtocol() == core.ChatGPTProtocol {
 		if c.Model == "" || (*protocol == core.ChatGPTProtocol && *model == "") {
@@ -487,6 +483,12 @@ func doctor(args []string) error {
 			fmt.Printf("%s: %s\n", name, p)
 		}
 	}
+	if _, err := core.ChatGPTModel(); err == nil {
+		fmt.Println("ChatGPT sign-in: saved")
+	} else {
+		fmt.Println("ChatGPT sign-in: none")
+	}
+	c = withChatGPTDefault(c)
 	if e := c.Validate(); e != nil {
 		fmt.Println("provider configuration:", e)
 	} else {
@@ -548,4 +550,21 @@ func runMessage(words []string, stdin io.Reader) (string, error) {
 		return "", errors.New("empty message")
 	}
 	return message, nil
+}
+
+// withChatGPTDefault uses a saved ChatGPT sign-in when no provider, endpoint
+// or model is configured at all. It never replaces an explicit provider, so
+// prompts only go where the user set things up.
+func withChatGPTDefault(c core.Config) core.Config {
+	if c.Protocol != "" || c.Endpoint != "" || c.BaseURL != "" || c.Model != "" {
+		return c
+	}
+	if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {
+		c.SetProviderRoute(core.ChatGPTProtocol, "", "")
+		c.Model = chosen
+		if c.ContextWindow == 0 {
+			c.ContextWindow = 32768
+		}
+	}
+	return c
 }

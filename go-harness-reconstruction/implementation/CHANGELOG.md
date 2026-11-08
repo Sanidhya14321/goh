@@ -6,6 +6,18 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.91 — 2026-11-08
+
+- Fixed: `goh run` ignored a saved ChatGPT sign-in when no provider was
+  configured, so `goh run fix the tests` failed where `goh chat` worked. Both
+  now share one rule: the sign-in is used only when no provider, endpoint or
+  model is configured at all, so explicit providers are never replaced.
+- `goh doctor` reports whether a ChatGPT sign-in is saved and checks the
+  provider that chat and run would actually use.
+- Note: binaries installed for RC73–RC90 reported version `0.1.0-dev`
+  because a later build step rebuilt them without the version stamp. The code
+  was as described; from RC91 the installed binary carries its version.
+
 ## 1.0.0-rc.90 — 2026-11-08
 
 - Typing `@` in the TUI now offers subagents (`explore`, `general` and

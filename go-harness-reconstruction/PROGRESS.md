@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC91 ChatGPT default milestone
+
+One provider-default rule for chat, run and doctor. The versioned build now
+comes after acceptance, which had been overwriting it.
+
 ## RC90 agent completion milestone
 
 `@` completion lists matching subagents before files.

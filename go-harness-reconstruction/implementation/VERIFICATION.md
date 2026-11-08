@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC91 ChatGPT default for run and doctor
+
+- `TestChatGPTDefaultNeverOverridesExplicitProvider` checks that an explicit endpoint and model are kept, and that ChatGPT is not chosen without a saved sign-in.
+- A manual `goh doctor` on this machine shows the saved sign-in and a valid configuration (`gpt-6.1-sol`, 32k), with no network requests.
+- `goh version` prints `1.0.0-rc.91`.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC90 agent completion
 
 `TestCompletionOffersAgentsBeforeFiles` checks ordering and that agents are matched by prefix only. The setup suite's path-only file-completion check still passes. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
