@@ -67,4 +67,23 @@ func TestRealClangd(t *testing.T) {
 	if !strings.Contains(string(b), "main.c") || !strings.Contains(string(b), `"line":0`) {
 		t.Fatalf("definition did not resolve to line 1: %s", b)
 	}
+
+	// Kill the server: the next request fails without replay, and the one
+	// after that restarts it behind a second approval.
+	m.mu.Lock()
+	m.servers["clangd"].process.cmd.Process.Kill()
+	m.mu.Unlock()
+	time.Sleep(200 * time.Millisecond)
+	in, _ := json.Marshal(map[string]any{"operation": "goToDefinition", "filePath": "main.c", "line": 2, "character": 27})
+	for i := 0; i < 3; i++ {
+		if r := m.Execute(ctx, "lsp", in); !r.Error {
+			break
+		}
+	}
+	if approvals != 2 {
+		t.Fatalf("restart needs exactly one more approval, got %d total", approvals)
+	}
+	if r := m.Execute(ctx, "lsp", in); r.Error {
+		t.Fatalf("restarted server unusable: %s", r.Content)
+	}
 }

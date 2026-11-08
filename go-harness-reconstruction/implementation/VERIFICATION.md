@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC100 language server restart
+
+`TestRealClangd` now kills the running clangd mid-run. The next request fails without replay, the following one restarts the server behind exactly one more approval, and the restarted server answers go-to-definition. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC99 real language server
 
 `TestRealClangd` passed locally against `/usr/bin/clangd`:

@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.100 — 2026-11-08
+
+- Recovery: a language server that crashes or disconnects during a run can
+  be started again. The next LSP request asks for a fresh `lsp_start`
+  approval (the preview says it is a restart), at most twice per server per
+  run. The request that failed is never replayed. Previously a disconnected
+  server stayed unusable until a new run.
+
 ## 1.0.0-rc.99 — 2026-11-08
 
 - Verification: GoHarness now runs against a real language server in its

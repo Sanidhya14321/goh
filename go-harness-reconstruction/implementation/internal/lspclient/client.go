@@ -63,9 +63,13 @@ type Manager struct {
 	mu            sync.Mutex
 	operationMu   sync.Mutex
 	servers       map[string]*server
+	restarts      map[string]int
 	closed        bool
 	configErr     error
 }
+
+// maxRestarts bounds approved restarts of one disconnected server per run.
+const maxRestarts = 2
 
 func New(config map[string]core.LSPConfig, project string, approve func(context.Context, core.Permission) (core.Decision, error)) *Manager {
 	m := &Manager{config: map[string]core.LSPConfig{}, project: project, approve: approve, servers: map[string]*server{}}
@@ -266,18 +270,31 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 		m.mu.Unlock()
 		return nil, "failed", errors.New("LSP manager closed")
 	}
+	restart := false
 	if s := m.servers[name]; s != nil {
-		m.mu.Unlock()
-		if s.broken {
-			return nil, "failed", errors.New("LSP server disconnected; automatic restart disabled")
+		if !s.broken {
+			m.mu.Unlock()
+			return s, "", nil
 		}
-		return s, "", nil
+		// A disconnected server may be started again, but only through a
+		// fresh approval and at most maxRestarts times per run. The failed
+		// operation itself is never replayed.
+		if m.restarts == nil {
+			m.restarts = map[string]int{}
+		}
+		if m.restarts[name] >= maxRestarts {
+			m.mu.Unlock()
+			return nil, "failed", errors.New("LSP server disconnected again; restart limit reached for this run")
+		}
+		m.restarts[name]++
+		delete(m.servers, name)
+		restart = true
 	}
 	m.mu.Unlock()
 	if m.approve == nil {
 		return nil, "needs_permission", errors.New("explicit LSP server start approval required")
 	}
-	preview, _ := json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15})
+	preview, _ := json.Marshal(map[string]any{"command": cfg.Command, "args": cfg.Args, "cwd": m.project, "initialization_timeout_seconds": 15, "restart": restart})
 	decision, err := m.approve(ctx, core.Permission{Tool: "lsp_start:" + name, Preview: string(preview), Arguments: preview})
 	if err != nil {
 		return nil, "needs_permission", err
