@@ -101,6 +101,8 @@ type model struct {
 	hideThinking         bool
 	sessionTitle         string
 	skillNoticeShown     bool
+	costUSD              float64
+	priced               bool
 	reasoning            strings.Builder
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
@@ -277,6 +279,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					n = d.Usage.Prompt + d.Usage.Completion
 				}
 				m.usage += n
+				if m.a != nil {
+					if p, ok := m.a.Config.Prices[m.a.Config.Model]; ok {
+						m.costUSD += float64(d.Usage.Prompt)/1e6*p.Input + float64(d.Usage.Completion)/1e6*p.Output
+						m.priced = true
+					}
+				}
 				// The latest reply's prompt plus output approximates how full
 				// the context window is now.
 				m.contextTokens = d.Usage.Prompt + d.Usage.Completion

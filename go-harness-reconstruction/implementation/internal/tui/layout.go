@@ -321,6 +321,9 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 	}
 	rows = append(rows, sessionID, "", "MODEL", modelName,
 		fmt.Sprintf("%d reported tokens", m.usage))
+	if m.priced {
+		rows = append(rows, fmt.Sprintf("~$%.4f estimated", m.costUSD))
+	}
 	if line := m.contextLine(); line != "" {
 		rows = append(rows, line)
 	}

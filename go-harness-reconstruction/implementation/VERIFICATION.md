@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC111 sidebar cost
+
+`TestSidebarCostFromConfiguredPrice` checks the priced estimate (0.5M input tokens at $2 plus 0.125M output tokens at $8 is $2.00) and that nothing is shown without a price. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC110 cost estimates
 
 `TestCostEstimates` checks the estimate arithmetic (2M input tokens at $1.50 plus 0.5M output tokens at $6 is $6.00), that unpriced models have no cost, the total line, and the configuration hint. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

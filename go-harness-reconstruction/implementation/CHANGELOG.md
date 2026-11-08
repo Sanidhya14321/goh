@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.111 — 2026-11-09
+
+- The TUI sidebar shows the estimated cost of this view's replies
+  ("~$0.0123 estimated") when the current model has a configured price
+  (see RC110). Nothing is shown for unpriced models.
+
 ## 1.0.0-rc.110 — 2026-11-09
 
 - Cost estimates in `goh stats`, as OpenCode shows cost: add `"prices":
