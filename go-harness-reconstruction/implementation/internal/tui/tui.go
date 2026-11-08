@@ -557,6 +557,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				var e error
 				if strings.TrimSpace(prompt) == "/compact" {
 					s, e = m.a.Compact(ctx)
+				} else if command, ok := strings.CutPrefix(strings.TrimSpace(prompt), "!"); ok {
+					s, e = m.a.RunShell(ctx, command)
 				} else {
 					s, e = m.a.Run(ctx, prompt)
 				}

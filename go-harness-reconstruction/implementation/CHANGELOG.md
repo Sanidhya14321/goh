@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.41 — 2026-11-08
+
+- `!command` in the composer runs a shell command directly, as in OpenCode,
+  without a model request. Its output enters the conversation as tool
+  output, so the next prompt can refer to it. Typing it is the approval
+  (journaled as `user_typed`); it never grants shell to the model, and plan
+  mode refuses it.
+
 ## 1.0.0-rc.40 — 2026-11-08
 
 - `/find` highlights matching lines (with a `▸` marker that also shows

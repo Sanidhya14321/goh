@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC41 typed shell milestone
+
+`Agent.RunShell` runs `!command` through the same journaled path as model
+shell calls (tool_start/tool_result, so an interruption becomes an uncertain
+effect) with the user's typing as the recorded approval. History gets the
+user's `!command`, a shell call and its result, so every protocol sees a
+valid user → call → result sequence.
+
 ## RC40 command files milestone
 
 Backlog R05: Markdown command files load from OpenCode-compatible project

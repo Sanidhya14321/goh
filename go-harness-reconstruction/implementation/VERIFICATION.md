@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC41 typed shell commands
+
+`1.0.0-rc.41` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-two PTY scenarios (two consecutive runs). The new `user_shell`
+scenario types `!echo pty-shell-$((40+2))` and checks the shell-evaluated
+output, a `user_typed` permission record, a journaled tool result and that
+no model reply was requested. Runtime tests check the user/call/result
+history, that the next turn's model input contains the output, that no
+session grant is created, and refusals for empty commands and plan mode.
+
 ## RC40 command files and find highlighting
 
 `1.0.0-rc.40` passed vet (macOS and Windows), the race suite, seven CLI and

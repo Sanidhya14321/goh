@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo'), ('user_shell','text')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -106,6 +106,8 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     # the edited draft once the editor returns.
                     wait_for(b'rewritten in editor')
                     os.write(master, b'\r')
+                elif case=='user_shell':
+                    os.write(master, b'!echo pty-shell-$((40+2))\r')
                 else:
                     os.write(master, b'Exercise the fixture\r')
                 if case=='typed_child':
@@ -141,6 +143,16 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         time.sleep(.02)
                     assert prompts==['Exercise the fixture','Second prompt'],prompts
                     assert any('Second reply.' in x for x in replies),replies
+                elif case=='user_shell':
+                    wait_for(b'pty-shell-42')
+                    records=[]
+                    for attempt in range(250):
+                        records=[r for j in (root/case).glob('*.jsonl') for r in live_records(j)]
+                        if any(r['type']=='run_finished' for r in records): break
+                        time.sleep(.02)
+                    assert any(r['type']=='permission' and r['data'].get('source')=='user_typed' for r in records),'typed approval not journaled'
+                    assert any(r['type']=='tool_result' for r in records),'shell result not journaled'
+                    assert not any(r['type']=='message' and r['data'].get('role')=='assistant' and r['data'].get('content') for r in records),'a model reply was requested'
                 elif case=='timestamps':
                     wait_for(b'Fixture response')
                     time.sleep(.3)
