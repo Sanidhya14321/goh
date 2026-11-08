@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC98 language server detection milestone
+
+Opt-in discovery of installed language servers; approval boundaries unchanged.
+
 ## RC97 compact --focus milestone
 
 CLI parity for steered compaction.

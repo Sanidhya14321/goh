@@ -84,8 +84,10 @@ type Config struct {
 	Snapshots  bool                       `json:"snapshots,omitempty"`
 	// SnapshotsStrict is set when checkpoints were requested explicitly: a
 	// failed capture then blocks the edit. Default checkpoints are best effort.
-	SnapshotsStrict bool                     `json:"-"`
-	LSP             map[string]LSPConfig     `json:"lsp,omitempty"`
+	SnapshotsStrict bool                 `json:"-"`
+	LSP             map[string]LSPConfig `json:"lsp,omitempty"`
+	// LSPAuto adds installed well-known language servers (see knownLSP).
+	LSPAuto         bool                     `json:"lsp_auto,omitempty"`
 	Commands        map[string]CommandConfig `json:"commands,omitempty"`
 	Endpoint        string                   `json:"endpoint"`
 	BaseURL         string                   `json:"base_url,omitempty"`

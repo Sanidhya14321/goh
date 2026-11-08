@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.98 — 2026-11-08
+
+- Opt-in `"lsp_auto": true` adds well-known language servers found on PATH,
+  like OpenCode's built-in list: gopls, typescript-language-server, pyright,
+  rust-analyzer and clangd. Servers you configure win by name and by file
+  extension. Nothing starts until first use, and each server still needs the
+  usual `lsp_start` approval.
+
 ## 1.0.0-rc.97 — 2026-11-08
 
 - `goh compact ID --focus "..."` steers the summary from the command line,

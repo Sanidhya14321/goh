@@ -306,6 +306,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if *configPath == "" && *profileName == "" {
 		c = withChatGPTDefault(c)
 	}
+	c = c.WithDetectedLSP(nil)
 	if c.EffectiveProtocol() == core.ChatGPTProtocol {
 		if c.Model == "" || (*protocol == core.ChatGPTProtocol && *model == "") {
 			if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {

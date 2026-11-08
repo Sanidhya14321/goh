@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC98 language server detection
+
+`TestWithDetectedLSP` covers the default-off case, detection, configured extensions taking precedence, missing binaries and an unchanged input map. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites. Real language servers have still not been exercised end to end.
+
 ## RC97 compact --focus
 
 The flag passes through the same `CompactWith` path that RC96 tests; `goh compact --help` lists it. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
