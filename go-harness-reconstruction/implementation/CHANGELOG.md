@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.96 — 2026-11-08
+
+- `/compact <focus>` steers the summary, for example `/compact keep the
+  migration plan and failing test names`. The focus (up to 500 characters)
+  applies to that compaction only; plain `/compact` is unchanged.
+
 ## 1.0.0-rc.95 — 2026-11-08
 
 - Recovery: when ChatGPT rejects an access token with HTTP 401 before its

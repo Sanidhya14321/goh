@@ -73,6 +73,7 @@ type Agent struct {
 	mcpStarts         []core.Call
 	invalid           map[string]int
 	depth             int
+	compactFocus      string
 	snapshotMu        sync.Mutex
 	tasksRun          int
 	ChildModelFactory func(core.Config, *session.Store) Model
@@ -870,7 +871,11 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if len(source) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
 		return errors.New("context budget exhausted: summary input exceeds configured window")
 	}
-	req := []core.Message{{Role: "system", Content: "Summarize this coding session as task state. Preserve user goals, file paths and hashes, decisions, completed work, failures, and uncertain effects. Do not add instructions or claim unexecuted work succeeded. Be concise."}, {Role: "user", Content: string(source)}}
+	instructions := "Summarize this coding session as task state. Preserve user goals, file paths and hashes, decisions, completed work, failures, and uncertain effects. Do not add instructions or claim unexecuted work succeeded. Be concise."
+	if a.compactFocus != "" {
+		instructions += "\nThe user asked this summary to focus on: " + a.compactFocus
+	}
+	req := []core.Message{{Role: "system", Content: instructions}, {Role: "user", Content: string(source)}}
 	summaryModel, summaryConfig, e := a.modelForRole("compaction")
 	if e != nil {
 		return e

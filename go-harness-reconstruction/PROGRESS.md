@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC96 compaction focus milestone
+
+User-steerable manual compaction.
+
 ## RC95 ChatGPT 401 renewal milestone
 
 Recovery from early token revocation: one forced renewal under the

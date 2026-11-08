@@ -640,8 +640,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				defer close(done)
 				var s string
 				var e error
-				if strings.TrimSpace(prompt) == "/compact" {
-					s, e = m.a.Compact(ctx)
+				if trimmed := strings.TrimSpace(prompt); trimmed == "/compact" || strings.HasPrefix(trimmed, "/compact ") {
+					s, e = m.a.CompactWith(ctx, strings.TrimPrefix(trimmed, "/compact"))
 				} else if command, ok := strings.CutPrefix(strings.TrimSpace(prompt), "!"); ok {
 					s, e = m.a.RunShell(ctx, command)
 				} else {

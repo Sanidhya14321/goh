@@ -17,7 +17,7 @@ var paletteEntries = []paletteEntry{
 	{"/settings", "Settings and advanced configuration"},
 	{"/sessions", "Open a saved session"},
 	{"/workspace", "Choose a workspace"},
-	{"/compact", "Compact the current conversation"},
+	{"/compact", "Compact the conversation; /compact focus keeps what you name"},
 	{"/todos", "View session tasks"},
 	{"/skills", "View available skills"},
 	{"/sidebar", "Toggle session sidebar"},

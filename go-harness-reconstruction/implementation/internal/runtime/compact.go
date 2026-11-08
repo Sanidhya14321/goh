@@ -3,8 +3,20 @@ package runtime
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
+
+// CompactWith is Compact with a user focus ("keep the API decisions") that
+// is added to the summarizer instructions for this compaction only.
+func (a *Agent) CompactWith(ctx context.Context, focus string) (string, error) {
+	if r := []rune(strings.TrimSpace(focus)); len(r) > 500 {
+		focus = string(r[:500])
+	}
+	a.compactFocus = strings.TrimSpace(focus)
+	defer func() { a.compactFocus = "" }()
+	return a.Compact(ctx)
+}
 
 // Compact performs an explicit context operation over the same durable session.
 // It neither sends a new user task nor starts executable integrations.
