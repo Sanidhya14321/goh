@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.114 — 2026-11-09
+
+- The TUI `/export` dialog writes the RC113 HTML page when the filename ends
+  in `.html` or `.htm`, and Markdown otherwise (the default name is still
+  `.md`).
+
 ## 1.0.0-rc.113 — 2026-11-09
 
 - `goh export --format html` (and `goh sessions export`) writes a

@@ -63,6 +63,9 @@ func (m *model) exportUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			p.problem, p.saving = "", true
 			return m, func() tea.Msg {
 				return exportDoneMsg{err: session.WriteExportFile(output, func(w io.Writer) error {
+					if exportsHTML(output) {
+						return store.WriteHTMLTranscript(w, includeTools)
+					}
 					return store.WriteTranscript(w, includeTools)
 				})}
 			}
@@ -95,7 +98,7 @@ func (m *model) exportView(width, height int) tea.View {
 		rows = append(rows, padding+cell("  "+s, box, color, panel))
 	}
 	line("GoHarness  /  Export transcript", foreground)
-	line("Markdown · Relative paths use the workspace", muted)
+	line("Markdown, or an HTML page for .html names · Relative paths use the workspace", muted)
 	name := []rune(p.editor.fields[0].Value)
 	shown := string(name)
 	if !p.toolsFocused && !p.saved {
@@ -128,4 +131,10 @@ func (m *model) exportView(width, height int) tea.View {
 		line("Tab option · Space toggle · Enter save · Esc cancel", muted)
 	}
 	return overlayView(p.backdrop, rows, left, top, width, height)
+}
+
+// exportsHTML picks the HTML page for .html/.htm names; others get Markdown.
+func exportsHTML(name string) bool {
+	ext := strings.ToLower(filepath.Ext(name))
+	return ext == ".html" || ext == ".htm"
 }

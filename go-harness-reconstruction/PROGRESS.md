@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC114 HTML from /export milestone
+
+TUI parity for the HTML transcript.
+
 ## RC113 HTML export milestone
 
 Backlog R10: shareable output without uploading anything; publishing

@@ -55,3 +55,11 @@ func TestCopyPickerWithoutMessages(t *testing.T) {
 		t.Fatal("expected an explanation, not a picker")
 	}
 }
+
+func TestExportFormatByExtension(t *testing.T) {
+	for name, want := range map[string]bool{"a.html": true, "a.HTM": true, "a.md": false, "a": false} {
+		if exportsHTML(name) != want {
+			t.Fatal(name)
+		}
+	}
+}

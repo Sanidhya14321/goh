@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC114 HTML from /export
+
+`TestExportFormatByExtension` covers the extension choice, including upper case and names without an extension. The setup suite's Markdown export check still passes. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC113 HTML export
 
 `TestHTMLTranscriptEscapesAndRedacts` checks that a `<script>` prompt is escaped, an OpenAI-style key is masked, ampersands are escaped, and the restrictive Content-Security-Policy is present. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
