@@ -34,6 +34,11 @@ type anthropicRequest struct {
 	Tools     []anthropicTool    `json:"tools,omitempty"`
 	Stream    bool               `json:"stream"`
 	MaxTokens int                `json:"max_tokens"`
+	Thinking  *anthropicThinking `json:"thinking,omitempty"`
+}
+type anthropicThinking struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens"`
 }
 type anthropicText struct {
 	Type string `json:"type"`
@@ -219,6 +224,9 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 		return invalid()
 	}
 	body := anthropicRequest{Model: config.Model, Stream: true, MaxTokens: config.OutputBudget}
+	if config.ThinkingBudget > 0 {
+		body.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: config.ThinkingBudget}
+	}
 	budget := maxResponse - 4096
 	account := func(s string) bool { budget -= 6*len(s) + 512; return budget >= 0 }
 	toolNames := map[string]bool{}
@@ -287,6 +295,22 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 			}
 			started = true
 			blocks := []any{}
+			if config.ThinkingBudget > 0 {
+				// Thinking blocks are replayed verbatim (signatures intact) and
+				// only while thinking is enabled.
+				for _, raw := range m.AnthropicThinking {
+					var kind struct {
+						Type string `json:"type"`
+					}
+					if json.Unmarshal(raw, &kind) != nil || (kind.Type != "thinking" && kind.Type != "redacted_thinking") {
+						return invalid()
+					}
+					if budget -= len(raw) + 512; budget < 0 {
+						return invalid()
+					}
+					blocks = append(blocks, raw)
+				}
+			}
 			if m.Content != "" {
 				blocks = append(blocks, anthropicText{Type: "text", Text: m.Content})
 			}
@@ -358,11 +382,16 @@ type anthropicStreamEvent struct {
 		Text      *string         `json:"text"`
 		Input     json.RawMessage `json:"input"`
 		Citations json.RawMessage `json:"citations"`
+		Thinking  *string         `json:"thinking"`
+		Signature *string         `json:"signature"`
+		Data      *string         `json:"data"`
 	} `json:"content_block"`
 	Delta *struct {
 		Type         string  `json:"type"`
 		Text         *string `json:"text"`
 		PartialJSON  *string `json:"partial_json"`
+		Thinking     *string `json:"thinking"`
+		Signature    *string `json:"signature"`
 		StopReason   *string `json:"stop_reason"`
 		StopSequence *string `json:"stop_sequence"`
 	} `json:"delta"`
@@ -435,6 +464,8 @@ func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
 	ids := map[string]bool{}
 	var calls []core.Call
 	invalidToolInput := false
+	var thinking, signature strings.Builder
+	redacted := ""
 	appendText := func(value string) error {
 		if !utf8.ValidString(value) || text.Len()+len(value) > anthropicMaxText {
 			return errors.New("Anthropic text limit exceeded")
@@ -501,6 +532,22 @@ func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
 				initialInput = e.Block.Input
 				arguments.Reset()
 				return nil
+			case "thinking":
+				thinking.Reset()
+				signature.Reset()
+				if e.Block.Thinking != nil {
+					thinking.WriteString(*e.Block.Thinking)
+				}
+				if e.Block.Signature != nil {
+					signature.WriteString(*e.Block.Signature)
+				}
+				return nil
+			case "redacted_thinking":
+				if e.Block.Data == nil {
+					return invalid()
+				}
+				redacted = *e.Block.Data
+				return nil
 			default:
 				return errors.New("unsupported Anthropic content block")
 			}
@@ -527,12 +574,32 @@ func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
 				}
 				arguments.WriteString(*e.Delta.PartialJSON)
 				return nil
+			case "thinking_delta":
+				if blockType != "thinking" || e.Delta.Thinking == nil || thinking.Len()+len(*e.Delta.Thinking) > anthropicMaxText {
+					return invalid()
+				}
+				thinking.WriteString(*e.Delta.Thinking)
+				return nil
+			case "signature_delta":
+				if blockType != "thinking" || e.Delta.Signature == nil || signature.Len()+len(*e.Delta.Signature) > 64<<10 {
+					return invalid()
+				}
+				signature.WriteString(*e.Delta.Signature)
+				return nil
 			default:
 				return errors.New("unsupported Anthropic content delta")
 			}
 		case "content_block_stop":
 			if !started || finished || stopped || e.Index == nil || *e.Index != active || active < 0 {
 				return invalid()
+			}
+			switch blockType {
+			case "thinking":
+				b, _ := json.Marshal(map[string]string{"type": "thinking", "thinking": thinking.String(), "signature": signature.String()})
+				reply.Message.AnthropicThinking = append(reply.Message.AnthropicThinking, b)
+			case "redacted_thinking":
+				b, _ := json.Marshal(map[string]string{"type": "redacted_thinking", "data": redacted})
+				reply.Message.AnthropicThinking = append(reply.Message.AnthropicThinking, b)
 			}
 			if blockType == "tool_use" {
 				raw := initialInput

@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.70 — 2026-11-08
+
+- Anthropic extended thinking: set `thinking_budget` (at least 1024, below
+  `output_budget`). Thinking blocks are kept exactly as received and sent
+  back with their turn, as the API requires during tool use; they never
+  reach other providers. `/status` shows the budget. Not yet checked
+  against the live API.
+
 ## 1.0.0-rc.69 — 2026-11-08
 
 - Fuzzy matching in the command palette and every picker (`/models`,

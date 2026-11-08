@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC70 extended thinking milestone
+
+Backlog R01 (Anthropic reasoning): thinking blocks are journaled on the
+assistant message (`anthropic_thinking`) and replayed only to Anthropic while
+thinking is enabled, mirroring how Responses reasoning items are scoped.
+
 ## RC69 fuzzy pickers milestone
 
 One ranking function serves the palette and every option picker.

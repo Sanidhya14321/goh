@@ -22,6 +22,9 @@ type Message struct {
 	ToolCallID         string            `json:"tool_call_id,omitempty"`
 	ResponsesReasoning []json.RawMessage `json:"responses_reasoning,omitempty"`
 	ResponsesRoute     string            `json:"responses_route,omitempty"`
+	// AnthropicThinking holds an assistant turn's thinking blocks exactly as
+	// received, replayed with that turn while extended thinking is on.
+	AnthropicThinking []json.RawMessage `json:"anthropic_thinking,omitempty"`
 	// Images attached to a user message (base64), sent as image parts.
 	Images []Image `json:"images,omitempty"`
 }

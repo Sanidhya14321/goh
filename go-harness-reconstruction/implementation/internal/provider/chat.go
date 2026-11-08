@@ -69,12 +69,13 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	} else {
 		var clean []core.Message
 		for i := range messages {
-			if len(messages[i].ResponsesReasoning) != 0 || messages[i].ResponsesRoute != "" {
+			if len(messages[i].ResponsesReasoning) != 0 || messages[i].ResponsesRoute != "" || len(messages[i].AnthropicThinking) != 0 {
 				if clean == nil {
 					clean = append([]core.Message(nil), messages...)
 				}
 				clean[i].ResponsesReasoning = nil
 				clean[i].ResponsesRoute = ""
+				clean[i].AnthropicThinking = nil
 			}
 		}
 		if clean != nil {
@@ -343,6 +344,8 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 func chatWireMessages(messages []core.Message) []any {
 	out := make([]any, len(messages))
 	for i, m := range messages {
+		// Provider-specific state never reaches a Chat Completions request.
+		m.AnthropicThinking, m.ResponsesReasoning, m.ResponsesRoute = nil, nil, ""
 		if len(m.Images) == 0 {
 			out[i] = m
 			continue

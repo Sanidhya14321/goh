@@ -65,6 +65,9 @@ type Config struct {
 	// automatic compaction starts; 0 means the default of 75. Compaction
 	// always runs when the next request would not otherwise fit.
 	CompactionThreshold int `json:"compaction_threshold,omitempty"`
+	// ThinkingBudget enables Anthropic extended thinking with this many
+	// tokens (at least 1024 and below output_budget); 0 disables it.
+	ThinkingBudget int `json:"thinking_budget,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -195,6 +198,14 @@ func (c Config) Validate() error {
 	if err := c.ValidateReasoningEffort(); err != nil {
 		return err
 	}
+	if b := c.ThinkingBudget; b != 0 {
+		if c.EffectiveProtocol() != "anthropic_messages" {
+			return fmt.Errorf("thinking_budget applies only to the anthropic_messages protocol (use reasoning_effort for OpenAI)")
+		}
+		if b < 1024 || b >= c.OutputBudget {
+			return fmt.Errorf("thinking_budget must be at least 1024 and below output_budget (%d)", c.OutputBudget)
+		}
+	}
 	if t := c.CompactionThreshold; t != 0 && (t < 50 || t > 95) {
 		return fmt.Errorf("compaction_threshold must be between 50 and 95 (percent)")
 	}
@@ -302,7 +313,7 @@ func (c Config) ValidateReasoningEffort() error {
 		return fmt.Errorf("reasoning_effort must be minimal, low, medium or high")
 	}
 	if c.ReasoningEffort != "" && c.EffectiveProtocol() == "anthropic_messages" {
-		return fmt.Errorf("reasoning_effort is not supported for the anthropic protocol yet")
+		return fmt.Errorf("reasoning_effort is for OpenAI protocols; use thinking_budget for Anthropic extended thinking")
 	}
 	return nil
 }

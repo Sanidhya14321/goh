@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC70 Anthropic extended thinking
+
+`1.0.0-rc.70` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-five PTY scenarios. A parser test streams a thinking block (text and
+signature in deltas), a redacted thinking block and a tool call; the encoder
+then sends `thinking: {type: enabled, budget_tokens}` and replays both
+blocks verbatim ahead of the tool call, and omits them when thinking is off.
+Chat Completions wire messages never carry them. Validation limits the
+budget to Anthropic, at least 1024 and below `output_budget`. Live API
+acceptance is unverified.
+
 ## RC69 fuzzy pickers
 
 `1.0.0-rc.69` passed vet (macOS and Windows), the race suite, eight CLI and

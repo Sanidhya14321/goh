@@ -58,6 +58,9 @@ func (m *model) openStatus() {
 		if effort == "" {
 			effort = "provider default"
 		}
+		if cfg.ThinkingBudget > 0 {
+			effort = fmt.Sprintf("thinking %d tokens", cfg.ThinkingBudget)
+		}
 		lines = append(lines, configuration, "Model: "+cfg.Model+" · reasoning: "+effort, "Protocol: "+cfg.EffectiveProtocol(),
 			"Origin: "+origin, keyState, failoverStatus(cfg), "", "# CONTEXT",
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
