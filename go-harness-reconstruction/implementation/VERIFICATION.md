@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC109 grep ignore rules
+
+`TestGrepRespectsIgnoreFiles` covers these cases:
+- a root `.gitignore` directory rule and glob rule;
+- a nested `.ignore`;
+- explicitly searching an ignored directory.
+
+The existing glob test, which expects gitignored files to be included as the reference does, is unchanged and passes. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC108 file mentions
 
 `TestFileMentionsInlineTextFiles` checks that a text file is attached once and that these are not:

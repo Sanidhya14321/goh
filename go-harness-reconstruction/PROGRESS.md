@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC109 grep ignore rules milestone
+
+Grep now matches the observed reference by leaving gitignored files out;
+glob keeps its observed include-everything behaviour.
+
 ## RC108 file mentions milestone
 
 OpenCode-style content attachments for `@path`, bounded and confined to

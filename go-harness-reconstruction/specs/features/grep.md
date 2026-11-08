@@ -21,8 +21,8 @@ expressions, UTF-8 regular files, automatic project-read policy, stable lexical
 file order and ascending line order, max100 matching lines and bounded output.
 A file path searches only that file (intentional narrower behavior); unsafe and
 symlink paths, malformed regex/include patterns and empty patterns fail. Existing
-.git/node_modules/.harness exclusions and safe traversal apply. Gitignore rules
-are not interpreted. Binary/special/oversized files are skipped explicitly in
+.git/node_modules/.harness exclusions and safe traversal apply. Since RC109,
+.gitignore and .ignore rules are applied (an explicit path is always searched). Binary/special/oversized files are skipped explicitly in
 skipped_files. Results use the existing Go structured search envelope.
 
 Independent tests cover include/brace filtering, directory/file scope, case-insensitive

@@ -638,6 +638,7 @@ func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
 	var files []string
 	visited := 0
 	truncated := false
+	ignored := newIgnoreFilter(r, filepath.ToSlash(a.Path))
 	err := fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -654,6 +655,12 @@ func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
 			if p != a.Path && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
 				return fs.SkipDir
 			}
+			if ignored.skip(p, d) {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if ignored.skip(p, d) {
 			return nil
 		}
 		if d.Type()&os.ModeSymlink != 0 {

@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.109 — 2026-11-09
+
+- The grep tool respects `.gitignore` and `.ignore` files (root, nested,
+  and those above a scoped path), matching the observed OpenCode grep, which
+  leaves gitignored files out. Searching an ignored directory by naming it
+  as `path` still works. Glob is unchanged: the reference glob was observed
+  to include gitignored files, so GoHarness keeps that behaviour.
+
 ## 1.0.0-rc.108 — 2026-11-09
 
 - `@path` mentions of text files now attach the file's contents to the

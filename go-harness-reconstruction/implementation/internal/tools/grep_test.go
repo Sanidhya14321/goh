@@ -84,3 +84,35 @@ func TestGrepResultCapAndCancellation(t *testing.T) {
 		t.Fatal("cancelled grep succeeded")
 	}
 }
+
+func TestGrepRespectsIgnoreFiles(t *testing.T) {
+	dir := t.TempDir()
+	for p, s := range map[string]string{
+		".gitignore": "dist/\n*.log\n", "keep.go": "needle\n", "app.log": "needle\n",
+		"dist/out.js": "needle\n", "src/.ignore": "gen.go\n", "src/gen.go": "needle\n", "src/real.go": "needle\n",
+	} {
+		os.MkdirAll(filepath.Dir(filepath.Join(dir, p)), 0700)
+		os.WriteFile(filepath.Join(dir, p), []byte(s), 0600)
+	}
+	e, _ := New(dir, t.TempDir())
+	paths := func(args string) []string {
+		r := e.Execute(context.Background(), "grep", json.RawMessage(args))
+		if r.Error {
+			t.Fatal(r.Content)
+		}
+		var got struct{ Matches []struct{ Path string } }
+		json.Unmarshal([]byte(r.Content), &got)
+		var out []string
+		for _, m := range got.Matches {
+			out = append(out, m.Path)
+		}
+		return out
+	}
+	if got := strings.Join(paths(`{"pattern":"needle"}`), ","); got != "keep.go,src/real.go" {
+		t.Fatalf("ignored files searched: %s", got)
+	}
+	// An explicitly requested ignored directory is still searched.
+	if got := strings.Join(paths(`{"pattern":"needle","path":"dist"}`), ","); got != "dist/out.js" {
+		t.Fatalf("explicit path not searched: %s", got)
+	}
+}
