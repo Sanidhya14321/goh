@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC75 transcript redaction milestone
+
+Backlog I14 (first slice): shareable Markdown transcripts mask
+recognisable credentials; the importable JSON export is unchanged.
+
 ## RC74 exit command milestone
 
 `/exit` and `/quit` follow the Ctrl+D rule: quit when idle, cancel first

@@ -70,6 +70,7 @@ type transcriptWriter struct {
 
 func (w *transcriptWriter) add(parts ...string) {
 	for _, part := range parts {
+		part = RedactSecrets(part) // transcripts are made to be shared
 		if w.err != nil {
 			return
 		}

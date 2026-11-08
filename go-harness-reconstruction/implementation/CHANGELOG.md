@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.75 — 2026-11-08
+
+- Markdown transcripts (`/export`) mask well-known credential formats (OpenAI,
+  Anthropic, GitHub, Slack, AWS and Google keys, Bearer tokens, PEM private
+  keys), keeping the prefix so you can see what was removed. This is a
+  safety net only: secrets without a recognisable shape pass through. The
+  portable JSON export stays exact so it can be imported.
+
 ## 1.0.0-rc.74 — 2026-11-08
 
 - `/exit` and `/quit` leave GoHarness, as in OpenCode. During a run they
