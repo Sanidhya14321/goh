@@ -74,6 +74,8 @@ type Agent struct {
 	invalid           map[string]int
 	depth             int
 	compactFocus      string
+	cooldowns         map[string]time.Time
+	clock             func() time.Time
 	snapshotMu        sync.Mutex
 	tasksRun          int
 	ChildModelFactory func(core.Config, *session.Store) Model

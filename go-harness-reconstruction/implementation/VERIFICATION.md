@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC105 provider cooldowns
+
+`TestFailedPrimaryCoolsDownWhileFallbacksExist` uses an injected clock to check:
+- the primary is skipped during the cooldown;
+- it is tried last when every fallback fails;
+- it is tried first again after the minute.
+
+The existing failover tests are unchanged and pass. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC104 retry visibility
 
 - `TestRetryAndNoPartialReplay` now also checks that two retry notices arrive (attempts 2 and 3 of 3, with a positive delay) before the third request succeeds.

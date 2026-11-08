@@ -5,6 +5,7 @@ import (
 	"errors"
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/provider"
+	"time"
 )
 
 func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
@@ -38,11 +39,23 @@ func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
 // profile in order. A stream that produced text, a parse failure, an
 // authentication failure or cancellation is never retried on another route.
 func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
-	reply, err := primary.Complete(ctx, history, defs, delta)
-	if err == nil || ctx.Err() != nil || !provider.Failoverable(err) {
-		return reply, err
-	}
 	from := primaryConfig.Profile
+	var reply core.Reply
+	var err error
+	cooling := len(a.Config.FallbackProfiles) > 0 && a.coolingDown(from)
+	if cooling {
+		// The primary failed recently: go to fallbacks first instead of
+		// waiting on it again, and use it only if none of them answers.
+		a.recordFailover(purpose, from, "", "cooldown", "skipped", "primary is cooling down after a recent failure")
+		err = provider.ErrConnection
+	} else {
+		reply, err = primary.Complete(ctx, history, defs, delta)
+		if err == nil || ctx.Err() != nil || !provider.Failoverable(err) {
+			return reply, err
+		}
+		a.startCooldown(from)
+	}
+
 	for _, name := range a.Config.FallbackProfiles {
 		if name == from {
 			continue
@@ -79,9 +92,45 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		if ctx.Err() != nil || !provider.Failoverable(err) {
 			return reply, err
 		}
+		a.startCooldown(name)
 		from = name
 	}
+	if cooling && ctx.Err() == nil {
+		// Last resort: the primary may have recovered.
+		reply, err = primary.Complete(ctx, history, defs, delta)
+		if err != nil && provider.Failoverable(err) {
+			a.startCooldown(primaryConfig.Profile)
+		}
+	}
 	return reply, err
+}
+
+// providerCooldown is how long a failed route is skipped while fallbacks exist.
+const providerCooldown = time.Minute
+
+func cooldownKey(profile string) string {
+	if profile == "" {
+		return "default"
+	}
+	return profile
+}
+
+func (a *Agent) startCooldown(profile string) {
+	if a.cooldowns == nil {
+		a.cooldowns = map[string]time.Time{}
+	}
+	a.cooldowns[cooldownKey(profile)] = a.now().Add(providerCooldown)
+}
+
+func (a *Agent) coolingDown(profile string) bool {
+	return a.now().Before(a.cooldowns[cooldownKey(profile)])
+}
+
+func (a *Agent) now() time.Time {
+	if a.clock != nil {
+		return a.clock()
+	}
+	return time.Now()
 }
 
 func failoverReason(err error) string {

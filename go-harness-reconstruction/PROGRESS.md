@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC105 provider cooldowns milestone
+
+Failed routes are skipped for a minute while fallbacks exist; the primary
+remains the last resort, so a cooldown never causes an outage on its own.
+
 ## RC104 retry visibility milestone
 
 Retries are reported through a context-scoped notifier, as reasoning text is.

@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.105 — 2026-11-09
+
+- Provider cooldowns: when a route fails before any response (rate limit,
+  timeout, server error or connection failure) and fallback profiles are
+  configured, it is skipped for one minute. Later turns go straight to
+  the fallbacks instead of waiting on it again. If every fallback fails, the
+  cooling route is still tried last. Without fallback profiles nothing
+  changes. Each skip is journaled as `provider_failover` with reason
+  `cooldown`.
+
 ## 1.0.0-rc.104 — 2026-11-08
 
 - Provider retries are now visible. When a request is retried after a
