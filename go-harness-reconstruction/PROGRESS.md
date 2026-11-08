@@ -4,14 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
-## Readiness at RC71 (8 November 2026)
+## Readiness at RC88 (8 November 2026)
 
 | Subsystem | Estimate | Done locally | Waiting on |
 | --- | --- | --- | --- |
-| Agent loop and recovery | ~90% | Journaled effects, undo/revert, loop guard, default checkpoints, orphaned-job recovery, cancellation under load on all three OSes | Live provider failover and token-expiry runs |
-| Providers | ~80% | Chat Completions, Responses, Sign in with ChatGPT, Anthropic (incl. extended thinking), images, reasoning effort, model lists | User keys to verify thinking, images, reasoning, caching against real APIs |
-| Tools and integrations | ~85% | Files, patches, shell rules, file rules, background jobs, local and remote MCP, LSP (11 operations), web fetch and search | Third-party MCP services and OAuth; real language servers |
-| Terminal UI | ~88% | OpenCode-style palette (fuzzy), pickers, /find, /copy, /details, /timestamps, /changes, /jobs, plan handoff, context meter, themes, keymaps | Visual comparison passes against OpenCode |
+| Agent loop and recovery | ~90% | Journaled effects, undo/revert, loop guard, default checkpoints, orphaned-job recovery, cancellation under load on all three OSes, compaction margin scaled for small windows (found live) | Live provider failover and token-expiry runs |
+| Providers | ~82% | Chat Completions, Responses, Sign in with ChatGPT (verified live: streaming, tools, resume, images, reasoning effort), Anthropic incl. extended thinking, model lists, streamed reasoning display | Live check of Responses reasoning summaries; user keys for Anthropic thinking and API-key model lists |
+| Tools and integrations | ~86% | Files, patches, shell and file rules, background jobs, local and remote MCP (`goh mcp list`), LSP with post-edit errors, web fetch and search | Third-party MCP services and OAuth; real language servers |
+| Terminal UI | ~90% | Fuzzy palette and pickers, /find /copy /details /timestamps /changes /jobs /rename /thinking /effort /exit, plan handoff, context meter, themes | Visual comparison passes against OpenCode |
+| CLI | ~90% | run (words, stdin, --file, --title, --command, --reasoning-effort, --continue), export/import, sessions (table), agents, models, stats, mcp list, /review and /init built-ins | — |
 | Platforms | ~85% | Native CI on Ubuntu, macOS and Windows for every commit | Native Windows manual session |
 | Release | ~60% | Cross-builds, checksums, installers tested in CI | User approval to publish; release workflow deferred by request |
 
