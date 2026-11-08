@@ -39,6 +39,12 @@ type LSPConfig struct {
 	Initialization map[string]any    `json:"initialization,omitempty"`
 }
 
+// ModelPrice is a user-supplied price per million tokens.
+type ModelPrice struct {
+	Input  float64 `json:"input"`
+	Output float64 `json:"output"`
+}
+
 type FormatterConfig struct {
 	Command    string            `json:"command,omitempty"`
 	Args       []string          `json:"args,omitempty"`
@@ -86,6 +92,9 @@ type Config struct {
 	// failed capture then blocks the edit. Default checkpoints are best effort.
 	SnapshotsStrict bool                 `json:"-"`
 	LSP             map[string]LSPConfig `json:"lsp,omitempty"`
+	// Prices maps a model name to its price in USD per million tokens, used
+	// only for cost estimates in goh stats. GoHarness ships no price table.
+	Prices map[string]ModelPrice `json:"prices,omitempty"`
 	// LSPAuto adds installed well-known language servers (see knownLSP).
 	LSPAuto         bool                     `json:"lsp_auto,omitempty"`
 	Commands        map[string]CommandConfig `json:"commands,omitempty"`

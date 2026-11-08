@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.110 — 2026-11-09
+
+- Cost estimates in `goh stats`, as OpenCode shows cost: add `"prices":
+  {"<model>": {"input": 1.5, "output": 6}}` (USD per million tokens) to the
+  config and stats prints an estimate per model and in total. `--json`
+  carries `estimated_cost_usd`. GoHarness ships no price table, because
+  prices change and differ by account, so unpriced models show tokens only
+  with a hint.
+
 ## 1.0.0-rc.109 — 2026-11-09
 
 - The grep tool respects `.gitignore` and `.ignore` files (root, nested,

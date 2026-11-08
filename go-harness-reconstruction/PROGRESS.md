@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC110 cost estimates milestone
+
+Backlog R22: user-priced cost estimates in stats; no bundled prices.
+
 ## RC109 grep ignore rules milestone
 
 Grep now matches the observed reference by leaving gitignored files out;

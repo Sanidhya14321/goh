@@ -3,8 +3,10 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/tui"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"time"
@@ -25,6 +27,7 @@ func stats(args []string) error {
 	days := f.Int("days", 0, "only sessions written in the last N days (0 = all)")
 	project := f.String("project", "", "only sessions for this project directory")
 	asJSON := f.Bool("json", false, "print JSON")
+	configPath := f.String("config", "", "explicit user JSON configuration (for prices)")
 	if err := f.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -53,6 +56,9 @@ func stats(args []string) error {
 	if err != nil {
 		return err
 	}
+	if c, err := core.LoadConfig(*configPath); err == nil {
+		applyPrices(&st, c.Prices)
+	}
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
@@ -62,11 +68,37 @@ func stats(args []string) error {
 	if len(st.Models) == 0 {
 		fmt.Println("No token usage recorded yet (recorded from 1.0.0-rc.60 when the provider reports it).")
 	}
-	for _, m := range st.Models {
-		fmt.Printf("%-32s %6d replies  %12d in  %12d out  %12d total\n", m.Model, m.Replies, m.Prompt, m.Completion, m.Total)
-	}
+	writeModelRows(os.Stdout, st.Models)
 	if st.Damaged > 0 {
 		fmt.Printf("%d damaged session(s) skipped; see goh sessions list\n", st.Damaged)
 	}
 	return nil
+}
+
+// applyPrices estimates cost for models with a configured price.
+func applyPrices(st *session.Stats, prices map[string]core.ModelPrice) {
+	for i := range st.Models {
+		if p, ok := prices[st.Models[i].Model]; ok {
+			st.Models[i].Estimate(p.Input, p.Output)
+		}
+	}
+}
+
+func writeModelRows(w io.Writer, models []session.ModelUsage) {
+	var total float64
+	priced := false
+	for _, m := range models {
+		cost := ""
+		if m.CostUSD != nil {
+			cost = fmt.Sprintf("  ~$%.4f", *m.CostUSD)
+			total += *m.CostUSD
+			priced = true
+		}
+		fmt.Fprintf(w, "%-32s %6d replies  %12d in  %12d out  %12d total%s\n", tui.Safe(m.Model), m.Replies, m.Prompt, m.Completion, m.Total, cost)
+	}
+	if priced {
+		fmt.Fprintf(w, "Estimated cost: ~$%.4f (from configured prices; unpriced models excluded)\n", total)
+	} else if len(models) > 0 {
+		fmt.Fprintln(w, `Add "prices": {"<model>": {"input": USD_per_Mtok, "output": USD_per_Mtok}} to the config for cost estimates.`)
+	}
 }

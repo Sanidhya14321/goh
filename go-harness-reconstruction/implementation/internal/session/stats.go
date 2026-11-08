@@ -17,6 +17,14 @@ type ModelUsage struct {
 	Prompt     int64  `json:"prompt_tokens"`
 	Completion int64  `json:"completion_tokens"`
 	Total      int64  `json:"total_tokens"`
+	// CostUSD is an estimate from configured prices; nil when unpriced.
+	CostUSD *float64 `json:"estimated_cost_usd,omitempty"`
+}
+
+// Estimate fills CostUSD from per-million-token prices.
+func (m *ModelUsage) Estimate(input, output float64) {
+	cost := float64(m.Prompt)/1e6*input + float64(m.Completion)/1e6*output
+	m.CostUSD = &cost
 }
 
 // Stats summarizes saved sessions (like `opencode stats`).
