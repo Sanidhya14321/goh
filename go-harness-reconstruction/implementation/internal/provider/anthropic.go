@@ -450,6 +450,11 @@ func anthropicCoreUsage(u *anthropicUsage) (*core.Usage, error) {
 // already have been delivered to delta when an error occurs; no partial call is
 // returned for execution. All diagnostics are static and redact provider bodies.
 func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
+	return parseAnthropic(r, delta, nil)
+}
+
+// parseAnthropic also passes thinking text to reasoning as it streams.
+func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (core.Reply, error) {
 	reply := core.Reply{Message: core.Message{Role: "assistant"}}
 	var text strings.Builder
 	var usage *anthropicUsage
@@ -579,6 +584,9 @@ func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
 					return invalid()
 				}
 				thinking.WriteString(*e.Delta.Thinking)
+				if reasoning != nil && *e.Delta.Thinking != "" {
+					reasoning(*e.Delta.Thinking)
+				}
 				return nil
 			case "signature_delta":
 				if blockType != "thinking" || e.Delta.Signature == nil || signature.Len()+len(*e.Delta.Signature) > 64<<10 {

@@ -32,6 +32,7 @@ var paletteEntries = []paletteEntry{
 	{"/jobs", "Background jobs: view output or stop"},
 	{"/changes", "Files changed in this session, with diffs"},
 	{"/timestamps", "Show or hide when each prompt was sent"},
+	{"/thinking", "Show or hide the model's reasoning"},
 	{"/details", "Show or hide full tool output"},
 	{"/find", "Search the conversation: /find text"},
 	{"/rename", "Rename this session: /rename title (empty resets)"},
@@ -117,6 +118,11 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.palette = false
 				m.input = entry.command + " "
 				m.inputCursor = len([]rune(m.input))
+				return m, nil
+			}
+			if entry.command == "/thinking" {
+				m.palette = false
+				m.toggleThinking()
 				return m, nil
 			}
 			if entry.command == "/details" {

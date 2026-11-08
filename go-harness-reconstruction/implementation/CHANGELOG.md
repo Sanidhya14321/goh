@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.80 — 2026-11-08
+
+- The TUI shows the model's reasoning as dimmed `┊` lines before the answer
+  or tool call it led to, and `/thinking` hides or shows it (as OpenCode's
+  thinking toggle does). Sources: Anthropic extended thinking, and OpenAI
+  Responses reasoning summaries, which are requested (`summary: "auto"`)
+  only when `reasoning_effort` is set. Reasoning is display-only: it is
+  never sent back as text.
+- Not yet verified live: whether the ChatGPT and API endpoints accept the
+  summary request. If one refuses, unset `reasoning_effort`.
+
 ## 1.0.0-rc.79 — 2026-11-08
 
 - `goh --help` lists every command with a one-line description; `models`

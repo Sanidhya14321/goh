@@ -97,6 +97,8 @@ type model struct {
 	timestamps           bool
 	contextTokens        int
 	hideDetails          bool
+	hideThinking         bool
+	reasoning            strings.Builder
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
@@ -156,6 +158,16 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.width = v.Width
 		m.height = v.Height
 	case core.Event:
+		if v.Type == "reasoning_updated" {
+			b, _ := json.Marshal(v.Data)
+			var d struct {
+				Text string `json:"text"`
+			}
+			json.Unmarshal(b, &d)
+			m.addReasoning(d.Text)
+			return m, m.wait()
+		}
+		m.flushReasoning()
 		switch v.Type {
 		case "subagent_event":
 			b, _ := json.Marshal(v.Data)
@@ -468,6 +480,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
+			}
+			if strings.TrimSpace(prompt) == "/thinking" {
+				m.input, m.inputCursor = "", 0
+				m.toggleThinking()
+				return m, nil
 			}
 			if trimmed := strings.TrimSpace(prompt); trimmed == "/exit" || trimmed == "/quit" {
 				m.input, m.inputCursor = "", 0

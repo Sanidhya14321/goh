@@ -406,7 +406,8 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			return "budget_exhausted", e
 		}
 		a.event("assistant_started", map[string]any{"turn": turn})
-		reply, e := a.completeWithFailover(ctx, "turn", a.Provider, a.Config, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
+		reasoningCtx := core.WithReasoning(ctx, func(s string) { a.event("reasoning_updated", map[string]any{"text": s}) })
+		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
 		if e != nil {
 			var finish *provider.FinishError
 			if errors.As(e, &finish) && finish.Reason == "length" {

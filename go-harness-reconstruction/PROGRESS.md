@@ -19,6 +19,12 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC80 reasoning display milestone
+
+Providers pass reasoning text through a context-scoped sink, so the model
+interface is unchanged. The TUI writes it as one marked block per step
+behind the `/thinking` toggle.
+
 ## RC79 command help milestone
 
 Described top-level help, tested against the dispatcher; the setup PTY

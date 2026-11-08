@@ -18,9 +18,13 @@ func TestAnthropicThinkingRoundTrip(t *testing.T) {
 		anthroBlock(1, map[string]any{"type": "redacted_thinking", "data": "opaque"}) + anthroClose(1) +
 		anthroBlock(2, map[string]any{"type": "tool_use", "id": "toolu_1", "name": "read_file", "input": map[string]any{"path": "a"}}) + anthroClose(2) +
 		anthroFinish("tool_use") + anthroStop()
-	reply, err := ParseAnthropic(strings.NewReader(wire), nil)
+	var streamed strings.Builder
+	reply, err := parseAnthropic(strings.NewReader(wire), nil, func(s string) { streamed.WriteString(s) })
 	if err != nil {
 		t.Fatal(err)
+	}
+	if streamed.String() != "Need to read the file." {
+		t.Fatalf("streamed thinking %q", streamed.String())
 	}
 	if len(reply.Message.AnthropicThinking) != 2 || len(reply.Message.ToolCalls) != 1 {
 		t.Fatalf("%+v", reply.Message)

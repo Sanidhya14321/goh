@@ -60,4 +60,4 @@ ChatGPT preview restrictions include a stateless HTTP stream and no request-leve
 | Older binary opens a newer journal | Reported as an unsupported journal version, not damage | `TestInconsistentVersionAndTimeRejected` |
 | Interrupted typed `!command` | Recorded like a model shell call, so resume reports an uncertain effect | `TestUserShell*` |
 
-Verified live on ChatGPT (RC72): image input, reasoning effort, end-of-request task state, plan handoff, streaming, tools and resume. Still unverified live: provider failover, ChatGPT token expiry, task-state cache savings, Anthropic thinking and API-key provider model lists.
+Verified live on ChatGPT (RC72): image input, reasoning effort, end-of-request task state, plan handoff, streaming, tools and resume. Still unverified live: Responses reasoning summaries (RC80), provider failover, ChatGPT token expiry, task-state cache savings, Anthropic thinking and API-key provider model lists.

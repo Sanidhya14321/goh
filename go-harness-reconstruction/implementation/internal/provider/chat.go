@@ -62,10 +62,12 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	var body map[string]any
 	if anthropic {
 		b, e = EncodeAnthropic(c.Config, messages, tools)
-		parse = ParseAnthropic
+		sink := core.ReasoningSink(ctx)
+		parse = func(r io.Reader, d func(string)) (core.Reply, error) { return parseAnthropic(r, d, sink) }
 	} else if responses {
 		b, e = encodeResponses(c.Config, messages, tools)
-		parse = parseResponses
+		sink := core.ReasoningSink(ctx)
+		parse = func(r io.Reader, d func(string)) (core.Reply, error) { return parseResponsesReasoning(r, d, sink) }
 	} else {
 		var clean []core.Message
 		for i := range messages {

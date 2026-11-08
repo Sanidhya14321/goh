@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC80 reasoning display
+
+- `TestResponsesReasoningSummaryStreamsToSink` covers Responses summary streaming.
+- The Anthropic round-trip test now checks the thinking stream.
+- `TestReasoningBlockAndToggle` checks block ordering before the answer, that NUL markers cannot be forged, and hiding with `/thinking`.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, the PTY suite and the setup suite.
+- Live acceptance of `reasoning.summary` was not run (no live keys in this loop).
+
 ## RC79 command help
 
 `TestUsageListsDispatchedCommands` compares the help with the dispatcher. `scripts/test_setup.py` had been failing since RC59 because it expected an old dialog title. It is fixed, passes, and now runs with the gates. Gates passed: vet (macOS and Windows), race suite, acceptance, the PTY suite and the setup suite.

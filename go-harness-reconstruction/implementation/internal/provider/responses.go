@@ -68,7 +68,9 @@ func encodeResponses(c core.Config, messages []core.Message, tools []core.Tool) 
 		body["max_output_tokens"] = c.OutputBudget
 	}
 	if c.ReasoningEffort != "" {
-		body["reasoning"] = map[string]any{"effort": c.ReasoningEffort}
+		// A summary is requested only with an explicit effort, where the model
+		// is known to reason; it is shown in the UI and never replayed.
+		body["reasoning"] = map[string]any{"effort": c.ReasoningEffort, "summary": "auto"}
 	}
 	if len(tools) > 0 {
 		functions := make([]map[string]any, 0, len(tools))
@@ -108,6 +110,11 @@ type responsesResult struct {
 }
 
 func parseResponses(r io.Reader, delta func(string)) (core.Reply, error) {
+	return parseResponsesReasoning(r, delta, nil)
+}
+
+// parseResponsesReasoning also passes reasoning summary text to reasoning.
+func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(string)) (core.Reply, error) {
 	scanner := bufio.NewScanner(io.LimitReader(r, maxResponse+1))
 	scanner.Buffer(make([]byte, 4096), maxResponse)
 	total := 0
@@ -139,6 +146,15 @@ func parseResponses(r io.Reader, delta func(string)) (core.Reply, error) {
 			if delta != nil && text != "" {
 				delta(text)
 				emitted = true
+			}
+		case "response.reasoning_summary_text.delta":
+			var text string
+			if json.Unmarshal(event.Delta, &text) == nil && reasoning != nil && text != "" {
+				reasoning(text)
+			}
+		case "response.reasoning_summary_part.added":
+			if reasoning != nil {
+				reasoning("\n\n") // separate summary paragraphs
 			}
 		case "response.completed":
 			reply, err := decodeResponses(event.Response)
