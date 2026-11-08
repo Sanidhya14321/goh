@@ -60,7 +60,12 @@ jobs:
           $hash = (Get-FileHash -Algorithm SHA256 "$out\goh-windows-amd64.exe").Hash.ToLowerInvariant()
           Set-Content -NoNewline -Path "$out\SHA256SUMS" -Value "$hash  goh-windows-amd64.exe`n"
           $server = Start-Process python -ArgumentList '-m','http.server','8765','--bind','127.0.0.1','--directory',$out -PassThru
-          Start-Sleep 2
+          # Wait until the local download server answers (up to 30 s).
+          $ready = $false
+          for ($i = 0; $i -lt 60 -and -not $ready; $i++) {
+            try { Invoke-WebRequest -UseBasicParsing 'http://127.0.0.1:8765/' -TimeoutSec 2 | Out-Null; $ready = $true } catch { Start-Sleep -Milliseconds 500 }
+          }
+          if (-not $ready) { throw 'download server did not start' }
           try {
             $env:GOH_BASE_URL = 'http://127.0.0.1:8765'
             $env:GOH_INSTALL_DIR = Join-Path $env:RUNNER_TEMP 'goh-bin'
