@@ -4,13 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
-## Readiness at RC88 (8 November 2026)
+## Readiness at RC109 (9 November 2026)
 
 | Subsystem | Estimate | Done locally | Waiting on |
 | --- | --- | --- | --- |
-| Agent loop and recovery | ~90% | Journaled effects, undo/revert, loop guard, default checkpoints, orphaned-job recovery, cancellation under load on all three OSes, compaction margin scaled for small windows (found live) | Live provider failover and token-expiry runs |
+| Agent loop and recovery | ~93% | Journaled effects, undo/revert, loop guard, default checkpoints, orphaned-job recovery, cancellation under load on all three OSes, compaction margin (found live), guided salvage of damaged sessions, provider cooldowns, visible retries, ChatGPT 401 renewal | Live provider failover and token-expiry runs |
 | Providers | ~82% | Chat Completions, Responses, Sign in with ChatGPT (verified live: streaming, tools, resume, images, reasoning effort), Anthropic incl. extended thinking, model lists, streamed reasoning display | Live check of Responses reasoning summaries; user keys for Anthropic thinking and API-key model lists |
-| Tools and integrations | ~86% | Files, patches, shell and file rules, background jobs, local and remote MCP (`goh mcp list`), LSP with post-edit errors, web fetch and search | Third-party MCP services and OAuth; real language servers |
+| Tools and integrations | ~90% | Files, patches, shell and file rules, background jobs, local and remote MCP (`goh mcp list`), LSP with post-edit errors verified against real clangd, approved restarts, lsp_auto, gitignore-aware grep, @path attachments, web fetch and search | Third-party MCP services and OAuth; language servers other than clangd |
 | Terminal UI | ~90% | Fuzzy palette and pickers, /find /copy /details /timestamps /changes /jobs /rename /thinking /effort /exit, plan handoff, context meter, themes | Visual comparison passes against OpenCode |
 | CLI | ~90% | run (words, stdin, --file, --title, --command, --reasoning-effort, --continue), export/import, sessions (table), agents, models, stats, mcp list, /review and /init built-ins | — |
 | Platforms | ~85% | Native CI on Ubuntu, macOS and Windows for every commit | Native Windows manual session |
