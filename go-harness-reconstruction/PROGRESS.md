@@ -4,6 +4,21 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## Readiness at RC71 (8 November 2026)
+
+| Subsystem | Estimate | Done locally | Waiting on |
+| --- | --- | --- | --- |
+| Agent loop and recovery | ~90% | Journaled effects, undo/revert, loop guard, default checkpoints, orphaned-job recovery, cancellation under load on all three OSes | Live provider failover and token-expiry runs |
+| Providers | ~80% | Chat Completions, Responses, Sign in with ChatGPT, Anthropic (incl. extended thinking), images, reasoning effort, model lists | User keys to verify thinking, images, reasoning, caching against real APIs |
+| Tools and integrations | ~85% | Files, patches, shell rules, file rules, background jobs, local and remote MCP, LSP (11 operations), web fetch and search | Third-party MCP services and OAuth; real language servers |
+| Terminal UI | ~88% | OpenCode-style palette (fuzzy), pickers, /find, /copy, /details, /timestamps, /changes, /jobs, plan handoff, context meter, themes, keymaps | Visual comparison passes against OpenCode |
+| Platforms | ~85% | Native CI on Ubuntu, macOS and Windows for every commit | Native Windows manual session |
+| Release | ~60% | Cross-builds, checksums, installers tested in CI | User approval to publish; release workflow deferred by request |
+
+Not attempted, needing a decision first: custom tool plugins (they would
+execute repository code and need a security design), session sharing
+(uploads conversations), and MCP OAuth (needs a live server).
+
 ## RC71 web search milestone
 
 Backlog T14: an opt-in, keyless search backend (SearXNG JSON) rather than a
