@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC35 copy picker milestone
+
+`/copy` (also in the command palette) lists recent user and assistant
+messages and copies the chosen one through OSC 52, extending the RC27
+copy-last-reply action to any message. Timestamp display is deferred until
+the journal records message times, which needs a versioned format change.
+
 ## RC34 status diagnostics milestone
 
 `/status` previously said only "Configuration needs attention". It now shows

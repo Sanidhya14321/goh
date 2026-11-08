@@ -68,6 +68,10 @@ func (m *model) View() tea.View {
 		m.fork.width, m.fork.height = width, height
 		return m.fork.View()
 	}
+	if m.copyPicker != nil {
+		m.copyPicker.width, m.copyPicker.height = width, height
+		return m.copyPicker.View()
+	}
 	if m.themePicker != nil {
 		m.themePicker.width, m.themePicker.height = width, height
 		return m.themePicker.View()

@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.35 — 2026-11-08
+
+- `/copy` picks any recent user or assistant message (newest first,
+  filterable) and copies it as written, Markdown included.
+
 ## 1.0.0-rc.34 — 2026-11-08
 
 - `/status` explains why the configuration needs attention, shows the

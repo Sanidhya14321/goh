@@ -83,6 +83,7 @@ type model struct {
 	leader               bool
 	keys                 core.Keymap
 	themePicker          *optionPicker
+	copyPicker           *optionPicker
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
 }
@@ -291,6 +292,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.themePicker != nil {
 			return m.themeUpdate(v)
 		}
+		if m.copyPicker != nil {
+			return m.copyUpdate(v)
+		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
 		}
@@ -320,6 +324,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if m.themePicker != nil {
 			return m.themeUpdate(v)
+		}
+		if m.copyPicker != nil {
+			return m.copyUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -426,6 +433,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
+			}
+			if strings.TrimSpace(prompt) == "/copy" {
+				m.input, m.inputCursor = "", 0
+				m.openCopyPicker()
+				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/theme" {
 				m.input, m.inputCursor = "", 0

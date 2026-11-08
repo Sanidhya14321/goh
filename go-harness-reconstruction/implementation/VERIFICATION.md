@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC35 copy picker
+
+`1.0.0-rc.35` passed vet (macOS and Windows), the race suite, seven CLI and
+nineteen PTY scenarios. Unit tests check that system and tool content is never
+offered, empty replies are skipped, order is newest first, filtering and Enter
+copy the exact content, the draft is untouched and Esc closes the picker.
+Timestamps were deferred: journal records carry no time and salvage rejects
+unknown fields, so adding them is a journal-format change.
+
 ## RC34 status diagnostics
 
 `1.0.0-rc.34` passed vet (macOS and Windows), the race suite, seven CLI
