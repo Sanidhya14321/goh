@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC46 shell rules milestone
+
+Backlog R07 (patterns): `shell_rules` with last-match-wins glob patterns.
+Unlike a prefix match, auto-allow refuses any command with shell operators
+and deny checks every segment, so compound commands cannot smuggle a denied
+command past an allow rule. Rules are checked inside `Permission`, before
+session grants.
+
 ## RC45 loop guard milestone
 
 Backlog R07 (doom loop): the third consecutive identical call (tool name and

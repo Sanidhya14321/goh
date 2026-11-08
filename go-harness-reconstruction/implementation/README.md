@@ -392,6 +392,32 @@ preview and a private output artifact (1 MiB). Cancellation and timeouts termina
 the owned process group, allow two seconds, then escalate. Deliberately detached
 processes are outside the guarantee. Effects are not rolled back.
 
+### Shell command rules
+
+`shell_rules` lets you skip the prompt for commands you trust and refuse
+ones you never want run. Each rule has a `match` pattern (`*` matches any
+text) and an `action`: `allow`, `deny` or `ask`. The last matching rule
+wins. Rules apply to `shell` and `job_start`, for subagents too; commands
+you type yourself with `!` are not filtered.
+
+```jsonc
+"shell_rules": [
+  {"match": "git status*", "action": "allow"},
+  {"match": "go test *",   "action": "allow"},
+  {"match": "*rm -rf*",    "action": "deny"},
+  {"match": "git push*",   "action": "ask"}   // ask even if shell is approved for the session
+]
+```
+
+- `allow` only covers simple commands. A command containing `;`, `&`, `|`,
+  backticks, `$(`, redirects or a newline is never auto-allowed, so
+  `git status; rm -rf ~` still needs your approval.
+- `deny` is checked against the whole command and every part of a compound
+  command.
+- Patterns match text, not intent. `rm *` does not catch `FOO=1 rm -rf x`
+  or `/bin/rm`; prefer patterns like `*rm -rf*`. Treat deny rules as a
+  guardrail, not a sandbox.
+
 ## Sessions, recovery and context
 
 Default storage is `~/.local/state/independent-harness/sessions` (override with

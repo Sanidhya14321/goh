@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.46 — 2026-11-08
+
+- `shell_rules`: allow, deny or always-ask shell commands by pattern (also
+  for background jobs and subagents). Allow covers only simple commands; a
+  deny matches any part of a compound command. Documented as a guardrail,
+  not a sandbox.
+
 ## 1.0.0-rc.45 — 2026-11-08
 
 - Loop guard: when the model makes the same tool call with the same

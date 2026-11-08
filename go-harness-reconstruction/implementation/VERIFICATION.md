@@ -23,6 +23,23 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC46 shell command rules
+
+`1.0.0-rc.46` passed vet (macOS and Windows), the race suite, seven CLI
+scenarios and twenty-three PTY scenarios (three consecutive runs after the
+harness change below). Matcher tests cover allow and deny precedence, a later
+allow carving an exception from a deny, and bypass attempts through `;`,
+`&&`, pipes, backticks, `$(…)`, redirects, newlines and subshells. Runtime
+tests check that rules decide without prompting and are journaled with
+source `shell_rules`, that `ask` prompts even with a session grant, that
+`job_start` and `child:shell` follow the rules, and that compound commands
+fall back to normal approval. Known limit (documented): patterns match text,
+so `rm *` misses `FOO=1 rm` or `/bin/rm`.
+
+One PTY run failed in `editor_handoff` because a redraw split the reply on
+screen. All scenarios that wait for a model reply now accept it from the
+screen or the journal (`wait_reply`).
+
 ## RC45 loop guard
 
 `1.0.0-rc.45` passed vet (macOS and Windows), the race suite, seven CLI and

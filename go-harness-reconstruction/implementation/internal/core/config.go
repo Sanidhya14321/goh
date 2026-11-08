@@ -45,6 +45,8 @@ type Config struct {
 	Protocol            string            `json:"protocol,omitempty"`
 	ModelRoles          map[string]string `json:"model_roles,omitempty"`
 	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
+	// ShellRules auto-allow or deny shell commands by pattern; see shellrules.go.
+	ShellRules []ShellRule `json:"shell_rules,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -148,6 +150,9 @@ func (c Config) Validate() error {
 		return err
 	}
 	if err := c.ValidateFallbackProfiles(); err != nil {
+		return err
+	}
+	if err := c.ValidateShellRules(); err != nil {
 		return err
 	}
 	if _, err := ResolveKeymap(c.Keybinds); err != nil {

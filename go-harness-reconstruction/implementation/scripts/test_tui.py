@@ -62,6 +62,23 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         break
                     output.extend(data)
             raise AssertionError(f'{case}: missing {needle!r}; output tail={bytes(output[-1800:])!r}')
+        def wait_reply(needle, timeout=8):
+            # The renderer redraws only changed cells, so a reply can reach the
+            # terminal in fragments. Accept it on screen or in the journal.
+            deadline = time.monotonic() + timeout
+            sessions = outside_sessions/case if scenario=='undo' else root/case
+            while time.monotonic() < deadline:
+                if needle.encode() in output:
+                    return
+                for j in sessions.glob('*.jsonl'):
+                    for r in live_records(j):
+                        if r['type']=='message' and r['data'].get('role')=='assistant' and needle in (r['data'].get('content') or ''):
+                            return
+                readable, _, _ = select.select([master], [], [], .05)
+                if readable:
+                    try: output.extend(os.read(master, 65536))
+                    except OSError: break
+            raise AssertionError(f'{case}: missing reply {needle!r}; output tail={bytes(output[-1800:])!r}')
         try:
             for attempt in range(100):
                 if fixture.poll() is not None:
@@ -154,7 +171,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     assert any(r['type']=='tool_result' for r in records),'shell result not journaled'
                     assert not any(r['type']=='message' and r['data'].get('role')=='assistant' and r['data'].get('content') for r in records),'a model reply was requested'
                 elif case=='timestamps':
-                    wait_for(b'Fixture response')
+                    wait_reply('Fixture response')
                     time.sleep(.3)
                     os.write(master, b'/timestamps\r')
                     wait_for(b'Timestamps shown')
@@ -163,11 +180,11 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     stamped=[r for j in (root/case).glob('*.jsonl') for r in live_records(j)]
                     assert stamped and all(r['version']==2 and r['time']>0 for r in stamped), 'journal records lack times'
                 elif case=='theme_light':
-                    wait_for(b'Fixture response')
+                    wait_reply('Fixture response')
                     assert b'48;2;250;250;250' in output, 'light theme background not rendered'
                     assert b'48;2;10;10;10m' not in output[-4000:], 'dark background still rendered after start'
                 elif case=='editor_handoff':
-                    wait_for(b'Fixture response')
+                    wait_reply('Fixture response')
                     sent=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']
                     assert sent==['Draft rewritten in editor'],sent
                 elif case=='timeline_revert':
@@ -305,7 +322,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     (root/'job.pid').unlink(missing_ok=True)
                     wait_for(b'APPROVAL: job_start')
                     os.write(master, b'y')
-                    wait_for(b'Background job started')
+                    wait_reply('Background job started')
                     for attempt in range(250):
                         if (root/'job.pid').exists() and (root/'job.pid').read_text().strip(): break
                         time.sleep(.02)
@@ -331,7 +348,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     if process.poll() is not None:
                         raise AssertionError('first cancel exited application')
                 else:
-                    wait_for(b'Fixture response')
+                    wait_reply('Fixture response')
                     wait_for(b'completed')
                 # A rendered 'completed' can belong to a child or precede the
                 # UI worker's done message. Wait for the actual parent terminal

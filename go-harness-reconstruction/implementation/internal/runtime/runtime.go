@@ -196,7 +196,17 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		return core.Decision{}, e
 	}
 	a.event("permission_requested", p)
-	d := core.Decision{Allow: a.Grants[p.Tool]}
+	rule := shellRuleFor(a.Config, p)
+	if rule == "allow" || rule == "deny" {
+		d := core.Decision{Allow: rule == "allow"}
+		data := map[string]any{"tool": p.Tool, "allowed": d.Allow, "session": false, "source": "shell_rules"}
+		if e := a.Store.Append("permission", data); e != nil {
+			return d, e
+		}
+		a.event("permission_resolved", data)
+		return d, nil
+	}
+	d := core.Decision{Allow: a.Grants[p.Tool] && rule != "ask"}
 	var e error
 	if !d.Allow {
 		if a.Approve == nil {
@@ -1008,4 +1018,21 @@ func userGuidance() (string, string) {
 		return "", ""
 	}
 	return string(b), path
+}
+
+// shellRuleFor applies configured shell_rules to shell and job_start
+// requests (including a subagent's), returning allow, deny, ask or "".
+func shellRuleFor(c core.Config, p core.Permission) string {
+	switch strings.TrimPrefix(p.Tool, "child:") {
+	case "shell", "job_start":
+	default:
+		return ""
+	}
+	var args struct {
+		Command string `json:"command"`
+	}
+	if json.Unmarshal(p.Arguments, &args) != nil || args.Command == "" {
+		return ""
+	}
+	return c.ShellDecision(args.Command)
 }
