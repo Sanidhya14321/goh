@@ -51,10 +51,13 @@ func TestLSPInitializeQueriesUTF16SyncAndDiagnostics(t *testing.T) {
 	m, path, log := setup(t, "")
 	starts := 0
 	m.OnStarted = func(name string) error { starts++; return nil }
-	for _, op := range []string{"hover", "goToDefinition", "findReferences", "documentSymbol", "workspaceSymbol", "goToImplementation", "diagnostics"} {
+	for _, op := range []string{"hover", "goToDefinition", "findReferences", "documentSymbol", "workspaceSymbol", "goToImplementation", "diagnostics", "goToTypeDefinition", "prepareCallHierarchy", "incomingCalls", "outgoingCalls"} {
 		r := m.Execute(context.Background(), "lsp", argumentsFor(op))
 		if r.Error {
 			t.Fatal(op, r.Content)
+		}
+		if (op == "incomingCalls" || op == "outgoingCalls") && !strings.Contains(r.Content, "Caller of FixtureFunc") {
+			t.Fatal("call hierarchy did not use the prepared item", op, r.Content)
 		}
 		if op == "hover" {
 			if !strings.Contains(r.Content, `"character":3`) {

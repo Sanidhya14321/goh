@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC68 LSP operations milestone
+
+Backlog T15: type definitions and call hierarchy (prepare, then incoming or
+outgoing calls on the first prepared item), gated on server capabilities.
+
 ## RC67 plan handoff milestone
 
 Backlog T16: `plan_exit` exists only for the top-level plan agent and always

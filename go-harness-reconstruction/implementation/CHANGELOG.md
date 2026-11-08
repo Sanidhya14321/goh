@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.68 — 2026-11-08
+
+- The `lsp` tool adds `goToTypeDefinition`, `prepareCallHierarchy`,
+  `incomingCalls` and `outgoingCalls`, matching OpenCode's language-server
+  operations. Each is used only when the server advertises it.
+
 ## 1.0.0-rc.67 — 2026-11-08
 
 - Plan handoff: in plan mode the agent can propose switching to build with

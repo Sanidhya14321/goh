@@ -94,7 +94,7 @@ func RunLSP() {
 				write(map[string]any{"jsonrpc": "2.0", "id": q.ID, "result": map[string]any{}})
 				continue
 			}
-			caps := map[string]any{"hoverProvider": true, "definitionProvider": true, "referencesProvider": true, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "implementationProvider": true, "positionEncoding": "utf-16"}
+			caps := map[string]any{"typeDefinitionProvider": true, "callHierarchyProvider": true, "hoverProvider": true, "definitionProvider": true, "referencesProvider": true, "documentSymbolProvider": true, "workspaceSymbolProvider": true, "implementationProvider": true, "positionEncoding": "utf-16"}
 			if mode == "bad-encoding" {
 				caps["positionEncoding"] = "utf-8"
 			}
@@ -129,7 +129,17 @@ func RunLSP() {
 			}
 		case "textDocument/documentSymbol", "workspace/symbol":
 			result = []any{map[string]any{"name": "FixtureSymbol", "kind": 12}}
-		case "textDocument/definition", "textDocument/references", "textDocument/implementation":
+		case "textDocument/prepareCallHierarchy":
+			doc, _ := q.Params["textDocument"].(map[string]any)
+			result = []any{map[string]any{"name": "FixtureFunc", "kind": 12, "uri": doc["uri"], "range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}, "selectionRange": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}}}
+		case "callHierarchy/incomingCalls", "callHierarchy/outgoingCalls":
+			item, _ := q.Params["item"].(map[string]any)
+			key := "from"
+			if q.Method == "callHierarchy/outgoingCalls" {
+				key = "to"
+			}
+			result = []any{map[string]any{key: map[string]any{"name": "Caller of " + fmt.Sprint(item["name"]), "kind": 12}, "fromRanges": []any{}}}
+		case "textDocument/definition", "textDocument/references", "textDocument/implementation", "textDocument/typeDefinition":
 			doc, _ := q.Params["textDocument"].(map[string]any)
 			result = []any{map[string]any{"uri": doc["uri"], "range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}}}
 		default:

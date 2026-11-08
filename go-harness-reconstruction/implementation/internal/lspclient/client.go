@@ -30,8 +30,11 @@ const maxResult = 64 << 10
 const operationTimeout = 15 * time.Second
 
 var serverName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
-var operations = map[string]string{"goToDefinition": "textDocument/definition", "findReferences": "textDocument/references", "hover": "textDocument/hover", "documentSymbol": "textDocument/documentSymbol", "workspaceSymbol": "workspace/symbol", "goToImplementation": "textDocument/implementation", "diagnostics": "textDocument/diagnostic"}
-var capabilities = map[string]string{"goToDefinition": "definitionProvider", "findReferences": "referencesProvider", "hover": "hoverProvider", "documentSymbol": "documentSymbolProvider", "workspaceSymbol": "workspaceSymbolProvider", "goToImplementation": "implementationProvider", "diagnostics": "diagnosticProvider"}
+var operations = map[string]string{"goToDefinition": "textDocument/definition", "findReferences": "textDocument/references", "hover": "textDocument/hover", "documentSymbol": "textDocument/documentSymbol", "workspaceSymbol": "workspace/symbol", "goToImplementation": "textDocument/implementation", "diagnostics": "textDocument/diagnostic",
+	"goToTypeDefinition": "textDocument/typeDefinition", "prepareCallHierarchy": "textDocument/prepareCallHierarchy",
+	"incomingCalls": "callHierarchy/incomingCalls", "outgoingCalls": "callHierarchy/outgoingCalls"}
+var capabilities = map[string]string{"goToDefinition": "definitionProvider", "findReferences": "referencesProvider", "hover": "hoverProvider", "documentSymbol": "documentSymbolProvider", "workspaceSymbol": "workspaceSymbolProvider", "goToImplementation": "implementationProvider", "diagnostics": "diagnosticProvider",
+	"goToTypeDefinition": "typeDefinitionProvider", "prepareCallHierarchy": "callHierarchyProvider", "incomingCalls": "callHierarchyProvider", "outgoingCalls": "callHierarchyProvider"}
 
 type arguments struct {
 	Operation string `json:"operation"`
@@ -444,6 +447,19 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 			if args.Operation == "findReferences" {
 				params["context"] = map[string]bool{"includeDeclaration": true}
 			}
+		}
+		if args.Operation == "incomingCalls" || args.Operation == "outgoingCalls" {
+			// Call hierarchy is two requests: prepare at the position, then ask
+			// about the first item returned.
+			prepared, err := s.process.rpc.call(ctx, "textDocument/prepareCallHierarchy", params)
+			if err != nil {
+				return nil, err
+			}
+			var items []json.RawMessage
+			if json.Unmarshal(prepared, &items) != nil || len(items) == 0 {
+				return json.RawMessage(`[]`), nil
+			}
+			return s.process.rpc.call(ctx, operations[args.Operation], map[string]any{"item": items[0]})
 		}
 		return s.process.rpc.call(ctx, operations[args.Operation], params)
 	}

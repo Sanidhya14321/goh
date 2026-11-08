@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC68 more LSP operations
+
+`1.0.0-rc.68` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-five PTY scenarios. The fixture language server now advertises type
+definitions and call hierarchy; the LSP test runs all eleven operations
+against it and checks incoming and outgoing calls use the item returned by
+`prepareCallHierarchy`. Behavior against real language servers is untested.
+
 ## RC67 plan handoff
 
 `1.0.0-rc.67` passed vet (macOS and Windows), the race suite, eight CLI and
