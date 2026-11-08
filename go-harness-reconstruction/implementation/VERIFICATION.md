@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC38 revert to an earlier turn
+
+`1.0.0-rc.38` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-one PTY scenarios (two consecutive runs). The new `timeline_revert`
+scenario creates a file in a turn, opens the timeline, reverts with Ctrl+U
+and checks the file is gone and the prompt is back. Rewind tests revert turn
+2 of 3 (files from turns 2 and 3 removed, turn 1's kept, branch ends before
+turn 2), redo restores both turns, an unknown prompt is refused without
+changes, and repeated prompts select the right occurrence. Undo PTY
+scenarios now use per-case session folders.
+
 ## RC37 task-state placement
 
 `1.0.0-rc.37` passed vet (macOS and Windows), the race suite, seven CLI

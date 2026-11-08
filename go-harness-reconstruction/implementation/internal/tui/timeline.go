@@ -50,6 +50,8 @@ func (m *model) timelineUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputCursor = len([]rune(m.input))
 				m.historyPosition, m.historyDraft = 0, ""
 				m.timeline = nil
+			case "ctrl+u":
+				return m, m.revertFrom(p.prompts, p.selected)
 			case "up":
 				p.offset = max(0, p.offset-1)
 			case "down":
@@ -106,6 +108,31 @@ func (m *model) timelineView(width, height int) tea.View {
 		rows = append(rows, pad+cell("  "+line, boxWidth, foreground, panel))
 	}
 	rows = append(rows, pad+cell("  ↑/↓ scroll · PgUp/PgDn · Home/End", boxWidth, muted, panel),
-		pad+cell("  Ctrl+R recall to composer · edit before sending", boxWidth, accent, panel))
+		pad+cell("  Ctrl+R recall to composer · Ctrl+U revert to here", boxWidth, accent, panel))
 	return overlayView(p.picker.backdrop, rows, left, top, width, height)
+}
+
+// revertFrom asks the launcher to revert the selected prompt's turn and all
+// later turns, restoring checkpointed files and putting the prompt back in the
+// composer. The journal is matched by content, so a stale list cannot pick a
+// different turn; /redo undoes the revert.
+func (m *model) revertFrom(prompts []string, index int) tea.Cmd {
+	if m.a == nil {
+		m.status = "Configure a provider to revert"
+		return nil
+	}
+	if m.status == "running" || m.active {
+		m.status = "Wait for the run to finish, or press Esc to cancel, before reverting"
+		return nil
+	}
+	occurrence := 0
+	for _, later := range prompts[index+1:] {
+		if later == prompts[index] {
+			occurrence++
+		}
+	}
+	m.timeline = nil
+	m.revertPrompt, m.revertOccurrence = prompts[index], occurrence
+	m.navigation = "revert"
+	return tea.Quit
 }

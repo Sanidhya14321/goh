@@ -26,6 +26,10 @@ type ChatNavigation struct {
 	Backdrop   string
 	Draft      string
 	BeforeTurn int
+	// RevertPrompt and RevertOccurrence select the turn for "revert"
+	// (occurrence counts identical prompts from the latest, 0 = latest).
+	RevertPrompt     string
+	RevertOccurrence int
 }
 
 func (n *ChatNavigation) Error() string { return "chat navigation: " + n.Action }
@@ -60,6 +64,8 @@ type model struct {
 	closed               chan struct{}
 	runDone              chan struct{}
 	navigation           string
+	revertPrompt         string
+	revertOccurrence     int
 	blocked              string
 	scrollOffset         int
 	lastTranscriptHeight int
@@ -813,7 +819,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	a.Approve = oldApprove
 	a.Ask = oldAsk
 	if e == nil && m.navigation != "" {
-		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content, Draft: m.input, BeforeTurn: m.forkBefore}
+		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content, Draft: m.input, BeforeTurn: m.forkBefore, RevertPrompt: m.revertPrompt, RevertOccurrence: m.revertOccurrence}
 	}
 	return e
 }

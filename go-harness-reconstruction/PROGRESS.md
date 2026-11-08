@@ -4,6 +4,14 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC38 revert-to-turn milestone
+
+`rewind.RevertTo` generalizes undo from the latest turn to any turn: it
+reverts that turn and all later ones with the same safeguards (refused while
+tool effects are uncertain, all-or-nothing file restore, source journal
+untouched, redo available). The turn is matched by prompt content and
+occurrence rather than position, so a stale UI list cannot pick another turn.
+
 ## RC37 task-state placement milestone
 
 Research experiment 3: the todo list moved from the system message to a

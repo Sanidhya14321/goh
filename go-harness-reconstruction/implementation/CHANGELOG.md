@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.38 — 2026-11-08
+
+- Revert to an earlier prompt, as in OpenCode: in the timeline (Ctrl+T),
+  preview a prompt and press Ctrl+U. That turn and every later one are
+  undone, checkpointed files restored, and the prompt returns to the
+  composer for editing. `/redo` brings everything back until you send.
+
 ## 1.0.0-rc.37 — 2026-11-08
 
 - The session task list is sent at the end of each request instead of

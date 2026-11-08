@@ -283,11 +283,13 @@ func chatFirst(args []string) error {
 					project = workspace
 				}
 			}
-		case "undo", "redo":
+		case "undo", "redo", "revert":
 			draft = nav.Draft
 			var result rewind.Result
 			if nav.Action == "undo" {
 				result, actionErr = rewind.Undo(context.Background(), nav.Config.SessionDir, nav.Session)
+			} else if nav.Action == "revert" {
+				result, actionErr = rewind.RevertTo(context.Background(), nav.Config.SessionDir, nav.Session, nav.RevertPrompt, nav.RevertOccurrence)
 			} else {
 				result, actionErr = rewind.Redo(context.Background(), nav.Config.SessionDir, nav.Session)
 			}
@@ -295,8 +297,8 @@ func chatFirst(args []string) error {
 				break
 			}
 			sessionID = result.Session
-			info = result.Summary(nav.Action == "undo")
-			if nav.Action == "undo" {
+			info = result.Summary(nav.Action != "redo")
+			if nav.Action != "redo" {
 				draft = result.Prompt
 			}
 		case "fork":

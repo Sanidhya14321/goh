@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text'), ('timeline_revert','undo')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -91,7 +91,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 formatter_config=root/'formatter-config.json'
                 formatter_config.write_text(json.dumps({'formatters':{'fixture':{'command':str(formatter),'args':['$FILE'],'extensions':['.fmtcase'],'env':{'MODE':'cancel' if case=='formatter_cancellation' else 'normal'}}}}))
                 extra=['--config',str(formatter_config)]
-            process = subprocess.Popen([str(base / 'bin/goh'), 'chat', '--project', str(root), '--session-dir', str(outside_sessions if scenario=='undo' else root / case), '--endpoint', f'http://127.0.0.1:{port}/v1/chat/completions', '--model', 'scripted', '--context-window', '131072',*extra], stdin=slave, stdout=slave, stderr=slave, env=env)
+            process = subprocess.Popen([str(base / 'bin/goh'), 'chat', '--project', str(root), '--session-dir', str(outside_sessions/case if scenario=='undo' else root / case), '--endpoint', f'http://127.0.0.1:{port}/v1/chat/completions', '--model', 'scripted', '--context-window', '131072',*extra], stdin=slave, stdout=slave, stderr=slave, env=env)
             wait_for(b'Ctrl+D')
             if case == 'termination':
                 process.send_signal(signal.SIGTERM)
@@ -158,6 +158,27 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     wait_for(b'Fixture response')
                     sent=[r['data']['content'] for j in (root/case).glob('*.jsonl') for r in live_records(j) if r['type']=='message' and r['data'].get('role')=='user']
                     assert sent==['Draft rewritten in editor'],sent
+                elif case=='timeline_revert':
+                    target=root/'undo-target.txt'
+                    target.unlink(missing_ok=True)
+                    wait_for(b'APPROVAL: create_file')
+                    os.write(master,b'y')
+                    wait_for(b'fixture complete.')
+                    for attempt in range(250):
+                        settled=any(r['type']=='run_finished' for j in (outside_sessions/case).glob('*.jsonl') for r in live_records(j))
+                        if settled: break
+                        time.sleep(.02)
+                    assert settled,'run did not finish'
+                    time.sleep(.3)
+                    assert target.read_text()=='made in turn one'
+                    os.write(master,b'\x14')  # Ctrl+T timeline
+                    wait_for(b'Timeline')
+                    os.write(master,b'\r')  # preview the latest prompt
+                    wait_for(b'revert to here')
+                    os.write(master,b'\x15')  # Ctrl+U revert
+                    wait_for(b'Undid turn 1')
+                    assert not target.exists(),'revert left the file'
+                    wait_for(b'Exercise the fixture')  # prompt back in the composer
                 elif case=='undo_redo':
                     target=root/'undo-target.txt'
                     target.unlink(missing_ok=True)
@@ -167,7 +188,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     # Type /undo only once the run has settled; while running the
                     # chat refuses rewind and asks the user to wait.
                     for attempt in range(250):
-                        settled=any(r['type']=='run_finished' for j in outside_sessions.glob('*.jsonl') for r in live_records(j))
+                        settled=any(r['type']=='run_finished' for j in (outside_sessions/case).glob('*.jsonl') for r in live_records(j))
                         if settled: break
                         time.sleep(.02)
                     assert settled,'run did not finish'
@@ -295,7 +316,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                 # journal record, while continuing to drain the pseudo-terminal.
                 parent_finished=False
                 for attempt in range(500):
-                    for journal in (outside_sessions if scenario=='undo' else root/case).glob('*.jsonl'):
+                    for journal in (outside_sessions/case if scenario=='undo' else root/case).glob('*.jsonl'):
                         records=live_records(journal)
                         if any(r['type']=='subagent_parent' for r in records): continue
                         if any(r['type']=='run_finished' for r in records): parent_finished=True

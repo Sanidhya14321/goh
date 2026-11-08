@@ -23,6 +23,7 @@ const originRecord = "undo_origin"
 type origin struct {
 	Source      string   `json:"source"`
 	Turn        int      `json:"turn"`
+	LastTurn    int      `json:"last_turn,omitempty"`
 	Checkpoints []string `json:"checkpoints"`
 }
 
@@ -31,6 +32,8 @@ type Result struct {
 	Session string `json:"session"` // session chat should continue in
 	Prompt  string `json:"prompt,omitempty"`
 	Turn    int    `json:"turn"`
+	// LastTurn is set when a revert covered later turns too (Turn..LastTurn).
+	LastTurn int `json:"last_turn,omitempty"`
 	// Files lists project paths restored from checkpoints.
 	Files []string `json:"files,omitempty"`
 	// Unrestorable names effectful tools from the turn that have no checkpoint
@@ -41,29 +44,46 @@ type Result struct {
 func snapshotDir(dir, id string) string { return filepath.Join(dir, id+"-snapshots") }
 
 type turnState struct {
-	turn         int
+	turn, last   int
 	prompt       string
 	checkpoints  []string // capture order
 	unrestorable []string
 }
 
 // lastTurn locates the latest user turn and the effects recorded after it.
-func lastTurn(records []session.Record) (turnState, error) {
-	var st turnState
-	start := -1
+func lastTurn(records []session.Record) (turnState, error) { return turnFrom(records, 0) }
+
+// userPrompts lists the journal's user prompts with their record indexes.
+func userPrompts(records []session.Record) (idx []int, prompts []string) {
 	for i, r := range records {
 		if r.Type != "message" {
 			continue
 		}
 		var m struct{ Role, Content string }
 		if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" {
-			st.turn++
-			start, st.prompt = i, m.Content
+			idx, prompts = append(idx, i), append(prompts, m.Content)
 		}
 	}
-	if start < 0 {
+	return idx, prompts
+}
+
+// turnFrom locates user turn n (1-based; 0 means the latest) and every effect
+// recorded from it to the end of the journal, so reverting it also reverts
+// all later turns.
+func turnFrom(records []session.Record, n int) (turnState, error) {
+	var st turnState
+	idx, prompts := userPrompts(records)
+	if len(idx) == 0 {
 		return st, errors.New("nothing to undo: this session has no prompts yet")
 	}
+	if n == 0 {
+		n = len(idx)
+	}
+	if n < 1 || n > len(idx) {
+		return st, fmt.Errorf("turn %d does not exist", n)
+	}
+	st.turn, st.last, st.prompt = n, len(idx), prompts[n-1]
+	start := idx[n-1]
 	captured := map[string]bool{}
 	started := []struct{ id, name string }{}
 	for _, r := range records[start+1:] {
@@ -111,6 +131,32 @@ func restoredFiles(rs []snapshots.Record) []string {
 // first; if any refuses (for example a file changed outside GoHarness), the
 // ones already undone are redone so files and conversation stay consistent.
 func Undo(ctx context.Context, dir, id string) (Result, error) {
+	return undoFrom(ctx, dir, id, func(records []session.Record) (turnState, error) { return lastTurn(records) })
+}
+
+// RevertTo reverts the turn whose prompt is prompt and every later turn,
+// as OpenCode's "revert to message". occurrence picks among identical prompts,
+// counted from the latest (0 is the latest such prompt). Matching by content,
+// not position, means a stale or compacted UI view can never select the wrong
+// turn: a prompt that no longer exists is refused. Redo restores everything.
+func RevertTo(ctx context.Context, dir, id, prompt string, occurrence int) (Result, error) {
+	return undoFrom(ctx, dir, id, func(records []session.Record) (turnState, error) {
+		_, prompts := userPrompts(records)
+		seen := 0
+		for i := len(prompts) - 1; i >= 0; i-- {
+			if prompts[i] != prompt {
+				continue
+			}
+			if seen == occurrence {
+				return turnFrom(records, i+1)
+			}
+			seen++
+		}
+		return turnState{}, errors.New("that prompt is not in this session's journal; nothing reverted")
+	})
+}
+
+func undoFrom(ctx context.Context, dir, id string, locate func([]session.Record) (turnState, error)) (Result, error) {
 	source, err := session.Open(dir, id)
 	if err != nil {
 		return Result{}, err
@@ -119,7 +165,7 @@ func Undo(ctx context.Context, dir, id string) (Result, error) {
 		source.Close()
 		return Result{}, errors.New("cannot undo while tool effects are uncertain; inspect and acknowledge them first")
 	}
-	st, err := lastTurn(source.Records())
+	st, err := locate(source.Records())
 	project := source.Project
 	source.Close()
 	if err != nil {
@@ -145,7 +191,7 @@ func Undo(ctx context.Context, dir, id string) (Result, error) {
 	}
 	branch, prompt, err := session.ForkBefore(dir, id, st.turn)
 	if err == nil {
-		err = branch.Append(originRecord, origin{Source: id, Turn: st.turn, Checkpoints: st.checkpoints})
+		err = branch.Append(originRecord, origin{Source: id, Turn: st.turn, LastTurn: max(st.last, st.turn), Checkpoints: st.checkpoints})
 		if err == nil {
 			err = branch.Close()
 		} else {
@@ -165,7 +211,11 @@ func Undo(ctx context.Context, dir, id string) (Result, error) {
 		}
 		return Result{}, fmt.Errorf("undo failed, files reapplied: %w", err)
 	}
-	return Result{Session: branch.ID, Prompt: prompt, Turn: st.turn, Files: restoredFiles(undone), Unrestorable: st.unrestorable}, nil
+	result := Result{Session: branch.ID, Prompt: prompt, Turn: st.turn, Files: restoredFiles(undone), Unrestorable: st.unrestorable}
+	if st.last > st.turn {
+		result.LastTurn = st.last
+	}
+	return result, nil
 }
 
 // redoAll reapplies undone checkpoints in their original capture order.
@@ -239,7 +289,11 @@ func Redo(ctx context.Context, dir, branchID string) (Result, error) {
 			redone = append(redone, r)
 		}
 	}
-	return Result{Session: o.Source, Turn: o.Turn, Files: restoredFiles(redone)}, nil
+	result := Result{Session: o.Source, Turn: o.Turn, Files: restoredFiles(redone)}
+	if o.LastTurn > o.Turn {
+		result.LastTurn = o.LastTurn
+	}
+	return result, nil
 }
 
 // Summary is the chat notice for a result.
@@ -249,6 +303,9 @@ func (r Result) Summary(undo bool) string {
 		verb = "Undid"
 	}
 	text := fmt.Sprintf("%s turn %d.", verb, r.Turn)
+	if r.LastTurn > r.Turn {
+		text = fmt.Sprintf("%s turns %d–%d.", verb, r.Turn, r.LastTurn)
+	}
 	switch n := len(r.Files); n {
 	case 0:
 		text += " No checkpointed files changed."
