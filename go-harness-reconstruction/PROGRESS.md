@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC44 instruction files milestone
+
+Backlog T01 (instruction loading): CLAUDE.md fallback and a per-user
+AGENTS.md beside the config file, both bounded to 64 KiB and framed as
+guidance without authority. Files in use appear on `/status`.
+
 ## RC43 commented configuration milestone
 
 Backlog R06 (partial): JSONC config with comments and trailing commas,

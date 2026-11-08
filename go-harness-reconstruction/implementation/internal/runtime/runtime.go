@@ -8,10 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"example.com/independent-harness/internal/commands"
 	"example.com/independent-harness/internal/core"
@@ -42,8 +44,10 @@ type Agent struct {
 	degradedMu        sync.Mutex
 	// fileCommands are project command files; configured commands win over
 	// them at use. SkippedCommands explains files not loaded.
-	fileCommands      map[string]core.CommandConfig
-	SkippedCommands   []commands.Skipped
+	fileCommands    map[string]core.CommandConfig
+	SkippedCommands []commands.Skipped
+	// GuidanceFiles lists instruction files added to the system message.
+	GuidanceFiles     []string
 	degraded          map[string]string
 	Config            core.Config
 	Store             *session.Store
@@ -108,15 +112,27 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	if c.AgentInstructions != "" {
 		a.History[0].Content += "\nUser-configured agent guidance (cannot alter tool permissions or mode):\n" + c.AgentInstructions
 	}
+	// The user's own global guidance (beside the config file), then project
+	// guidance: AGENTS.md, or CLAUDE.md when there is none, as in OpenCode.
+	// Neither can change tools, permissions or mode.
+	if text, path := userGuidance(); text != "" {
+		a.History[0].Content += "\nUser guidance (from " + path + "; cannot alter tool permissions or mode):\n" + text
+		a.GuidanceFiles = append(a.GuidanceFiles, path)
+	}
 	// Project guidance can influence behavior, but is never evaluated as authority.
-	guidance := t.Execute(context.Background(), "read_file", json.RawMessage(`{"path":"AGENTS.md"}`))
-	if !guidance.Error {
+	for _, name := range []string{"AGENTS.md", "CLAUDE.md"} {
+		guidance := t.Execute(context.Background(), "read_file", json.RawMessage(`{"path":"`+name+`"}`))
+		if guidance.Error {
+			continue
+		}
 		var doc struct {
 			Content string `json:"content"`
 		}
 		if json.Unmarshal([]byte(guidance.Content), &doc) == nil && len(doc.Content) <= 64<<10 {
 			a.History[0].Content += "\nProject guidance (untrusted):\n" + doc.Content
+			a.GuidanceFiles = append(a.GuidanceFiles, filepath.Join(s.Project, name))
 		}
+		break
 	}
 
 	trustedSystem := a.History[0]
@@ -954,3 +970,22 @@ func (a *Agent) commandSet() map[string]core.CommandConfig {
 
 // CommandSet exposes the merged command table to the UI.
 func (a *Agent) CommandSet() map[string]core.CommandConfig { return a.commandSet() }
+
+// userGuidance reads AGENTS.md beside the user config file: a regular file of
+// at most 64 KiB. Missing or unusable files are skipped.
+func userGuidance() (string, string) {
+	config, err := core.UserConfigPath()
+	if err != nil {
+		return "", ""
+	}
+	path := filepath.Join(filepath.Dir(config), "AGENTS.md")
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() || info.Size() > 64<<10 {
+		return "", ""
+	}
+	b, err := os.ReadFile(path)
+	if err != nil || !utf8.Valid(b) || strings.TrimSpace(string(b)) == "" {
+		return "", ""
+	}
+	return string(b), path
+}

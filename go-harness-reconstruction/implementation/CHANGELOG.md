@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.44 — 2026-11-08
+
+- Project instructions fall back to `CLAUDE.md` when there is no
+  `AGENTS.md`, as in OpenCode. A personal `AGENTS.md` beside your config
+  file applies to every project. `/status` lists the instruction files in
+  use. Neither can change tools, permissions or mode.
+- Background jobs (RC42) passed native CI on Windows.
+
 ## 1.0.0-rc.43 — 2026-11-08
 
 - The config file accepts comments (`//`, `/* */`) and trailing commas, as

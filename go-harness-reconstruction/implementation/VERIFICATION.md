@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC44 instruction files
+
+`1.0.0-rc.44` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Tests isolate the user config folder and check
+that user and project guidance both reach the system message, that
+`AGENTS.md` replaces `CLAUDE.md`, that project text stays labelled untrusted,
+and that an oversized personal file is skipped. RC42 native CI (`cd052cd`)
+passed all six jobs, including background job tests on Windows.
+
 ## RC43 commented configuration
 
 `1.0.0-rc.43` passed vet (macOS and Windows), the race suite, seven CLI and

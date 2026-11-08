@@ -64,6 +64,7 @@ func (m *model) openStatus() {
 			"Project: "+m.a.Store.Project, "Session: "+m.a.Store.ID,
 			fmt.Sprintf("Memory: %t · Checkpoints: %t", cfg.Memory, cfg.Snapshots),
 			"Theme: "+currentTheme,
+			guidanceStatus(m.a.GuidanceFiles),
 			"", "# INTEGRATIONS", "Entries describe local configuration.")
 		var entries []string
 		degraded := m.a.DegradedIntegrations()
@@ -201,4 +202,11 @@ func oneLine(s string, max int) string {
 		s = string(r[:max]) + "…"
 	}
 	return s
+}
+
+func guidanceStatus(files []string) string {
+	if len(files) == 0 {
+		return "Instructions: none (no AGENTS.md or CLAUDE.md)"
+	}
+	return "Instructions: " + oneLine(Safe(strings.Join(files, ", ")), 160)
 }
