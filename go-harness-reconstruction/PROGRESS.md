@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC84 MCP list milestone
+
+Read-only MCP configuration report with secret-safe output.
+
 ## RC83 agents list milestone
 
 `goh agents` shows the agent catalogue the TUI cycles through.

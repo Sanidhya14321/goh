@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.84 — 2026-11-08
+
+- `goh mcp list` shows configured MCP servers (local command or remote URL)
+  and the environment variables they use, flagging header variables that are
+  not set (like `opencode mcp list`). It starts nothing and never prints
+  secret values, URL credentials or query strings.
+
 ## 1.0.0-rc.83 — 2026-11-08
 
 - `goh agents` lists the built-in, configured and project agents with
