@@ -19,6 +19,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC79 command help milestone
+
+Described top-level help, tested against the dispatcher; the setup PTY
+suite is repaired and joins the per-milestone gates.
+
 ## RC78 run --command milestone
 
 Headless runs can invoke commands through the same expansion as the TUI.

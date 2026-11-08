@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.79 — 2026-11-08
+
+- `goh --help` lists every command with a one-line description; `models`
+  and `stats` were missing from the old one-line usage. A test keeps the list
+  in step with the commands GoHarness actually accepts.
+- Test fix: `scripts/test_setup.py` expected the `/models` dialog title from
+  before RC59 and now passes again.
+
 ## 1.0.0-rc.78 — 2026-11-08
 
 - `goh run --command NAME [words]` runs a custom or built-in command

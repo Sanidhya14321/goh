@@ -25,7 +25,36 @@ import (
 
 var version = "0.1.0-dev"
 
-const usage = "usage: goh [auth|setup|settings|run|chat|resume|compact|sessions|changes|memory|serve|acp|doctor|version]; use --help after a command"
+// commandHelp lists every top-level command; TestUsageListsDispatchedCommands
+// keeps it in step with runCommand.
+var commandHelp = [][2]string{
+	{"chat", "open the terminal UI (the default with no command)"},
+	{"run", "run one request headlessly: goh run fix the tests"},
+	{"resume", "continue a saved session by ID"},
+	{"compact", "compact a saved session by ID"},
+	{"sessions", "list, rename, export, import, delete or salvage sessions"},
+	{"changes", "show files changed in a session"},
+	{"models", "list models available from the configured provider"},
+	{"stats", "token usage and activity over recent days"},
+	{"auth", "sign in with ChatGPT: login, status, models, logout"},
+	{"setup", "configure a provider"},
+	{"settings", "open settings"},
+	{"memory", "opt-in project notes: add, list, recall, delete"},
+	{"serve", "local HTTP API"},
+	{"acp", "Agent Client Protocol over stdio for editors"},
+	{"doctor", "check configuration and integrations"},
+	{"version", "print the version"},
+}
+
+var usage = func() string {
+	var b strings.Builder
+	b.WriteString("usage: goh [command] [flags]\n\nCommands:\n")
+	for _, c := range commandHelp {
+		fmt.Fprintf(&b, "  %-9s %s\n", c[0], c[1])
+	}
+	b.WriteString("\nUse --help after a command for its flags.")
+	return b.String()
+}()
 
 func main() {
 	if e := run(os.Args[1:]); e != nil {

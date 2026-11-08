@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC79 command help
+
+`TestUsageListsDispatchedCommands` compares the help with the dispatcher. `scripts/test_setup.py` had been failing since RC59 because it expected an old dialog title. It is fixed, passes, and now runs with the gates. Gates passed: vet (macOS and Windows), race suite, acceptance, the PTY suite and the setup suite.
+
 ## RC78 run --command
 
 `TestCommandPrompt` covers the name forms and refusals. Expansion itself is the existing runtime path covered by the command tests. Gates passed: vet (macOS and Windows), race suite, acceptance and the PTY suite.
