@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -73,14 +74,22 @@ func cancelOneParent(t *testing.T, i int) error {
 	go func() { s, e := a.Run(ctx, "start child "+strconv.Itoa(i)); done <- result{s, e} }()
 
 	// Cancel once the child's shell process exists.
+	// Shell start-up is slow on loaded Windows runners; this wait is not
+	// what the test measures, so it is generous. A run that ends early is
+	// reported with its outcome instead of as a timeout.
 	var pid int
-	for deadline := time.Now().Add(10 * time.Second); pid == 0 && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+	for deadline := time.Now().Add(30 * time.Second); pid == 0 && time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
 		if b, err := os.ReadFile(pidFile); err == nil {
 			pid, _ = strconv.Atoi(strings.TrimSpace(string(b)))
 		}
+		select {
+		case r := <-done:
+			return fmt.Errorf("run ended before the child shell started: status %q, error %v", r.status, r.err)
+		default:
+		}
 	}
 	if pid == 0 {
-		return errors.New("child shell never started")
+		return errors.New("child shell never started within 30s")
 	}
 	started := time.Now()
 	cancel()
