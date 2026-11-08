@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC93 automatic titles
+
+- `TestAutoTitleAfterFirstRun` covers the request content, cleaning of quotes, extra lines and trailing punctuation, no renaming on later runs, and that a user title is never replaced.
+- `TestAutoTitleOffByDefault` checks that no extra request is made by default.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC92 ChatGPT default everywhere
 
 - All entry points share `withChatGPTDefault`, which RC91 tests.

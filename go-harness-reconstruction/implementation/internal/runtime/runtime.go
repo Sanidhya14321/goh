@@ -945,6 +945,9 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 			err = ctx.Err()
 		}
 	}
+	if status == "completed" && err == nil {
+		a.maybeAutoTitle(ctx)
+	}
 	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds()}
 	if err != nil {
 		d["error"] = err.Error()

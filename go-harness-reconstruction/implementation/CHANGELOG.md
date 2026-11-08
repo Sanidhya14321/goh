@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.93 — 2026-11-08
+
+- Opt-in `"auto_title": true` asks the model for a short session title after
+  the first completed run, as OpenCode does. The request sends only the first
+  prompt (up to 2,000 characters), with no tools or files. It uses the new
+  `title` model role when configured (for example a small, cheap profile),
+  otherwise the main model. It never replaces a title you set, and failures
+  keep the default title. Off by default because it is an extra request.
+
 ## 1.0.0-rc.92 — 2026-11-08
 
 - `goh acp`, `goh serve` and `goh models` follow the same provider rule as

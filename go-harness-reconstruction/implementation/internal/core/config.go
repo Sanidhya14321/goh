@@ -74,6 +74,10 @@ type Config struct {
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
 	Keybinds map[string]string `json:"keybinds,omitempty"`
+	// AutoTitle asks the model (the "title" role, else the main model) for a
+	// short session title after the first completed run. Off by default
+	// because it is an extra request.
+	AutoTitle bool `json:"auto_title,omitempty"`
 	// Theme selects a built-in color theme (dark, light, high-contrast).
 	Theme      string                     `json:"theme,omitempty"`
 	Formatters map[string]FormatterConfig `json:"formatters,omitempty"`

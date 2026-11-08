@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC93 automatic titles milestone
+
+Opt-in model-written session titles via the `title` role; best-effort and
+bounded to the first prompt.
+
 ## RC92 ChatGPT default everywhere milestone
 
 ACP, serve and models now pick the provider the same way as chat and run.

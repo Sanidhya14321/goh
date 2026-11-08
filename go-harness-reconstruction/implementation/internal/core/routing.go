@@ -28,9 +28,9 @@ func (c Config) ValidateProtocol() error {
 func (c Config) ValidateModelRoles() error {
 	for role, profile := range c.ModelRoles {
 		switch role {
-		case "compaction", "task", "explore":
+		case "compaction", "task", "explore", "title":
 		default:
-			return fmt.Errorf("unsupported model role %q (use compaction, task or explore)", role)
+			return fmt.Errorf("unsupported model role %q (use compaction, task, explore or title)", role)
 		}
 		if !profileName.MatchString(profile) {
 			return fmt.Errorf("model role %s needs a named profile", role)
