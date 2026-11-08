@@ -48,7 +48,7 @@ func verify(harness, fixture string) error {
 		Exit     int    `json:"exit_code"`
 	}
 	var reports []report
-	for _, scenario := range []string{"text", "multi", "edit", "deny", "drop", "malformed", "http-error"} {
+	for _, scenario := range []string{"text", "multi", "edit", "deny", "drop", "malformed", "http-error", "stdin-words"} {
 		project := filepath.Join(root, scenario)
 		if e = os.MkdirAll(project, 0700); e != nil {
 			return e
@@ -63,7 +63,11 @@ func verify(harness, fixture string) error {
 		address := ln.Addr().String()
 		ln.Close()
 		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-		server := exec.CommandContext(ctx, fixture, "--listen", address, "--scenario", scenario)
+		fixtureScenario := scenario
+		if scenario == "stdin-words" {
+			fixtureScenario = "text"
+		}
+		server := exec.CommandContext(ctx, fixture, "--listen", address, "--scenario", fixtureScenario)
 		var logs bytes.Buffer
 		server.Stdout = &logs
 		server.Stderr = &logs
@@ -92,7 +96,14 @@ func verify(harness, fixture string) error {
 		if scenario == "edit" {
 			args = append(args, "--allow", "edit_file,shell")
 		}
+		if scenario == "stdin-words" {
+			// Message as words around piped standard input, flags interleaved.
+			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
+		}
 		cmd := exec.CommandContext(ctx, harness, args...)
+		if scenario == "stdin-words" {
+			cmd.Stdin = strings.NewReader("piped context\n")
+		}
 		var stderr bytes.Buffer
 		cmd.Stderr = &stderr
 		out, runErr := cmd.Output()

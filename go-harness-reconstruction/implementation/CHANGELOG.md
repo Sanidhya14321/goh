@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.53 — 2026-11-08
+
+- `goh run fix the failing tests` takes the message as plain words, like
+  `opencode run`, with flags before or after. `-` inserts standard input:
+  `git diff | goh run - review this change`. Standard input is read only
+  when `-` is given.
+
 ## 1.0.0-rc.52 — 2026-11-08
 
 - Project agent files also load for `goh serve` (from `--project`) and the

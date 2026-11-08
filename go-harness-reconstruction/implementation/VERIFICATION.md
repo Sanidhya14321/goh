@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC53 run with words and piped input
+
+`1.0.0-rc.53` passed vet (macOS and Windows), the race suite, eight CLI
+scenarios (new `stdin-words`: piped input, message words and flags
+interleaved) and twenty-three PTY scenarios. Unit tests cover word joining,
+stdin before and after words with blank-line separation, a second `-`,
+empty and oversized input. A manual run against the scripted model
+journaled `say hello` and `piped context\n\nsummarize` as the prompts.
+
 ## RC52 agent files everywhere
 
 `1.0.0-rc.52` passed vet (macOS and Windows), the race suite, seven CLI and

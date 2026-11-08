@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC53 run ergonomics milestone
+
+`goh run` accepts OpenCode-style positional messages with interleaved flags
+and explicit `-` for standard input (never read implicitly, so scripts with
+open pipes cannot hang).
+
 ## RC52 agent files everywhere milestone
 
 Closes the RC51 gaps: serve and ACP merge project agent files, and skipped

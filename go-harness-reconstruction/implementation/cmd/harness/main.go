@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -123,14 +124,39 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID for chat")
 	ack := f.Bool("acknowledge-uncertain", false, "acknowledge interrupted effects after inspecting project")
-	if e := f.Parse(args); e != nil {
-		if errors.Is(e, flag.ErrHelp) {
-			return nil
+	// Flags and message words may be interleaved: goh run fix the tests --model x
+	var words []string
+	for rest := args; ; {
+		if e := f.Parse(rest); e != nil {
+			if errors.Is(e, flag.ErrHelp) {
+				return nil
+			}
+			return e
 		}
-		return e
+		if f.NArg() == 0 {
+			break
+		}
+		words = append(words, f.Arg(0))
+		rest = f.Args()[1:]
 	}
-	if f.NArg() > 0 {
-		return errors.New("unexpected positional arguments")
+	if len(words) > 0 {
+		if command != "run" {
+			return errors.New("unexpected positional arguments")
+		}
+		if *prompt != "" {
+			return errors.New("give the message either as words or with --prompt, not both")
+		}
+		message, err := runMessage(words, os.Stdin)
+		if err != nil {
+			return err
+		}
+		*prompt = message
+	} else if *prompt == "-" {
+		message, err := runMessage([]string{"-"}, os.Stdin)
+		if err != nil {
+			return err
+		}
+		*prompt = message
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("format must be text or json")
@@ -383,4 +409,35 @@ func doctor(args []string) error {
 	}
 	fmt.Println("No network requests or server starts performed.")
 	return nil
+}
+
+// runMessage joins message words; a "-" word is replaced by standard input
+// (at most 1 MiB), so `git diff | goh run - review this` works. Standard
+// input is never read unless asked, so scripts with open pipes never hang.
+func runMessage(words []string, stdin io.Reader) (string, error) {
+	var parts []string
+	read := false
+	for _, w := range words {
+		if w != "-" {
+			parts = append(parts, w)
+			continue
+		}
+		if read {
+			return "", errors.New("standard input (-) can be used once")
+		}
+		read = true
+		b, err := io.ReadAll(io.LimitReader(stdin, 1<<20+1))
+		if err != nil {
+			return "", err
+		}
+		if len(b) > 1<<20 {
+			return "", errors.New("standard input exceeds 1 MiB")
+		}
+		parts = append(parts, "\n\n"+strings.TrimRight(string(b), "\n")+"\n\n")
+	}
+	message := strings.TrimSpace(strings.NewReplacer("\n\n ", "\n\n", " \n\n", "\n\n").Replace(strings.Join(parts, " ")))
+	if message == "" {
+		return "", errors.New("empty message")
+	}
+	return message, nil
 }
