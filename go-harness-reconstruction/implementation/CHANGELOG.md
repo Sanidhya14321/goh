@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.61 — 2026-11-08
+
+- ACP: editors can pass remote (HTTP) MCP servers as well as local ones;
+  the adapter advertises `mcpCapabilities.http`. Header values from the
+  editor are kept in memory only, never shown in approvals, and the same
+  HTTPS/no-redirect rules apply.
+
 ## 1.0.0-rc.60 — 2026-11-08
 
 - `goh stats` shows sessions, prompts and token usage per model from your

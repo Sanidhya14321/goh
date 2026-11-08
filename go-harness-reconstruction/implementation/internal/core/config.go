@@ -21,6 +21,9 @@ type MCPConfig struct {
 	// value (for example {"Authorization": "MCP_TOKEN"}), so tokens never sit
 	// in the config file.
 	HeadersEnv map[string]string `json:"headers_env,omitempty"`
+	// Headers are literal values supplied by an ACP client for this
+	// connection only; they are never read from or written to config files.
+	Headers map[string]string `json:"-"`
 }
 type CommandConfig struct {
 	Description string `json:"description"`

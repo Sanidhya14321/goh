@@ -37,6 +37,12 @@ func checkRemoteURL(raw string) error {
 // configured server.
 func remoteClient(cfg core.MCPConfig) (*http.Client, error) {
 	headers := http.Header{}
+	for name, value := range cfg.Headers {
+		if name == "" || strings.ContainsAny(name, " :\r\n") || strings.ContainsAny(value, "\r\n") {
+			return nil, fmt.Errorf("invalid header %q", name)
+		}
+		headers.Set(name, value)
+	}
 	for name, env := range cfg.HeadersEnv {
 		if name == "" || strings.ContainsAny(name, " :\r\n") {
 			return nil, fmt.Errorf("invalid header name %q", name)

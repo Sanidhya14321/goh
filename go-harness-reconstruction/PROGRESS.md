@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC61 ACP HTTP MCP milestone
+
+ACP `session/new` accepts `type: "http"` MCP servers, mapped to RC57's
+remote transport with in-memory headers (`json:"-"`, never persisted).
+
 ## RC60 stats milestone
 
 Each reply with reported usage appends a `usage` record (excluded from

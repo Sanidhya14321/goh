@@ -157,8 +157,11 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		if err := checkRemoteURL(cfg.URL); err != nil {
 			return fmt.Errorf("MCP server %s: %w", name, err)
 		}
-		headers := make([]string, 0, len(cfg.HeadersEnv))
+		headers := make([]string, 0, len(cfg.HeadersEnv)+len(cfg.Headers))
 		for h := range cfg.HeadersEnv {
+			headers = append(headers, h)
+		}
+		for h := range cfg.Headers {
 			headers = append(headers, h)
 		}
 		sort.Strings(headers)

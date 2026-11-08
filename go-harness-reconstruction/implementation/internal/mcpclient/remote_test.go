@@ -91,3 +91,18 @@ func TestRemoteMCPRefusals(t *testing.T) {
 		t.Fatal("redirecting server connected")
 	}
 }
+
+func TestRemoteMCPLiteralHeadersFromClient(t *testing.T) {
+	var sawAuth atomic.Value
+	ts := remoteServer(t, &sawAuth)
+	var preview string
+	approve := func(_ context.Context, p core.Permission) (core.Decision, error) { preview = p.Preview; return core.Decision{Allow: true}, nil }
+	m := New(map[string]core.MCPConfig{"editor": {URL: ts.URL, Headers: map[string]string{"Authorization": "Bearer from-editor"}}}, t.TempDir(), approve)
+	defer m.Close()
+	if err := m.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if sawAuth.Load() != "Bearer from-editor" || strings.Contains(preview, "from-editor") {
+		t.Fatal(sawAuth.Load(), preview)
+	}
+}

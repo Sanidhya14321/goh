@@ -166,6 +166,7 @@ func (s *server) receive(line []byte) {
 			"agentInfo":       map[string]string{"name": "independent-harness", "version": s.version},
 			"agentCapabilities": map[string]any{
 				"sessionCapabilities": map[string]any{"resume": struct{}{}, "close": struct{}{}},
+				"mcpCapabilities":     map[string]any{"http": true},
 			},
 		})
 		return

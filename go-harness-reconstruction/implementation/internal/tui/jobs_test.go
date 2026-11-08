@@ -2,9 +2,9 @@ package tui
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
-	"encoding/json"
 	"runtime"
 	"strings"
 	"testing"

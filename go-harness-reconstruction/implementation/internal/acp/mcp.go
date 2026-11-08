@@ -28,19 +28,42 @@ func mergeMCP(config map[string]core.MCPConfig, requested []json.RawMessage) (ma
 			Name    string   `json:"name"`
 			Command string   `json:"command"`
 			Args    []string `json:"args"`
+			URL     string   `json:"url"`
 			Env     []struct {
 				Name  string `json:"name"`
 				Value string `json:"value"`
 			} `json:"env"`
+			Headers []struct {
+				Name  string `json:"name"`
+				Value string `json:"value"`
+			} `json:"headers"`
 		}
-		if json.Unmarshal(raw, &server) != nil || (server.Type != "" && server.Type != "stdio") ||
-			!filepath.IsAbs(server.Command) || strings.ContainsRune(server.Command, 0) ||
-			!serverName.MatchString(server.Name) || strings.Contains(server.Name, "__") ||
-			len(server.Args) > 128 || len(server.Env) > 128 {
-			return nil, errors.New("Client MCP servers require a valid name and an absolute stdio command")
+		if json.Unmarshal(raw, &server) != nil || !serverName.MatchString(server.Name) || strings.Contains(server.Name, "__") {
+			return nil, errors.New("Client MCP servers require a valid name")
 		}
 		if _, exists := merged[server.Name]; exists {
 			return nil, errors.New("Duplicate MCP server name")
+		}
+		if server.Type == "http" {
+			// Remote servers from the client: the URL is checked again (https,
+			// or http for localhost) when the server starts, after approval.
+			if server.URL == "" || server.Command != "" || len(server.Headers) > 32 {
+				return nil, errors.New("Client HTTP MCP servers require a url")
+			}
+			headers := make(map[string]string, len(server.Headers))
+			for _, h := range server.Headers {
+				if h.Name == "" || strings.ContainsAny(h.Name, " :\r\n") || strings.ContainsAny(h.Value, "\r\n") {
+					return nil, errors.New("Invalid MCP header")
+				}
+				headers[h.Name] = h.Value
+			}
+			merged[server.Name] = core.MCPConfig{URL: server.URL, Headers: headers}
+			continue
+		}
+		if (server.Type != "" && server.Type != "stdio") ||
+			!filepath.IsAbs(server.Command) || strings.ContainsRune(server.Command, 0) ||
+			len(server.Args) > 128 || len(server.Env) > 128 {
+			return nil, errors.New("Client MCP servers require an absolute stdio command or an http url")
 		}
 		for _, arg := range server.Args {
 			if strings.ContainsRune(arg, 0) {

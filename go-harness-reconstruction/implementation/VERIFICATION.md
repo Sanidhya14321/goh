@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC61 ACP remote MCP servers
+
+`1.0.0-rc.61` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios, and `scripts/test_acp.py`. New ACP unit tests
+cover merging an HTTP and a stdio client server with configured ones, and
+refusing a missing URL, invalid header names, header values with line
+breaks, unknown transport types, duplicates and relative commands. A remote
+MCP test checks a literal client header reaches the server but not the
+approval preview.
+
 ## RC60 usage statistics
 
 `1.0.0-rc.60` passed vet (macOS and Windows), the race suite, eight CLI and
