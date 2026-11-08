@@ -71,7 +71,7 @@ func readHeader(dir, id string) (Info, bool, error) {
 	if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
 		return Info{}, false, fmt.Errorf("header corruption: %w", err)
 	}
-	if record.Version != Version {
+	if !validVersion(record) {
 		return Info{}, false, fmt.Errorf("unsupported journal version %d", record.Version)
 	}
 	var info Info
@@ -155,7 +155,7 @@ func readPrefix(r io.Reader) ([]Record, int64, string) {
 		decoder := json.NewDecoder(bytes.NewReader(line))
 		decoder.DisallowUnknownFields()
 		if decoder.Decode(&record) != nil || decoder.Decode(new(any)) != io.EOF ||
-			record.Version != Version || strings.TrimSpace(record.Type) == "" || len(record.Data) == 0 {
+			!validVersion(record) || strings.TrimSpace(record.Type) == "" || len(record.Data) == 0 {
 			return records, offset, fmt.Sprintf("unreadable record at byte %d", offset)
 		}
 		records = append(records, record)

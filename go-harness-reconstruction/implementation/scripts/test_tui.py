@@ -36,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
     queue_script.write_text(json.dumps([{'text':'First reply.','delay_ms':2500},{'text':'Second reply.'}]))
     undo_script=root/'undo-script.json'
     undo_script.write_text(json.dumps([{'calls':[{'id':'undo-create','type':'function','function':{'name':'create_file','arguments':json.dumps({'path':'undo-target.txt','content':'made in turn one'})}}]},{'text':'Undo fixture complete.'}]))
-    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue')]:
+    for case, scenario in [('text', 'text'), ('permission_denial', 'shell'), ('edit_approval', 'edit'), ('shell_cancellation', 'script'), ('termination', 'text'), ('tasks_and_compaction', 'tasks'), ('question_answers', 'questions'), ('question_dismissal', 'questions'), ('question_cancellation', 'questions'), ('subagent_approval','child'), ('subagent_cancellation','child-cancel'), ('formatter_approval','formatter'), ('formatter_denial','formatter'), ('formatter_cancellation','formatter'), ('typed_child','typed'), ('undo_redo','undo'), ('editor_handoff','text'), ('theme_light','text'), ('queued_prompt','queue'), ('timestamps','text')]:
         # Reserve an ephemeral fixture port; it is local-only and credential-free.
         import socket
         with socket.socket() as sock:
@@ -137,6 +137,15 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                         if len(prompts)==2: break
                         time.sleep(.02)
                     assert prompts==['Exercise the fixture','Second prompt'],prompts
+                elif case=='timestamps':
+                    wait_for(b'Fixture response')
+                    time.sleep(.3)
+                    os.write(master, b'/timestamps\r')
+                    wait_for(b'Timestamps shown')
+                    import re
+                    assert re.search(rb'\xc2\xb7 (Mon|Tue|Wed|Thu|Fri|Sat|Sun) \d\d:\d\d', output), 'turn time not rendered'
+                    stamped=[r for j in (root/case).glob('*.jsonl') for r in live_records(j)]
+                    assert stamped and all(r['version']==2 and r['time']>0 for r in stamped), 'journal records lack times'
                 elif case=='theme_light':
                     wait_for(b'Fixture response')
                     assert b'48;2;250;250;250' in output, 'light theme background not rendered'

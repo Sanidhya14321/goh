@@ -55,7 +55,7 @@ func Preview(dir, id string) (PreviewInfo, error) {
 	}
 	for index, raw := range bytes.Split(data[:end], []byte{'\n'}) {
 		var record Record
-		if err := json.Unmarshal(raw, &record); err != nil || record.Version != Version {
+		if err := json.Unmarshal(raw, &record); err != nil || !validVersion(record) {
 			return result, errors.New("session preview encountered an invalid record")
 		}
 		if index == 0 {

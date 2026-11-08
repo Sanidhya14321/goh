@@ -29,6 +29,7 @@ var paletteEntries = []paletteEntry{
 	{"/editor", "Edit the prompt in $VISUAL or $EDITOR (Ctrl+X E)"},
 	{"/theme", "Choose a color theme (Ctrl+X T)"},
 	{"/copy", "Copy any recent message to the clipboard"},
+	{"/timestamps", "Show or hide when each prompt was sent"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},
 	{"/redo", "Return to the turn removed by /undo"},
 	{"/new", "Start a new conversation"},
@@ -103,6 +104,11 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if entry.command == "/fork" {
 				return m, m.openFork()
+			}
+			if entry.command == "/timestamps" {
+				m.palette = false
+				m.toggleTimestamps()
+				return m, nil
 			}
 			if entry.command == "/copy" {
 				m.palette = false

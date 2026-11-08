@@ -21,7 +21,15 @@ import (
 	"time"
 )
 
-const Version = 1
+// Version 2 records carry Time (Unix milliseconds); version 1 records, from
+// older releases, have none. Both are read; new records are written as 2.
+const Version = 2
+
+// validVersion accepts a version 1 record without a time or a version 2 record
+// with one.
+func validVersion(r Record) bool {
+	return (r.Version == 1 && r.Time == 0) || (r.Version == 2 && r.Time > 0)
+}
 const maxRecordBytes = 16 << 20
 
 var validID = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$`)
@@ -30,6 +38,7 @@ type Record struct {
 	Version int             `json:"version"`
 	Type    string          `json:"type"`
 	Data    json.RawMessage `json:"data"`
+	Time    int64           `json:"time,omitempty"`
 }
 type Info struct {
 	ID      string `json:"id"`
@@ -214,7 +223,7 @@ func readRecords(r io.Reader) ([]Record, int64, bool, error) {
 		if err := decoder.Decode(new(any)); err != io.EOF {
 			return nil, offset, false, fmt.Errorf("journal corruption at byte %d: trailing content", offset)
 		}
-		if record.Version != Version {
+		if !validVersion(record) {
 			return nil, offset, false, fmt.Errorf("unsupported journal version %d at byte %d", record.Version, offset)
 		}
 		if strings.TrimSpace(record.Type) == "" || len(record.Data) == 0 {
@@ -232,6 +241,13 @@ func (s *Store) Append(kind string, data any) error {
 }
 
 func (s *Store) appendLocked(kind string, data any) error {
+	return s.appendAt(kind, data, time.Now().UnixMilli())
+}
+
+// appendAt writes a record with the given time; 0 writes a version 1 record
+// (used when copying records from an older journal, keeping their absence of
+// a time honest rather than inventing one).
+func (s *Store) appendAt(kind string, data any, at int64) error {
 	if s.file == nil {
 		return errors.New("session closed")
 	}
@@ -245,7 +261,10 @@ func (s *Store) appendLocked(kind string, data any) error {
 	if err != nil {
 		return err
 	}
-	record := Record{Version: Version, Type: kind, Data: encoded}
+	record := Record{Version: Version, Type: kind, Data: encoded, Time: at}
+	if at <= 0 {
+		record.Version, record.Time = 1, 0
+	}
 	line, err := json.Marshal(record)
 	if err != nil {
 		return err

@@ -195,7 +195,7 @@ func (m *model) View() tea.View {
 	if home {
 		contentHeight = min(3, contentHeight)
 	}
-	body, review := m.log, ""
+	body, review := withStamps(m.log, m.timestamps), ""
 	if m.pending != nil {
 		body = m.pending.request.Preview
 		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s session / n or Esc deny"

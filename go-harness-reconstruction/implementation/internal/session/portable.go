@@ -162,7 +162,7 @@ func validatePortableRecords(records []Record) error {
 	}
 	var history []core.Message
 	for i, record := range records {
-		if record.Version != Version {
+		if !validVersion(record) {
 			return fmt.Errorf("record %d has unsupported journal version", i)
 		}
 		if len(record.Data) > maxRecordBytes {
@@ -342,7 +342,10 @@ func derive(dir, project string, records []Record, kind, sourceID string, before
 		return nil, err
 	}
 	for _, record := range records {
-		if err = store.Append(record.Type, record.Data); err != nil {
+		store.mu.Lock()
+		err = store.appendAt(record.Type, record.Data, record.Time)
+		store.mu.Unlock()
+		if err != nil {
 			return nil, err
 		}
 	}

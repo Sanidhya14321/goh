@@ -84,6 +84,7 @@ type model struct {
 	keys                 core.Keymap
 	themePicker          *optionPicker
 	copyPicker           *optionPicker
+	timestamps           bool
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
 }
@@ -434,6 +435,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
 			}
+			if strings.TrimSpace(prompt) == "/timestamps" {
+				m.input, m.inputCursor = "", 0
+				m.toggleTimestamps()
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/copy" {
 				m.input, m.inputCursor = "", 0
 				m.openCopyPicker()
@@ -525,7 +531,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.scrollOffset = 0
 			m.active = true
 			m.status = "running"
-			m.log += "\nYou: " + prompt + "\n"
+			m.log += stampLine(time.Now()) + "\nYou: " + prompt + "\n"
 			ctx, cancel := context.WithCancel(context.Background())
 			m.cancel = cancel
 			runDone := make(chan struct{})
@@ -719,11 +725,15 @@ func Run(a *agent.Agent, notice, draft string) error {
 	applyTheme(a.Config.Theme)
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config)}
 	m.insertInput(Safe(draft))
+	var promptTimes map[string][]time.Time
+	if a.Store != nil {
+		promptTimes = userPromptTimes(a.Store.Records())
+	}
 	for _, message := range a.History {
 		switch message.Role {
 		case "user":
 			m.rememberPrompt(message.Content)
-			m.log += "\nYou: " + Safe(message.Content) + "\n"
+			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n"
 		case "assistant":
 			m.log += Safe(message.Content)
 			for _, call := range message.ToolCalls {

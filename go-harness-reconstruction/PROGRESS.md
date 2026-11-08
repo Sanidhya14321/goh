@@ -4,6 +4,15 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC36 record times milestone
+
+Journal records now carry a write time as version 2; version 1 records stay
+valid, and a record must match its version (v1 without time, v2 with), so
+older binaries refuse new journals as an unsupported version instead of
+calling them damaged. Fork and salvage copy times rather than restamping.
+`/timestamps` toggles OpenCode-style turn times using NUL-prefixed marker
+lines that sanitized content cannot produce.
+
 ## RC35 copy picker milestone
 
 `/copy` (also in the command palette) lists recent user and assistant

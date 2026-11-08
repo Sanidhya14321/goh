@@ -23,6 +23,18 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC36 record times and timestamps
+
+`1.0.0-rc.36` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty PTY scenarios (two consecutive runs). The new `timestamps` scenario
+toggles `/timestamps` in the real binary, checks a rendered turn time and
+that every journal record is version 2 with a time. Unit tests: a version 1
+journal opens, accepts version 2 appends and forks keeping both the original
+times and their absence; inconsistent version/time pairs are rejected; NUL
+in content cannot forge a timestamp line; repeated prompts get times in
+order. A first PTY run failed because the hidden marker added a blank line
+that changed the layout; fixed before commit.
+
 ## RC35 copy picker
 
 `1.0.0-rc.35` passed vet (macOS and Windows), the race suite, seven CLI and

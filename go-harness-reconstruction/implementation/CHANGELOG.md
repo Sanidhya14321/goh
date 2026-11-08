@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.36 — 2026-11-08
+
+- Session journals record when each entry was written (journal version 2).
+  Older sessions still open and keep working; sessions written by this
+  release cannot be opened by earlier release candidates, which report an
+  unsupported journal version rather than damage.
+- `/timestamps` shows or hides when each prompt was sent, including in
+  resumed sessions. Fork and salvage keep the original times.
+
 ## 1.0.0-rc.35 — 2026-11-08
 
 - `/copy` picks any recent user or assistant message (newest first,
