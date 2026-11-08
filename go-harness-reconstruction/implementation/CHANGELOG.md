@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.69 — 2026-11-08
+
+- Fuzzy matching in the command palette and every picker (`/models`,
+  `/sessions`, `/copy`, `/jobs`, `/changes`, themes): type letters in order,
+  such as `sts` for `/status`. Exact substrings still rank first.
+
 ## 1.0.0-rc.68 — 2026-11-08
 
 - The `lsp` tool adds `goToTypeDefinition`, `prepareCallHierarchy`,

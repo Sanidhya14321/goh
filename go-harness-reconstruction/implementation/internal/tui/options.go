@@ -22,12 +22,13 @@ type optionPicker struct {
 }
 
 func (m *optionPicker) matches() []Option {
-	query := strings.ToLower(strings.TrimSpace(m.query))
+	texts := make([]string, len(m.options))
+	for i, option := range m.options {
+		texts[i] = option.Label + " " + option.Description
+	}
 	var matches []Option
-	for _, option := range m.options {
-		if strings.Contains(strings.ToLower(option.Label+" "+option.Description), query) {
-			matches = append(matches, option)
-		}
+	for _, i := range rankFuzzy(m.query, texts) {
+		matches = append(matches, m.options[i])
 	}
 	return matches
 }

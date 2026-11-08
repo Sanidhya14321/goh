@@ -68,12 +68,14 @@ func (m *model) allPaletteEntries() []paletteEntry {
 }
 
 func (m *model) paletteEntries() []paletteEntry {
-	query := strings.ToLower(strings.TrimSpace(m.paletteQuery))
+	all := m.allPaletteEntries()
+	texts := make([]string, len(all))
+	for i, entry := range all {
+		texts[i] = entry.command + " " + entry.label
+	}
 	var entries []paletteEntry
-	for _, entry := range m.allPaletteEntries() {
-		if strings.Contains(strings.ToLower(entry.command+" "+entry.label), query) {
-			entries = append(entries, entry)
-		}
+	for _, i := range rankFuzzy(m.paletteQuery, texts) {
+		entries = append(entries, all[i])
 	}
 	return entries
 }

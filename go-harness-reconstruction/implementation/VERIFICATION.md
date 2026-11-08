@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC69 fuzzy pickers
+
+`1.0.0-rc.69` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-five PTY scenarios (which type filters into the palette and pickers).
+Tests check in-order letter matching, out-of-order rejection, exact
+substrings ranking first, and an empty query keeping the original order.
+
 ## RC68 more LSP operations
 
 `1.0.0-rc.68` passed vet (macOS and Windows), the race suite, eight CLI and
