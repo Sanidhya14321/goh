@@ -105,6 +105,10 @@ func (t *turn) event(event core.Event) {
 		if text, ok := data["text"].(string); ok && text != "" {
 			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(text)})
 		}
+	case "reasoning_updated":
+		if text, ok := data["text"].(string); ok && text != "" {
+			t.update(map[string]any{"sessionUpdate": "agent_thought_chunk", "content": textBlock(text)})
+		}
 	case "tool_requested":
 		call, ok := event.Data.(core.Call)
 		if ok {

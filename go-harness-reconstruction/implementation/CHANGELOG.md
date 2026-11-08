@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.81 — 2026-11-08
+
+- Editors connected over ACP receive the model's reasoning as
+  `agent_thought_chunk` updates, so Zed and other ACP clients can show it in
+  their thinking view. `goh run --format json` streams it as
+  `reasoning_updated` events; text output is unchanged.
+
 ## 1.0.0-rc.80 — 2026-11-08
 
 - The TUI shows the model's reasoning as dimmed `┊` lines before the answer

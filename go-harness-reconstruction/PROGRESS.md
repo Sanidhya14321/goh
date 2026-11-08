@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC81 ACP reasoning milestone
+
+Reasoning reaches ACP clients as thought chunks.
+
 ## RC80 reasoning display milestone
 
 Providers pass reasoning text through a context-scoped sink, so the model
