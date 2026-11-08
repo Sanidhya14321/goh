@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.102 — 2026-11-08
+
+- Guided recovery: resuming a damaged session in a terminal (`goh resume
+  ID`, `goh chat --session ID`) now offers to recover its readable
+  conversation into a new session and opens it. The damaged file is never
+  changed. Declining, or any non-interactive use such as `goh run` or piped
+  input, keeps the previous error and the `goh sessions salvage` hint.
+
 ## 1.0.0-rc.101 — 2026-11-08
 
 - Fixed (found by Windows CI with a real clangd): a language server that

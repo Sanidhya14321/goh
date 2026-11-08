@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC102 guided salvage
+
+- `TestOfferSalvage` damages a real journal and checks the decline path (error and hint kept) and the accept path (new session, success message).
+- It also checks that the damaged journal is byte-for-byte unchanged.
+- CI for RC101 is green on all three platforms, including the real clangd test on Windows.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC101 slow diagnostics
 
 - Windows CI failed RC99's `TestRealClangd`: clangd needed more than 2 seconds to publish diagnostics, and the server was then marked broken.
