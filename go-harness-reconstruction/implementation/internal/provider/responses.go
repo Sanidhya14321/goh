@@ -37,7 +37,13 @@ func encodeResponses(c core.Config, messages []core.Message, tools []core.Tool) 
 					input = append(input, raw)
 				}
 			}
-			if m.Content != "" {
+			if len(m.Images) > 0 && m.Role == "user" {
+				parts := []any{map[string]any{"type": "input_text", "text": m.Content}}
+				for _, img := range m.Images {
+					parts = append(parts, map[string]any{"type": "input_image", "image_url": img.DataURL()})
+				}
+				input = append(input, map[string]any{"role": role, "content": parts})
+			} else if m.Content != "" {
 				input = append(input, map[string]any{"role": role, "content": m.Content})
 			}
 			for _, call := range m.ToolCalls {

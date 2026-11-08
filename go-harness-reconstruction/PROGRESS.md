@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC50 image attachments milestone
+
+Backlog R14 (images): `core.Image` on user messages, journaled with the
+message so resume, fork and undo keep them. Attachment goes through os.Root
+with magic-byte checks. Image bytes are excluded from token estimates and
+summarizer input.
+
 ## RC49 reasoning effort milestone
 
 Backlog R01 (reasoning, partial): configurable effort for OpenAI protocols.

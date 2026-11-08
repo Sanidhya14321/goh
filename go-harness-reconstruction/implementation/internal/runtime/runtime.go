@@ -328,7 +328,18 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("expanded command is empty")
 	}
-	if e := a.commit(core.Message{Role: "user", Content: prompt}); e != nil {
+	images, imageErr := a.promptImages(prompt)
+	if imageErr != nil {
+		return "failed", imageErr
+	}
+	if len(images) > 0 {
+		paths := make([]string, len(images))
+		for i, img := range images {
+			paths[i] = img.Path
+		}
+		a.event("images_attached", map[string]any{"paths": paths})
+	}
+	if e := a.commit(core.Message{Role: "user", Content: prompt, Images: images}); e != nil {
 		return "failed", e
 	}
 	if connector, ok := a.External.(interface{ Connect(context.Context) error }); ok {
@@ -731,9 +742,10 @@ func (a *Agent) withEditErrors(ctx context.Context, res tools.Result, paths []st
 	return res
 }
 func estimate(ms []core.Message, defs []core.Tool) int {
-	b, _ := json.Marshal(ms)
+	plain, images := withoutImages(ms)
+	b, _ := json.Marshal(plain)
 	d, _ := json.Marshal(defs)
-	return len(b) + len(d)
+	return len(b) + len(d) + images*imageTokenEstimate
 } // deliberately conservative: one token per UTF-8 byte
 func (a *Agent) compact(ctx context.Context, defs []core.Tool) error {
 	return a.compactWithMode(ctx, defs, false)
@@ -812,7 +824,8 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if force && cut == 1 {
 		sourceHistory = a.History[1:]
 	}
-	source, _ := json.Marshal(sourceHistory)
+	plainHistory, _ := withoutImages(sourceHistory)
+	source, _ := json.Marshal(plainHistory) // summaries describe images by path only
 	if len(source) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
 		return errors.New("context budget exhausted: summary input exceeds configured window")
 	}

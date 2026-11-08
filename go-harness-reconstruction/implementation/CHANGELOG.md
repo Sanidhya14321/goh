@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.50 — 2026-11-08
+
+- Image attachments: mention a PNG, JPEG, GIF or WebP file with `@` (for
+  example `what's wrong in @screenshot.png?`) and it is sent to the model
+  as an image, on all three provider protocols. Up to 4 images and 8 MiB per
+  prompt, 5 MiB each, from inside the project only; contents must match the
+  extension. Not yet checked against a live vision model.
+
 ## 1.0.0-rc.49 — 2026-11-08
 
 - `reasoning_effort` (`minimal`, `low`, `medium`, `high`) for OpenAI

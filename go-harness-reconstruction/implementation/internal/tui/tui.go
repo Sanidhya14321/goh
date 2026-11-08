@@ -206,7 +206,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				mark = "[error] "
 			}
 			m.log += mark + Safe(content) + "\n"
-		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "skill_diagnostics", "command_expanded":
+		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "skill_diagnostics", "command_expanded", "images_attached":
 			b, _ := json.Marshal(v.Data)
 			if len(b) > 2048 {
 				b = b[:2048]

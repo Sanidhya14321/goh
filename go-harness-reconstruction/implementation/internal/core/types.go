@@ -22,7 +22,19 @@ type Message struct {
 	ToolCallID         string            `json:"tool_call_id,omitempty"`
 	ResponsesReasoning []json.RawMessage `json:"responses_reasoning,omitempty"`
 	ResponsesRoute     string            `json:"responses_route,omitempty"`
+	// Images attached to a user message (base64), sent as image parts.
+	Images []Image `json:"images,omitempty"`
 }
+
+// Image is an attached picture; Data is standard base64 without a prefix.
+type Image struct {
+	Path      string `json:"path"`
+	MediaType string `json:"media_type"`
+	Data      string `json:"data"`
+}
+
+// DataURL returns the image as a data: URL.
+func (i Image) DataURL() string { return "data:" + i.MediaType + ";base64," + i.Data }
 type Tool struct {
 	Type     string `json:"type"`
 	Function struct {

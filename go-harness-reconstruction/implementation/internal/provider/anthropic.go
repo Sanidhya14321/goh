@@ -272,7 +272,15 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 				return invalid()
 			}
 			started = true
-			appendMessage("user", []any{anthropicText{Type: "text", Text: m.Content}})
+			blocks := []any{anthropicText{Type: "text", Text: m.Content}}
+			for _, img := range m.Images {
+				// Base64 needs no JSON escaping, so it counts at its length.
+				if budget -= len(img.Data) + 512; budget < 0 {
+					return invalid()
+				}
+				blocks = append(blocks, map[string]any{"type": "image", "source": map[string]any{"type": "base64", "media_type": img.MediaType, "data": img.Data}})
+			}
+			appendMessage("user", blocks)
 		case "assistant":
 			if len(pending) != 0 || len(m.ToolCalls) > anthropicMaxBlocks {
 				return invalid()

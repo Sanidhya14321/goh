@@ -80,7 +80,8 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 		if clean != nil {
 			messages = clean
 		}
-		body = map[string]any{"model": c.Config.Model, "messages": messages, "stream": true, "stream_options": map[string]any{"include_usage": true}}
+		wire := chatWireMessages(messages)
+		body = map[string]any{"model": c.Config.Model, "messages": wire, "stream": true, "stream_options": map[string]any{"include_usage": true}}
 		if len(tools) > 0 {
 			body["tools"] = tools
 		}
@@ -335,4 +336,22 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 		return reply, errors.New("finish reason/tool-call mismatch")
 	}
 	return reply, nil
+}
+
+// chatWireMessages sends messages unchanged except user messages with images,
+// whose content becomes text plus image_url parts.
+func chatWireMessages(messages []core.Message) []any {
+	out := make([]any, len(messages))
+	for i, m := range messages {
+		if len(m.Images) == 0 {
+			out[i] = m
+			continue
+		}
+		parts := []any{map[string]any{"type": "text", "text": m.Content}}
+		for _, img := range m.Images {
+			parts = append(parts, map[string]any{"type": "image_url", "image_url": map[string]any{"url": img.DataURL()}})
+		}
+		out[i] = map[string]any{"role": m.Role, "content": parts}
+	}
+	return out
 }

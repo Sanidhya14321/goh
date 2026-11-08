@@ -23,6 +23,19 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC50 image attachments
+
+`1.0.0-rc.50` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Runtime tests: an `@shot.png` mention reaches
+the model as an image with the prompt text unchanged, the context estimate
+counts it as a fixed cost rather than its base64 length, and summaries get a
+path note instead of image data. Refusals: content not matching the
+extension, over 5 MiB, outside the project, symlinked (Unix), missing, more
+than four, and a failed run before any model call. Encoder tests check
+`image_url` (Chat Completions), `input_image` (Responses) and base64 `image`
+blocks (Anthropic), and that messages without images are unchanged. Live
+vision acceptance is unverified.
+
 ## RC49 reasoning effort
 
 `1.0.0-rc.49` passed vet (macOS and Windows), the race suite, seven CLI and
