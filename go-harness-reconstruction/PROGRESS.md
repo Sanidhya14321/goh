@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC47 /init milestone
+
+Built-in default commands sit beneath configured and file commands; the
+first is `/init`, an original prompt for writing AGENTS.md. It only expands
+text, so the model's file writes still need normal approval.
+
 ## RC46 shell rules milestone
 
 Backlog R07 (patterns): `shell_rules` with last-match-wins glob patterns.

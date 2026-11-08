@@ -992,10 +992,7 @@ func (a *Agent) DegradedIntegrations() map[string]string {
 // commandSet merges at use, so configuration changed during a session (for
 // example a provider switch) still takes precedence over command files.
 func (a *Agent) commandSet() map[string]core.CommandConfig {
-	if len(a.fileCommands) == 0 {
-		return a.Config.Commands
-	}
-	return commands.Merge(a.Config.Commands, a.fileCommands)
+	return commands.WithBuiltins(commands.Merge(a.Config.Commands, a.fileCommands))
 }
 
 // CommandSet exposes the merged command table to the UI.

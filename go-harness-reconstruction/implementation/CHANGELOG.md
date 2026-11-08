@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.47 — 2026-11-08
+
+- `/init` asks the model to study the project and write or improve
+  `AGENTS.md`, as in OpenCode. Text after `/init` adds focus. A command file
+  or configured command named `init` replaces it.
+
 ## 1.0.0-rc.46 — 2026-11-08
 
 - `shell_rules`: allow, deny or always-ask shell commands by pattern (also

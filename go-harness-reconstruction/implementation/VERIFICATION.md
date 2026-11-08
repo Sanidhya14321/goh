@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC47 /init
+
+`1.0.0-rc.47` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Tests: `/init` expands with arguments, a user
+command replaces it, and built-ins never push the command table past 256.
+RC46 native CI (`b4013fc`) passed all six jobs.
+
 ## RC46 shell command rules
 
 `1.0.0-rc.46` passed vet (macOS and Windows), the race suite, seven CLI
