@@ -23,6 +23,28 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC72 live ChatGPT verification
+
+With the user's approval, live checks ran against their ChatGPT account
+(model `gpt-6.1-sol`) through the official Sign in with ChatGPT flow.
+
+- The first `scripts/test_openai_live.py` run failed: resuming with a 32k
+  window ended `budget_exhausted` because the fixed 16k compaction margin
+  plus ~9 KB of tool definitions (estimated at one token per byte) left too
+  little room. The margin is now `min(16k, window/4)`; the run then passed:
+  streamed text, permission-gated read/edit/verify, durable resume and TUI
+  connect-and-send.
+- New `scripts/test_openai_live_extra.py` passed all four checks: an
+  attached PNG was identified as red; `reasoning_effort: low` was accepted;
+  a turn using `todowrite` then reading a file completed with task state
+  sent at the end of the request; the plan agent called `plan_exit` after
+  investigating.
+- Not measured: prompt-cache hit rates (usage reports no cache fields on
+  this endpoint) and long-run cost.
+
+Local gates after the fix: vet (macOS and Windows), race suite, eight CLI
+and twenty-five PTY scenarios.
+
 ## RC71 web search
 
 `1.0.0-rc.71` passed vet (macOS and Windows), the race suite, eight CLI and

@@ -79,7 +79,7 @@ func TestCompactionFailureKeepsHistory(t *testing.T) {
 	}{{"provider_failure", &summaryModel{err: errors.New("offline")}}, {"empty", &summaryModel{}}, {"ineffective", &summaryModel{summary: strings.Repeat("z", 45000)}}} {
 		t.Run(tc.name, func(t *testing.T) {
 			a := contextAgent(t)
-			a.History = append(a.History, core.Message{Role: "user", Content: "older"}, core.Message{Role: "assistant", Content: strings.Repeat("x", 19000)}, core.Message{Role: "user", Content: "active"}, core.Message{Role: "assistant", Content: "recent1"}, core.Message{Role: "assistant", Content: strings.Repeat("y", 6000)})
+			a.History = append(a.History, core.Message{Role: "user", Content: "older"}, core.Message{Role: "assistant", Content: strings.Repeat("x", 25000)}, core.Message{Role: "user", Content: "active"}, core.Message{Role: "assistant", Content: "recent1"}, core.Message{Role: "assistant", Content: strings.Repeat("y", 6000)})
 			a.Provider = tc.model
 			before := estimate(a.History, nil)
 			if e := a.compact(context.Background(), nil); e == nil {

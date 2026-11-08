@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.72 — 2026-11-08
+
+- Fixed (found in live testing): resuming a session with a small context
+  window (32k) failed with "context compaction did not reduce context
+  enough". The compaction safety margin now scales with the window.
+- `goh auth login` always prints the sign-in link, so you can open it in a
+  private window or another browser to choose the account.
+- Live checks on a ChatGPT account passed: streaming, approved tool use,
+  resume, TUI connect, image input, `reasoning_effort`, end-of-request task
+  state and the plan handoff (`scripts/test_openai_live_extra.py`).
+
 ## 1.0.0-rc.71 — 2026-11-08
 
 - `websearch` tool for a SearXNG-compatible search service you configure

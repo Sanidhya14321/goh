@@ -786,7 +786,9 @@ func (a *Agent) compact(ctx context.Context, defs []core.Tool) error {
 }
 func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force bool) error {
 	used := estimate(a.modelHistory(), defs)
-	available := a.Config.ContextWindow - a.Config.OutputBudget - 16384
+	// Safety margin: 16k tokens, but at most a quarter of small windows, so a
+	// 32k window still leaves room after tool definitions (found live).
+	available := a.Config.ContextWindow - a.Config.OutputBudget - min(16384, a.Config.ContextWindow/4)
 	if available < 1024 {
 		available = a.Config.ContextWindow - a.Config.OutputBudget - 1024
 	}

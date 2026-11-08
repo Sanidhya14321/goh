@@ -32,12 +32,14 @@ func chatGPTAuth(args []string) error {
 			case "linux":
 				browser = "xdg-open"
 			}
-			if browser == "" || exec.CommandContext(ctx, browser, address).Run() != nil {
-				fmt.Println("Open this OpenAI authorization URL in your browser:")
-				fmt.Println(address)
-				return nil
+			// Always show the link, so another browser or a private window can
+			// be used to sign in to a different account.
+			fmt.Println("Open this OpenAI authorization URL in your browser:")
+			fmt.Println(address)
+			if browser != "" && exec.CommandContext(ctx, browser, address).Run() == nil {
+				fmt.Println("(Also opened in your default browser.)")
 			}
-			fmt.Println("Continue with ChatGPT in your browser. Waiting for authorization…")
+			fmt.Println("Waiting for authorization…")
 			return nil
 		})
 		if err != nil {
