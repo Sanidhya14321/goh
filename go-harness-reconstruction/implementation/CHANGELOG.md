@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.92 — 2026-11-08
+
+- `goh acp`, `goh serve` and `goh models` follow the same provider rule as
+  chat and run: with no provider configured, a saved ChatGPT sign-in is
+  used. `goh models` then lists the ChatGPT models (as `goh auth models`
+  does). An explicit `--config` or `--profile` always wins.
+
 ## 1.0.0-rc.91 — 2026-11-08
 
 - Fixed: `goh run` ignored a saved ChatGPT sign-in when no provider was

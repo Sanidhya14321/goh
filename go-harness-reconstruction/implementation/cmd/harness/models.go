@@ -36,6 +36,13 @@ func listModels(args []string) error {
 	if c, err = c.Resolve(*profile, ""); err != nil {
 		return err
 	}
+	if *configPath == "" && *profile == "" {
+		c = withChatGPTDefault(c)
+	}
+	if c.EffectiveProtocol() == core.ChatGPTProtocol {
+		// Same list as goh auth models; the ChatGPT endpoint has no /models.
+		return chatGPTAuth([]string{"models"})
+	}
 	endpoint, err := c.ProviderEndpoint()
 	if err != nil {
 		return fmt.Errorf("no provider configured (%w); run goh setup", err)

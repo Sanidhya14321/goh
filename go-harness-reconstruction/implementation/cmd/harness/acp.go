@@ -40,6 +40,9 @@ func runACP(args []string) error {
 	if err != nil {
 		return err
 	}
+	if *configPath == "" && *profile == "" {
+		config = withChatGPTDefault(config)
+	}
 	if *sessionDir != "" {
 		config.SessionDir = *sessionDir
 	}

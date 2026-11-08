@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC92 ChatGPT default everywhere
+
+- All entry points share `withChatGPTDefault`, which RC91 tests.
+- The ACP suite passes unchanged.
+- `goh models` against the saved sign-in was not run, since it would make a live request.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC91 ChatGPT default for run and doctor
 
 - `TestChatGPTDefaultNeverOverridesExplicitProvider` checks that an explicit endpoint and model are kept, and that ChatGPT is not chosen without a saved sign-in.
