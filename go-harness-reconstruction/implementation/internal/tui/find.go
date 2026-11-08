@@ -22,7 +22,7 @@ func (m *model) startFind(query string) {
 		m.status = "Usage: /find text"
 		return
 	}
-	lines := strings.Split(withStamps(m.log, m.timestamps), "\n")
+	lines := strings.Split(m.displayLog(), "\n")
 	needle := strings.ToLower(query)
 	f := &findState{query: query}
 	for i, line := range lines {
@@ -43,7 +43,7 @@ func (m *model) startFind(query string) {
 // transcript area, measuring wrapped rows from the match to the end.
 func (m *model) showMatch() {
 	f := m.find
-	lines := strings.Split(withStamps(m.log, m.timestamps), "\n")
+	lines := strings.Split(m.displayLog(), "\n")
 	line := f.matches[f.current]
 	width := m.wrappedWidth
 	if width <= 0 {

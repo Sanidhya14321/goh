@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC64 tool details milestone
+
+Tool results render through summary/detail marker lines filtered at display
+time; `/find` and rendering share `displayLog`, so search and screen agree.
+
 ## RC63 file rules milestone
 
 Backlog R07 (edit patterns): `file_rules` reuse the shell rule matcher on

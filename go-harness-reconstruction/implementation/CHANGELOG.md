@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.64 — 2026-11-08
+
+- `/details` shows or hides full tool output; hidden, each result is one
+  line with a count of the remaining lines, as with OpenCode's tool-details
+  toggle. `/find` searches what is on screen.
+
 ## 1.0.0-rc.63 — 2026-11-08
 
 - `file_rules`: allow, deny or always ask edits by path pattern (for

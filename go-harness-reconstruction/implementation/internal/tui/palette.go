@@ -32,6 +32,7 @@ var paletteEntries = []paletteEntry{
 	{"/jobs", "Background jobs: view output or stop"},
 	{"/changes", "Files changed in this session, with diffs"},
 	{"/timestamps", "Show or hide when each prompt was sent"},
+	{"/details", "Show or hide full tool output"},
 	{"/find", "Search the conversation: /find text"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},
 	{"/redo", "Return to the turn removed by /undo"},
@@ -111,6 +112,11 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if entry.command == "/find" {
 				m.palette = false
 				m.input, m.inputCursor = "/find ", 6
+				return m, nil
+			}
+			if entry.command == "/details" {
+				m.palette = false
+				m.toggleDetails()
 				return m, nil
 			}
 			if entry.command == "/timestamps" {

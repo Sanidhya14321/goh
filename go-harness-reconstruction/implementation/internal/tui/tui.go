@@ -94,6 +94,7 @@ type model struct {
 	changesPicker        *optionPicker
 	timestamps           bool
 	contextTokens        int
+	hideDetails          bool
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
@@ -207,7 +208,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if tool.Result.Error {
 				mark = "[error] "
 			}
-			m.log += mark + Safe(content) + "\n"
+			m.log += toolResultLines(mark, Safe(content))
 		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "skill_diagnostics", "command_expanded", "images_attached":
 			b, _ := json.Marshal(v.Data)
 			if len(b) > 2048 {
@@ -469,6 +470,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if trimmed := strings.TrimSpace(prompt); trimmed == "/find" || strings.HasPrefix(trimmed, "/find ") {
 				m.input, m.inputCursor = "", 0
 				m.startFind(strings.TrimPrefix(trimmed, "/find"))
+				return m, nil
+			}
+			if strings.TrimSpace(prompt) == "/details" {
+				m.input, m.inputCursor = "", 0
+				m.toggleDetails()
 				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/timestamps" {
@@ -792,7 +798,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 			if len(text) > 2048 {
 				text = text[:2048] + "…"
 			}
-			m.log += "\n" + Safe(text) + "\n"
+			m.log += "\n" + toolResultLines("", Safe(text))
 		}
 	}
 	if len(m.log) > 128<<10 {

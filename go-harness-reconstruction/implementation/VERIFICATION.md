@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC64 tool details toggle
+
+`1.0.0-rc.64` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios (two consecutive runs). Tests check full and
+summarized output, that marker-like content cannot forge either form, and
+that `/find` sees each line once and only what is displayed.
+
 ## RC63 file edit rules
 
 `1.0.0-rc.63` passed vet (macOS and Windows), the race suite, eight CLI
