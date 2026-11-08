@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.88 — 2026-11-08
+
+- `goh sessions list --format table` prints sessions newest first with ID,
+  last change, title and project (as OpenCode's `session list` does). JSON
+  stays the default for scripts.
+
 ## 1.0.0-rc.87 — 2026-11-08
 
 - `goh run` and `goh chat` accept `--reasoning-effort

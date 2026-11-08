@@ -19,6 +19,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC88 session table milestone
+
+Human-readable session listing beside the JSON default.
+
 ## RC87 reasoning-effort flag milestone
 
 Per-invocation effort override, validated with the config rules.

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC88 session table
+
+`TestSessionTable` covers saved titles, terminal-safe output and the empty case. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC87 reasoning-effort flag
 
 - The acceptance `stdin-words` scenario passes `--reasoning-effort off`.

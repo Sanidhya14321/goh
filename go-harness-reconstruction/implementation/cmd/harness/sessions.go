@@ -15,7 +15,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID [--session-dir DIR]"
+	usage := "sessions list [--format json|table]|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -58,6 +58,10 @@ func sessions(args []string) error {
 		f.BoolVar(&includeTools, "include-tools", false, "include tool calls and results in Markdown")
 		f.StringVar(&output, "output", "", "new private export file; default stdout")
 	}
+	listFormat := "json"
+	if command == "list" {
+		f.StringVar(&listFormat, "format", "json", "json (default) or table")
+	}
 	if command == "import" {
 		f.StringVar(&project, "project", "", "explicit existing project directory for relocated import")
 	}
@@ -88,7 +92,13 @@ func sessions(args []string) error {
 		for _, d := range damaged {
 			fmt.Fprintf(os.Stderr, "damaged session %s: %s (recover with: goh sessions salvage %s)\n", d.ID, d.Problem, d.ID)
 		}
-		return encoder.Encode(infos)
+		switch listFormat {
+		case "json":
+			return encoder.Encode(infos)
+		case "table":
+			return writeSessionTable(os.Stdout, *dir, infos)
+		}
+		return errors.New("format must be json or table")
 	case "rename":
 		if err := session.SetTitle(*dir, subject, title); err != nil {
 			return err
