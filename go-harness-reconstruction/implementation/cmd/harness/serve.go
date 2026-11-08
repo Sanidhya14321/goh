@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
@@ -41,6 +42,9 @@ func serve(args []string) error {
 	config, err := core.LoadConfig(*configPath)
 	if err != nil {
 		return err
+	}
+	if dir, err := filepath.Abs(*project); err == nil {
+		config, _ = config.WithProjectAgents(dir)
 	}
 	config, err = config.Resolve(*profile, *agent)
 	if err != nil {

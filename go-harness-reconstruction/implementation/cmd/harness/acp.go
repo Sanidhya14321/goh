@@ -32,6 +32,10 @@ func runACP(args []string) error {
 	if err != nil {
 		return err
 	}
+	// Editors start the adapter in the workspace; agent files load from there.
+	if dir, err := os.Getwd(); err == nil {
+		config, _ = config.WithProjectAgents(dir)
+	}
 	config, err = config.Resolve(*profile, *agent)
 	if err != nil {
 		return err

@@ -70,6 +70,7 @@ func (c Config) WithProjectAgents(project string) (Config, []SkippedAgentFile) {
 		c.Agents = merged
 	}
 	sort.Slice(skipped, func(i, j int) bool { return skipped[i].Path < skipped[j].Path })
+	c.SkippedAgentFiles = skipped
 	return c, skipped
 }
 

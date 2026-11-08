@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.52 — 2026-11-08
+
+- Project agent files also load for `goh serve` (from `--project`) and the
+  ACP adapter (from its working directory), and `/status` lists agent files
+  that were skipped and why.
+
 ## 1.0.0-rc.51 — 2026-11-08
 
 - Project agent files: `NAME.md` in `.opencode/agent`, `.opencode/agents`,

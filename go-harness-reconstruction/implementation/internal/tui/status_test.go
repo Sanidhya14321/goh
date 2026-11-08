@@ -115,3 +115,14 @@ func TestStatusExplainsConfigProblemsFailoverAndStoppedIntegrations(t *testing.T
 		t.Fatal("oneLine", got)
 	}
 }
+
+func TestStatusListsSkippedAgentFiles(t *testing.T) {
+	cfg := core.Defaults()
+	cfg.Endpoint, cfg.Model, cfg.ContextWindow = "https://example.test/v1/chat/completions", "fixture", 32768
+	cfg.SkippedAgentFiles = []core.SkippedAgentFile{{Path: "/p/.opencode/agent/plan.md", Reason: "invalid or reserved agent name"}}
+	m := &model{a: &agent.Agent{Config: cfg, Store: &session.Store{ID: "fixture", Project: "/p"}, Grants: map[string]bool{}}, width: 120, height: 36}
+	m.openStatus()
+	if all := strings.Join(m.infoPanel.lines, "\n"); !strings.Contains(all, "Agent file skipped") || !strings.Contains(all, "reserved agent name") {
+		t.Fatal(all)
+	}
+}

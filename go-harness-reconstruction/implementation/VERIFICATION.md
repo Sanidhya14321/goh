@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC52 agent files everywhere
+
+`1.0.0-rc.52` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. Tests check skipped agent files are recorded on
+the configuration and shown on `/status`. Serve and ACP use the same
+`WithProjectAgents` merge; there is no dedicated serve/ACP agent-file test.
+
 ## RC51 project agent files
 
 `1.0.0-rc.51` passed vet (macOS and Windows), the race suite, seven CLI and

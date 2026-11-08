@@ -35,7 +35,7 @@ func TestProjectAgentFiles(t *testing.T) {
 	if _, ok := c.Agents["plan"]; ok {
 		t.Fatal("reserved name loaded")
 	}
-	if len(skipped) != 3 {
+	if len(skipped) != 3 || len(c.SkippedAgentFiles) != 3 {
 		t.Fatal(skipped)
 	}
 	resolved, err := c.Resolve("", "reviewer")

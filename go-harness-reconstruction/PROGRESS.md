@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC52 agent files everywhere milestone
+
+Closes the RC51 gaps: serve and ACP merge project agent files, and skipped
+files are visible on `/status`.
+
 ## RC51 project agent files milestone
 
 OpenCode/Claude Code-style agent Markdown files merge under configured

@@ -35,6 +35,7 @@ type Image struct {
 
 // DataURL returns the image as a data: URL.
 func (i Image) DataURL() string { return "data:" + i.MediaType + ";base64," + i.Data }
+
 type Tool struct {
 	Type     string `json:"type"`
 	Function struct {

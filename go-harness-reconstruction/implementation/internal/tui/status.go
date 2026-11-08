@@ -104,6 +104,9 @@ func (m *model) openStatus() {
 				lines = append(lines, "Formatter "+entry.Name+" · "+state)
 			}
 		}
+		for _, skip := range m.a.Config.SkippedAgentFiles {
+			lines = append(lines, "Agent file skipped · "+oneLine(Safe(skip.Path), 60)+": "+skip.Reason)
+		}
 		for _, skip := range m.a.SkippedCommands {
 			lines = append(lines, "Command file skipped · "+oneLine(Safe(skip.Path), 60)+": "+skip.Reason)
 		}
