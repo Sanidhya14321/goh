@@ -20,6 +20,11 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC95 ChatGPT 401 renewal milestone
+
+Recovery from early token revocation: one forced renewal under the
+credential lock, then a resend that is safe because nothing was generated.
+
 ## RC94 sidebar title milestone
 
 Session titles are visible in the chat sidebar.

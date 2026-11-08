@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC95 ChatGPT 401 renewal
+
+- The ChatGPT authorization test now covers forced renewal of an unexpired token, and that a stale rejection reuses the already renewed token.
+- The provider retry (401, then renew, then resend) is not unit-tested at the HTTP level because the endpoint is bound to the official host. It has not been exercised live.
+- Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC94 sidebar title
 
 `TestSidebarShowsSessionTitle` checks that an automatic title appears in the sidebar and is terminal-safe. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

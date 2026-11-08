@@ -183,11 +183,35 @@ func ChatGPTAccessToken(ctx context.Context) (string, error) {
 	if time.Until(a.Expires) > 30*time.Second && a.Tokens.Access != "" {
 		return a.Tokens.Access, nil
 	}
+	return renewChatGPTLocked(ctx, a)
+}
+
+// RenewChatGPTAccessToken renews after the service rejected the rejected
+// token (HTTP 401) before its recorded expiry. If another process already
+// renewed it, the newer saved token is returned without a second renewal.
+func RenewChatGPTAccessToken(ctx context.Context, rejected string) (string, error) {
+	unlock, err := chatGPTLock()
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
+	a, err := readChatGPTAccount()
+	if err != nil {
+		return "", err
+	}
+	if a.Tokens.Access != "" && a.Tokens.Access != rejected && time.Until(a.Expires) > 30*time.Second {
+		return a.Tokens.Access, nil
+	}
+	return renewChatGPTLocked(ctx, a)
+}
+
+// renewChatGPTLocked exchanges the refresh token; the caller holds the lock.
+func renewChatGPTLocked(ctx context.Context, a chatGPTAccount) (string, error) {
 	if a.Tokens.Refresh == "" {
 		return "", ErrChatGPTLogin
 	}
 	var next chatGPTTokens
-	err = chatGPTRequest(ctx, http.MethodPost, chatGPTIssuer+"/api/accounts/oauth/token", url.Values{
+	err := chatGPTRequest(ctx, http.MethodPost, chatGPTIssuer+"/api/accounts/oauth/token", url.Values{
 		"grant_type": {"refresh_token"}, "client_id": {a.ClientID},
 		"refresh_token": {a.Tokens.Refresh}, "resource": {chatGPTResource},
 	}, "", &next)

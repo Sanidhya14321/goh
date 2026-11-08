@@ -53,10 +53,14 @@ func TestChatGPTAuthorizationStateIdentityAndRenewal(t *testing.T) {
 				t.Error("exchange lost OAuth binding")
 			}
 			if r.Form.Get("grant_type") == "refresh_token" {
-				if r.Form.Get("refresh_token") != "fixture-renewal" {
+				switch r.Form.Get("refresh_token") {
+				case "fixture-renewal":
+					result = chatGPTTokens{Access: "renewed-access", Refresh: "renewed-refresh", Type: "Bearer", Lifetime: 3600}
+				case "renewed-refresh":
+					result = chatGPTTokens{Access: "forced-access", Refresh: "forced-refresh", Type: "Bearer", Lifetime: 3600}
+				default:
 					t.Error("wrong refresh token")
 				}
-				result = chatGPTTokens{Access: "renewed-access", Refresh: "renewed-refresh", Type: "Bearer", Lifetime: 3600}
 				break
 			}
 			digest := sha256.Sum256([]byte(r.Form.Get("code_verifier")))
@@ -138,6 +142,14 @@ func TestChatGPTAuthorizationStateIdentityAndRenewal(t *testing.T) {
 	account, err = readChatGPTAccount()
 	if err != nil || account.Tokens.Refresh != "renewed-refresh" {
 		t.Fatal("rotated credential not saved", err)
+	}
+	// A 401 on an unexpired token forces one renewal.
+	if token, err := RenewChatGPTAccessToken(ctx, "renewed-access"); err != nil || token != "forced-access" {
+		t.Fatal("forced renewal failed", token, err)
+	}
+	// A stale rejection (another process already renewed) reuses the new token.
+	if token, err := RenewChatGPTAccessToken(ctx, "renewed-access"); err != nil || token != "forced-access" {
+		t.Fatal("renewed twice for one rejection", token, err)
 	}
 }
 

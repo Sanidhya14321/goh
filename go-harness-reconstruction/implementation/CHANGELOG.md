@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.95 — 2026-11-08
+
+- Recovery: when ChatGPT rejects an access token with HTTP 401 before its
+  recorded expiry (for example after a server-side revocation), GoHarness
+  renews it once under the shared credential lock and resends the request.
+  A 401 means nothing was generated, so no partial answer or tool effect is
+  replayed. If another GoHarness process already renewed, its token is used
+  without a second renewal. A failed renewal still asks you to reconnect.
+
 ## 1.0.0-rc.94 — 2026-11-08
 
 - The TUI sidebar shows the session title above its ID. It is loaded when

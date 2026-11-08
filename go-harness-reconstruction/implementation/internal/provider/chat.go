@@ -113,6 +113,7 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	client := *c.HTTP
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
+	renewed := false
 	for attempt := 0; attempt < 3; attempt++ {
 		req, e := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(b))
 		if e != nil {
@@ -167,6 +168,16 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 				continue
 			}
 			resp.Body.Close()
+			// A ChatGPT token can be revoked before its recorded expiry. A 401
+			// means nothing was generated, so renew once and resend.
+			if chatGPT && resp.StatusCode == 401 && !renewed {
+				renewed = true
+				if next, renewErr := core.RenewChatGPTAccessToken(ctx, key); renewErr == nil && next != "" {
+					key = next
+					attempt--
+					continue
+				}
+			}
 			err = classifyHTTP(resp.StatusCode)
 			if n, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && n >= 0 {
 				if n > 5 {
