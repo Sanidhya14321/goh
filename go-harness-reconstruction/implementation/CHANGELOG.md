@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.45 — 2026-11-08
+
+- Loop guard: when the model makes the same tool call with the same
+  arguments a third time in a row, GoHarness asks before running it, even
+  for approved tools (OpenCode's doom-loop check). Declining tells the model
+  to try something else; "allow for session" stops asking. Headless runs
+  stop for review instead. Polling `job_output` is exempt.
+
 ## 1.0.0-rc.44 — 2026-11-08
 
 - Project instructions fall back to `CLAUDE.md` when there is no

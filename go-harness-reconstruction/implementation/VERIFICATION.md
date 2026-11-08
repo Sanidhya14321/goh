@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC45 loop guard
+
+`1.0.0-rc.45` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-three PTY scenarios. With a model that repeats one `read_file` call:
+a headless run executes it twice, then stops with `needs_permission`;
+declining blocks every later repeat while the run completes; a session
+approval asks once and allows all repeats. Changing arguments resets the
+count.
+
 ## RC44 instruction files
 
 `1.0.0-rc.44` passed vet (macOS and Windows), the race suite, seven CLI and

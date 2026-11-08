@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC45 loop guard milestone
+
+Backlog R07 (doom loop): the third consecutive identical call (tool name and
+exact argument text) requires a `repeated_call` approval, independent of the
+tool's own grant. Motivated by OpenCode's doom-loop permission and
+SWE-agent's observation that agents get stuck repeating actions.
+
 ## RC44 instruction files milestone
 
 Backlog T01 (instruction loading): CLAUDE.md fallback and a per-user

@@ -48,6 +48,8 @@ type Agent struct {
 	SkippedCommands []commands.Skipped
 	// GuidanceFiles lists instruction files added to the system message.
 	GuidanceFiles     []string
+	lastCall          string
+	repeats           int
 	degraded          map[string]string
 	Config            core.Config
 	Store             *session.Store
@@ -264,6 +266,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.runID = ID()
 	status = "failed"
 	a.invalid = map[string]int{}
+	a.lastCall, a.repeats = "", 0
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
 	a.LSP = nil
@@ -388,6 +391,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		calls := reply.Message.ToolCalls
 		results := make([]tools.Result, len(calls))
 		halt := false
+		haltReason := ""
 		for i := 0; i < len(calls); {
 			c := calls[i]
 			args := json.RawMessage(c.Function.Arguments)
@@ -402,6 +406,19 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				a.invalid[key]++
 				if a.invalid[key] >= 3 {
 					halt = true
+				}
+				i++
+				continue
+			}
+			if stop, e := a.checkRepeat(ctx, c, preview); e != nil {
+				return "failed", e
+			} else if stop != "" {
+				results[i] = tools.Result{Error: true, Content: stop}
+				if e := a.finish(c, results[i]); e != nil {
+					return "failed", e
+				}
+				if strings.HasPrefix(stop, repeatStopped) {
+					haltReason = "the model repeated an identical tool call; stopped for review"
 				}
 				i++
 				continue
@@ -549,6 +566,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		}
 		if halt {
 			return "failed", errors.New("repeated invalid tool call limit reached")
+		}
+		if haltReason != "" {
+			return "needs_permission", errors.New(haltReason)
 		}
 	}
 	return "budget_exhausted", errors.New("model turn limit reached")

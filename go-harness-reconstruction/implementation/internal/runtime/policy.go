@@ -11,7 +11,7 @@ import (
 func (a *Agent) isPlan() bool { return a.Config.AgentMode == "plan" || a.Config.Agent == "plan" }
 func (a *Agent) allowedInPlan(name string) bool {
 	switch name {
-	case "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task", "job_output":
+	case "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task", "job_output", "repeated_call":
 		return true
 	}
 	return false
