@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## Windows cancellation under load
+
+`TestParentChildCancellationUnderLoad` (six concurrent parents cancelled
+while each child runs a long shell command) now also builds for Windows,
+using a PowerShell command that writes its PID and `tasklist` to confirm the
+process is gone. Native CI for `555fae0` passed all six jobs, including this
+test on Windows: every child process ended within the deadline and each
+interrupted effect stayed pending.
+
 ## RC65 compaction threshold
 
 `1.0.0-rc.65` passed vet (macOS and Windows), the race suite, eight CLI and
