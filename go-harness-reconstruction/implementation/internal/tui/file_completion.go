@@ -197,7 +197,7 @@ func (m *model) refreshFileCompletion() {
 	if picker == nil {
 		return
 	}
-	if m.active || m.palette || m.timeline != nil || m.infoPanel != nil || m.fork != nil || m.export != nil || m.themePicker != nil || m.copyPicker != nil || m.jobsPicker != nil {
+	if m.active || m.palette || m.timeline != nil || m.infoPanel != nil || m.fork != nil || m.export != nil || m.themePicker != nil || m.copyPicker != nil || m.jobsPicker != nil || m.changesPicker != nil {
 		m.fileCompletion = nil
 		return
 	}

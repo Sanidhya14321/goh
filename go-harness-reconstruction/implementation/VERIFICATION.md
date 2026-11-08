@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC55 changes panel
+
+`1.0.0-rc.55` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-three PTY scenarios. A TUI test runs a real agent turn that creates a
+file with checkpoints on, then checks the `/changes` list, the diff panel
+(`made.txt · added` with the new content), the explanation when checkpoints
+are off, and refusal during a run.
+
 ## RC54 continue the last session
 
 `1.0.0-rc.54` passed vet (macOS and Windows), the race suite, eight CLI and

@@ -30,6 +30,7 @@ var paletteEntries = []paletteEntry{
 	{"/theme", "Choose a color theme (Ctrl+X T)"},
 	{"/copy", "Copy any recent message to the clipboard"},
 	{"/jobs", "Background jobs: view output or stop"},
+	{"/changes", "Files changed in this session, with diffs"},
 	{"/timestamps", "Show or hide when each prompt was sent"},
 	{"/find", "Search the conversation: /find text"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},
@@ -115,6 +116,11 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if entry.command == "/timestamps" {
 				m.palette = false
 				m.toggleTimestamps()
+				return m, nil
+			}
+			if entry.command == "/changes" {
+				m.palette = false
+				m.openChanges()
 				return m, nil
 			}
 			if entry.command == "/jobs" {

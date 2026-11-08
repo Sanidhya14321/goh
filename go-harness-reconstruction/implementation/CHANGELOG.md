@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.55 — 2026-11-08
+
+- `/changes` lists the files the agent changed in this session and shows
+  each checkpoint's diff. It needs file checkpoints (`"snapshots": true` or
+  `--snapshots`) and explains how to enable them otherwise.
+
 ## 1.0.0-rc.54 — 2026-11-08
 
 - `--continue` (for `goh run` and `goh chat`) resumes this project's most

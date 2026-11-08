@@ -4,6 +4,12 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC55 changes panel milestone
+
+`Agent.Checkpoints`/`CheckpointDiff` expose the snapshot store read-only to
+the TUI; `/changes` lists and diffs them. Reverting stays with turn-level
+undo so files and conversation remain consistent.
+
 ## RC54 continue milestone
 
 `--continue` picks the newest readable session for the canonical project

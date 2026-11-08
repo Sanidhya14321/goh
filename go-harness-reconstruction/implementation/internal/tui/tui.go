@@ -91,6 +91,7 @@ type model struct {
 	themePicker          *optionPicker
 	copyPicker           *optionPicker
 	jobsPicker           *optionPicker
+	changesPicker        *optionPicker
 	timestamps           bool
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
@@ -310,6 +311,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.jobsPicker != nil {
 			return m.jobsUpdate(v)
 		}
+		if m.changesPicker != nil {
+			return m.changesUpdate(v)
+		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
 		}
@@ -345,6 +349,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if m.jobsPicker != nil {
 			return m.jobsUpdate(v)
+		}
+		if m.changesPicker != nil {
+			return m.changesUpdate(v)
 		}
 		if m.timeline != nil {
 			return m.timelineUpdate(v)
@@ -463,6 +470,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/timestamps" {
 				m.input, m.inputCursor = "", 0
 				m.toggleTimestamps()
+				return m, nil
+			}
+			if strings.TrimSpace(prompt) == "/changes" {
+				m.input, m.inputCursor = "", 0
+				m.openChanges()
 				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/jobs" {
