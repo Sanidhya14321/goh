@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC59 provider models in /models
+
+`1.0.0-rc.59` passed vet (macOS and Windows), the race suite, eight CLI and
+twenty-four PTY scenarios (two consecutive runs). The new
+`provider_models` scenario opens `/models`, filters to `scripted-large` from
+the scripted provider's list, sends a prompt, and checks the journaled run
+used `scripted-large`.
+
 ## RC58 provider model list
 
 `1.0.0-rc.58` passed vet (macOS and Windows), the race suite, eight CLI and

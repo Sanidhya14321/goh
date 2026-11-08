@@ -154,6 +154,7 @@ func chatFirst(args []string) error {
 	project, sessionID, draft := "", "", ""
 	var profile, agent *string
 	chatGPTModel := ""
+	providerModel := "" // a model from the provider's list, chosen in /models
 	sessionOverride := false
 	skipChooser := true
 	var actionErr error
@@ -172,6 +173,8 @@ func chatFirst(args []string) error {
 		if chatGPTModel != "" {
 			command = append(command, "--protocol="+core.ChatGPTProtocol, "--model="+chatGPTModel,
 				"--base-url=https://api.openai.com/v1", "--endpoint=")
+		} else if providerModel != "" {
+			command = append(command, "--model="+providerModel)
 		}
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
@@ -223,7 +226,7 @@ func chatFirst(args []string) error {
 				var saved bool
 				saved, actionErr = configureProvider()
 				if saved {
-					chatGPTModel = ""
+					chatGPTModel, providerModel = "", ""
 				}
 				break
 			}
@@ -345,7 +348,13 @@ func chatFirst(args []string) error {
 				agent = &selected
 				break
 			}
-			title, current, options := "Select model profile", cfg.Profile, modelOptions(cfg)
+			title, current, options := "Select model", cfg.Profile, modelOptions(cfg)
+			if nav.Action == "models" {
+				options = append(options, providerModelOptions(cfg)...)
+				if providerModel != "" {
+					current = "@model:" + providerModel
+				}
+			}
 			if nav.Action == "agents" {
 				title, current, options = "Select agent", cfg.Agent, agentOptions(cfg)
 				if current == "" {
@@ -361,8 +370,14 @@ func chatFirst(args []string) error {
 					agent = &selected
 				case selected == "@provider":
 					_, actionErr = configureProvider()
+					providerModel = ""
+				case strings.HasPrefix(selected, "@model:"):
+					providerModel = strings.TrimPrefix(selected, "@model:")
+					info = "Model for this chat: " + providerModel + " (set \"model\" in config to keep it)"
+				case selected == "@unavailable":
 				default:
 					profile = &selected
+					providerModel = ""
 				}
 			}
 		}

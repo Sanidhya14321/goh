@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.59 — 2026-11-08
+
+- `/models` also lists the models your provider offers, below your
+  profiles, so you can switch model for the current chat without editing
+  config. If the list can't be fetched, the picker says why.
+
 ## 1.0.0-rc.58 — 2026-11-08
 
 - `goh models` lists the models your configured provider offers (one ID per

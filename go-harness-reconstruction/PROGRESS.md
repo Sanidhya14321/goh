@@ -4,6 +4,11 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC59 /models provider list milestone
+
+The launcher carries a per-chat `--model` override chosen from the
+provider's catalog, cleared when a profile or provider changes.
+
 ## RC58 model list milestone
 
 `goh models` queries the configured provider's model list using the same

@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
+	"net/http"
 	"sort"
+	"time"
+
+	"example.com/independent-harness/internal/provider"
 
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/tui"
@@ -56,4 +61,28 @@ func nextAgent(cfg core.Config, previous bool) string {
 		step = len(options) - 1
 	}
 	return options[(index+step)%len(options)].Value
+}
+
+// providerModelOptions lists the configured provider's models below the
+// profiles. A failed lookup becomes one explanatory, unselectable-in-effect
+// entry rather than an error, so the picker always opens.
+func providerModelOptions(cfg core.Config) []tui.Option {
+	if cfg.EffectiveProtocol() == core.ChatGPTProtocol {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	ids, err := provider.ListModels(ctx, cfg, &http.Client{})
+	if err != nil {
+		return []tui.Option{{Value: "@unavailable", Label: "Provider models unavailable", Description: err.Error()}}
+	}
+	options := make([]tui.Option, 0, len(ids))
+	for _, id := range ids {
+		description := "From the provider"
+		if id == cfg.Model {
+			description = "Current model"
+		}
+		options = append(options, tui.Option{Value: "@model:" + id, Label: id, Description: description})
+	}
+	return options
 }
