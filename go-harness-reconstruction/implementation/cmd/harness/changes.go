@@ -18,7 +18,7 @@ import (
 )
 
 func changes(args []string) error {
-	usage := "changes list|diff|undo|redo|acknowledge SESSION --id CHECKPOINT [--session-dir DIR]\n       changes undo-turn|redo-turn SESSION [--session-dir DIR]"
+	usage := "changes list|diff|undo|redo|acknowledge SESSION --id CHECKPOINT [--session-dir DIR]\n       changes undo-turn|redo-turn SESSION [--session-dir DIR]\n       changes revert-turn SESSION --turn N [--session-dir DIR]"
 	if len(args) == 1 && (args[0] == "--help" || args[0] == "-h") {
 		fmt.Println(usage)
 		return nil
@@ -32,7 +32,7 @@ func changes(args []string) error {
 	}
 	operation, subject := args[0], args[1]
 	switch operation {
-	case "list", "diff", "undo", "redo", "acknowledge", "undo-turn", "redo-turn":
+	case "list", "diff", "undo", "redo", "acknowledge", "undo-turn", "redo-turn", "revert-turn":
 	default:
 		return errors.New(usage)
 	}
@@ -43,13 +43,17 @@ func changes(args []string) error {
 	}
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	id := f.String("id", "", "checkpoint ID")
+	turn := f.Int("turn", 0, "user turn to revert, with every later turn (revert-turn)")
 	if err := f.Parse(args[2:]); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
 		}
 		return err
 	}
-	turnLevel := operation == "undo-turn" || operation == "redo-turn"
+	turnLevel := operation == "undo-turn" || operation == "redo-turn" || operation == "revert-turn"
+	if operation == "revert-turn" && *turn < 1 {
+		return errors.New(usage)
+	}
 	if f.NArg() != 0 || operation != "list" && !turnLevel && *id == "" {
 		return errors.New(usage)
 	}
@@ -61,6 +65,8 @@ func changes(args []string) error {
 		var err error
 		if operation == "undo-turn" {
 			result, err = rewind.Undo(ctx, *dir, subject)
+		} else if operation == "revert-turn" {
+			result, err = rewind.RevertTurn(ctx, *dir, subject, *turn)
 		} else {
 			result, err = rewind.Redo(ctx, *dir, subject)
 		}

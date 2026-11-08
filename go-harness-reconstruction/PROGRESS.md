@@ -4,6 +4,13 @@ A working development alpha is implemented in `implementation/`. The supplied
 plan at `../IMPLEMENTATION_PLAN.md` remains unchanged. Full release acceptance
 is not complete; observed compatibility and remaining gates are separate below.
 
+## RC39 transcript search milestone
+
+`/find` searches the full transcript text rather than the wrapped window, then
+scrolls by wrapping only the text after the match, so old turns are reachable
+without rendering the whole log. `goh changes revert-turn` exposes RC38's
+revert by turn number.
+
 ## RC38 revert-to-turn milestone
 
 `rewind.RevertTo` generalizes undo from the latest turn to any turn: it

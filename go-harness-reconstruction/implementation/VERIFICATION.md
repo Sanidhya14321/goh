@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC39 transcript search and CLI revert
+
+`1.0.0-rc.39` passed vet (macOS and Windows), the race suite, seven CLI and
+twenty-one PTY scenarios (two consecutive runs). Find tests use a transcript
+whose matches start off screen and check on the rendered view that the
+newest match, then an older one 400 lines up, become visible; that keys wrap
+between matches, typing never edits the draft, and Esc returns to the
+bottom. `RevertTurn` rejects turn 0 and nonexistent turns and reverts turn 1
+of 2 with both files restored.
+
 ## RC38 revert to an earlier turn
 
 `1.0.0-rc.38` passed vet (macOS and Windows), the race suite, seven CLI and

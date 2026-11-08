@@ -91,6 +91,7 @@ type model struct {
 	themePicker          *optionPicker
 	copyPicker           *optionPicker
 	timestamps           bool
+	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
 	export               *exportPanel
 }
@@ -341,6 +342,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if m.infoPanel != nil {
 			return m.statusKey(key)
 		}
+		if m.find != nil && m.pending == nil && m.question == nil {
+			return m.findKey(key)
+		}
 		if key == "ctrl+c" {
 			if m.active {
 				m.cancel()
@@ -440,6 +444,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/fork" {
 				m.input, m.inputCursor = "", 0
 				return m, m.openFork()
+			}
+			if trimmed := strings.TrimSpace(prompt); trimmed == "/find" || strings.HasPrefix(trimmed, "/find ") {
+				m.input, m.inputCursor = "", 0
+				m.startFind(strings.TrimPrefix(trimmed, "/find"))
+				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/timestamps" {
 				m.input, m.inputCursor = "", 0

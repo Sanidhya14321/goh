@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.39 — 2026-11-08
+
+- `/find text` searches the whole conversation, including turns scrolled
+  far out of view; ↑/↓ or Enter move between matches, Esc returns.
+- CLI: `goh changes revert-turn SESSION --turn N` reverts a turn and all
+  later turns.
+
 ## 1.0.0-rc.38 — 2026-11-08
 
 - Revert to an earlier prompt, as in OpenCode: in the timeline (Ctrl+T),

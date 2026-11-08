@@ -70,3 +70,20 @@ func TestRevertPicksOccurrenceOfRepeatedPrompt(t *testing.T) {
 		t.Fatal("third occurrence does not exist")
 	}
 }
+
+func TestRevertTurnByNumber(t *testing.T) {
+	root, dir := t.TempDir(), t.TempDir()
+	id := runTurns(t, root, dir, map[string][]core.Call{
+		"one": {call("c1", "create_file", map[string]any{"path": "1.txt", "content": "1"})},
+		"two": {call("c2", "create_file", map[string]any{"path": "2.txt", "content": "2"})},
+	}, "one", "two")
+	for _, bad := range []int{0, 3} {
+		if _, err := RevertTurn(context.Background(), dir, id, bad); err == nil {
+			t.Fatal("accepted turn", bad)
+		}
+	}
+	r, err := RevertTurn(context.Background(), dir, id, 1)
+	if err != nil || r.Prompt != "one" || r.LastTurn != 2 || read(t, filepath.Join(root, "1.txt")) != "<missing>" {
+		t.Fatalf("%+v %v", r, err)
+	}
+}

@@ -156,6 +156,14 @@ func RevertTo(ctx context.Context, dir, id, prompt string, occurrence int) (Resu
 	})
 }
 
+// RevertTurn reverts user turn n (1-based) and every later turn.
+func RevertTurn(ctx context.Context, dir, id string, n int) (Result, error) {
+	if n < 1 {
+		return Result{}, errors.New("turn must be 1 or greater")
+	}
+	return undoFrom(ctx, dir, id, func(records []session.Record) (turnState, error) { return turnFrom(records, n) })
+}
+
 func undoFrom(ctx context.Context, dir, id string, locate func([]session.Record) (turnState, error)) (Result, error) {
 	source, err := session.Open(dir, id)
 	if err != nil {
