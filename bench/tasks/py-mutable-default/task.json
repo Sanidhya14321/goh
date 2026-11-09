@@ -2,7 +2,7 @@
   "id": "py-mutable-default",
   "max_run_seconds": 900,
   "max_tool_calls": 120,
-  "prompt": "Tasks created with TaskList() share each other's items in todo.py. Fix the bug so each TaskList is independent, without changing the public API.",
+  "prompt": "Tasks created with TaskList() share each other's items in todo.py. Fix it so each TaskList is independent, and a list passed to TaskList(items) is never modified by later add() calls. Keep the public API unchanged.",
   "fail_to_pass": "python3 -m unittest test_todo_hidden -v",
   "pass_to_pass": "python3 -m unittest discover -v"
 }

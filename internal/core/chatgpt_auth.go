@@ -404,6 +404,9 @@ type ChatGPTModelInfo struct {
 	Slug       string `json:"slug"`
 	Name       string `json:"display_name"`
 	Visibility string `json:"visibility"`
+	// ContextWindow is the model's usable context in tokens, as reported by
+	// the account's model catalog (0 when not reported).
+	ContextWindow int `json:"context_window"`
 }
 
 func ListChatGPTModels(ctx context.Context) ([]ChatGPTModelInfo, error) {

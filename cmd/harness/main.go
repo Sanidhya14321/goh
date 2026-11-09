@@ -362,7 +362,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			}
 		}
 		if c.ContextWindow == 0 {
-			c.ContextWindow = 32768
+			c.ContextWindow = core.ChatGPTContextWindow(context.Background(), c.Model)
 		}
 	}
 	if e = c.Validate(); e != nil {
@@ -653,7 +653,7 @@ func withChatGPTDefault(c core.Config) core.Config {
 		c.SetProviderRoute(core.ChatGPTProtocol, "", "")
 		c.Model = chosen
 		if c.ContextWindow == 0 {
-			c.ContextWindow = 32768
+			c.ContextWindow = core.ChatGPTContextWindow(context.Background(), c.Model)
 		}
 	}
 	return c

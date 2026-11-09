@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.156 — 2026-11-09
+
+- **Real context window for ChatGPT models:** the window is read from the
+  account's model catalog (gpt-6.1-sol: 500,000 tokens) and cached privately
+  for a day, instead of a fixed 32,768. Found by the first live benchmark,
+  where 4 of 22 short tasks ended in `budget_exhausted` with "compaction did
+  not reduce context enough".
+- Benchmark: `py-mutable-default`'s prompt now states the requirement its
+  hidden test checks (a passed-in list is not modified).
+
 ## 1.0.0-rc.155 — 2026-11-09
 
 - **`/snapshots` in the TUI (C10):** lists each run's whole-project changes

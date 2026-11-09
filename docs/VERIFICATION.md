@@ -23,6 +23,25 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC156 live benchmark findings (stage 1)
+
+First live run: 22 tasks, one attempt each, gpt-6.1-sol through the ChatGPT sign-in.
+
+| Measure | Result |
+| --- | --- |
+| Resolved | 21/22 |
+| False completions | 1 |
+| Budget stops | 4 |
+| Average tool calls | 6.5 |
+| Average time | 50 s |
+| Tokens | 320,212 input (28,672 cached), 21,725 output |
+
+**Four budget stops:** all said "compaction did not reduce context enough", within about a minute. Cause: the ChatGPT default window was a fixed 32,768, about 7% of the catalog's 500,000 for this model, which the byte-based estimator filled after roughly 10K real tokens. `goh config` now reports 500,000. `TestModelCatalogContextWindowParsed` covers the catalog field.
+
+**The false completion** (`py-mutable-default`) was a task defect: the hidden test required not modifying a passed-in list, which the prompt never said. The model's `None`-default fix answered the prompt as written.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC155 TUI snapshots
 
 `TestSnapshotsCommandListsRunChanges` checks two cases. With snapshots off, `/snapshots` explains the `project_snapshots` setting. After a real run that creates `made.txt` with snapshots on, it lists `run 1  1 file(s)` and `A made.txt`, along with the restore command for that session. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
