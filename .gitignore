@@ -19,3 +19,4 @@
 !/research/notes/
 !/research/go.mod
 /bench/results/
+/bench/.cache/

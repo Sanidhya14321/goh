@@ -39,7 +39,35 @@ type task struct {
 	PassToPass    string   `json:"pass_to_pass,omitempty"`
 	MaxRunSeconds int      `json:"max_run_seconds,omitempty"`
 	MaxToolCalls  int      `json:"max_tool_calls,omitempty"`
-	dir           string
+	// Git, when set, is the starting tree: a repository at a pinned commit
+	// (fetched once into a local cache) instead of a bundled repo/ folder.
+	Git *struct {
+		URL    string `json:"url"`
+		Commit string `json:"commit"`
+	} `json:"git,omitempty"`
+	dir string
+}
+
+// sourceTree returns the folder holding the task's starting tree.
+func (t task) sourceTree() (string, error) {
+	if t.Git == nil {
+		return filepath.Join(t.dir, "repo"), nil
+	}
+	cache, err := filepath.Abs(filepath.Join(filepath.Dir(filepath.Dir(t.dir)), ".cache", t.ID+"-"+t.Git.Commit[:12]))
+	if err != nil {
+		return "", err
+	}
+	if _, err := os.Stat(filepath.Join(cache, ".ok")); err == nil {
+		return cache, nil
+	}
+	os.RemoveAll(cache)
+	for _, args := range [][]string{{"init", "-q", cache}, {"-C", cache, "fetch", "-q", "--depth", "1", t.Git.URL, t.Git.Commit}, {"-C", cache, "checkout", "-q", "FETCH_HEAD"}} {
+		if out, err := exec.Command("git", args...).CombinedOutput(); err != nil {
+			return "", fmt.Errorf("git %v: %v %s", args, err, out)
+		}
+	}
+	os.RemoveAll(filepath.Join(cache, ".git"))
+	return cache, os.WriteFile(filepath.Join(cache, ".ok"), nil, 0o644)
 }
 
 // Result is one task attempt under one arm.
@@ -167,7 +195,12 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		return r
 	}
 	work, grade, sessions := filepath.Join(base, "agent"), filepath.Join(base, "grade"), filepath.Join(base, "sessions")
-	if err := copyTree(filepath.Join(t.dir, "repo"), work); err != nil {
+	src, err := t.sourceTree()
+	if err != nil {
+		r.Error = "source: " + err.Error()
+		return r
+	}
+	if err := copyTree(src, work); err != nil {
 		r.Error = "copy: " + err.Error()
 		return r
 	}
@@ -306,7 +339,7 @@ func copyTree(src, dst string) error {
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
-		if !d.Type().IsRegular() {
+		if !d.Type().IsRegular() || d.Name() == ".ok" {
 			return nil
 		}
 		info, err := d.Info()
@@ -347,15 +380,21 @@ func dryRun(tasks []task) int {
 	for _, t := range tasks {
 		tmp, _ := os.MkdirTemp("", "goh-bench-dry-")
 		defer os.RemoveAll(tmp)
+		src, err := t.sourceTree()
+		if err != nil {
+			fmt.Printf("%-30s BROKEN source: %v\n", t.ID, err)
+			bad++
+			continue
+		}
 		start := filepath.Join(tmp, "start")
-		copyTree(filepath.Join(t.dir, "repo"), start)
+		copyTree(src, start)
 		copyTree(filepath.Join(t.dir, "hidden"), start)
 		for _, s := range t.Setup {
 			sh(start, s, 600)
 		}
 		before, _ := sh(start, t.FailToPass, 900)
 		ref := filepath.Join(tmp, "reference")
-		copyTree(filepath.Join(t.dir, "repo"), ref)
+		copyTree(src, ref)
 		copyTree(filepath.Join(t.dir, "solution"), ref)
 		copyTree(filepath.Join(t.dir, "hidden"), ref)
 		for _, s := range t.Setup {
