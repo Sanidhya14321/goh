@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC116 shell completion milestone
+
+Backlog I11: shell completion, generated locally; nothing written to shell configuration.
+
 ## RC115 formatter auto-detection milestone
 
 Backlog R18: built-in formatter discovery, opt-in like `lsp_auto`.

@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.116 — 2026-11-09
+
+- `goh completion bash|zsh|fish` prints a completion script for the
+  top-level commands (`eval "$(goh completion zsh)"`, or
+  `goh completion fish | source`). Nothing is installed automatically.
+
 ## 1.0.0-rc.115 — 2026-11-09
 
 - Opt-in `"formatter_auto": true` adds well-known formatters found on PATH

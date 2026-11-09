@@ -48,13 +48,14 @@ var commandHelp = [][2]string{
 	{"acp", "Agent Client Protocol over stdio for editors"},
 	{"doctor", "check configuration and integrations"},
 	{"version", "print the version"},
+	{"completion", "print a shell completion script: bash, zsh or fish"},
 }
 
 var usage = func() string {
 	var b strings.Builder
 	b.WriteString("usage: goh [command] [flags]\n\nCommands:\n")
 	for _, c := range commandHelp {
-		fmt.Fprintf(&b, "  %-9s %s\n", c[0], c[1])
+		fmt.Fprintf(&b, "  %-10s %s\n", c[0], c[1])
 	}
 	b.WriteString("\nUse --help after a command for its flags.")
 	return b.String()
@@ -95,6 +96,13 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if args[0] == "version" {
 		fmt.Println(version)
 		return nil
+	}
+	if args[0] == "completion" {
+		shell := ""
+		if len(args) > 1 {
+			shell = args[1]
+		}
+		return writeCompletion(os.Stdout, shell)
 	}
 	if (args[0] == "setup" || args[0] == "settings") && len(args) == 1 {
 		if args[0] == "setup" {
