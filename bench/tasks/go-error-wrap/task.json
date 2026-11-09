@@ -1,0 +1,8 @@
+{
+  "id": "go-error-wrap",
+  "max_run_seconds": 600,
+  "max_tool_calls": 80,
+  "prompt": "LoadUser in store.go hides why a lookup failed. Callers need errors.Is(err, ErrNotFound) to work for missing users, and the error text should include the user ID. Keep other errors distinguishable.",
+  "fail_to_pass": "go test -run TestLoadUser ./...",
+  "pass_to_pass": "go test ./..."
+}

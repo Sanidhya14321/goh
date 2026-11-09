@@ -1,0 +1,8 @@
+{
+  "id": "go-off-by-one",
+  "max_run_seconds": 600,
+  "max_tool_calls": 80,
+  "prompt": "SumTo(n) in sum.go should return 1+2+...+n (and 0 for n <= 0), but results are wrong. Fix it.",
+  "fail_to_pass": "go test -run TestSumTo ./...",
+  "pass_to_pass": "go test ./..."
+}

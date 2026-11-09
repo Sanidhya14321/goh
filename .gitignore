@@ -18,3 +18,4 @@
 !/research/evidence/opencode-ui-*.png
 !/research/notes/
 !/research/go.mod
+/bench/results/

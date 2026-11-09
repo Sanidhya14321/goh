@@ -1,0 +1,12 @@
+package task
+
+// Counter counts events.
+type Counter struct {
+	n int
+}
+
+// Inc adds one.
+func (c *Counter) Inc() { c.n++ }
+
+// Value returns the count.
+func (c *Counter) Value() int { return c.n }

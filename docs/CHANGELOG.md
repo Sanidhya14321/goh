@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.153 — 2026-11-09
+
+- **Benchmark runner (C11):** `cmd/bench` (`make bench-check`) runs pinned
+  tasks through `goh run` and regrades each result in a clean copy with
+  hidden tests (SWE-bench style: fail-to-pass and pass-to-pass). It reports
+  resolved rate, false completions, budget stops, tool calls, time and
+  tokens (cached shown separately) per arm, so any `goh run` flag can be A/B
+  tested. Eight validated starter tasks in Go and Python. See
+  `bench/README.md`.
+
 ## 1.0.0-rc.152 — 2026-11-09
 
 - **Headless runs (C10):** `goh run` gains `--verify CMD`,

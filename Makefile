@@ -32,3 +32,7 @@ release:
 	GO='$(GO)' VERSION='$(VERSION)' sh scripts/release.sh
 demo: build
 	bin/scripted-model --scenario text
+
+bench-check:
+	$(GO) build -o bin/goh-bench ./cmd/bench
+	PATH="$$(dirname $$(command -v $(GO))):$$PATH" bin/goh-bench --tasks bench/tasks --dry-run

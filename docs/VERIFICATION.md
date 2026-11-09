@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC153 benchmark runner
+
+- `make bench-check` (dry run, no model) confirms all 8 tasks fail on the starting tree and pass with their reference solution, including pass-to-pass.
+- `TestRunnerGradesCleanlyAndFlagsFalseCompletion` drives the real runner with stand-in `goh` scripts:
+  - an agent applying the fix is resolved, with tool calls, tokens and cache counted;
+  - an agent changing nothing but reporting `completed` is flagged as a false completion;
+  - an agent rewriting the hidden test is graded against the real one and flagged `hidden_tests_overwritten`.
+
+`bench/go.mod` keeps the task fixtures out of `./...`. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC152 headless run flags
 
 End-to-end with the real `goh` binary and `scripted-model`:

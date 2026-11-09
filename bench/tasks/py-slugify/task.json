@@ -1,0 +1,7 @@
+{
+  "id": "py-slugify",
+  "max_run_seconds": 600,
+  "max_tool_calls": 80,
+  "prompt": "Implement slugify(text) in text_utils.py (it currently raises NotImplementedError): lowercase, strip accents (\u00e9 -> e), replace any run of non-alphanumeric characters with a single hyphen, and trim hyphens from both ends.",
+  "fail_to_pass": "python3 -m unittest test_slugify -v"
+}

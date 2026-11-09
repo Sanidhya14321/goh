@@ -1,0 +1,8 @@
+{
+  "id": "py-cart-discount",
+  "max_run_seconds": 600,
+  "max_tool_calls": 80,
+  "prompt": "Cart totals are off by a cent for some discounted orders, and a 100% discount sometimes yields a negative total. Money is in pricing.py and cart.py. Make totals exact to the cent (round half up) and never negative.",
+  "fail_to_pass": "python3 -m unittest test_cart_hidden -v",
+  "pass_to_pass": "python3 -m unittest discover -v"
+}

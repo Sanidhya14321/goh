@@ -16,7 +16,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
 | C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
 | C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | 🔄 RC152 headless done; TUI snapshot restore pending |
-| C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ⬜ |
+| C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ✅ RC153 (live runs need go-ahead) |
 
 ## Findings log
 
@@ -110,3 +110,17 @@ Decision: keep children sequential and in the foreground, with shared tool-call 
 ### C9 Integrations (RC135, RC137, RC151)
 
 MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), completed-but-oversized results (RC140) and resources (RC151). Still open: MCP prompts (as slash commands) and OAuth, which needs a real OAuth server.
+
+### C10 Interfaces (RC152)
+
+Headless `goh run` is benchmark-ready: per-run verify and budget flags, `--allow all`, and distinct exit codes. Pending: restoring whole-project snapshots from the TUI.
+
+### C11 Benchmark runner (RC153)
+
+Sources:
+- [SWE-bench harness reference](https://swebench.com/SWE-bench/reference/harness): isolated environments, hidden tests, resolved means FAIL_TO_PASS plus PASS_TO_PASS.
+- [Claw-SWE-Bench write-up](https://www.besthub.dev/articles/how-harness-design-alters-coding-agent-scores-insights-from-the-first-independent-claw-swe-bench-8db2751ea3e2) (secondary): harness design alone moves Pass@1 by up to 27 points.
+- [Position: coding benchmarks are misaligned (arXiv:2606.17799)](https://arxiv.org/html/2606.17799): a single pass rate hides process quality.
+- From the review: DeepSWE, Terminal-Bench 2.1 and SWE-Bench Pro on verifier fixes and time budgets.
+
+Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The starter suite is small (8 tasks); add 20–30 harder tasks before drawing conclusions.

@@ -1,0 +1,8 @@
+{
+  "id": "go-counter-race",
+  "max_run_seconds": 600,
+  "max_tool_calls": 80,
+  "prompt": "Counter in counter.go is used from many goroutines and loses increments. Make it safe for concurrent use without changing its API.",
+  "fail_to_pass": "go test -race -run TestCounterConcurrent ./...",
+  "pass_to_pass": "go test ./..."
+}
