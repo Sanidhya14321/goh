@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC152 C10 headless milestone
+
+Benchmark-ready headless flags.
+
 ## RC151 C6–C9 milestone
 
 C6–C8 reviewed (decisions recorded), C9 MCP resources added.

@@ -15,7 +15,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ✅ (TUI restore moved to C10) |
 | C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
 | C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
-| C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | ⬜ |
+| C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | 🔄 RC152 headless done; TUI snapshot restore pending |
 | C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ⬜ |
 
 ## Findings log

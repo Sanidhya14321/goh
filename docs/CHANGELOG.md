@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.152 — 2026-11-09
+
+- **Headless runs (C10):** `goh run` gains `--verify CMD`,
+  `--max-tool-calls N`, `--max-run-seconds N` and `--completion-check=false`
+  (overriding config for one run), `--allow all` for every built-in local
+  tool (web, LSP and MCP stay explicit), and exit code 5 for
+  `budget_exhausted`. `--reasoning-effort` help lists current levels.
+
 ## 1.0.0-rc.151 — 2026-11-09
 
 - **MCP resources (C9):** when a connected MCP server offers resources, the

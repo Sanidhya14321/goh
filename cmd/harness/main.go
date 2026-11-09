@@ -198,9 +198,13 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	model := f.String("model", "", "model name")
 	window := f.Int("context-window", 0, "configured context window")
 	output := f.Int("output-budget", 0, "response token reserve")
-	effort := f.String("reasoning-effort", "", "minimal, low, medium or high for OpenAI reasoning models; off disables")
+	effort := f.String("reasoning-effort", "", "OpenAI: none|minimal|low|medium|high|xhigh; Anthropic: low|medium|high|xhigh|max; off disables")
+	verifyCmd := f.String("verify", "", "run: check command after file changes, with bounded repair (overrides config)")
+	maxToolCalls := f.Int("max-tool-calls", 0, "run: stop after this many tool calls, child tasks included")
+	maxRunSeconds := f.Int("max-run-seconds", 0, "run: stop after this many seconds, child tasks included")
+	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
 	sessionDir := f.String("session-dir", "", "private session storage")
-	allow := f.String("allow", "", "comma-separated run grants: write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
+	allow := f.String("allow", "", "comma-separated run grants (all = every built-in local tool: file edits, shell, todos, skills, tasks): write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
 	continueLast := f.Bool("continue", false, "continue this project's most recent session (chat and run)")
@@ -332,6 +336,14 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			if c.ReasoningEffort == "off" {
 				c.ReasoningEffort = ""
 			}
+		case "verify":
+			c.Verify = &core.VerifyConfig{Command: *verifyCmd}
+		case "max-tool-calls":
+			c.MaxToolCalls = *maxToolCalls
+		case "max-run-seconds":
+			c.MaxRunSeconds = *maxRunSeconds
+		case "completion-check":
+			c.CompletionCheck = completionCheck
 		}
 	})
 
@@ -450,6 +462,13 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		return e
 	}
 	for _, v := range strings.Split(*allow, ",") {
+		if v == "all" {
+			// Every built-in local tool; web access and MCP stay explicit.
+			for _, g := range allLocalGrants {
+				a.Grants[g] = true
+			}
+			continue
+		}
 		if v != "" {
 			a.Grants[v] = true
 		}
@@ -507,6 +526,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		}
 		if status == "cancelled" {
 			code = 130
+		}
+		if status == "budget_exhausted" {
+			code = 5
 		}
 		return &exitError{code: code, status: status + ": " + e.Error()}
 	}
@@ -636,3 +658,8 @@ func withChatGPTDefault(c core.Config) core.Config {
 	}
 	return c
 }
+
+// allLocalGrants is what --allow all grants: built-in tools that act on the
+// local project. Web access, language servers and MCP must still be named.
+var allLocalGrants = []string{"write_file", "create_file", "edit_file", "apply_patch", "todowrite", "skill", "shell", "task",
+	"child:write_file", "child:create_file", "child:edit_file", "child:apply_patch", "child:shell", "snapshot_undo", "snapshot_redo"}

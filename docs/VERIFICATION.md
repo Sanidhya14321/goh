@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC152 headless run flags
+
+End-to-end with the real `goh` binary and `scripted-model`:
+- `goh run --allow all --verify "test -f done.txt"` creates `work.txt`, fails the check (exit 1), receives the failure, creates `done.txt`, passes (exit 0) and finishes with `"outcome":"verified"`;
+- the same script with `--max-tool-calls 1` exits 5 with `budget_exhausted: run stopped at the max_tool_calls limit (1)`.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC151 MCP resources
 
 `TestResourcesListAndRead` (with `-race`) checks four things:
