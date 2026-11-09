@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC117 goh pr
+
+`TestRunPR` uses a fake `gh` on PATH: malformed references, extra arguments, flag-looking input and non-GitHub URLs are refused before gh runs; `#42` runs exactly `gh pr checkout 42` and then opens the UI; a failed checkout does not open the UI; a missing gh gives an install hint. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC116 shell completion
 
 `TestCompletionScripts` checks every command appears in all three scripts, rejects an unknown shell, runs the bash function in a real bash (`goh se` → `sessions setup settings serve`; `goh completion z` → `zsh`) and syntax-checks the zsh script with `zsh -n`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

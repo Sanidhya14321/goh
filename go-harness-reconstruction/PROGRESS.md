@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC117 goh pr milestone
+
+Backlog I09: PR checkout through the user's gh; GitHub automation (`goh github`) still open.
+
 ## RC116 shell completion milestone
 
 Backlog I11: shell completion, generated locally; nothing written to shell configuration.

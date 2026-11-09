@@ -37,6 +37,7 @@ var commandHelp = [][2]string{
 	{"import", "import a session exported with goh export"},
 	{"changes", "show files changed in a session"},
 	{"models", "list models available from the configured provider"},
+	{"pr", "check out a GitHub pull request with gh, then open the UI"},
 	{"mcp", "list configured MCP servers: goh mcp list"},
 	{"agents", "list built-in, configured and project agents"},
 	{"stats", "token usage and activity over recent days"},
@@ -128,6 +129,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "export" || args[0] == "import" {
 		return exportAlias(args[0], args[1:])
+	}
+	if args[0] == "pr" {
+		return runPR(args[1:], func() error { return chatFirst([]string{"chat"}) })
 	}
 	if args[0] == "mcp" {
 		return runMCP(args[1:])

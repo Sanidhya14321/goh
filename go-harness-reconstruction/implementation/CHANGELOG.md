@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.117 — 2026-11-09
+
+- `goh pr NUMBER` (or `#N`, or a github.com pull request URL) checks the
+  pull request out with your own GitHub CLI sign-in and opens the terminal
+  UI on that branch. GoHarness never handles a GitHub token, and the UI is
+  not opened if the checkout fails.
+
 ## 1.0.0-rc.116 — 2026-11-09
 
 - `goh completion bash|zsh|fish` prints a completion script for the
