@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.120 — 2026-11-09
+
+- `goh uninstall` lists what it would remove: the running `goh` program
+  (and a `harness` link to it), the GoHarness config folder (including saved
+  keys and the ChatGPT sign-in) and the state folder (sessions). Nothing is
+  removed without `--yes`; `--keep-data` removes only the program. Shell
+  configuration and other folders are never touched. On Windows the running
+  program is reported for manual deletion.
+
 ## 1.0.0-rc.119 — 2026-11-09
 
 - `goh auth list` shows, for the default provider, each profile and
