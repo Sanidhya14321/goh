@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.150 — 2026-11-09
+
+- **Prompt cache key (C5):** Responses and ChatGPT requests carry one
+  `prompt_cache_key` per session, so a conversation's append-only requests
+  share a cache (as Codex does). If an endpoint names the field as
+  unsupported, the request is resent once without it.
+
 ## 1.0.0-rc.149 — 2026-11-09
 
 - **Multi-language repository map (C4):** `repo_map` now lists functions,

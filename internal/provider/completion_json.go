@@ -9,7 +9,10 @@ import (
 	"github.com/Sanidhya14321/goh/internal/core"
 )
 
-func rejectsStreamOptions(r io.Reader) bool {
+func rejectsStreamOptions(r io.Reader) bool { return rejectsParam(r, "stream_options") }
+
+// rejectsParam reports a structured 400 naming param as unsupported.
+func rejectsParam(r io.Reader, param string) bool {
 	const limit = 4096
 	data, err := io.ReadAll(io.LimitReader(r, limit+1))
 	if err != nil || len(data) > limit {
@@ -21,7 +24,7 @@ func rejectsStreamOptions(r io.Reader) bool {
 			Code  string `json:"code"`
 		} `json:"error"`
 	}
-	return json.Unmarshal(data, &envelope) == nil && envelope.Error.Param == "stream_options" &&
+	return json.Unmarshal(data, &envelope) == nil && envelope.Error.Param == param &&
 		(envelope.Error.Code == "unsupported_parameter" || envelope.Error.Code == "unknown_parameter")
 }
 

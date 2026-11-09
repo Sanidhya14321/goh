@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC150 Responses prompt cache key
+
+- `TestResponsesPromptCacheKey` checks that there is no key without a session and that the session ID is sent when set.
+- `TestResponsesDropsRejectedCacheKeyOnce` has a server answer the first request with a structured 400 naming `prompt_cache_key`; the second request omits it and the reply is parsed.
+
+Whether the live ChatGPT endpoint accepts the field is **unverified** (the fallback covers rejection). Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC149 multi-language repository map
 
 `TestRegexSymbolsAcrossLanguages` extracts the expected declarations from Python, TypeScript, Rust, Java, C and Ruby samples. The samples include traps: a commented-out `def`, a commented `function`, a C prototype and an `if (` call, none of which may be listed. Writing the test found a bug: a C keyword filter dropped Rust's `fn new`; the filter now applies only to C-like languages. Existing Go repo_map tests pass unchanged. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

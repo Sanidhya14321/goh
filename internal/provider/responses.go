@@ -67,6 +67,11 @@ func encodeResponses(c core.Config, messages []core.Message, tools []core.Tool) 
 	if !plan && c.OutputBudget > 0 {
 		body["max_output_tokens"] = c.OutputBudget
 	}
+	if c.CacheKey != "" {
+		// One key per conversation keeps its requests on the same prompt
+		// cache (the history is append-only), as Codex does.
+		body["prompt_cache_key"] = c.CacheKey
+	}
 	if c.ReasoningEffort != "" {
 		// A summary is requested only with an explicit effort, where the model
 		// is known to reason; it is shown in the UI and never replayed.

@@ -10,7 +10,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C2 | Agent loop and control (planning, stopping, error recovery, verification) | `internal/runtime` | ✅ RC140–147 |
 | C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
 | C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ✅ RC149 |
-| C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ⬜ |
+| C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ✅ RC139–150 (live check pending) |
 | C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ⬜ |
 | C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ⬜ |
 | C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ⬜ |
@@ -77,3 +77,14 @@ Sources:
 The evidence is thin and largely vendor-run. Gains concentrate in multi-file changes; small repositories do fine with grep.
 
 Chosen: keep agentic search (grep, glob, read and LSP) as the primary path, and extend the cheap declaration map to the common benchmark languages. Not chosen: a persistent graph index or PageRank ranking without evidence. Revisit after C11 measures time-to-right-file.
+
+### C5 Providers and routing (RC131, RC139, RC143, RC150)
+
+Sources:
+- [Responses API reference](https://developers.openai.com/api/reference/python/resources/responses/methods/create): `prompt_cache_key` groups requests for cache hits; `include: reasoning.encrypted_content` keeps stateless reasoning.
+- [Reasoning items cookbook](https://learn.chatgpt.com/cookbook/examples/responses_api/reasoning_items): Responses raised cache utilisation from 40% to 80% in OpenAI's test.
+- [Encrypted reasoning with store=false](https://community.openai.com/t/how-to-use-reasoning-encrypted-content-with-store-false-stateless/1286934): pass reasoning items back every turn.
+- [xAI agent caching guide](https://docs.x.ai/developers/model-capabilities/text/best-practices): one cache key per conversation, append-only.
+- The claude-api reference: cache breakpoints, adaptive thinking, effort.
+
+Already in place: stateless Responses with encrypted reasoning passed back. Added: Anthropic breakpoints (RC131), correct usage attribution (RC139), current effort levels and adaptive thinking (RC143), and a per-session `prompt_cache_key` with a safe fallback (RC150).

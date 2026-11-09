@@ -153,6 +153,9 @@ type Config struct {
 	// WebfetchAllowPrivate lets webfetch reach loopback, private-network and
 	// link-local addresses (off by default: cloud metadata, local services).
 	WebfetchAllowPrivate bool `json:"webfetch_allow_private,omitempty"`
+	// CacheKey groups one conversation's requests for provider prompt
+	// caching (set to the session ID by the runtime; never from config).
+	CacheKey string `json:"-"`
 	// Verify runs a check after a run that changed files, with bounded
 	// automatic repair attempts when it fails.
 	Verify *VerifyConfig `json:"verify,omitempty"`

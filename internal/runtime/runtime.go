@@ -113,6 +113,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	if e := commands.Validate(c.Commands); e != nil {
 		return nil, e
 	}
+	c.CacheKey = s.ID
 	t, e := tools.New(s.Project, filepath.Join(c.SessionDir, s.ID+"-artifacts"))
 	if e != nil {
 		return nil, e

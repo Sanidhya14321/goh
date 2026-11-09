@@ -113,7 +113,7 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	client := *c.HTTP
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 
-	renewed := false
+	renewed, droppedCacheKey := false, false
 	for attempt := 0; attempt < 3; attempt++ {
 		req, e := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(b))
 		if e != nil {
@@ -163,6 +163,19 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 				delete(body, "stream_options")
 				b, e = json.Marshal(body)
 				if e != nil {
+					return core.Reply{}, e
+				}
+				continue
+			}
+			// The ChatGPT preview rejects some standard fields; drop the
+			// optional cache key once if it is named as unsupported.
+			if responses && resp.StatusCode == 400 && attempt < 2 && c.Config.CacheKey != "" && !droppedCacheKey &&
+				rejectsParam(resp.Body, "prompt_cache_key") {
+				resp.Body.Close()
+				droppedCacheKey = true
+				cfg := c.Config
+				cfg.CacheKey = ""
+				if b, e = encodeResponses(cfg, messages, tools); e != nil {
 					return core.Reply{}, e
 				}
 				continue
