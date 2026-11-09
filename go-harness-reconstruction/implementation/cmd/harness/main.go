@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	goruntime "runtime"
+	"slices"
 	"strings"
 	"syscall"
 
@@ -217,6 +218,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		}
 		words = append(words, f.Arg(0))
 		rest = f.Args()[1:]
+	}
+	if command == "run" && *prompt == "" && !slices.Contains(words, "-") && pipedInput(os.Stdin) {
+		words = append(words, "-") // cat log | goh run explain this
 	}
 	if len(words) > 0 {
 		if command != "run" {
@@ -563,6 +567,18 @@ func doctor(args []string) error {
 // runMessage joins message words; a "-" word is replaced by standard input
 // (at most 1 MiB), so `git diff | goh run - review this` works. Standard
 // input is never read unless asked, so scripts with open pipes never hang.
+// pipedInput reports whether stdin is a pipe or a regular file, so piped
+// text joins the run message. Terminals and devices such as /dev/null are
+// never read.
+func pipedInput(f *os.File) bool {
+	info, err := f.Stat()
+	if err != nil {
+		return false
+	}
+	m := info.Mode()
+	return m&os.ModeNamedPipe != 0 || m.IsRegular()
+}
+
 func runMessage(words []string, stdin io.Reader) (string, error) {
 	var parts []string
 	read := false

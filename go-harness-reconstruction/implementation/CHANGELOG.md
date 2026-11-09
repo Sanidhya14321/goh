@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.123 — 2026-11-09
+
+- `goh run` reads piped input without needing `-`:
+  `cat build.log | goh run explain this failure`. Only a pipe or a
+  redirected file is read (up to 1 MiB); a terminal or `/dev/null` never is,
+  and `--prompt` or an explicit `-` keeps the old behaviour.
+
 ## 1.0.0-rc.122 — 2026-11-09
 
 - `goh config` prints the effective configuration as JSON: defaults, your

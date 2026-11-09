@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC123 piped run input milestone
+
+Backlog I01: headless run reads piped input, as OpenCode does.
+
 ## RC122 goh config milestone
 
 Backlog R06: inspect configuration precedence without exposing secrets.

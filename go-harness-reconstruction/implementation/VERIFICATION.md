@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC123 piped run input
+
+`TestPipedInputDetection` accepts a pipe and a redirected file and rejects `/dev/null`. End to end, `echo "PIPED-LOG-LINE 42" | goh run explain this` (unreachable local endpoint, temporary session folder) journalled the message `explain this\n\nPIPED-LOG-LINE 42`. The acceptance, PTY, setup and ACP suites, which start goh with non-terminal stdin, all still pass without hanging. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC122 goh config
 
 `TestConfigShowRemovesSecrets` puts secrets in a URL's user info and query, an MCP environment value and a formatter argument; none appear in the output, while the host and path, the variable name and the model remain, and the output is valid JSON. Run against the real configuration it printed the ChatGPT default model and no secrets. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
