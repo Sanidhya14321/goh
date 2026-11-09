@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC130 environment scrubbing milestone
+
+Gap analysis S1/S2 closed: child processes receive only a safe environment plus `env_passthrough`.
+
 ## RC129 repository restructure milestone
 
 Go project at the repository root, docs in `docs/`, plan/specs in `docs/plan/`, research in `research/`; repository and module renamed to `goh`.

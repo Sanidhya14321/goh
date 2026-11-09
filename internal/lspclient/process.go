@@ -28,11 +28,7 @@ func startProcess(config core.LSPConfig, project string) (*process, error) {
 	cmd.Dir = project
 	platform.NewGroup(cmd)
 	cmd.WaitDelay = time.Second
-	env := map[string]string{}
-	for _, entry := range os.Environ() {
-		name, value, _ := strings.Cut(entry, "=")
-		env[name] = value
-	}
+	env := platform.ChildEnvMap() // secrets withheld; config.Env adds explicit values
 	for name, value := range config.Env {
 		if name == "" || strings.ContainsAny(name, "=\x00") || strings.ContainsRune(value, '\x00') {
 			return nil, errors.New("invalid LSP environment")

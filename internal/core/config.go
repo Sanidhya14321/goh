@@ -101,6 +101,11 @@ type Config struct {
 	Prices map[string]ModelPrice `json:"prices,omitempty"`
 	// LSPAuto adds installed well-known language servers (see knownLSP).
 	LSPAuto bool `json:"lsp_auto,omitempty"`
+	// EnvPassthrough names extra environment variables (NAME, or PREFIX_*)
+	// that shell commands, jobs, formatters, MCP and LSP servers receive in
+	// addition to a fixed safe set; secrets are withheld unless listed. A lone
+	// "*" passes the whole environment.
+	EnvPassthrough []string `json:"env_passthrough,omitempty"`
 	// FormatterAuto adds installed well-known formatters (see knownFormatters).
 	FormatterAuto   bool                     `json:"formatter_auto,omitempty"`
 	Commands        map[string]CommandConfig `json:"commands,omitempty"`
@@ -169,7 +174,12 @@ func LoadConfig(path string) (Config, error) {
 	if err := c.applyEnvironment(); err != nil {
 		return c, err
 	}
-
+	for _, name := range c.EnvPassthrough {
+		if name == "" || strings.ContainsAny(name, "=\x00") {
+			return c, fmt.Errorf("env_passthrough: invalid variable name %q", name)
+		}
+	}
+	platform.SetEnvPassthrough(c.EnvPassthrough)
 	return c, nil
 }
 

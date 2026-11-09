@@ -197,6 +197,7 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 	e.jobs.mu.Unlock()
 
 	cmd := shellCommand(a.Command)
+	cmd.Env = platform.ChildEnv()
 	cmd.Dir = dir
 	platform.NewGroup(cmd)
 	reader, writer, err := os.Pipe()

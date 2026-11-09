@@ -462,13 +462,7 @@ func startProcess(cfg core.MCPConfig, project string) (*process, error) {
 	cmd.Dir = project
 	platform.NewGroup(cmd)
 	cmd.WaitDelay = time.Second
-	env := map[string]string{}
-	for _, v := range os.Environ() {
-		k, v, ok := strings.Cut(v, "=")
-		if ok {
-			env[k] = v
-		}
-	}
+	env := platform.ChildEnvMap() // secrets withheld; cfg.Env adds explicit values
 	for k, v := range cfg.Env {
 		if strings.ContainsAny(k, "=\x00") || strings.ContainsRune(v, '\x00') {
 			return nil, errors.New("invalid MCP environment")

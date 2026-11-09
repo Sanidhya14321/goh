@@ -80,6 +80,7 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	defer stderrR.Close()
 	defer stderrW.Close()
 	cmd := shellCommand(a.Command)
+	cmd.Env = platform.ChildEnv()
 	cmd.Dir = filepath.Join(e.root, a.Cwd)
 	platform.NewGroup(cmd)
 	cmd.Stdout = stdoutW

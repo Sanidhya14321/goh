@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC130 child-process environment
+
+`TestFilterEnv` checks the default set keeps PATH, HOME, `LC_*`, `XDG_*`, GOPATH and Windows `Path`, and drops `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN`, `DATABASE_URL`, a credential-bearing `HTTPS_PROXY` and malformed entries. It also checks that `env_passthrough` exact and `PREFIX_*` names are added and that `*` passes everything. `TestShellDoesNotInheritSecrets` runs `env` through the real shell tool with `OPENAI_API_KEY` and `GITHUB_TOKEN` set: neither value appears, while PATH works and a passthrough variable is visible. MCP and LSP servers use the same `platform.ChildEnvMap`, and their existing tests (including the real clangd run) pass. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC129 repository restructure
 
 Moves only, plus the module path rename. `go.mod` and `go.sum` are byte-identical apart from the module line. `research/go.mod` keeps `./...` out of local reference material. Gates passed from the new root: gofmt, vet (macOS and Windows), race suite, acceptance, the PTY, setup and ACP suites, `make release` (all six targets plus documents) and `scripts/test_install.sh` (clean install, tampered download refused, non-running binary refused). All relative Markdown links in the root and `docs/` were checked to resolve.

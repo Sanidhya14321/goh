@@ -398,6 +398,22 @@ processes are outside the guarantee. Effects are not rolled back.
 
 ### Shell command rules
 
+Shell commands, background jobs, formatters and MCP/LSP servers do **not**
+inherit your whole environment. They receive a safe set (PATH, HOME, user,
+shell, terminal, locale `LC_*`, `XDG_*`, temp folders, toolchain locations such
+as `GOPATH`, `JAVA_HOME`, `VIRTUAL_ENV`, and the Windows system variables), so
+API keys, tokens and cloud credentials in your shell cannot be read by a
+command the model runs. Proxy settings are withheld too, since their URLs can
+hold passwords. List anything else a command needs:
+
+```json
+"env_passthrough": ["DATABASE_URL", "MYAPP_*", "HTTPS_PROXY"]
+```
+
+`NAME_*` passes every variable with that prefix. A lone `"*"` restores the old
+behaviour of passing everything. An MCP or LSP server's own `env` settings are
+always added.
+
 `shell_rules` lets you skip the prompt for commands you trust and refuse
 ones you never want run. Each rule has a `match` pattern (`*` matches any
 text) and an `action`: `allow`, `deny` or `ask`. The last matching rule

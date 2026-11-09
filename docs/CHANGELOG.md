@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.130 — 2026-11-09
+
+- **Security:** shell commands, background jobs, formatters and MCP/LSP
+  servers no longer inherit the full environment. They get a fixed safe set
+  (PATH, HOME, locale, terminal, toolchain locations, Windows system
+  variables); API keys, tokens and cloud credentials are withheld. New
+  `env_passthrough` setting lists extra names (`NAME`, `PREFIX_*`, or `*` for
+  everything). Gap analysis items S1 and S2.
+
 ## 1.0.0-rc.129 — 2026-11-09
 
 - Repository restructured and renamed to `Sanidhya14321/goh`: the Go project
