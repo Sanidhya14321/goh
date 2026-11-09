@@ -480,6 +480,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				fmt.Fprintln(os.Stderr, "Approval required:", tui.Safe(p.Tool), tui.Safe(p.Preview))
 			case "run_finished":
 				fmt.Println()
+				if d, ok := e.Data.(map[string]any); ok && d["outcome"] == agent.OutcomeUnverified {
+					fmt.Fprintln(os.Stderr, "Note: files were changed but no check (test or build command) succeeded afterwards.")
+				}
 			}
 		}
 	}

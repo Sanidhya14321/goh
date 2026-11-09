@@ -147,8 +147,10 @@ func TestBoundedResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := m.Execute(context.Background(), "mcp__fixture__large", json.RawMessage(`{}`))
-	if !result.Error || len(result.Content) > maxResult {
-		t.Fatalf("unbounded result: %d %v", len(result.Content), result.Error)
+	// Review R16: a completed action with oversized output is reported as
+	// completed (not an error to retry), bounded, with a do-not-repeat note.
+	if result.Error || len(result.Content) > maxResult || !strings.Contains(result.Content, "completed_output_truncated") || !strings.Contains(result.Content, "Do not repeat") {
+		t.Fatalf("oversized result: %d %v %.200s", len(result.Content), result.Error, result.Content)
 	}
 }
 

@@ -16,12 +16,12 @@ the full gates pass.
 | R8 | P0 | Granted `webfetch` can reach loopback and private services | ✅ Fixed RC137: connect-time address check, opt-in for private |
 | R9 | P0 | MCP validates a decoded object but forwards the raw bytes (duplicate keys) | ✅ Fixed RC137 |
 | R10 | P1 | Resume replaces a durably recorded tool result with an uncertainty placeholder | ✅ Validated and fixed RC138 |
-| R11 | P1 | A tool-free reply always counts as `completed` (no verified/unverified outcome) | Open |
+| R11 | P1 | A tool-free reply always counts as `completed` (no verified/unverified outcome) | ✅ Fixed RC140: outcome field; empty reply fails |
 | R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | ✅ Validated and fixed RC138: excerpt plus receipt |
 | R13 | P1 | The masking placeholder tells the model to rerun a tool (risky for effects) | ✅ Fixed RC138: typed receipts |
 | R14 | P1 | Fallback usage is charged to the primary model; cache reads and writes are collapsed | ✅ Fixed RC139: per-call usage with purpose and cache split |
 | R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | Open |
-| R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | Open |
+| R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | ✅ Fixed RC140 |
 | R17 | P2 | Standing user constraints can be lost through compaction | Open |
 | R18 | P2 | Recalled memory notes are not revalidated on replay | Open |
 | R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | Open |

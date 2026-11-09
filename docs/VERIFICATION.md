@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC140 run outcomes and MCP oversized results
+
+`TestRunOutcomes` covers three cases plus an empty reply:
+- a run with no edits records `no_changes`;
+- a `create_file` alone records `unverified`;
+- `create_file` followed by a passing `test -f` records `verified`;
+- an empty assistant reply no longer completes.
+
+`TestBoundedResults` now requires an oversized MCP result to come back non-error and bounded, with status `completed_output_truncated` and "Do not repeat". Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC139 usage attribution
 
 `TestFallbackUsageAttributedToServingModel` fails the primary route with a 503 and serves the reply from the `backup` profile with 800 cache-read and 100 cache-write tokens. It checks:

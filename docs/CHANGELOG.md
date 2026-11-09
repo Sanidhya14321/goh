@@ -6,6 +6,19 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.140 — 2026-11-09
+
+External review fixes (R11, R16):
+- Completed runs record an `outcome`: `verified` (a shell command succeeded
+  after the last file change), `unverified` (files changed, nothing checked
+  them afterwards) or `no_changes`. `goh run` prints a note for unverified
+  changes. This is a heuristic: any successful command counts as a check.
+- An empty model reply (no text, no tool calls) now fails the run instead of
+  counting as success.
+- An MCP call that completed but returned oversized output is reported as
+  completed with a bounded excerpt and a do-not-repeat note, not as an error
+  the model might retry.
+
 ## 1.0.0-rc.139 — 2026-11-09
 
 External review fix (R14):

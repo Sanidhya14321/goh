@@ -51,36 +51,38 @@ type Agent struct {
 	GuidanceFiles []string
 	// HandoffPlan is set when the user approved plan_exit in this run; the UI
 	// then continues in build mode.
-	HandoffPlan       string
-	lastCall          string
-	repeats           int
-	degraded          map[string]string
-	Config            core.Config
-	Store             *session.Store
-	Skills            *skills.Catalog
-	Tools             *tools.Engine
-	Provider          Model
-	External          External
-	ExternalFactory   func() External
-	Emit              func(core.Event)
-	Approve           func(context.Context, core.Permission) (core.Decision, error)
-	Ask               func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
-	Grants            map[string]bool
-	Todos             []core.Todo
-	History           []core.Message
-	seq               int
-	eventMu           sync.Mutex
-	runID             string
-	mcpStarts         []core.Call
-	invalid           map[string]int
-	depth             int
-	compactFocus      string
-	cooldowns         map[string]time.Time
-	clock             func() time.Time
-	snapshotMu        sync.Mutex
-	tasksRun          int
-	ChildModelFactory func(core.Config, *session.Store) Model
-	RoleModelFactory  func(core.Config, string) Model
+	HandoffPlan     string
+	lastCall        string
+	repeats         int
+	degraded        map[string]string
+	Config          core.Config
+	Store           *session.Store
+	Skills          *skills.Catalog
+	Tools           *tools.Engine
+	Provider        Model
+	External        External
+	ExternalFactory func() External
+	Emit            func(core.Event)
+	Approve         func(context.Context, core.Permission) (core.Decision, error)
+	Ask             func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
+	Grants          map[string]bool
+	Todos           []core.Todo
+	History         []core.Message
+	seq             int
+	// changedFiles and verifiedAfterChange track this run's outcome.
+	changedFiles, verifiedAfterChange bool
+	eventMu                           sync.Mutex
+	runID                             string
+	mcpStarts                         []core.Call
+	invalid                           map[string]int
+	depth                             int
+	compactFocus                      string
+	cooldowns                         map[string]time.Time
+	clock                             func() time.Time
+	snapshotMu                        sync.Mutex
+	tasksRun                          int
+	ChildModelFactory                 func(core.Config, *session.Store) Model
+	RoleModelFactory                  func(core.Config, string) Model
 }
 
 func ID() string {
@@ -329,6 +331,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	status = "failed"
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
+	a.changedFiles, a.verifiedAfterChange = false, false
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
@@ -481,6 +484,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		}
 		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
 		if len(reply.Message.ToolCalls) == 0 {
+			if strings.TrimSpace(reply.Message.Content) == "" {
+				return "failed", errors.New("the model returned an empty reply; nothing was done")
+			}
 			return "completed", nil
 		}
 		calls := reply.Message.ToolCalls
@@ -693,6 +699,7 @@ func (a *Agent) start(c core.Call) error {
 	return nil
 }
 func (a *Agent) finish(c core.Call, r tools.Result) error {
+	a.trackOutcome(c, r)
 	d := map[string]any{"id": c.ID, "result": r}
 	if e := a.Store.Append("tool_result", d); e != nil {
 		return e
@@ -1052,6 +1059,9 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		a.maybeAutoTitle(ctx)
 	}
 	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds()}
+	if status == "completed" {
+		d["outcome"] = a.outcome()
+	}
 	if err != nil {
 		d["error"] = err.Error()
 		a.event("error", map[string]any{"message": err.Error()})

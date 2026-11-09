@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
@@ -421,7 +422,15 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 		return fail(e)
 	}
 	if len(encoded) > maxResult {
-		return tools.Result{Content: "MCP result exceeded 64 KiB; output omitted (operation may have completed)", Error: true}
+		// The server answered, so the action ran: report it as done (not as
+		// an error the model might retry) and keep a bounded excerpt.
+		head := string(encoded[:4096])
+		for len(head) > 0 && !utf8.ValidString(head) {
+			head = head[:len(head)-1]
+		}
+		out, _ := json.Marshal(map[string]any{"status": "completed_output_truncated", "server_reported_error": result.IsError, "bytes": len(encoded), "head": head,
+			"note": "The MCP server completed this call; its output was too large and is truncated. Do not repeat the call to see more output."})
+		return tools.Result{Content: string(out), Error: result.IsError}
 	}
 	return tools.Result{Content: string(encoded), Error: result.IsError}
 }
