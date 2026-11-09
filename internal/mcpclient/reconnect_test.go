@@ -17,7 +17,10 @@ func TestReconnectAfterServerDropsWithoutReplay(t *testing.T) {
 	}
 	approvals := 0
 	m := New(map[string]core.MCPConfig{"fixture": {Command: binary, Args: []string{"-test.run=^TestMCPHelper$"}, Env: map[string]string{"HARNESS_MCP_HELPER": "1"}}}, t.TempDir(),
-		func(context.Context, core.Permission) (core.Decision, error) { approvals++; return core.Decision{Allow: true}, nil })
+		func(context.Context, core.Permission) (core.Decision, error) {
+			approvals++
+			return core.Decision{Allow: true}, nil
+		})
 	t.Cleanup(func() { m.Close() })
 	ctx := context.Background()
 	if err := m.Connect(ctx); err != nil {
