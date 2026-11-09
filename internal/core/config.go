@@ -74,6 +74,16 @@ type HookConfig struct {
 	Timeout int `json:"timeout_seconds,omitempty"`
 }
 
+// SandboxConfig confines the shell commands the model runs.
+type SandboxConfig struct {
+	Enabled bool `json:"enabled"`
+	// Network allows network access from sandboxed commands.
+	Network bool `json:"network,omitempty"`
+	// Writable lists extra directories commands may write (for example a
+	// build cache); the project and temporary folders are always writable.
+	Writable []string `json:"writable,omitempty"`
+}
+
 type Config struct {
 	Memory              bool              `json:"memory,omitempty"`
 	AllowGeneratedEdits bool              `json:"allow_generated_edits,omitempty"`
@@ -122,6 +132,8 @@ type Config struct {
 	// in a private shadow Git repository at the start and end of every run,
 	// so changes made by shell commands can be reverted too.
 	ProjectSnapshots bool `json:"project_snapshots,omitempty"`
+	// Sandbox confines shell commands, background jobs and formatters.
+	Sandbox *SandboxConfig `json:"sandbox,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
 	// breakpoints (for gateways that reject cache_control).
 	DisablePromptCache bool `json:"disable_prompt_cache,omitempty"`

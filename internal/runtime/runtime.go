@@ -107,6 +107,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 		return nil, e
 	}
 	t.AllowGeneratedEdits = c.AllowGeneratedEdits
+	t.Sandbox = sandboxPolicy(c, s.Project)
 	a := &Agent{Web: webfetch.New(), readyIntegrations: map[string]bool{}, Config: c, Store: s, Tools: t, Provider: provider.New(c), Grants: map[string]bool{}, invalid: map[string]int{}}
 	a.Skills, e = skills.New(context.Background(), s.Project, c.SkillPaths)
 	if e != nil {

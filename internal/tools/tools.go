@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/platform"
+	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"io"
 	"io/fs"
 	"os"
@@ -40,10 +41,12 @@ type Engine struct {
 	root, artifacts string
 	// AllowGeneratedEdits is set from user configuration before the engine is used.
 	AllowGeneratedEdits bool
-	mapMu               sync.Mutex
-	mapCache            map[string]mapCacheEntry
-	mapOrder            []string
-	jobs                jobTable
+	// Sandbox, when set, confines shell commands and background jobs.
+	Sandbox  *sandbox.Policy
+	mapMu    sync.Mutex
+	mapCache map[string]mapCacheEntry
+	mapOrder []string
+	jobs     jobTable
 }
 type args struct {
 	Path     string `json:"path,omitempty"`

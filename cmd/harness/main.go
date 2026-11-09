@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"io"
 	"os"
 	"os/exec"
@@ -68,6 +69,7 @@ var usage = func() string {
 }()
 
 func main() {
+	sandbox.HelperMain() // never returns when started as the Linux sandbox helper
 	if e := run(os.Args[1:]); e != nil {
 		fmt.Fprintln(os.Stderr, e)
 		var x *exitError

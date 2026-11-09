@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"io"
 	"os"
 	"os/exec"
@@ -199,6 +200,10 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 	cmd := shellCommand(a.Command)
 	cmd.Env = platform.ChildEnv()
 	cmd.Dir = dir
+	if err := sandbox.Wrap(cmd, e.Sandbox); err != nil {
+		e.dropJob(j.id)
+		return failure(err)
+	}
 	platform.NewGroup(cmd)
 	reader, writer, err := os.Pipe()
 	if err != nil {

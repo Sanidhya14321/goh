@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/platform"
+	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"io"
 	"os"
 	"os/exec"
@@ -82,6 +83,9 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	cmd := shellCommand(a.Command)
 	cmd.Env = platform.ChildEnv()
 	cmd.Dir = filepath.Join(e.root, a.Cwd)
+	if err := sandbox.Wrap(cmd, e.Sandbox); err != nil {
+		return failure(err)
+	}
 	platform.NewGroup(cmd)
 	cmd.Stdout = stdoutW
 	cmd.Stderr = stderrW
