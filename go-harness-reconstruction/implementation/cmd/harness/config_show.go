@@ -79,4 +79,3 @@ func redactConfig(v any, key string) any {
 	}
 	return v
 }
-

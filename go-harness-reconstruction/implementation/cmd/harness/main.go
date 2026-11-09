@@ -39,6 +39,7 @@ var commandHelp = [][2]string{
 	{"changes", "show files changed in a session"},
 	{"models", "list models available from the configured provider"},
 	{"pr", "check out a GitHub pull request with gh, then open the UI"},
+	{"worktree", "open the UI in a separate git worktree: goh worktree NAME|list"},
 	{"mcp", "list configured MCP servers: goh mcp list"},
 	{"agents", "list built-in, configured and project agents"},
 	{"stats", "token usage and activity over recent days"},
@@ -141,6 +142,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "pr" {
 		return runPR(args[1:], func() error { return chatFirst([]string{"chat"}) })
+	}
+	if args[0] == "worktree" {
+		return runWorktree(args[1:], func() error { return chatFirst([]string{"chat"}) })
 	}
 	if args[0] == "mcp" {
 		return runMCP(args[1:])

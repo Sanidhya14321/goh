@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC128 git worktree milestone
+
+Checkpoint: isolated worktree sessions (`goh worktree NAME|list`). Architecture overview written to `ARCHITECTURE_OVERVIEW.md`.
+
 ## RC127 sessions list --project milestone
 
 Backlog R08: per-project session listing.

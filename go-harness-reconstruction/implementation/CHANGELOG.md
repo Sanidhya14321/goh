@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.128 — 2026-11-09
+
+- `goh worktree NAME` opens the UI in a separate Git worktree (sibling folder
+  `<repo>-NAME` on branch `goh/NAME`), reusing it if it already exists; the
+  main checkout is never touched and nothing is removed. `goh worktree list`
+  prints `git worktree list`.
+
 ## 1.0.0-rc.127 — 2026-11-09
 
 - `goh sessions list --project DIR` (or `--project .`) shows only that

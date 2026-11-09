@@ -14,6 +14,7 @@ var subcommands = map[string][]string{
 	"mcp":        {"list"},
 	"memory":     {"add", "list", "recall", "delete"},
 	"completion": {"bash", "zsh", "fish"},
+	"worktree":   {"list"},
 }
 
 // sessionIDArgs take a session ID next; IDs come from
@@ -79,5 +80,7 @@ func writeCompletion(w io.Writer, shell string) error {
 	return nil
 }
 
-func zshQuote(s string) string  { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
-func fishQuote(s string) string { return "'" + strings.NewReplacer(`\`, `\\`, "'", `\'`).Replace(s) + "'" }
+func zshQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
+func fishQuote(s string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, "'", `\'`).Replace(s) + "'"
+}

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC128 git worktree
+
+`TestRunWorktree` builds a real Git repository in a temp folder, rejects unsafe names (`a/b`, `../x`, `-x`, `a..b`), creates `repo-exp` with the committed file present and the UI opened there, reuses it on a second call, and refuses a plain folder that is not a worktree. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC127 sessions list --project
 
 `TestSessionsListProjectFilter` creates sessions for two projects and checks `list --format ids --project A` prints exactly A's ID. `goh stats --project` shares the same path resolution and its tests still pass. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
