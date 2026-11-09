@@ -40,6 +40,8 @@ First live run: 22 tasks, one attempt each, gpt-6.1-sol through the ChatGPT sign
 
 **The false completion** (`py-mutable-default`) was a task defect: the hidden test required not modifying a passed-in list, which the prompt never said. The model's `None`-default fix answered the prompt as written.
 
+**Rerun on RC156:** 22/22 resolved, 0 false completions, 0 budget stops, 6.0 average tool calls, 42 s average, 312,011 input tokens (69,248 cached), 22,612 output. Every task ended `verified`. The suite is now at its ceiling for this model, so it cannot separate A/B arms (`docs/bench/stage1-rc156.md`).
+
 Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
 
 ## RC155 TUI snapshots
