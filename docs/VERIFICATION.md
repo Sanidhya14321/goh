@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC146 tolerant unique-match edits
+
+`TestFlexibleReplace` checks four cases:
+- a de-indented `old_text` still edits the right function and is re-indented with tabs, while a near-identical second function is untouched;
+- an input that matches twice ignoring whitespace is refused, listing lines 1 and 2;
+- a not-found error names line 2, where the first line appears;
+- a file without a final newline keeps that state.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC145 shared run budgets
 
 - `TestMaxRunSecondsBudget` checks that a `sleep 5` under a 1 s limit returns `budget_exhausted` within about 1 s.

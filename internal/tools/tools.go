@@ -336,8 +336,22 @@ func (e *Engine) mutation(r *os.Root, name string, a args) (before, after []byte
 			return
 		}
 		n := bytes.Count(before, []byte(a.Old))
+		if n == 0 && !a.All {
+			// Exact text not found: accept a whitespace-tolerant match only
+			// when it is unique (ambiguity is refused, never guessed).
+			if replaced, ok, why := flexibleReplace(string(before), a.Old, a.New); ok {
+				after = []byte(replaced)
+				if len(after) > MaxFile {
+					err = errors.New("result exceeds 4MiB")
+				}
+				return
+			} else {
+				err = errors.New(why)
+				return
+			}
+		}
 		if n == 0 || n > 1 && !a.All {
-			err = fmt.Errorf("old_text has %d matches; expected exactly one", n)
+			err = fmt.Errorf("old_text has %d matches; expected exactly one (add surrounding lines to make it unique, or set replace_all)%s", n, matchLines(string(before), a.Old))
 			return
 		}
 		count := 1

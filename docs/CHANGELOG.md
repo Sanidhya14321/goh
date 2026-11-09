@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.146 — 2026-11-09
+
+- **Tolerant edits (C1):** when `edit_file`'s `old_text` is not found
+  exactly, a match that ignores leading/trailing whitespace on each line is
+  accepted **only if it is unique**; the new text is re-indented to the
+  file. Ambiguous matches are refused with their line numbers, and a
+  not-found error says where the first line of `old_text` does appear.
+
 ## 1.0.0-rc.145 — 2026-11-09
 
 - `"max_run_seconds"` bounds a run's wall time; child tasks run inside the
