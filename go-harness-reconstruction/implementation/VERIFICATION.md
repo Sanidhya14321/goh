@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC127 sessions list --project
+
+`TestSessionsListProjectFilter` creates sessions for two projects and checks `list --format ids --project A` prints exactly A's ID. `goh stats --project` shares the same path resolution and its tests still pass. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC126 completion of subcommands and session IDs
 
 `TestCompletionScripts` runs the bash script in a real bash with a stand-in `goh` that prints two IDs: `goh auth l` → `login logout list`, `goh resume 2026110` → both IDs, `goh sessions show 20261102` → the matching ID, plus the earlier top-level checks; the zsh script still passes `zsh -n`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

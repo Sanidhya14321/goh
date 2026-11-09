@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.127 — 2026-11-09
+
+- `goh sessions list --project DIR` (or `--project .`) shows only that
+  project's sessions, in every format including `ids`.
+
 ## 1.0.0-rc.126 — 2026-11-09
 
 - Shell completion now covers subcommands (`sessions`, `auth`, `mcp`,

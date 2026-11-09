@@ -17,7 +17,7 @@ import (
 )
 
 func sessions(args []string) error {
-	usage := "sessions list [--format json|table]|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID|prune --days N [--yes] [--session-dir DIR]"
+	usage := "sessions list [--format json|table|ids] [--project DIR]|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID|prune --days N [--yes] [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -65,9 +65,10 @@ func sessions(args []string) error {
 		f.BoolVar(&includeTools, "include-tools", false, "include tool calls and results in Markdown")
 		f.StringVar(&output, "output", "", "new private export file; default stdout")
 	}
-	listFormat := "json"
+	listFormat, listProject := "json", ""
 	if command == "list" {
 		f.StringVar(&listFormat, "format", "json", "json (default), table, or ids (one ID per line)")
+		f.StringVar(&listProject, "project", "", "only sessions for this project directory (. for the current one)")
 	}
 	if command == "import" {
 		f.StringVar(&project, "project", "", "explicit existing project directory for relocated import")
@@ -94,6 +95,19 @@ func sessions(args []string) error {
 		infos, damaged, err := session.ListAll(*dir)
 		if err != nil {
 			return err
+		}
+		root, err := projectFilter(listProject)
+		if err != nil {
+			return err
+		}
+		if root != "" {
+			kept := infos[:0]
+			for _, info := range infos {
+				if info.Project == root {
+					kept = append(kept, info)
+				}
+			}
+			infos = kept
 		}
 		// stdout keeps its JSON array; damaged journals are reported on stderr.
 		for _, d := range damaged {

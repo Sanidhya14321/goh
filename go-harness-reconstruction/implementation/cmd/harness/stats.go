@@ -41,16 +41,9 @@ func stats(args []string) error {
 	if *days > 0 {
 		since = time.Now().AddDate(0, 0, -*days)
 	}
-	root := ""
-	if *project != "" {
-		abs, err := filepath.Abs(*project)
-		if err == nil {
-			abs, err = filepath.EvalSymlinks(abs)
-		}
-		if err != nil {
-			return err
-		}
-		root = abs
+	root, err := projectFilter(*project)
+	if err != nil {
+		return err
 	}
 	st, err := session.CollectStats(*dir, root, since)
 	if err != nil {
@@ -116,4 +109,17 @@ func writeToolRows(w io.Writer, tools []session.ToolUsage) {
 		}
 		fmt.Fprintf(w, "%-28s %8d %8d\n", tui.Safe(t.Name), t.Calls, t.Errors)
 	}
+}
+
+// projectFilter resolves a --project argument the way sessions record their
+// project (absolute, symlinks resolved); empty means no filter.
+func projectFilter(dir string) (string, error) {
+	if dir == "" {
+		return "", nil
+	}
+	abs, err := filepath.Abs(dir)
+	if err == nil {
+		abs, err = filepath.EvalSymlinks(abs)
+	}
+	return abs, err
 }

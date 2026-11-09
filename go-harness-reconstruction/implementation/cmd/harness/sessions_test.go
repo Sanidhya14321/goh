@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"example.com/independent-harness/internal/testutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,5 +198,29 @@ func TestSessionsPruneListsThenTrashes(t *testing.T) {
 	}
 	if sessions([]string{"prune", "--session-dir", dir}) == nil {
 		t.Fatal("prune without --days accepted")
+	}
+}
+
+func TestSessionsListProjectFilter(t *testing.T) {
+	dir := t.TempDir()
+	projA, projB := testutil.TempDir(t), testutil.TempDir(t)
+	ids := map[string]string{}
+	for name, p := range map[string]string{"a": projA, "b": projB} {
+		s, err := session.New(dir, p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[name] = s.ID
+		s.Close()
+	}
+	r, w, _ := os.Pipe()
+	saved := os.Stdout
+	os.Stdout = w
+	err := sessions([]string{"list", "--format", "ids", "--project", projA, "--session-dir", dir})
+	os.Stdout = saved
+	w.Close()
+	out, _ := io.ReadAll(r)
+	if err != nil || strings.TrimSpace(string(out)) != ids["a"] {
+		t.Fatalf("%v %q want %s", err, out, ids["a"])
 	}
 }
