@@ -44,6 +44,11 @@ func TestMCPHelper(t *testing.T) {
 	server.AddTool(&mcp.Tool{Name: "large", InputSchema: empty}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: strings.Repeat("x", maxResult+1)}}}, nil
 	})
+	if os.Getenv("HARNESS_MCP_RESOURCES") == "1" {
+		server.AddResource(&mcp.Resource{URI: "fixture://docs/api", Name: "api", MIMEType: "text/plain"}, func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
+			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "fixture://docs/api", MIMEType: "text/plain", Text: "RESOURCE-TEXT-55"}}}, nil
+		})
+	}
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		os.Exit(2)
 	}

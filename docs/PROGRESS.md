@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC151 C6–C9 milestone
+
+C6–C8 reviewed (decisions recorded), C9 MCP resources added.
+
 ## RC150 C5 providers milestone
 
 prompt_cache_key with safe fallback.

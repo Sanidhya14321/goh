@@ -825,7 +825,10 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 		return "", false, errors.New("invalid or oversized tool arguments")
 	}
 	if a.External != nil && a.External.Has(name) {
-		return "MCP call: " + name + "\n" + string(b), true, a.External.Validate(name, b)
+		// Listing and reading resources changes nothing and the server was
+		// approved at start, so it needs no per-call approval.
+		readOnly := name == "mcp_resources" || name == "mcp_read_resource"
+		return "MCP call: " + name + "\n" + string(b), !readOnly, a.External.Validate(name, b)
 	}
 	return a.Tools.Prepare(name, b)
 }

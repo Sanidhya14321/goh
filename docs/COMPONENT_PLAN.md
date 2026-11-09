@@ -11,10 +11,10 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
 | C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ✅ RC149 |
 | C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ✅ RC139–150 (live check pending) |
-| C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ⬜ |
-| C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ⬜ |
-| C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ⬜ |
-| C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ⬜ |
+| C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ✅ RC130–144 |
+| C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ✅ (TUI restore moved to C10) |
+| C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
+| C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
 | C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | ⬜ |
 | C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ⬜ |
 
@@ -88,3 +88,25 @@ Sources:
 - The claude-api reference: cache breakpoints, adaptive thinking, effort.
 
 Already in place: stateless Responses with encrypted reasoning passed back. Added: Anthropic breakpoints (RC131), correct usage attribution (RC139), current effort levels and adaptive thinking (RC143), and a per-session `prompt_cache_key` with a safe fallback (RC150).
+
+### C6 Safety and permissions (RC130–RC144)
+
+Sources:
+- [Spotlighting (arXiv:2403.14720)](https://arxiv.org/pdf/2403.14720): datamarking beats delimiting against simple attacks, and randomized markers are needed.
+- [Spotlighting/datamarking implementation notes](https://github.com/realArcherL/spotlighting-datamarking): does not hold against adaptive attackers.
+- [Layered defenses](https://www.deepinspect.ai/blog/spotlighting-prompt-injection-defense) (vendor): keep tool calls and outbound requests behind independent policy checks.
+- From the review: CaMeL, AgentDojo, GitInject.
+
+Decision: enforcement independent of the model is the primary defence. That means the environment filter, sandbox, deny rules on every path, no `.git` writes, private-address refusal, scoped grants and fail-closed hooks, all exercised by the adversarial canary (RC144). Datamarking is **not** applied to file content, because it rewrites whitespace in code the model must edit exactly. External web and MCP results already carry explicit untrusted labels.
+
+### C7 Sessions and durability
+
+Reviewed: every journal record is `fsync`ed before returning, damaged journals can be salvaged, and recovery is journal-derived (RC138). No change needed. The remaining item, restoring whole-project snapshots from the TUI, is tracked under C10.
+
+### C8 Subagents
+
+Decision: keep children sequential and in the foreground, with shared tool-call and time budgets (RC145) and no nested delegation. The public evidence on multi-agent systems shows breadth-first research gains at a large token cost, and parallel editing agents conflict on shared files. Parallel read-only exploration is a candidate for a C11 A/B test, not a default.
+
+### C9 Integrations (RC135, RC137, RC151)
+
+MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), completed-but-oversized results (RC140) and resources (RC151). Still open: MCP prompts (as slash commands) and OAuth, which needs a real OAuth server.

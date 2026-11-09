@@ -52,6 +52,8 @@ type Manager struct {
 	bindings  map[string]binding
 	processes []*process
 	failures  []Failure
+	// resourceServers maps servers that offer resources to their sessions.
+	resourceServers map[string]*mcp.ClientSession
 	// reconnects counts restarts per server; reconnectMu serialises them.
 	reconnects  map[string]int
 	reconnectMu sync.Mutex
@@ -228,6 +230,14 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		return fmt.Errorf("MCP server %s initialization failed: %w", name, e)
 	}
 	p.setSession(session)
+	if init := session.InitializeResult(); init != nil && init.Capabilities != nil && init.Capabilities.Resources != nil {
+		m.mu.Lock()
+		if m.resourceServers == nil {
+			m.resourceServers = map[string]*mcp.ClientSession{}
+		}
+		m.resourceServers[name] = session
+		m.mu.Unlock()
+	}
 	count := 0
 	discovered := map[string]binding{}
 	for tool, e := range session.Tools(initCtx, nil) {
@@ -330,11 +340,17 @@ func (m *Manager) Definitions() []core.Tool {
 	for _, name := range names {
 		out = append(out, m.bindings[name].definition)
 	}
+	if len(m.resourceServers) > 0 {
+		out = append(out, resourceDefinitions()...)
+	}
 	return out
 }
 func (m *Manager) Has(name string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if IsResourceTool(name) {
+		return len(m.resourceServers) > 0
+	}
 	_, ok := m.bindings[name]
 	return ok
 }
@@ -351,6 +367,10 @@ func (m *Manager) get(name string) (binding, error) {
 	return b, nil
 }
 func (m *Manager) Validate(name string, args json.RawMessage) error {
+	if IsResourceTool(name) {
+		_, err := decodeResourceArgs(name, args)
+		return err
+	}
 	b, e := m.get(name)
 	if e != nil {
 		return e
@@ -375,6 +395,9 @@ func (m *Manager) Validate(name string, args json.RawMessage) error {
 // reported as uncertain; neither this package nor the SDK repeats the call.
 func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage) tools.Result {
 	fail := func(err error) tools.Result { return tools.Result{Content: err.Error(), Error: true} }
+	if IsResourceTool(name) {
+		return m.executeResource(ctx, name, args)
+	}
 	if e := m.Validate(name, args); e != nil {
 		return fail(e)
 	}

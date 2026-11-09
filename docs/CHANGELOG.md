@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.151 — 2026-11-09
+
+- **MCP resources (C9):** when a connected MCP server offers resources, the
+  model gets `mcp_resources` (list) and `mcp_read_resource` (read text up to
+  64 KiB; binary by size). Reading changes nothing and the server was
+  approved at start, so these need no per-call approval. Gap analysis M1
+  (resources; prompts remain).
+
 ## 1.0.0-rc.150 — 2026-11-09
 
 - **Prompt cache key (C5):** Responses and ChatGPT requests carry one

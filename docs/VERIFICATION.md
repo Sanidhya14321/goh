@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC151 MCP resources
+
+`TestResourcesListAndRead` (with `-race`) checks four things:
+- a server without resources gets no resource tools;
+- a fixture server with a `fixture://docs/api` resource lists it;
+- reading it returns `RESOURCE-TEXT-55` with an untrusted label;
+- an unknown server is refused.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC150 Responses prompt cache key
 
 - `TestResponsesPromptCacheKey` checks that there is no key without a session and that the session ID is sent when set.
