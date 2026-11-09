@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC138 recovery and context fixes
+
+Two tests fail on RC137 and pass on RC138:
+- `TestRepairUsesJournaledResults` journals a finished shell result and a never-started call, then resumes. RC137 replaced the recorded `BUILD-OK-7731` result with "outcome may be uncertain". RC138 reuses it exactly and marks the other call "Not executed".
+- `TestLargeEarlyResultDoesNotExhaustBudget` reads a ~45 KB file in a 32K window. RC137 returned `budget_exhausted` (62,047 needed, 20,480 available). RC138 gives the model an excerpt with `start_line` paging advice and the run completes.
+
+`TestMaskReceiptsKeepFactsAndDiscourageRepeats` checks that a masked shell result keeps its exit code and artifact ID and says "do not run it again", while a masked read keeps its SHA-256 and is marked re-runnable. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC137 external review P0 fixes (paths, web, MCP)
 
 - `TestWritesIntoGitMetadataAreRefused` **failed on RC136**: a granted `create_file` planted `.git/hooks/pre-commit`. It now passes for that case and for a nested `sub/.git/config` patch.

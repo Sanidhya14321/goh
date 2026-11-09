@@ -284,10 +284,35 @@ func (a *Agent) RepairInterruptedHistory() error {
 			delete(pending, m.ToolCallID)
 		}
 	}
+	// The journal is the source of truth: a result recorded before the
+	// interruption is reused exactly; a call that started without a recorded
+	// result is uncertain; a call that never started was not executed.
+	recorded := map[string]json.RawMessage{}
+	started := map[string]bool{}
+	for _, r := range a.Store.Records() {
+		var d struct {
+			ID     string          `json:"id"`
+			Result json.RawMessage `json:"result"`
+		}
+		if (r.Type != "tool_start" && r.Type != "tool_result") || json.Unmarshal(r.Data, &d) != nil || !pending[d.ID] {
+			continue
+		}
+		if r.Type == "tool_start" {
+			started[d.ID] = true
+		} else if len(d.Result) > 0 {
+			recorded[d.ID] = d.Result
+		}
+	}
 	for _, id := range order {
 		if pending[id] {
 			content := `{"error":true,"content":"Interrupted previous run; outcome may be uncertain. Operation was not replayed."}`
-			if kinds[id] == "question" {
+			switch {
+			case recorded[id] != nil:
+				content = string(recorded[id])
+			case !started[id] && kinds[id] != "question":
+				content = `{"error":true,"content":"Not executed: the previous run stopped before this call started."}`
+			}
+			if recorded[id] == nil && kinds[id] == "question" {
 				content = `{"error":true,"content":"User input was interrupted; question was not answered. No external tool effect was executed."}`
 			}
 			if e := a.commit(core.Message{Role: "tool", ToolCallID: id, Content: content}); e != nil {
@@ -897,6 +922,21 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		cut = 1
 	}
 	if cut <= 1 && !force {
+		// Nothing older to mask: shrink oversized completed results in the
+		// preserved groups to a head excerpt plus receipt, keeping pairing.
+		view, shrunk := shrinkLargeResults(a.History, available/4)
+		if size := estimate(a.withTaskContext(view), defs); shrunk > 0 && size < available {
+			d := session.Compaction{Messages: view, Before: used, After: size, Estimator: "UTF-8 bytes (conservative)", Method: "large_result_excerpt"}
+			if e := d.SealReceipt(nil); e != nil {
+				return e
+			}
+			if e := a.Store.Append("context_compacted", d); e != nil {
+				return e
+			}
+			a.History = view
+			a.event("context_compacted", map[string]any{"before": used, "after": size, "manual": false, "method": "large_result_excerpt", "shrunk": shrunk})
+			return nil
+		}
 		return fmt.Errorf("context budget exhausted: preserved request/tool groups need %d estimated tokens, available %d", used, available)
 	}
 

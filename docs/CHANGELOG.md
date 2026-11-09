@@ -6,6 +6,19 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.138 — 2026-11-09
+
+External review fixes (R10, R12, R13):
+- Resuming after a crash reuses a tool result that was already journaled
+  instead of reporting it as uncertain; a call that never started is
+  reported as not executed.
+- Masked older tool output keeps a typed receipt (status, exit code, path,
+  SHA-256, artifact id). For actions with effects it says not to run them
+  again and points to `read_artifact`; only read-only tools are suggested
+  for re-running.
+- A single result too large for the context window no longer ends the run:
+  it is cut to an excerpt with a receipt (and paging advice for files).
+
 ## 1.0.0-rc.137 — 2026-11-09
 
 External review fixes (R6–R9):

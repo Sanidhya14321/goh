@@ -15,10 +15,10 @@ the full gates pass.
 | R7 | P0 | Best-effort snapshot rejects a `.git` path, then the write proceeds | ✅ Validated (git hook planted) and fixed RC137 |
 | R8 | P0 | Granted `webfetch` can reach loopback and private services | ✅ Fixed RC137: connect-time address check, opt-in for private |
 | R9 | P0 | MCP validates a decoded object but forwards the raw bytes (duplicate keys) | ✅ Fixed RC137 |
-| R10 | P1 | Resume replaces a durably recorded tool result with an uncertainty placeholder | Open |
+| R10 | P1 | Resume replaces a durably recorded tool result with an uncertainty placeholder | ✅ Validated and fixed RC138 |
 | R11 | P1 | A tool-free reply always counts as `completed` (no verified/unverified outcome) | Open |
-| R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | Open |
-| R13 | P1 | The masking placeholder tells the model to rerun a tool (risky for effects) | Open |
+| R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | ✅ Validated and fixed RC138: excerpt plus receipt |
+| R13 | P1 | The masking placeholder tells the model to rerun a tool (risky for effects) | ✅ Fixed RC138: typed receipts |
 | R14 | P1 | Fallback usage is charged to the primary model; cache reads and writes are collapsed | Open |
 | R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | Open |
 | R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | Open |
