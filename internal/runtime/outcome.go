@@ -39,6 +39,8 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 
 func (a *Agent) outcome() string {
 	switch {
+	case a.verifyFailed:
+		return OutcomeFailedVerification
 	case !a.changedFiles:
 		return OutcomeNoChanges
 	case a.verifiedAfterChange:

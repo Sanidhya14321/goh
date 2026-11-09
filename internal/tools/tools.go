@@ -793,3 +793,35 @@ func (e *Engine) CheckWritable(paths []string) error {
 	}
 	return nil
 }
+
+// sandboxPolicy adds files the user's file_rules deny to the sandbox policy,
+// so a shell command cannot read them either (enforced where the sandbox can
+// hide single files; see sandbox.Policy.DenyFiles).
+func (e *Engine) sandboxPolicy() *sandbox.Policy {
+	if e.Sandbox == nil || e.DenyPath == nil {
+		return e.Sandbox
+	}
+	p := *e.Sandbox
+	p.DenyFiles = append([]string(nil), p.DenyFiles...)
+	visited := 0
+	_ = filepath.WalkDir(e.root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if visited++; visited > 20000 {
+			return fs.SkipAll
+		}
+		rel, rerr := filepath.Rel(e.root, path)
+		if rerr != nil || rel == "." {
+			return nil
+		}
+		if d.IsDir() && (d.Name() == ".git" || d.Name() == "node_modules") {
+			return fs.SkipDir
+		}
+		if !d.IsDir() && e.denied(rel) {
+			p.DenyFiles = append(p.DenyFiles, path)
+		}
+		return nil
+	})
+	return &p
+}

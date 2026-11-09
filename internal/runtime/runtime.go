@@ -74,6 +74,9 @@ type Agent struct {
 	eventMu                           sync.Mutex
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
 	projectGuidance string
+	// toolCalls, repairsUsed and verifyFailed are per-run counters.
+	toolCalls, repairsUsed int
+	verifyFailed           bool
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -353,6 +356,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
+	a.toolCalls, a.repairsUsed, a.verifyFailed = 0, 0, false
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
@@ -508,9 +512,29 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			if strings.TrimSpace(reply.Message.Content) == "" {
 				return "failed", errors.New("the model returned an empty reply; nothing was done")
 			}
+			if retry, e := a.verifyAndMaybeRepair(ctx); e != nil {
+				return "failed", e
+			} else if retry {
+				continue // the failed check was handed back for one more attempt
+			}
 			return "completed", nil
 		}
 		calls := reply.Message.ToolCalls
+		if a.Config.MaxToolCalls > 0 && a.toolCalls+len(calls) > a.Config.MaxToolCalls {
+			results := make([]tools.Result, len(calls))
+			for i, c := range calls {
+				a.event("tool_requested", c)
+				results[i] = tools.Result{Error: true, Content: "Not executed: the run reached its max_tool_calls limit"}
+				if e := a.finish(c, results[i]); e != nil {
+					return "failed", e
+				}
+			}
+			if e := a.saveResults(calls, results); e != nil {
+				return "failed", e
+			}
+			return "budget_exhausted", fmt.Errorf("run stopped at the max_tool_calls limit (%d)", a.Config.MaxToolCalls)
+		}
+		a.toolCalls += len(calls)
 		results := make([]tools.Result, len(calls))
 		halt := false
 		haltReason := ""

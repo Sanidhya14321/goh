@@ -200,7 +200,7 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 	cmd := shellCommand(a.Command)
 	cmd.Env = platform.ChildEnv()
 	cmd.Dir = dir
-	if err := sandbox.Wrap(cmd, e.Sandbox); err != nil {
+	if err := sandbox.Wrap(cmd, e.sandboxPolicy()); err != nil {
 		e.dropJob(j.id)
 		return failure(err)
 	}

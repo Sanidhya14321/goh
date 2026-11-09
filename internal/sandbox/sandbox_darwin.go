@@ -38,6 +38,13 @@ func profile(p Policy) string {
 		}
 		b.WriteString(")\n")
 	}
+	if len(p.DenyFiles) > 0 {
+		b.WriteString("(deny file-read* file-write*")
+		for _, f := range p.DenyFiles {
+			b.WriteString(" (literal " + quote(f) + ")")
+		}
+		b.WriteString(")\n")
+	}
 	if !p.Network {
 		b.WriteString("(deny network*)\n(allow network* (remote unix-socket))\n")
 	}

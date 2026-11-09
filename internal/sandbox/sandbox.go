@@ -26,6 +26,11 @@ type Policy struct {
 	Protected []string `json:"protected"`
 	// Network allows network access when true.
 	Network bool `json:"network"`
+	// DenyFiles are individual files (for example ones the user's
+	// file_rules deny) that may not be read or written even inside a
+	// writable folder. Enforced on macOS; Landlock can only add access, so
+	// Linux cannot hide a file inside a writable folder.
+	DenyFiles []string `json:"deny_files,omitempty"`
 }
 
 // helperArg is the hidden first argument that runs the Linux helper.
@@ -40,7 +45,7 @@ func Wrap(cmd *exec.Cmd, p *Policy) error {
 	if p == nil {
 		return nil
 	}
-	clean := Policy{Network: p.Network}
+	clean := Policy{Network: p.Network, DenyFiles: p.DenyFiles}
 	for _, d := range p.Writable {
 		if r := resolve(d); r != "" {
 			clean.Writable = append(clean.Writable, r)

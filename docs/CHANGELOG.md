@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.144 — 2026-11-09
+
+External review roadmap (R21, partial):
+- **Verify and repair:** `"verify": {"command": …}` runs your check after a
+  run that changed files; failures go back to the model for a bounded number
+  of repair attempts; the outcome is `verified` or `failed_verification`.
+- `"max_tool_calls"` caps tool calls per run.
+- An adversarial canary test found that a sandboxed shell could still read a
+  file denied by `file_rules`. On macOS the sandbox now blocks denied files
+  too; on Linux this is a documented Landlock limit.
+
 ## 1.0.0-rc.143 — 2026-11-09
 
 External review fixes (R19, R20):

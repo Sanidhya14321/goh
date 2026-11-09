@@ -78,6 +78,16 @@ type HookConfig struct {
 	Timeout int `json:"timeout_seconds,omitempty"`
 }
 
+// VerifyConfig is the user's acceptance check for runs that change files.
+type VerifyConfig struct {
+	Command string `json:"command"`
+	// RepairAttempts is how many times a failed check is handed back to the
+	// model to fix (default 1, at most 3).
+	RepairAttempts *int `json:"repair_attempts,omitempty"`
+	// Timeout in seconds for the check (default 300, at most 600).
+	Timeout int `json:"timeout_seconds,omitempty"`
+}
+
 // SandboxConfig confines the shell commands the model runs.
 type SandboxConfig struct {
 	Enabled bool `json:"enabled"`
@@ -143,6 +153,11 @@ type Config struct {
 	// WebfetchAllowPrivate lets webfetch reach loopback, private-network and
 	// link-local addresses (off by default: cloud metadata, local services).
 	WebfetchAllowPrivate bool `json:"webfetch_allow_private,omitempty"`
+	// Verify runs a check after a run that changed files, with bounded
+	// automatic repair attempts when it fails.
+	Verify *VerifyConfig `json:"verify,omitempty"`
+	// MaxToolCalls bounds tool calls per run (0 = no limit).
+	MaxToolCalls int `json:"max_tool_calls,omitempty"`
 	// Sandbox confines shell commands, background jobs and formatters.
 	Sandbox *SandboxConfig `json:"sandbox,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
@@ -228,6 +243,14 @@ func LoadConfig(path string) (Config, error) {
 	}
 	if err := ValidateHooks(c.Hooks); err != nil {
 		return c, err
+	}
+	if v := c.Verify; v != nil {
+		if strings.TrimSpace(v.Command) == "" || v.Timeout < 0 || v.Timeout > 600 || (v.RepairAttempts != nil && (*v.RepairAttempts < 0 || *v.RepairAttempts > 3)) {
+			return c, fmt.Errorf("verify: command is required, repair_attempts 0-3, timeout_seconds up to 600")
+		}
+	}
+	if c.MaxToolCalls < 0 {
+		return c, fmt.Errorf("max_tool_calls must not be negative")
 	}
 	if c.Sandbox != nil {
 		for _, w := range c.Sandbox.Writable {

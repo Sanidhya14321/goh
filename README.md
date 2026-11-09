@@ -458,6 +458,22 @@ Repository guidance (`AGENTS.md`, or `CLAUDE.md`) is sent as a separate,
 clearly labelled untrusted message, not as part of the system prompt; your
 own guidance file beside the config stays in the system prompt.
 
+### Verify and repair
+
+Give GoHarness your own acceptance check, and it runs it after any run that
+changed files:
+
+```json
+"verify": {"command": "go test ./...", "repair_attempts": 1, "timeout_seconds": 300}
+```
+
+If the check fails, its output is handed back to the model to fix, at most
+`repair_attempts` times (default 1, at most 3). The run's `outcome` is then
+`verified`, or `failed_verification` when the check still fails. The check
+is your own command, so it runs without an approval prompt (inside the
+sandbox when that is on). `"max_tool_calls": N` caps the tool calls in one
+run.
+
 ### Shell sandbox
 
 Approval decides *whether* a command runs; the sandbox limits *what it can do*
@@ -472,6 +488,9 @@ formatters (not to MCP/LSP servers or hooks, which you configure yourself).
   paths (absolute or `~/…`). Build tools that write to a cache in your home
   folder need that cache listed.
 - GoHarness's own config, credentials and session folders cannot be read.
+- On macOS, files your `file_rules` deny cannot be read by commands either.
+  Linux (Landlock) cannot hide a single file inside the writable project, so
+  there deny rules cover GoHarness's own tools but not shell commands.
 - `"network": false` (the default) blocks network access; set it to `true`
   for commands that download dependencies.
 - macOS uses the built-in `sandbox-exec`. Linux uses Landlock (Linux 5.13+;

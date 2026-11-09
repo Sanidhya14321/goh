@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC144 verify/repair milestone
+
+R21 partial: verify/repair, max_tool_calls, adversarial canary. Live-model benchmark suite still needs keys.
+
 ## RC143 providers and guidance milestone
 
 R19 and R20 fixed (fixture-verified; live model checks pending).

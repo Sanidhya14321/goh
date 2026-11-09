@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC144 verify/repair, run budget, adversarial canary
+
+- `TestVerifyRepairCycle`:
+  - a failing `test -f done.txt` check is handed back once, the model fixes it, and the outcome is `verified`;
+  - with `repair_attempts: 0` the outcome is `failed_verification` and nothing is handed back;
+  - a model that never fixes it gets exactly 2 attempts, then `failed_verification`.
+- `TestMaxToolCallsBudget` stops at `budget_exhausted` after 2 of 3 allowed calls when the next batch would exceed the limit.
+- `TestInjectedInstructionsCannotExfiltrateOrPlant`: a planted `AGENTS.md` instructs exfiltration, and a scripted model with shell, webfetch and write grants obeys it. The test checks:
+  - no `CANARY-TOKEN` or `CANARY-HTTP` reaches the model;
+  - the local server gets 0 requests;
+  - no git hook is created;
+  - `CANARY-ENV` is blocked on macOS (it leaked there through the sandboxed shell before this release; the Linux limit is documented).
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC143 provider capabilities and guidance trust
 
 - `TestReasoningEffortValidation` checks that OpenAI accepts `xhigh` and refuses `max`, and Anthropic accepts `low`/`high`/`xhigh`/`max` and refuses `minimal`.
