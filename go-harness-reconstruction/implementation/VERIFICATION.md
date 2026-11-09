@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC122 goh config
+
+`TestConfigShowRemovesSecrets` puts secrets in a URL's user info and query, an MCP environment value and a formatter argument; none appear in the output, while the host and path, the variable name and the model remain, and the output is valid JSON. Run against the real configuration it printed the ChatGPT default model and no secrets. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC121 command agent
 
 `TestCommandAgentDelegatesLikeAMention`: `/scan internal` with `"agent": "explore"` reaches the model as `@explore Scan internal for dead code` plus the delegation note; a command naming an unknown subagent fails before the provider is called. Repository command files are read by `commands.Discover`, which has no agent field, so they cannot set it. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.122 — 2026-11-09
+
+- `goh config` prints the effective configuration as JSON: defaults, your
+  config file, the ChatGPT default and auto-detected servers and formatters.
+  Environment and header values are replaced with `[redacted]`, URL
+  credentials and queries are dropped, and secret-looking text is masked.
+
 ## 1.0.0-rc.121 — 2026-11-09
 
 - A custom command in your own config can name a subagent:

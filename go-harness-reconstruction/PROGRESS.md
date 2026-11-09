@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC122 goh config milestone
+
+Backlog R06: inspect configuration precedence without exposing secrets.
+
 ## RC121 command agent milestone
 
 Backlog R05: command-specific agent for user-configured commands (model override still not offered: it could change the provider).

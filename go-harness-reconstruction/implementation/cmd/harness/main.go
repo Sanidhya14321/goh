@@ -47,6 +47,7 @@ var commandHelp = [][2]string{
 	{"memory", "opt-in project notes: add, list, recall, delete"},
 	{"serve", "local HTTP API"},
 	{"acp", "Agent Client Protocol over stdio for editors"},
+	{"config", "print the effective configuration, secrets removed"},
 	{"doctor", "check configuration and integrations"},
 	{"version", "print the version"},
 	{"uninstall", "remove goh and its data (lists first; --yes to remove)"},
@@ -130,6 +131,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "export" || args[0] == "import" {
 		return exportAlias(args[0], args[1:])
+	}
+	if args[0] == "config" {
+		return runConfigShow(args[1:], os.Stdout)
 	}
 	if args[0] == "uninstall" {
 		return runUninstall(args[1:], os.Stdout)
