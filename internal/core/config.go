@@ -48,6 +48,10 @@ type LSPConfig struct {
 type ModelPrice struct {
 	Input  float64 `json:"input"`
 	Output float64 `json:"output"`
+	// CacheRead and CacheWrite price cached input (USD per million tokens);
+	// when unset, cached tokens are priced as ordinary input.
+	CacheRead  float64 `json:"cache_read,omitempty"`
+	CacheWrite float64 `json:"cache_write,omitempty"`
 }
 
 type FormatterConfig struct {

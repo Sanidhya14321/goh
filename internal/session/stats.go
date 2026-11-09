@@ -17,13 +17,24 @@ type ModelUsage struct {
 	Prompt     int64  `json:"prompt_tokens"`
 	Completion int64  `json:"completion_tokens"`
 	Total      int64  `json:"total_tokens"`
+	CacheRead  int64  `json:"cache_read_tokens,omitempty"`
+	CacheWrite int64  `json:"cache_write_tokens,omitempty"`
 	// CostUSD is an estimate from configured prices; nil when unpriced.
 	CostUSD *float64 `json:"estimated_cost_usd,omitempty"`
 }
 
 // Estimate fills CostUSD from per-million-token prices.
-func (m *ModelUsage) Estimate(input, output float64) {
-	cost := float64(m.Prompt)/1e6*input + float64(m.Completion)/1e6*output
+// Cached input is priced at cacheRead/cacheWrite; a zero price means the
+// ordinary input price.
+func (m *ModelUsage) Estimate(input, output, cacheRead, cacheWrite float64) {
+	if cacheRead == 0 {
+		cacheRead = input
+	}
+	if cacheWrite == 0 {
+		cacheWrite = input
+	}
+	fresh := m.Prompt - m.CacheRead - m.CacheWrite
+	cost := float64(fresh)/1e6*input + float64(m.CacheRead)/1e6*cacheRead + float64(m.CacheWrite)/1e6*cacheWrite + float64(m.Completion)/1e6*output
 	m.CostUSD = &cost
 }
 
@@ -110,6 +121,8 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 					Prompt     int64  `json:"prompt_tokens"`
 					Completion int64  `json:"completion_tokens"`
 					Total      int64  `json:"total_tokens"`
+					CacheRead  int64  `json:"cache_read_tokens"`
+					CacheWrite int64  `json:"cache_write_tokens"`
 				}
 				if json.Unmarshal(r.Data, &u) != nil || u.Prompt < 0 || u.Completion < 0 || u.Total < 0 {
 					continue
@@ -123,6 +136,10 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 				mu.Prompt += u.Prompt
 				mu.Completion += u.Completion
 				mu.Total += u.Total
+				if u.CacheRead >= 0 && u.CacheWrite >= 0 && u.CacheRead+u.CacheWrite <= u.Prompt {
+					mu.CacheRead += u.CacheRead
+					mu.CacheWrite += u.CacheWrite
+				}
 			}
 		}
 	}

@@ -480,12 +480,6 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			return "failed", e
 		}
 		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
-		if reply.Usage != nil {
-			// Durable per-reply usage for `goh stats`; never replayed into history.
-			if e := a.Store.Append("usage", map[string]any{"model": a.Config.Model, "prompt_tokens": reply.Usage.Prompt, "completion_tokens": reply.Usage.Completion, "total_tokens": reply.Usage.Total}); e != nil {
-				return "failed", e
-			}
-		}
 		if len(reply.Message.ToolCalls) == 0 {
 			return "completed", nil
 		}

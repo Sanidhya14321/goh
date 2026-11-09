@@ -206,7 +206,7 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 
 type chunk struct {
 	Error   json.RawMessage `json:"error"`
-	Usage   *core.Usage     `json:"usage"`
+	Usage   *chatUsage      `json:"usage"`
 	Choices []struct {
 		Index int `json:"index"`
 		Delta struct {
@@ -259,7 +259,11 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 			return errors.New("provider stream error")
 		}
 		if ch.Usage != nil {
-			reply.Usage = ch.Usage
+			u := ch.Usage.Usage
+			if d := ch.Usage.Details; d != nil && d.Cached >= 0 && d.Cached <= u.Prompt {
+				u.CacheRead = d.Cached
+			}
+			reply.Usage = &u
 		}
 		if len(ch.Choices) > 1 {
 			return errors.New("multiple choices unsupported")
@@ -373,4 +377,12 @@ func chatWireMessages(messages []core.Message) []any {
 		out[i] = map[string]any{"role": m.Role, "content": parts}
 	}
 	return out
+}
+
+// chatUsage is Chat Completions usage, including cached prompt tokens.
+type chatUsage struct {
+	core.Usage
+	Details *struct {
+		Cached int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details"`
 }

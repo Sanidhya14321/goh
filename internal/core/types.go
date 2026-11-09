@@ -58,14 +58,22 @@ func NewTool(name, description string, schema map[string]any) Tool {
 }
 
 type Usage struct {
+	// Prompt counts all input tokens, including cache reads and writes.
 	Prompt     int `json:"prompt_tokens"`
 	Completion int `json:"completion_tokens"`
 	Total      int `json:"total_tokens"`
+	// CacheRead and CacheWrite are the parts of Prompt served from or
+	// written to the provider's prompt cache, when reported.
+	CacheRead  int `json:"cache_read_tokens,omitempty"`
+	CacheWrite int `json:"cache_write_tokens,omitempty"`
 }
 type Reply struct {
 	Message Message
 	Finish  string
 	Usage   *Usage
+	// Model is the model that actually served the reply (a fallback route
+	// may differ from the configured one); empty means the configured one.
+	Model string
 }
 type Event struct {
 	Version   int       `json:"version"`

@@ -100,9 +100,12 @@ type responsesResult struct {
 	Status string            `json:"status"`
 	Output []json.RawMessage `json:"output"`
 	Usage  *struct {
-		Input  int `json:"input_tokens"`
-		Output int `json:"output_tokens"`
-		Total  int `json:"total_tokens"`
+		Input   int `json:"input_tokens"`
+		Output  int `json:"output_tokens"`
+		Total   int `json:"total_tokens"`
+		Details *struct {
+			Cached int `json:"cached_tokens"`
+		} `json:"input_tokens_details"`
 	} `json:"usage"`
 	Incomplete *struct {
 		Reason string `json:"reason"`
@@ -208,6 +211,9 @@ func decodeResponses(result responsesResult) (core.Reply, error) {
 	reply = core.Reply{Message: core.Message{Role: "assistant"}, Finish: "stop"}
 	if result.Usage != nil {
 		reply.Usage = &core.Usage{Prompt: result.Usage.Input, Completion: result.Usage.Output, Total: result.Usage.Total}
+		if d := result.Usage.Details; d != nil && d.Cached >= 0 && d.Cached <= result.Usage.Input {
+			reply.Usage.CacheRead = d.Cached
+		}
 	}
 	var content strings.Builder
 	ids := map[string]bool{}

@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.139 — 2026-11-09
+
+External review fix (R14):
+- Usage is recorded for **every** model call (turns, summaries, titles) with
+  its purpose, and charged to the model that actually served it, so a
+  fallback route no longer bills the primary model.
+- Cache reads and writes are recorded separately (Anthropic, OpenAI Chat and
+  Responses). `goh stats` shows them, and prices accept optional
+  `cache_read` and `cache_write` rates (unset means ordinary input price).
+
 ## 1.0.0-rc.138 — 2026-11-09
 
 External review fixes (R10, R12, R13):

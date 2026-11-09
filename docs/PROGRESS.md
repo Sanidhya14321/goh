@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC139 usage attribution milestone
+
+R14 fixed.
+
 ## RC138 external review P1 batch 1
 
 R10, R12, R13 fixed.

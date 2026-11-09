@@ -447,6 +447,12 @@ func anthropicCoreUsage(u *anthropicUsage) (*core.Usage, error) {
 			v.Prompt += *n
 		}
 	}
+	if u.CacheRead != nil {
+		v.CacheRead = *u.CacheRead
+	}
+	if u.CacheWrite != nil {
+		v.CacheWrite = *u.CacheWrite
+	}
 	if u.Output != nil {
 		v.Completion = *u.Output
 	}

@@ -39,6 +39,25 @@ func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
 // profile in order. A stream that produced text, a parse failure, an
 // authentication failure or cancellation is never retried on another route.
 func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
+	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, delta)
+	if err != nil {
+		return reply, err
+	}
+	if reply.Model == "" {
+		reply.Model = primaryConfig.Model
+	}
+	if reply.Usage != nil {
+		// Durable usage for every model call (turns, summaries, titles,
+		// children), charged to the model that served it; never replayed.
+		u := reply.Usage
+		if e := a.Store.Append("usage", map[string]any{"model": reply.Model, "purpose": purpose, "prompt_tokens": u.Prompt, "completion_tokens": u.Completion, "total_tokens": u.Total, "cache_read_tokens": u.CacheRead, "cache_write_tokens": u.CacheWrite}); e != nil {
+			return core.Reply{}, e
+		}
+	}
+	return reply, nil
+}
+
+func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
 	from := primaryConfig.Profile
 	var reply core.Reply
 	var err error
@@ -82,6 +101,7 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		}
 		reply, err = model.Complete(ctx, history, defs, delta)
 		if err == nil {
+			reply.Model = config.Model // usage is charged to the model that served it
 			data := map[string]any{"purpose": purpose, "model": config.Model, "profile": name, "protocol": config.EffectiveProtocol(), "context_window": config.ContextWindow, "failover": true}
 			if e := a.Store.Append("model_route", data); e != nil {
 				return core.Reply{}, e

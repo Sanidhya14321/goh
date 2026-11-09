@@ -73,7 +73,7 @@ func stats(args []string) error {
 func applyPrices(st *session.Stats, prices map[string]core.ModelPrice) {
 	for i := range st.Models {
 		if p, ok := prices[st.Models[i].Model]; ok {
-			st.Models[i].Estimate(p.Input, p.Output)
+			st.Models[i].Estimate(p.Input, p.Output, p.CacheRead, p.CacheWrite)
 		}
 	}
 }
@@ -88,7 +88,11 @@ func writeModelRows(w io.Writer, models []session.ModelUsage) {
 			total += *m.CostUSD
 			priced = true
 		}
-		fmt.Fprintf(w, "%-32s %6d replies  %12d in  %12d out  %12d total%s\n", tui.Safe(m.Model), m.Replies, m.Prompt, m.Completion, m.Total, cost)
+		cache := ""
+		if m.CacheRead > 0 || m.CacheWrite > 0 {
+			cache = fmt.Sprintf("  (cache: %d read, %d written)", m.CacheRead, m.CacheWrite)
+		}
+		fmt.Fprintf(w, "%-32s %6d replies  %12d in  %12d out  %12d total%s%s\n", tui.Safe(m.Model), m.Replies, m.Prompt, m.Completion, m.Total, cost, cache)
 	}
 	if priced {
 		fmt.Fprintf(w, "Estimated cost: ~$%.4f (from configured prices; unpriced models excluded)\n", total)

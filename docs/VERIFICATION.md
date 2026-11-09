@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC139 usage attribution
+
+`TestFallbackUsageAttributedToServingModel` fails the primary route with a 503 and serves the reply from the `backup` profile with 800 cache-read and 100 cache-write tokens. It checks:
+- the journaled usage names `backup-model` (RC138 named the primary);
+- `CollectStats` keeps the cache split;
+- the cost estimate prices fresh, cached-read, cached-write and output tokens separately.
+
+Usage recording moved into the single routing function every model call uses, so summary and title calls are counted with their purpose. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC138 recovery and context fixes
 
 Two tests fail on RC137 and pass on RC138:
