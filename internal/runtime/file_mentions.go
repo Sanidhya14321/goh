@@ -42,6 +42,9 @@ func (a *Agent) withFileMentions(prompt string) (string, []string) {
 		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 			continue
 		}
+		if a.Config.FileDecision([]string{filepath.ToSlash(clean)}) == "deny" {
+			continue // file_rules deny covers attachments too
+		}
 		info, err := root.Lstat(clean)
 		if err != nil || !info.Mode().IsRegular() || info.Size() > maxMentionFileBytes {
 			continue

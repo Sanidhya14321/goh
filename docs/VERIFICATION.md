@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC137 external review P0 fixes (paths, web, MCP)
+
+- `TestWritesIntoGitMetadataAreRefused` **failed on RC136**: a granted `create_file` planted `.git/hooks/pre-commit`. It now passes for that case and for a nested `sub/.git/config` patch.
+- `TestFileRulesDenyCoversReadsSearchAndMentions` puts synthetic secrets in a denied `.env` and `secrets/`, then sends `read_file`, `grep`, `glob`, `list_files` and `@`-mentions. No secret text reaches the model, and allowed files still appear. RC136 had no deny check on these paths (confirmed by reading the code; the test needs the new field, so it cannot compile there).
+- `TestDefaultClientRefusesNonPublicAddresses` checks that a loopback test server is refused by URL and via `localhost`, and reachable with the opt-in client. Ten private, loopback, link-local, CGNAT and unspecified IPs are classified non-public, and two public ones public.
+- `TestDuplicateKeysRefusedAndValidatedObjectSent` refuses `{"text":"safe","text":"rm -rf /"}` before the server sees it, along with nested duplicates.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC136 external review P0 fixes
 
 `review_p0_test.go` reproduces three reported failures, and each test **fails on the RC135 code** (checked by stashing the fix):

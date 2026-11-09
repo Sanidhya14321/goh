@@ -464,6 +464,13 @@ formatters (not to MCP/LSP servers or hooks, which you configure yourself).
   commands are **refused**, never run unconfined. Turn the sandbox off to
   run them.
 
+`webfetch` only connects to public internet addresses. Loopback, private
+networks and link-local addresses (including cloud metadata at
+169.254.169.254) are refused unless you set `"webfetch_allow_private": true`.
+A `file_rules` entry with `"action": "deny"` hides matching files from reads,
+searches, listings and `@` attachments as well as edits. Nothing may write
+inside a `.git` folder.
+
 ### Hooks
 
 Hooks run your own commands at points in the agent loop. They are read only

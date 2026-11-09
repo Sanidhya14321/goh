@@ -193,7 +193,7 @@ func (g globProgram) matches(relative string) bool {
 	}
 	return false
 }
-func globFiles(ctx context.Context, root *os.Root, a args) Result {
+func globFiles(ctx context.Context, root *os.Root, a args, deny func(string) bool) Result {
 	program, err := compileGlob(a.Pattern)
 	if err != nil {
 		return failure(err)
@@ -212,6 +212,12 @@ func globFiles(ctx context.Context, root *os.Root, a args) Result {
 		if visited > maxFiles*2 {
 			truncated = true
 			return fs.SkipAll
+		}
+		if deny(p) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			if p != a.Path && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {

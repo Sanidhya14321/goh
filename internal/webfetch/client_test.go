@@ -52,7 +52,7 @@ func TestFetchFormatsAndSafeHTMLConversion(t *testing.T) {
 		fmt.Fprint(w, htmlBody)
 	}))
 	defer server.Close()
-	c := New()
+	c := NewAllowingPrivate() // fixtures are loopback servers
 	defer c.Close()
 	for _, format := range []string{"text", "markdown", "html"} {
 		t.Run(format, func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestRedirectBoundaryAndNoCredentialCookieProxyForwarding(t *testing.T) {
 	t.Setenv("HTTPS_PROXY", "http://127.0.0.1:1")
 	t.Setenv("ALL_PROXY", "http://127.0.0.1:1")
 	t.Setenv("OPENAI_API_KEY", "must-not-forward")
-	c := New()
+	c := NewAllowingPrivate() // fixtures are loopback servers
 	defer c.Close()
 	if c.http.Transport.(*http.Transport).Proxy != nil || c.http.Jar != nil {
 		t.Fatal("proxy/cookie jar enabled")
@@ -179,7 +179,7 @@ func TestResponseValidationAndBoundedResults(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	c := New()
+	c := NewAllowingPrivate() // fixtures are loopback servers
 	defer c.Close()
 	for _, path := range []string{"status", "binary", "invalid-utf8", "latin", "header", "stream", "gzip"} {
 		r := c.Fetch(context.Background(), raw(t, server.URL+"/"+path, "text"))
@@ -213,7 +213,7 @@ func TestCancellationTimeoutAndInterruptedBody(t *testing.T) {
 		<-r.Context().Done()
 	}))
 	defer server.Close()
-	c := New()
+	c := NewAllowingPrivate() // fixtures are loopback servers
 	defer c.Close()
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan tools.Result, 1)

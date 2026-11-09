@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"github.com/Sanidhya14321/goh/internal/webfetch"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -24,6 +25,7 @@ func TestWebfetchRuntimeAdmissionAndPlanBoundary(t *testing.T) {
 			if mode == "granted" || mode == "plan" {
 				a.Grants["webfetch"] = true
 			}
+			a.Web = webfetch.NewAllowingPrivate() // the fixture server is on loopback
 			if mode == "plan" {
 				a.Config.AgentMode = "plan"
 			}

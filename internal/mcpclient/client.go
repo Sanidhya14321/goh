@@ -4,6 +4,7 @@
 package mcpclient
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -356,6 +357,9 @@ func (m *Manager) Validate(name string, args json.RawMessage) error {
 	if len(args) > 64<<10 {
 		return errors.New("MCP arguments exceed 64 KiB")
 	}
+	if e = rejectDuplicateKeys(args); e != nil {
+		return fmt.Errorf("invalid MCP arguments: %w", e)
+	}
 	var value map[string]any
 	if e = json.Unmarshal(args, &value); e != nil {
 		return fmt.Errorf("invalid MCP arguments: %w", e)
@@ -389,7 +393,13 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 	}
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
-	result, e := b.session.CallTool(ctx, &mcp.CallToolParams{Name: b.original, Arguments: args})
+	// Send exactly what was validated and approved: the decoded object
+	// re-encoded, never the model's original bytes.
+	var validated map[string]any
+	if e := json.Unmarshal(args, &validated); e != nil {
+		return fail(e)
+	}
+	result, e := b.session.CallTool(ctx, &mcp.CallToolParams{Name: b.original, Arguments: validated})
 	if e != nil {
 		status := "interrupted"
 		message := fmt.Errorf("MCP call failed; outcome may be uncertain and was not replayed: %w", e).Error()
@@ -628,4 +638,49 @@ func (p *process) stop() error {
 		}
 	})
 	return p.stopErr
+}
+
+// rejectDuplicateKeys refuses JSON with a repeated object key at any depth.
+// Parsers disagree on which duplicate wins, so the value GoHarness validated
+// could differ from the one a server acts on.
+func rejectDuplicateKeys(raw []byte) error {
+	d := json.NewDecoder(bytes.NewReader(raw))
+	d.UseNumber()
+	var walk func() error
+	walk = func() error {
+		t, err := d.Token()
+		if err != nil {
+			return err
+		}
+		switch t {
+		case json.Delim('{'):
+			seen := map[string]bool{}
+			for d.More() {
+				k, err := d.Token()
+				if err != nil {
+					return err
+				}
+				key, _ := k.(string)
+				if seen[key] {
+					return fmt.Errorf("duplicate key %q", key)
+				}
+				seen[key] = true
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = d.Token()
+			return err
+		case json.Delim('['):
+			for d.More() {
+				if err := walk(); err != nil {
+					return err
+				}
+			}
+			_, err = d.Token()
+			return err
+		}
+		return nil
+	}
+	return walk()
 }

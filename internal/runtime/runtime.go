@@ -109,7 +109,14 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	}
 	t.AllowGeneratedEdits = c.AllowGeneratedEdits
 	t.Sandbox = sandboxPolicy(c, s.Project)
-	a := &Agent{Web: webfetch.New(), readyIntegrations: map[string]bool{}, Config: c, Store: s, Tools: t, Provider: provider.New(c), Grants: map[string]bool{}, invalid: map[string]int{}}
+	if len(c.FileRules) > 0 {
+		t.DenyPath = func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" }
+	}
+	web := webfetch.New()
+	if c.WebfetchAllowPrivate {
+		web = webfetch.NewAllowingPrivate()
+	}
+	a := &Agent{Web: web, readyIntegrations: map[string]bool{}, Config: c, Store: s, Tools: t, Provider: provider.New(c), Grants: map[string]bool{}, invalid: map[string]int{}}
 	a.Skills, e = skills.New(context.Background(), s.Project, c.SkillPaths)
 	if e != nil {
 		return nil, e
@@ -785,6 +792,9 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 	}
 	paths, err := a.Tools.MutationPaths(c.Function.Name, json.RawMessage(c.Function.Arguments))
 	if err != nil {
+		return tools.Result{Error: true, Content: err.Error()}
+	}
+	if err := a.Tools.CheckWritable(paths); err != nil {
 		return tools.Result{Error: true, Content: err.Error()}
 	}
 	var res tools.Result

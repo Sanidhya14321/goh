@@ -6,6 +6,20 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.137 — 2026-11-09
+
+External review fixes (R6–R9):
+- A `file_rules` **deny** now also blocks reading, searching (`grep`),
+  listing (`glob`, `list_files`), the repository map and `@path`
+  attachments, not only edits.
+- No tool may create or change anything inside a `.git` folder, at any
+  depth, whatever the grants (a planted hook would run on the next commit).
+- `webfetch` refuses loopback, private-network, link-local (including cloud
+  metadata) and shared addresses, checked on the exact address it connects
+  to, for every redirect. `"webfetch_allow_private": true` allows them.
+- MCP arguments with duplicate JSON keys are refused, and the server receives
+  exactly the object that was validated and approved.
+
 ## 1.0.0-rc.136 — 2026-11-09
 
 External review fixes (see docs/REVIEW_FINDINGS.md R1–R5):

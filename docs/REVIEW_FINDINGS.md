@@ -11,10 +11,10 @@ the full gates pass.
 | R3 | P0 | Hook subprocesses ignore the sandbox | ✅ Fixed RC136: hooks wrapped by the same sandbox policy |
 | R4 | P0 | A later call in a batch runs after the run decided to halt | ✅ Validated (marker created) and fixed RC136 |
 | R5 | P0 | Identical batched reads bypass the repeat guard; key order disguises repeats | ✅ Validated and fixed RC136: canonical call keys, siblings re-checked |
-| R6 | P0 | `file_rules` deny applies to edits only; reads, search and attachments ignore it | Open |
-| R7 | P0 | Best-effort snapshot rejects a `.git` path, then the write proceeds | Open |
-| R8 | P0 | Granted `webfetch` can reach loopback and private services | Open |
-| R9 | P0 | MCP validates a decoded object but forwards the raw bytes (duplicate keys) | Open |
+| R6 | P0 | `file_rules` deny applies to edits only; reads, search and attachments ignore it | ✅ Fixed RC137 (validated by code reading) |
+| R7 | P0 | Best-effort snapshot rejects a `.git` path, then the write proceeds | ✅ Validated (git hook planted) and fixed RC137 |
+| R8 | P0 | Granted `webfetch` can reach loopback and private services | ✅ Fixed RC137: connect-time address check, opt-in for private |
+| R9 | P0 | MCP validates a decoded object but forwards the raw bytes (duplicate keys) | ✅ Fixed RC137 |
 | R10 | P1 | Resume replaces a durably recorded tool result with an uncertainty placeholder | Open |
 | R11 | P1 | A tool-free reply always counts as `completed` (no verified/unverified outcome) | Open |
 | R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | Open |

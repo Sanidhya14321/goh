@@ -132,6 +132,9 @@ type Config struct {
 	// in a private shadow Git repository at the start and end of every run,
 	// so changes made by shell commands can be reverted too.
 	ProjectSnapshots bool `json:"project_snapshots,omitempty"`
+	// WebfetchAllowPrivate lets webfetch reach loopback, private-network and
+	// link-local addresses (off by default: cloud metadata, local services).
+	WebfetchAllowPrivate bool `json:"webfetch_allow_private,omitempty"`
 	// Sandbox confines shell commands, background jobs and formatters.
 	Sandbox *SandboxConfig `json:"sandbox,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache

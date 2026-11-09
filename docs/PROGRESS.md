@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC137 external review P0 batch 2
+
+R6–R9 fixed; all P0 review findings are now closed.
+
 ## RC136 external review P0 batch 1
 
 R1–R5 from docs/REVIEW_FINDINGS.md validated and fixed.

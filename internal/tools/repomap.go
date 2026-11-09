@@ -247,6 +247,12 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 			skipped++
 			return nil
 		}
+		if e.denied(path) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
 		if d.IsDir() {
 			switch d.Name() {
 			case ".git", "node_modules", ".harness", "vendor":

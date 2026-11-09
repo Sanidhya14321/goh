@@ -41,6 +41,10 @@ type Engine struct {
 	root, artifacts string
 	// AllowGeneratedEdits is set from user configuration before the engine is used.
 	AllowGeneratedEdits bool
+	// DenyPath reports project-relative paths (slash-separated) that the
+	// user's file_rules deny. Denied files are not read, searched, listed or
+	// mapped, as well as not edited.
+	DenyPath func(rel string) bool
 	// Sandbox, when set, confines shell commands and background jobs.
 	Sandbox  *sandbox.Policy
 	mapMu    sync.Mutex
@@ -487,6 +491,13 @@ func fileMutation(name string) bool {
 }
 
 func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) Result {
+	if fileMutation(name) || name == "apply_patch" {
+		if paths, err := e.MutationPaths(name, raw); err == nil {
+			if err := e.CheckWritable(paths); err != nil {
+				return failure(err)
+			}
+		}
+	}
 	if isJobTool(name) {
 		return e.executeJob(ctx, name, raw)
 	}
@@ -530,6 +541,9 @@ func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) 
 	defer r.Close()
 	switch name {
 	case "read_file":
+		if e.denied(a.Path) {
+			return failure(errDenied)
+		}
 		b, _, err := read(r, a.Path)
 		if err != nil {
 			return failure(err)
@@ -559,9 +573,9 @@ func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) 
 		}
 		return result(map[string]any{"path": a.Path, "content": string(b[startOffset:endOffset]), "sha256": hash(b), "start_line": a.Start, "end_line": a.End, "total_lines": total})
 	case "glob":
-		return globFiles(ctx, r, a)
+		return globFiles(ctx, r, a, e.denied)
 	case "list_files", "search", "grep":
-		return inventory(ctx, r, name, a)
+		return inventory(ctx, r, name, a, e.denied)
 	case "edit_file", "write_file", "create_file":
 		before, after, mode, create, err := e.mutation(r, name, a)
 		if err != nil {
@@ -629,7 +643,7 @@ func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) 
 	}
 	return failure(errors.New("unknown tool"))
 }
-func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
+func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(string) bool) Result {
 	limit := a.Limit
 	if limit == 0 {
 		if name == "search" || name == "grep" {
@@ -653,6 +667,12 @@ func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
 		if visited > maxFiles*2 {
 			truncated = true
 			return fs.SkipAll
+		}
+		if deny(p) {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			if p != a.Path && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
@@ -747,4 +767,29 @@ func inventory(ctx context.Context, r *os.Root, name string, a args) Result {
 		}
 	}
 	return result(map[string]any{"matches": matches, "truncated": truncated, "skipped_files": skipped})
+}
+
+// denied reports whether a project-relative path is denied by file_rules.
+func (e *Engine) denied(rel string) bool {
+	return e != nil && e.DenyPath != nil && rel != "" && rel != "." && e.DenyPath(filepath.ToSlash(rel))
+}
+
+// errDenied is returned for direct access to a denied path.
+var errDenied = errors.New("access to this path is denied by the user's file_rules")
+
+// CheckWritable refuses mutations of Git metadata in any folder (a planted
+// hook or config runs code on the next git command) and paths the user's
+// file_rules deny. It applies whatever the grants or checkpoint mode.
+func (e *Engine) CheckWritable(paths []string) error {
+	for _, p := range paths {
+		for _, part := range strings.Split(filepath.ToSlash(p), "/") {
+			if strings.EqualFold(part, ".git") {
+				return fmt.Errorf("refusing to change Git metadata (%s); edit the repository with git commands instead", p)
+			}
+		}
+		if e.denied(p) {
+			return fmt.Errorf("%w: %s", errDenied, p)
+		}
+	}
+	return nil
 }
