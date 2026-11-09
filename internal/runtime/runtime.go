@@ -72,17 +72,19 @@ type Agent struct {
 	// changedFiles and verifiedAfterChange track this run's outcome.
 	changedFiles, verifiedAfterChange bool
 	eventMu                           sync.Mutex
-	runID                             string
-	mcpStarts                         []core.Call
-	invalid                           map[string]int
-	depth                             int
-	compactFocus                      string
-	cooldowns                         map[string]time.Time
-	clock                             func() time.Time
-	snapshotMu                        sync.Mutex
-	tasksRun                          int
-	ChildModelFactory                 func(core.Config, *session.Store) Model
-	RoleModelFactory                  func(core.Config, string) Model
+	// scopedGrants are session approvals bound to a scope (see GrantScope).
+	scopedGrants      map[string]bool
+	runID             string
+	mcpStarts         []core.Call
+	invalid           map[string]int
+	depth             int
+	compactFocus      string
+	cooldowns         map[string]time.Time
+	clock             func() time.Time
+	snapshotMu        sync.Mutex
+	tasksRun          int
+	ChildModelFactory func(core.Config, *session.Store) Model
+	RoleModelFactory  func(core.Config, string) Model
 }
 
 func ID() string {
@@ -235,7 +237,10 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		a.event("permission_resolved", data)
 		return d, nil
 	}
-	d := core.Decision{Allow: a.Grants[p.Tool] && rule != "ask"}
+	scope := GrantScope(p)
+	scopedKey := p.Tool + "\x00" + scope
+	granted := a.Grants[p.Tool] || (scope != "" && a.scopedGrants[scopedKey])
+	d := core.Decision{Allow: granted && rule != "ask"}
 	var e error
 	if !d.Allow {
 		if a.Approve == nil {
@@ -247,9 +252,21 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		}
 	}
 	if d.Allow && d.Session {
-		a.Grants[p.Tool] = true
+		// A session approval covers only the reviewed kind of action: the
+		// same command prefix or web origin, not every later use of the tool.
+		if scope != "" {
+			if a.scopedGrants == nil {
+				a.scopedGrants = map[string]bool{}
+			}
+			a.scopedGrants[scopedKey] = true
+		} else {
+			a.Grants[p.Tool] = true
+		}
 	}
 	data := map[string]any{"tool": p.Tool, "allowed": d.Allow, "session": d.Session}
+	if scope != "" {
+		data["scope"] = scope
+	}
 	if e = a.Store.Append("permission", data); e != nil {
 		return d, e
 	}

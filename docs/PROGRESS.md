@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC141 scoped grants milestone
+
+R15 fixed. All P0 and P1 review findings are closed.
+
 ## RC140 outcomes milestone
 
 R11 (outcome field, empty replies) and R16 fixed. A fuller verify/repair workflow stays on the roadmap (R21).

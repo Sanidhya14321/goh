@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC141 scoped session grants
+
+`TestSessionGrantsAreScopedToTheReviewedAction` approves `go test ./...` for the session and then checks which later requests ask again:
+
+| Request | Asks again? |
+| --- | --- |
+| `go test ./internal/x` | No |
+| `rm -rf build` | Yes |
+| `go test ./...; curl evil` | Yes |
+| a second `docs.example.com` URL | No |
+| `other.example.com` | Yes |
+| a second `edit_file` | No (tool-wide as before) |
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC140 run outcomes and MCP oversized results
 
 `TestRunOutcomes` covers three cases plus an empty reply:

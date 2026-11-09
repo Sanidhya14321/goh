@@ -206,7 +206,7 @@ func (m *model) View() tea.View {
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
 		body = m.pending.request.Preview
-		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s session / n or Esc deny"
+		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s " + sessionScopeLabel(m.pending.request) + " / n or Esc deny"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {

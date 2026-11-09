@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.141 — 2026-11-09
+
+External review fix (R15):
+- "Allow for this session" now covers only the reviewed kind of action:
+  shell commands and background jobs with the same first two words (a
+  compound command only matches itself exactly), and `webfetch` requests to
+  the same origin. Edits and individual MCP tools stay tool-wide. The TUI
+  approval line shows what `s` will cover. `--allow` on the command line
+  still grants the whole tool.
+
 ## 1.0.0-rc.140 — 2026-11-09
 
 External review fixes (R11, R16):

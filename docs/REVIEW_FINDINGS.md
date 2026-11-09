@@ -20,7 +20,7 @@ the full gates pass.
 | R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | ✅ Validated and fixed RC138: excerpt plus receipt |
 | R13 | P1 | The masking placeholder tells the model to rerun a tool (risky for effects) | ✅ Fixed RC138: typed receipts |
 | R14 | P1 | Fallback usage is charged to the primary model; cache reads and writes are collapsed | ✅ Fixed RC139: per-call usage with purpose and cache split |
-| R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | Open |
+| R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | ✅ Fixed RC141: command prefix / web origin scopes |
 | R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | ✅ Fixed RC140 |
 | R17 | P2 | Standing user constraints can be lost through compaction | Open |
 | R18 | P2 | Recalled memory notes are not revalidated on replay | Open |

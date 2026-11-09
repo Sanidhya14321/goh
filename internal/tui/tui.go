@@ -762,7 +762,7 @@ func (m *model) compactView() tea.View {
 	}
 	body, review := m.log, ""
 	if m.pending != nil {
-		review = "APPROVAL: " + m.pending.request.Tool + " • PgUp/PgDn review • y once / s session / n or Esc deny"
+		review = "APPROVAL: " + m.pending.request.Tool + " • PgUp/PgDn review • y once / s " + sessionScopeLabel(m.pending.request) + " / n or Esc deny"
 		body = m.pending.request.Preview
 	} else if m.question != nil {
 		review = "INTERACTIVE QUESTION • answers grant no permissions • PgUp/PgDn review"
@@ -1178,4 +1178,18 @@ func (m *model) keyLabel(action string) string {
 		}
 	}
 	return ""
+}
+
+// sessionScopeLabel says what "s" (allow for this session) will cover.
+func sessionScopeLabel(p core.Permission) string {
+	scope := agent.GrantScope(p)
+	switch {
+	case scope == "":
+		return "session"
+	case strings.HasPrefix(scope, "prefix:"):
+		return "session for `" + Safe(strings.TrimPrefix(scope, "prefix:")) + " …`"
+	case strings.HasPrefix(scope, "origin:"):
+		return "session for " + Safe(strings.TrimPrefix(scope, "origin:"))
+	}
+	return "session for this exact command"
 }
