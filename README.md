@@ -441,6 +441,29 @@ goh snapshots restore SESSION 2 --yes
 goh snapshots undo SESSION --yes     # put back the state before the last restore
 ```
 
+### Shell sandbox
+
+Approval decides *whether* a command runs; the sandbox limits *what it can do*
+once it runs. It applies to shell commands, `!commands`, background jobs and
+formatters (not to MCP/LSP servers or hooks, which you configure yourself).
+
+```json
+"sandbox": {"enabled": true, "network": false, "writable": ["~/Library/Caches/go-build"]}
+```
+
+- Writes are allowed only in the project, temporary folders and `writable`
+  paths (absolute or `~/…`). Build tools that write to a cache in your home
+  folder need that cache listed.
+- GoHarness's own config, credentials and session folders cannot be read.
+- `"network": false` (the default) blocks network access; set it to `true`
+  for commands that download dependencies.
+- macOS uses the built-in `sandbox-exec`. Linux uses Landlock (Linux 5.13+;
+  blocking the network needs 6.7+). On Linux, folders on the way to the
+  protected ones can be entered but not listed.
+- Where no sandbox is available (Windows, or Linux without Landlock),
+  commands are **refused**, never run unconfined. Turn the sandbox off to
+  run them.
+
 ### Hooks
 
 Hooks run your own commands at points in the agent loop. They are read only

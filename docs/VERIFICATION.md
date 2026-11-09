@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC134 shell sandbox
+
+`TestSandboxConfinesWritesReadsAndNetwork` runs a real shell through the sandbox with a project, a protected secret folder and a sibling folder:
+- the project write succeeds;
+- the sibling write fails and no file appears;
+- the secret cannot be read, but a normal file outside can;
+- a `curl` to a local test server is blocked, then succeeds with `network: true`;
+- on unsupported systems `Wrap` returns `ErrUnsupported`.
+
+`TestShellToolRunsInsideSandbox` repeats the write check through the real shell tool. On Linux both tests re-run the test binary as the Landlock helper via `TestMain`. CI sets `GOH_REQUIRE_SANDBOX=1` on Linux and macOS so a missing sandbox fails rather than skips. The tests passed on ubuntu-latest (Landlock with network rules) and macos-latest (sandbox-exec), and Windows confirms the refusal. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC133 whole-project snapshots
 
 `TestTrackDiffRestoreLeavesUserRepoAlone` uses a real Git repository with a `.gitignore`, a committed base and an uncommitted edit. It simulates shell changes (edit, delete, create in a new folder, and an ignored build output), then checks:

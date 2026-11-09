@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.134 — 2026-11-09
+
+- **Shell sandbox** (opt-in, `"sandbox": {"enabled": true}`): shell
+  commands, background jobs and formatters can write only in the project,
+  temporary folders and listed paths; cannot read GoHarness's config,
+  credentials or sessions; and have no network unless `"network": true`.
+  macOS uses `sandbox-exec`, Linux uses Landlock; elsewhere commands are
+  refused rather than run unconfined. Gap analysis S3.
+
 ## 1.0.0-rc.133 — 2026-11-09
 
 - **Whole-project snapshots** (opt-in, `"project_snapshots": true`): the

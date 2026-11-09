@@ -218,6 +218,13 @@ func LoadConfig(path string) (Config, error) {
 	if err := ValidateHooks(c.Hooks); err != nil {
 		return c, err
 	}
+	if c.Sandbox != nil {
+		for _, w := range c.Sandbox.Writable {
+			if strings.TrimSpace(w) == "" || strings.ContainsRune(w, 0) || !(filepath.IsAbs(w) || w == "~" || strings.HasPrefix(w, "~/")) {
+				return c, fmt.Errorf("sandbox.writable: %q must be an absolute path or start with ~/", w)
+			}
+		}
+	}
 	platform.SetEnvPassthrough(c.EnvPassthrough)
 	return c, nil
 }
