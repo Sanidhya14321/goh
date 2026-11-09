@@ -25,6 +25,8 @@ jobs.
 
 ## RC132 hooks
 
+Windows CI follow-up to RC130: `TestParentChildCancellationUnderLoad` timed out because PowerShell children rebuilt their module cache without `PSModuleAnalysisCachePath`. The standard Windows system variables and the PowerShell cache and telemetry settings are now in the safe set. A temporary CI diagnostic confirmed PowerShell starts with the filtered environment while `PGPASSWORD` and the runner variables are withheld. CI is green on Linux, macOS and Windows.
+
 `TestHooksBlockAddFeedbackAndNotify` drives a real agent run with shell scripts as hooks. A `sh*` pre-tool hook refuses `rm -rf`, and the model receives the hook's stderr. A second shell call passes and a post-tool hook's output arrives as `hook_feedback`. A `read_file` hook that was never triggered does not run. The `run_finished` hook receives `{"event":"run_finished","status":"completed"}`. The hooks saw `GOH_TOOL=shell` but not `OPENAI_API_KEY`. `TestHooksCannotGrantAndFailClosed` checks that without a shell grant an allowing hook neither runs nor lets the command run (`needs_permission`), and that a hook exiting 1 stops an approved tool. `TestValidateHooks` rejects unknown events, missing commands, timeouts over 120 s, `tools` on `run_finished`, and bad patterns. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
 
 ## RC131 Anthropic prompt caching
