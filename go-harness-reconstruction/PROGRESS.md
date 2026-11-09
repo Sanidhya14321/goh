@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC118 Ctrl+Z suspend milestone
+
+Backlog I02: terminal suspend (the "suspend" gap in the full-TUI row).
+
 ## RC117 goh pr milestone
 
 Backlog I09: PR checkout through the user's gh; GitHub automation (`goh github`) still open.

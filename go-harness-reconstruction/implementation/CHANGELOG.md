@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.118 — 2026-11-09
+
+- Ctrl+Z suspends the terminal UI like other terminal programs; `fg`
+  resumes it and redraws. It is the rebindable `suspend` action (set it to
+  `"none"` to turn it off) and does nothing on Windows.
+
 ## 1.0.0-rc.117 — 2026-11-09
 
 - `goh pr NUMBER` (or `#N`, or a github.com pull request URL) checks the

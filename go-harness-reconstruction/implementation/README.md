@@ -106,7 +106,7 @@ Transcript navigation: `messages_first` (`<leader>g`), `messages_last`
 (`<leader>k` / `<leader>j`), `messages_half_page_up` / `messages_half_page_down`
 (`ctrl+alt+u` / `ctrl+alt+d`), `messages_copy` (`<leader>y`, copies the last
 assistant reply as Markdown through the terminal clipboard, OSC 52), and
-`messages_undo` / `messages_redo` (`<leader>u` / `<leader>r`, the same as
+`suspend` (`ctrl+z`), `messages_undo` / `messages_redo` (`<leader>u` / `<leader>r`, the same as
 `/undo` and `/redo`). PgUp/PgDn still scroll half a page. Unknown actions, malformed keys, a key bound to two
 actions, and keys the composer and approvals rely on (Enter, Esc, Tab, arrows,
 Ctrl+C, Ctrl+D and the editing keys) are rejected when the configuration loads.

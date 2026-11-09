@@ -1027,6 +1027,8 @@ func (m *model) runKeyAction(action string) (tea.Model, tea.Cmd) {
 		}
 	case "theme_list":
 		m.openThemePicker()
+	case "suspend":
+		return m, tea.Suspend
 	case "messages_first":
 		m.scrollOffset = len(m.log) // clamped to the oldest rendered row
 	case "messages_last":

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC118 Ctrl+Z suspend
+
+`TestCtrlZSuspends` checks the default binding, that the action sends Bubble Tea's suspend message, and that `"suspend": "none"` frees the key. A real check ran the built `goh` inside an interactive bash under a PTY: Ctrl+Z left it listed by `jobs` as `Stopped`, and `fg` resumed it and redrew the screen. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC117 goh pr
 
 `TestRunPR` uses a fake `gh` on PATH: malformed references, extra arguments, flag-looking input and non-GitHub URLs are refused before gh runs; `#42` runs exactly `gh pr checkout 42` and then opens the UI; a failed checkout does not open the UI; a missing gh gives an install hint. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

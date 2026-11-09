@@ -17,6 +17,9 @@ var DefaultKeybinds = map[string]string{
 	"status":          "ctrl+g",
 	"editor_open":     "<leader>e",
 	"theme_list":      "<leader>t",
+	// suspend backgrounds the UI like other terminal programs (fg resumes);
+	// it has no effect on Windows.
+	"suspend": "ctrl+z",
 	// Transcript navigation, following OpenCode's messages_* actions where the
 	// default key is free in GoHarness.
 	"messages_first":          "<leader>g",
