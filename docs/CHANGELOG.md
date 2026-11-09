@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.157 — 2026-11-09
+
+- Errors reported inside a Responses/ChatGPT stream now show the provider's
+  error code and a short message (for example
+  `subscription_sharing_usage_limit_exceeded`), instead of a generic "request
+  failed", so a usage limit is distinguishable from an access problem.
+
 ## 1.0.0-rc.156 — 2026-11-09
 
 - **Real context window for ChatGPT models:** the window is read from the

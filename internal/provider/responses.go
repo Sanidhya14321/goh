@@ -182,7 +182,7 @@ func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(str
 			}
 			return core.Reply{}, true, &FinishError{Reason: reason}
 		case "response.failed", "error":
-			return core.Reply{}, true, errors.New("OpenAI Responses request failed; check model access and account usage")
+			return core.Reply{}, true, responsesStreamError(raw)
 		}
 		return core.Reply{}, false, nil
 	}
@@ -275,4 +275,50 @@ func decodeResponses(result responsesResult) (core.Reply, error) {
 		return core.Reply{}, errors.New("OpenAI returned no text or tool calls")
 	}
 	return reply, nil
+}
+
+// responsesStreamError turns an in-stream error event into a readable error:
+// the provider's error code (such as a usage or rate limit) and a bounded,
+// single-line message, so a quota problem is distinguishable from an access
+// problem. Nothing else from the event is shown.
+func responsesStreamError(raw string) error {
+	var e struct {
+		Code     string `json:"code"`
+		Message  string `json:"message"`
+		Error    *struct{ Code, Type, Message string }
+		Response *struct {
+			Error *struct{ Code, Message string }
+		}
+	}
+	_ = json.Unmarshal([]byte(raw), &e)
+	code, msg := e.Code, e.Message
+	if e.Error != nil {
+		code, msg = firstNonEmpty(e.Error.Code, e.Error.Type, code), firstNonEmpty(e.Error.Message, msg)
+	}
+	if e.Response != nil && e.Response.Error != nil {
+		code, msg = firstNonEmpty(e.Response.Error.Code, code), firstNonEmpty(e.Response.Error.Message, msg)
+	}
+	msg = strings.Join(strings.Fields(msg), " ")
+	if len(msg) > 300 {
+		msg = msg[:300] + "…"
+	}
+	text := "OpenAI Responses request failed"
+	if code != "" {
+		text += " (" + code + ")"
+	}
+	if msg != "" {
+		text += ": " + msg
+	} else {
+		text += "; check model access and account usage"
+	}
+	return errors.New(text)
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }

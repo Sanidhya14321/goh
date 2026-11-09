@@ -23,6 +23,18 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC157 stream error codes and partial stage 2
+
+`TestResponsesStreamErrorShowsCode` covers four cases: a top-level error event, a nested `error` object, and a `response.failed` error each keep their code and a cleaned message, and an event with neither falls back to the old hint. Long messages are bounded.
+
+**Stage 2 (hard set) was cut short.** After about 26 runs the ChatGPT plan returned `subscription_sharing_usage_limit_exceeded` inside the stream. Until RC157 this showed only as "request failed", which is how the problem was found.
+- **Before the limit (base arm):**
+  - 25 of the 26 real attempts resolved;
+  - 1 genuine false completion: on `hard-py-double-charge`, the model invented an `idempotency_key` parameter the gateway does not accept, tested it against its own fake gateway and reported `verified`, while the hidden tests fail with `TypeError`.
+- **Lost to the limit:** the remaining base runs and the whole `nocheck` arm failed within 2 s and are not results.
+
+The A/B comparison must be rerun after the limit resets (`docs/bench/stage2-partial-rc156.md`).
+
 ## RC156 live benchmark findings (stage 1)
 
 First live run: 22 tasks, one attempt each, gpt-6.1-sol through the ChatGPT sign-in.
