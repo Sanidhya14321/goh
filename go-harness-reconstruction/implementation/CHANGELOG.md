@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.119 — 2026-11-09
+
+- `goh auth list` shows, for the default provider, each profile and
+  ChatGPT, where the credential would come from: an environment variable
+  (by name), a saved key, the ChatGPT sign-in, or none. It follows the same
+  rules as real requests (an `OPENAI_API_KEY` is listed only for the
+  official host) and never prints a key or token.
+
 ## 1.0.0-rc.118 — 2026-11-09
 
 - Ctrl+Z suspends the terminal UI like other terminal programs; `fg`

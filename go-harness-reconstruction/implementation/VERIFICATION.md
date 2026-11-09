@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC119 goh auth list
+
+`TestAuthListNamesSourcesNotSecrets` sets an official key and a gateway key and checks: neither value appears in the output; the official route reports `environment OPENAI_API_KEY`; the gateway profile reports `environment GW_KEY`; a third-party profile without its own variable reports `none` (the OpenAI key is not offered to it); ChatGPT reports not signed in. Run against the real configuration, it printed one row, `chatgpt  chatgpt.com  ChatGPT sign-in`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC118 Ctrl+Z suspend
 
 `TestCtrlZSuspends` checks the default binding, that the action sends Bubble Tea's suspend message, and that `"suspend": "none"` frees the key. A real check ran the built `goh` inside an interactive bash under a PTY: Ctrl+Z left it listed by `jobs` as `Stopped`, and `fg` resumed it and redrew the screen. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

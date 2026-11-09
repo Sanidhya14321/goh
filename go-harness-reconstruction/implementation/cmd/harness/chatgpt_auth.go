@@ -16,7 +16,7 @@ import (
 
 func chatGPTAuth(args []string) error {
 	if len(args) != 1 {
-		return errors.New("usage: goh auth login|status|models|logout")
+		return errors.New("usage: goh auth login|status|models|logout|list")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -60,6 +60,12 @@ func chatGPTAuth(args []string) error {
 			fmt.Println("Default model:", tui.Safe(model))
 		}
 		return nil
+	case "list":
+		c, err := core.LoadConfig("")
+		if err != nil {
+			return err
+		}
+		return writeAuthList(os.Stdout, c)
 	case "models":
 		models, err := core.ListChatGPTModels(ctx)
 		if err != nil {
@@ -76,6 +82,6 @@ func chatGPTAuth(args []string) error {
 		fmt.Println("ChatGPT authorization cleared.")
 		return nil
 	default:
-		return errors.New("usage: goh auth login|status|models|logout")
+		return errors.New("usage: goh auth login|status|models|logout|list")
 	}
 }

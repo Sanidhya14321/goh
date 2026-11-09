@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC119 goh auth list milestone
+
+Backlog R03: read-only credential overview; storage is unchanged.
+
 ## RC118 Ctrl+Z suspend milestone
 
 Backlog I02: terminal suspend (the "suspend" gap in the full-TUI row).
