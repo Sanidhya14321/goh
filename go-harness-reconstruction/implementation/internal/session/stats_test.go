@@ -37,3 +37,28 @@ func TestCollectStats(t *testing.T) {
 		t.Fatalf("filters wrong: %+v", a)
 	}
 }
+
+func TestCollectStatsCountsTools(t *testing.T) {
+	dir := t.TempDir()
+	s, err := New(dir, testutil.TempDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(id, name string, failed bool) {
+		s.Append("tool_start", map[string]any{"id": id, "name": name, "arguments": map[string]any{}})
+		s.Append("tool_result", map[string]any{"id": id, "result": map[string]any{"content": "x", "error": failed}})
+	}
+	call("1", "read_file", false)
+	call("2", "read_file", false)
+	call("3", "shell", true)
+	call("4", "grep", false)
+	s.Close()
+	st, err := CollectStats(dir, "", time.Time{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []ToolUsage{{"read_file", 2, 0}, {"grep", 1, 0}, {"shell", 1, 1}}
+	if len(st.Tools) != 3 || st.Tools[0] != want[0] || st.Tools[1] != want[1] || st.Tools[2] != want[2] {
+		t.Fatalf("%+v", st.Tools)
+	}
+}

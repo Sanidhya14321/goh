@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.124 — 2026-11-09
+
+- `goh stats` adds a tool table (calls and failures per tool, most used
+  first, top 15; `--json` has all of them under `tools`), counted from the
+  session journals.
+
 ## 1.0.0-rc.123 — 2026-11-09
 
 - `goh run` reads piped input without needing `-`:

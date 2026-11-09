@@ -33,6 +33,15 @@ type Stats struct {
 	Prompts  int          `json:"prompts"`
 	Models   []ModelUsage `json:"models"`
 	Damaged  int          `json:"damaged_sessions,omitempty"`
+	Tools    []ToolUsage  `json:"tools,omitempty"`
+}
+
+// ToolUsage counts recorded tool calls by name; Errors counts results the
+// tool reported as failed.
+type ToolUsage struct {
+	Name   string `json:"name"`
+	Calls  int    `json:"calls"`
+	Errors int    `json:"errors"`
 }
 
 // CollectStats reads journals without locking them, so it works while chats
@@ -48,6 +57,7 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 	}
 	st.Damaged = len(damaged)
 	byModel := map[string]*ModelUsage{}
+	byTool := map[string]*ToolUsage{}
 	for _, info := range infos {
 		if project != "" && info.Project != project {
 			continue
@@ -64,8 +74,31 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 		records, _, _ := readPrefix(f)
 		f.Close()
 		st.Sessions++
+		callTool := map[string]string{}
 		for _, r := range records {
 			switch r.Type {
+			case "tool_start":
+				var c struct{ ID, Name string }
+				if json.Unmarshal(r.Data, &c) != nil || c.Name == "" || len(c.Name) > 128 {
+					continue
+				}
+				callTool[c.ID] = c.Name
+				tu := byTool[c.Name]
+				if tu == nil {
+					tu = &ToolUsage{Name: c.Name}
+					byTool[c.Name] = tu
+				}
+				tu.Calls++
+			case "tool_result":
+				var res struct {
+					ID     string
+					Result struct{ Error bool }
+				}
+				if json.Unmarshal(r.Data, &res) == nil && res.Result.Error {
+					if tu := byTool[callTool[res.ID]]; tu != nil {
+						tu.Errors++
+					}
+				}
 			case "message":
 				var m struct{ Role string }
 				if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" {
@@ -97,5 +130,14 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 		st.Models = append(st.Models, *mu)
 	}
 	sort.Slice(st.Models, func(i, j int) bool { return st.Models[i].Total > st.Models[j].Total })
+	for _, tu := range byTool {
+		st.Tools = append(st.Tools, *tu)
+	}
+	sort.Slice(st.Tools, func(i, j int) bool {
+		if st.Tools[i].Calls != st.Tools[j].Calls {
+			return st.Tools[i].Calls > st.Tools[j].Calls
+		}
+		return st.Tools[i].Name < st.Tools[j].Name
+	})
 	return st, nil
 }

@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC124 tool statistics milestone
+
+Backlog R22: tool usage in `goh stats`, as in OpenCode's stats.
+
 ## RC123 piped run input milestone
 
 Backlog I01: headless run reads piped input, as OpenCode does.

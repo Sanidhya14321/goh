@@ -69,6 +69,7 @@ func stats(args []string) error {
 		fmt.Println("No token usage recorded yet (recorded from 1.0.0-rc.60 when the provider reports it).")
 	}
 	writeModelRows(os.Stdout, st.Models)
+	writeToolRows(os.Stdout, st.Tools)
 	if st.Damaged > 0 {
 		fmt.Printf("%d damaged session(s) skipped; see goh sessions list\n", st.Damaged)
 	}
@@ -100,5 +101,19 @@ func writeModelRows(w io.Writer, models []session.ModelUsage) {
 		fmt.Fprintf(w, "Estimated cost: ~$%.4f (from configured prices; unpriced models excluded)\n", total)
 	} else if len(models) > 0 {
 		fmt.Fprintln(w, `Add "prices": {"<model>": {"input": USD_per_Mtok, "output": USD_per_Mtok}} to the config for cost estimates.`)
+	}
+}
+
+func writeToolRows(w io.Writer, tools []session.ToolUsage) {
+	if len(tools) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "\n%-28s %8s %8s\n", "Tool", "Calls", "Errors")
+	for i, t := range tools {
+		if i == 15 {
+			fmt.Fprintf(w, "... %d more (see --json)\n", len(tools)-15)
+			break
+		}
+		fmt.Fprintf(w, "%-28s %8d %8d\n", tui.Safe(t.Name), t.Calls, t.Errors)
 	}
 }
