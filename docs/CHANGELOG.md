@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.148 — 2026-11-09
+
+- **Masking window (C3):** context masking now keeps the 10 most recent tool
+  results verbatim whenever that still fits, and only masks older ones;
+  previously everything before the last two turns was masked, which could
+  make the model re-read files it had just seen.
+
 ## 1.0.0-rc.147 — 2026-11-09
 
 - **Completion check (C2):** when a run is about to finish after changing

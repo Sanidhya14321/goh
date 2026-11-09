@@ -127,3 +127,24 @@ func shrinkLargeResults(history []core.Message, limit int) ([]core.Message, int)
 	}
 	return out, shrunk
 }
+
+// maskKeepRecent is how many of the newest tool results masking tries to
+// leave intact.
+const maskKeepRecent = 10
+
+// recentWindowCut returns the history index before which masking may act so
+// that the newest keep tool results stay visible; never later than cut.
+func recentWindowCut(history []core.Message, cut, keep int) int {
+	seen := 0
+	for i := len(history) - 1; i > 0; i-- {
+		if history[i].Role == "tool" {
+			if seen++; seen == keep {
+				if i < cut {
+					return i
+				}
+				return cut
+			}
+		}
+	}
+	return 1 // fewer than keep results: nothing needs masking for the window
+}

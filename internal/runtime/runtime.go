@@ -1005,7 +1005,20 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	view := a.History
 	if masking {
 		var masked int
-		view, masked = maskObservations(a.History, cut)
+		// Prefer keeping the most recent tool results visible (the masking
+		// window in "The Complexity Trap" kept the last 10); fall back to
+		// the tighter cut only when that does not leave enough headroom.
+		view, masked = a.History, 0
+		if wide := recentWindowCut(a.History, cut, maskKeepRecent); wide < cut {
+			if v, n := maskObservations(a.History, wide); n > 0 {
+				if size := estimate(a.withTaskContext(v), defs); size < available && size < a.Config.ContextWindow/2 {
+					view, masked = v, n
+				}
+			}
+		}
+		if masked == 0 {
+			view, masked = maskObservations(a.History, cut)
+		}
 		if masked > 0 {
 			size := estimate(a.withTaskContext(view), defs)
 			// Require headroom below the trigger so the next turn does not

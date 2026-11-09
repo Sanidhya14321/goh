@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC148 masking window
+
+`TestMaskingKeepsRecentWindow` fills a 200K window with 15 large reads and triggers masking. RC147 masked 14 and kept 1; RC148 masks 5 and keeps the newest 10. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC147 completion check and automatic messages
 
 - `TestCompletionCheck` checks that an unchecked change gets exactly one reminder and ends `verified` after the model runs a check, while a run that already checked gets none.

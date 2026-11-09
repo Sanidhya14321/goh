@@ -8,7 +8,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | --- | --- | --- | --- |
 | C1 | Tool calling and file editing (edit format, matching, errors) | `internal/tools` | ✅ RC146 |
 | C2 | Agent loop and control (planning, stopping, error recovery, verification) | `internal/runtime` | ✅ RC140–147 |
-| C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ⬜ |
+| C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
 | C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ⬜ |
 | C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ⬜ |
 | C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ⬜ |
@@ -49,3 +49,19 @@ Chosen:
 - a one-time evidence reminder when changes are unchecked (RC147), switchable for A/B tests in C11.
 
 Found and fixed along the way: automatic messages were counted as user turns.
+
+### C3 Context and memory (RC138–RC148)
+
+Sources:
+- [The Complexity Trap (arXiv:2508.21433)](https://arxiv.org/abs/2508.21433): observation masking matches summarization's solve rate at about half the cost; the best masking window kept the last 10 observations; a hybrid saves a further 7–11%.
+- [Compaction vs summarization](https://www.morphllm.com/compaction-vs-summarization) (vendor blog, treat figures with caution): summarization loses detail and causes re-reading loops; verbatim retention is preferred.
+- From the external review: *Lost in Context Compaction* (keep constraints separately) and *Bad Memory* (threat-model automatic memory writes).
+
+Chosen:
+- the hybrid already in place: mask first, summarize only when needed;
+- typed receipts (RC138);
+- verbatim pinned user instructions (RC142);
+- revalidated memory recall (RC142);
+- a 10-result masking window (RC148).
+
+Memory writes stay user-initiated only, by design.
