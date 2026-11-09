@@ -22,8 +22,8 @@ the full gates pass.
 | R14 | P1 | Fallback usage is charged to the primary model; cache reads and writes are collapsed | ✅ Fixed RC139: per-call usage with purpose and cache split |
 | R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | ✅ Fixed RC141: command prefix / web origin scopes |
 | R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | ✅ Fixed RC140 |
-| R17 | P2 | Standing user constraints can be lost through compaction | Open |
-| R18 | P2 | Recalled memory notes are not revalidated on replay | Open |
+| R17 | P2 | Standing user constraints can be lost through compaction | ✅ Validated and fixed RC142: verbatim pinned instructions |
+| R18 | P2 | Recalled memory notes are not revalidated on replay | ✅ Fixed RC142 |
 | R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | Open |
 | R20 | P2 | Repository guidance is appended inside the system message | Open |
 | R21 | P3 | Verify/repair workflow, shared run budgets, adversarial fixtures, benchmark suite | Open (roadmap) |

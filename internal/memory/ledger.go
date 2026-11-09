@@ -337,3 +337,38 @@ func (l *Ledger) Recall(ctx context.Context, query string) ([]Note, error) {
 	}
 	return found, ctx.Err()
 }
+
+// Valid reports which of ids still name a note whose evidence files are
+// unchanged. Recalled notes are rechecked with it before each replay, so a
+// deleted or stale note is not shown to the model again.
+func (l *Ledger) Valid(ids []string) (map[string]bool, error) {
+	notes, err := l.List()
+	if err != nil {
+		return nil, err
+	}
+	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
+	valid := map[string]bool{}
+	hashes := map[string]string{}
+	for _, note := range notes {
+		if !want[note.ID] || len(note.Evidence) == 0 {
+			continue
+		}
+		fresh := true
+		for _, file := range note.Evidence {
+			hash, checked := hashes[file.Path]
+			if !checked {
+				hash, _ = l.hash(file.Path)
+				hashes[file.Path] = hash
+			}
+			if hash == "" || hash != file.SHA256 {
+				fresh = false
+				break
+			}
+		}
+		valid[note.ID] = fresh
+	}
+	return valid, nil
+}

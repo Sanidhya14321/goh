@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC142 constraints and memory replay
+
+- `TestUserConstraintsSurviveRepeatedCompaction` **fails on RC141**, where the constraint is lost after the first compaction. It now finds `CONSTRAINT-42` verbatim after two compactions.
+- `TestRecalledNotesAreRevalidatedOnReplay` recalls a note tied to `config.go`, changes the file mid-run, and checks the next model request contains no `NOTE-777` and reports it withdrawn.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC141 scoped session grants
 
 `TestSessionGrantsAreScopedToTheReviewedAction` approves `go test ./...` for the session and then checks which later requests ask again:

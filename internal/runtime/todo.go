@@ -104,6 +104,7 @@ func (a *Agent) taskContext() string {
 }
 func (a *Agent) modelHistory() []core.Message { return a.withTaskContext(a.History) }
 func (a *Agent) withTaskContext(history []core.Message) []core.Message {
+	history = a.revalidateRecalls(history)
 	if len(a.Todos) == 0 || len(history) == 0 {
 		return history
 	}

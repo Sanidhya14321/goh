@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.142 — 2026-11-09
+
+External review fixes (R17, R18):
+- Earlier user instructions survive context compaction **verbatim** in a
+  separate message (oldest first; later ones take precedence), carried
+  forward through repeated compactions, bounded to 30 entries / 16 KB.
+- Recalled project-memory notes are rechecked every time context is sent to
+  the model; a note that was deleted, whose evidence files changed, or whose
+  memory was turned off is withdrawn (the journal keeps the original).
+
 ## 1.0.0-rc.141 — 2026-11-09
 
 External review fix (R15):

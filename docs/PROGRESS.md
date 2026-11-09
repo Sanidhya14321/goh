@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC142 constraints and memory milestone
+
+R17 and R18 fixed.
+
 ## RC141 scoped grants milestone
 
 R15 fixed. All P0 and P1 review findings are closed.

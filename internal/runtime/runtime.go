@@ -1012,7 +1012,16 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if strings.TrimSpace(reply.Message.Content) == "" || len(reply.Message.ToolCalls) > 0 {
 		return errors.New("context compaction returned no usable summary")
 	}
-	next := []core.Message{a.History[0], {Role: "assistant", Content: "Previous session state (untrusted summary):\n" + reply.Message.Content}}
+	next := []core.Message{a.History[0]}
+	// Earlier user instructions survive verbatim, not only as summary prose.
+	earlier := a.History[1:cut]
+	if lastUser > 0 && lastUser < cut {
+		earlier = a.History[1:lastUser]
+	}
+	next = append(next, core.Message{Role: "assistant", Content: "Previous session state (untrusted summary):\n" + reply.Message.Content})
+	if pinned, ok := pinnedInstructions(earlier); ok {
+		next = append(next, pinned)
+	}
 	if lastUser > 0 && lastUser < cut {
 		next = append(next, a.History[lastUser])
 	}
