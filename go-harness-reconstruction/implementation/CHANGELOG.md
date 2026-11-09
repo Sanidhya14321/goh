@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.126 — 2026-11-09
+
+- Shell completion now covers subcommands (`sessions`, `auth`, `mcp`,
+  `memory`, `completion`) and session IDs for `resume`, `compact` and the
+  `sessions` commands that take one. IDs come from the new
+  `goh sessions list --format ids`, which reads only local journals.
+  Re-run `eval "$(goh completion zsh)"` (or bash/fish) to pick this up.
+
 ## 1.0.0-rc.125 — 2026-11-09
 
 - `goh sessions prune --days N` lists sessions not changed for N days;

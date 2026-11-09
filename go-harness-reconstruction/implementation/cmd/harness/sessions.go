@@ -67,7 +67,7 @@ func sessions(args []string) error {
 	}
 	listFormat := "json"
 	if command == "list" {
-		f.StringVar(&listFormat, "format", "json", "json (default) or table")
+		f.StringVar(&listFormat, "format", "json", "json (default), table, or ids (one ID per line)")
 	}
 	if command == "import" {
 		f.StringVar(&project, "project", "", "explicit existing project directory for relocated import")
@@ -104,8 +104,13 @@ func sessions(args []string) error {
 			return encoder.Encode(infos)
 		case "table":
 			return writeSessionTable(os.Stdout, *dir, infos)
+		case "ids":
+			for _, info := range infos {
+				fmt.Println(info.ID) // used by shell completion
+			}
+			return nil
 		}
-		return errors.New("format must be json or table")
+		return errors.New("format must be json, table or ids")
 	case "rename":
 		if err := session.SetTitle(*dir, subject, title); err != nil {
 			return err

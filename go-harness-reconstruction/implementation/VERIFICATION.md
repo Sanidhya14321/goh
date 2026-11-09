@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC126 completion of subcommands and session IDs
+
+`TestCompletionScripts` runs the bash script in a real bash with a stand-in `goh` that prints two IDs: `goh auth l` → `login logout list`, `goh resume 2026110` → both IDs, `goh sessions show 20261102` → the matching ID, plus the earlier top-level checks; the zsh script still passes `zsh -n`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC125 sessions prune
 
 `TestSessionsPruneListsThenTrashes`: with a 40-day-old and a 1-hour-old session and a 30-day cutoff, the listing names only the old one and removes nothing; `--yes` trashes only the old one; it is then restored; `prune` without `--days` is refused. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

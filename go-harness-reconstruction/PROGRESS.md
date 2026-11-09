@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC126 deeper completion milestone
+
+Backlog I11: subcommand and session-ID completion.
+
 ## RC125 sessions prune milestone
 
 Backlog R08: bulk housekeeping through the existing restorable trash.
