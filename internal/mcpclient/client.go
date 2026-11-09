@@ -32,6 +32,7 @@ var component = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]*$`)
 var ErrPermission = errors.New("MCP server requires permission")
 
 type binding struct {
+	server     string
 	session    *mcp.ClientSession
 	process    *process
 	original   string
@@ -49,7 +50,13 @@ type Manager struct {
 	bindings  map[string]binding
 	processes []*process
 	failures  []Failure
+	// reconnects counts restarts per server; reconnectMu serialises them.
+	reconnects  map[string]int
+	reconnectMu sync.Mutex
 }
+
+// maxReconnects bounds automatic restarts of one server per run.
+const maxReconnects = 3
 
 func New(config map[string]core.MCPConfig, project string, approve func(context.Context, core.Permission) (core.Decision, error)) *Manager {
 	cfg := make(map[string]core.MCPConfig, len(config))
@@ -269,7 +276,7 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		if len(description) > 8192 {
 			description = description[:8192]
 		}
-		discovered[full] = binding{session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
+		discovered[full] = binding{server: name, session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
 	}
 	cancel()
 	m.mu.Lock()
@@ -370,12 +377,23 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 	if e != nil {
 		return fail(e)
 	}
+	if b.process.dead() {
+		// A new call to a server that dropped: restart it first. The call
+		// that failed earlier is never repeated.
+		if e := m.reconnect(ctx, b); e != nil {
+			return fail(fmt.Errorf("MCP server %s disconnected and could not be restarted: %w", b.server, e))
+		}
+		if b, e = m.get(name); e != nil {
+			return fail(e)
+		}
+	}
 	ctx, cancel := context.WithTimeout(ctx, callTimeout)
 	defer cancel()
 	result, e := b.session.CallTool(ctx, &mcp.CallToolParams{Name: b.original, Arguments: args})
 	if e != nil {
 		status := "interrupted"
 		message := fmt.Errorf("MCP call failed; outcome may be uncertain and was not replayed: %w", e).Error()
+		b.process.markBroken() // the next call reconnects; this one is not replayed
 		if ctx.Err() != nil {
 			if cleanupErr := b.process.stop(); cleanupErr != nil {
 				status = "cleanup_incomplete"
@@ -397,6 +415,40 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 	}
 	return tools.Result{Content: string(encoded), Error: result.IsError}
 }
+
+// reconnect stops a dead server, forgets its tools and connects it again
+// through the normal approval path. It is bounded per server.
+func (m *Manager) reconnect(ctx context.Context, b binding) error {
+	m.reconnectMu.Lock()
+	defer m.reconnectMu.Unlock()
+	m.mu.Lock()
+	if m.closed {
+		m.mu.Unlock()
+		return errors.New("MCP manager closed")
+	}
+	if cur, ok := m.bindings["mcp__"+b.server+"__"+b.original]; ok && cur.process != b.process && !cur.process.dead() {
+		m.mu.Unlock()
+		return nil // another call already reconnected it
+	}
+	if m.reconnects == nil {
+		m.reconnects = map[string]int{}
+	}
+	if m.reconnects[b.server] >= maxReconnects {
+		m.mu.Unlock()
+		return fmt.Errorf("restarted %d times already in this run", maxReconnects)
+	}
+	m.reconnects[b.server]++
+	prefix := "mcp__" + b.server + "__"
+	for n := range m.bindings {
+		if strings.HasPrefix(n, prefix) {
+			delete(m.bindings, n)
+		}
+	}
+	m.mu.Unlock()
+	m.dropProcess(b.process)
+	return m.connectServer(ctx, b.server)
+}
+
 func (m *Manager) Close() error {
 	m.mu.Lock()
 	if m.closed {
@@ -455,6 +507,33 @@ type process struct {
 	session  *mcp.ClientSession
 	once     sync.Once
 	stopErr  error
+	broken   bool
+}
+
+// dead reports that the server can no longer serve calls: it exited, was
+// stopped, or a call failed at the transport level.
+func (p *process) dead() bool {
+	p.mu.Lock()
+	gone := p.stopping || p.broken
+	p.mu.Unlock()
+	if gone {
+		return true
+	}
+	if p.cmd == nil {
+		return false
+	}
+	select {
+	case <-p.done:
+		return true
+	default:
+		return false
+	}
+}
+
+func (p *process) markBroken() {
+	p.mu.Lock()
+	p.broken = true
+	p.mu.Unlock()
 }
 
 func startProcess(cfg core.MCPConfig, project string) (*process, error) {

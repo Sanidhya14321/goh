@@ -71,7 +71,7 @@ Severity: 🔴 **High**: a security or data-safety loophole, or a gap most users
 | --- | --- | --- | --- |
 | M1 | 🟠 | **MCP tools only; no resources, prompts or elicitation.** | Goose (elicitation, resources), Claude Code, OpenCode. |
 | M2 | 🟠 | **No MCP OAuth.** Remote servers need static header tokens. | OpenCode, Goose (`oauth`), Claude Code. |
-| M3 | 🟠 | **No MCP reconnect.** A remote MCP server that drops is stopped for the rest of the run. | OpenCode, Goose. |
+| M3 | ✅ RC135 | **No MCP reconnect.** A remote MCP server that drops is stopped for the rest of the run. | OpenCode, Goose. |
 | M4 | 🟢 | **No legacy MCP SSE transport.** Only stdio and Streamable HTTP. | OpenCode, Goose. |
 | M5 | 🟢 | **No IDE extension.** ACP covers Zed-style editors, but there is no VS Code or JetBrains plugin. | Cline, Continue, Roo (VS Code native), Claude Code. |
 | M6 | 🟢 | **No GitHub Action / CI agent mode.** `goh pr` checks a PR out locally only. | OpenCode (`opencode github`), Claude Code Action, Codex. |

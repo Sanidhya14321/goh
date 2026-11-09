@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC135 MCP reconnect
+
+`TestReconnectAfterServerDropsWithoutReplay` (with `-race`) uses the fixture MCP server's `disconnect` tool, which kills the server mid-call. For three rounds it checks:
+- the dropped call is reported as "not replayed";
+- the next `echo` call restarts the server and succeeds;
+- each restart went through approval.
+
+After a fourth drop the call fails with "could not be restarted", so restarts are bounded. Existing cancellation, disconnect, remote and failed-server tests still pass. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC134 shell sandbox
 
 `TestSandboxConfinesWritesReadsAndNetwork` runs a real shell through the sandbox with a project, a protected secret folder and a sibling folder:

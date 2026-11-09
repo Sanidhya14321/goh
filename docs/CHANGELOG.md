@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.135 — 2026-11-09
+
+- **MCP reconnect:** when an MCP server exits or its connection drops, the
+  next call to it restarts or reconnects the server (through the normal
+  approval path) instead of failing for the rest of the run. The call that
+  failed is never repeated. At most 3 restarts per server per run. Gap
+  analysis M3.
+
 ## 1.0.0-rc.134 — 2026-11-09
 
 - **Shell sandbox** (opt-in, `"sandbox": {"enabled": true}`): shell

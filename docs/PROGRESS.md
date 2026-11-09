@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC135 MCP reconnect milestone
+
+Gap analysis M3 closed. M1 (resources/prompts) and M2 (OAuth) remain open.
+
 ## RC134 shell sandbox milestone
 
 Gap analysis S3 closed (opt-in): sandbox-exec on macOS, Landlock on Linux, refusal elsewhere; also stops shell commands reading GoHarness credentials when enabled.
