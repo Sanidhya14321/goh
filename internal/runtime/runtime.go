@@ -69,6 +69,7 @@ type Agent struct {
 	Todos             []core.Todo
 	History           []core.Message
 	seq               int
+	eventMu           sync.Mutex
 	runID             string
 	mcpStarts         []core.Call
 	invalid           map[string]int
@@ -187,6 +188,10 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	return a, nil
 }
 func (a *Agent) event(kind string, data any) {
+	// Parallel read workers and hooks emit concurrently; numbering and the
+	// sink are serialised so sequences stay unique and ordered.
+	a.eventMu.Lock()
+	defer a.eventMu.Unlock()
 	a.seq++
 	if a.Emit != nil {
 		a.Emit(core.Event{Version: 1, SessionID: a.Store.ID, RunID: a.runID, Sequence: a.seq, Time: time.Now().UTC(), Type: kind, Data: data})
@@ -460,6 +465,15 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			c := calls[i]
 			args := json.RawMessage(c.Function.Arguments)
 			a.event("tool_requested", c)
+			if halt || haltReason != "" {
+				// Once the run is stopping, no later call in the batch runs.
+				results[i] = tools.Result{Error: true, Content: "Not executed: the run was stopped by an earlier call in this batch"}
+				if e := a.finish(c, results[i]); e != nil {
+					return "failed", e
+				}
+				i++
+				continue
+			}
 			preview, side, prepErr := a.prepare(c.Function.Name, args)
 			if prepErr != nil {
 				results[i] = tools.Result{Content: prepErr.Error(), Error: true}
@@ -594,6 +608,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				if e = a.finish(c, results[i]); e != nil {
 					return "failed", e
 				}
+				results[i] = a.postToolHooks(ctx, c, results[i])
 				i++
 				continue
 			}
@@ -602,6 +617,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			for end < len(calls) && end-i < 4 {
 				_, s, e := a.prepare(calls[end].Function.Name, json.RawMessage(calls[end].Function.Arguments))
 				if e != nil || s {
+					break
+				}
+				// A sibling identical to the previous call leaves the batch so
+				// the repeat guard sees it.
+				if callKey(calls[end]) == callKey(calls[end-1]) {
 					break
 				}
 				a.event("tool_requested", calls[end])
@@ -622,6 +642,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				if e := a.finish(calls[j], results[j]); e != nil {
 					return "failed", e
 				}
+				results[j] = a.postToolHooks(ctx, calls[j], results[j])
 			}
 			i = end
 		}
@@ -723,7 +744,9 @@ func (a *Agent) execute(ctx context.Context, c core.Call) tools.Result {
 	if blocked, ok := a.preToolHooks(ctx, c); !ok {
 		return blocked
 	}
-	return a.postToolHooks(ctx, c, a.executeTool(ctx, c))
+	// post_tool hooks run in the dispatch loop after the raw result is
+	// durably recorded, so a slow or crashing hook cannot lose it.
+	return a.executeTool(ctx, c)
 }
 
 func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {

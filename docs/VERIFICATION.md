@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC136 external review P0 fixes
+
+`review_p0_test.go` reproduces three reported failures, and each test **fails on the RC135 code** (checked by stashing the fix):
+- `TestHooksOnParallelReadsAreRaceFree` reports 4 data races there;
+- `TestNoExecutionAfterHaltInBatch` shows a shell marker created after three invalid calls halted the run;
+- `TestRepeatGuardCoversBatchedReads` shows four identical reads, one with reordered keys, running unchecked.
+
+All three pass with the fix. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the setup and ACP suites. The PTY suite failed once under load straight after the race suite, then passed on three reruns; it is noted as possibly flaky.
+
 ## RC135 MCP reconnect
 
 `TestReconnectAfterServerDropsWithoutReplay` (with `-race`) uses the fixture MCP server's `disconnect` tool, which kills the server mid-call. For three rounds it checks:

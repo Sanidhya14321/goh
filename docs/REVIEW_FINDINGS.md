@@ -1,0 +1,29 @@
+# External Review Findings Tracker
+
+This tracks every finding from the external review (9 November 2026) and its status. A finding is
+**validated** only when a test reproduces it on the old code. It is **fixed** only when that test passes and
+the full gates pass.
+
+| ID | Pri | Finding | Status |
+| --- | --- | --- | --- |
+| R1 | P0 | Hooks race with parallel reads (shared event sequence) | ✅ Validated (race detector) and fixed RC136: serialized event emission |
+| R2 | P0 | Post-tool hook output merged before the tool result is durable | ✅ Fixed RC136: raw result journaled first, then hooks run |
+| R3 | P0 | Hook subprocesses ignore the sandbox | ✅ Fixed RC136: hooks wrapped by the same sandbox policy |
+| R4 | P0 | A later call in a batch runs after the run decided to halt | ✅ Validated (marker created) and fixed RC136 |
+| R5 | P0 | Identical batched reads bypass the repeat guard; key order disguises repeats | ✅ Validated and fixed RC136: canonical call keys, siblings re-checked |
+| R6 | P0 | `file_rules` deny applies to edits only; reads, search and attachments ignore it | Open |
+| R7 | P0 | Best-effort snapshot rejects a `.git` path, then the write proceeds | Open |
+| R8 | P0 | Granted `webfetch` can reach loopback and private services | Open |
+| R9 | P0 | MCP validates a decoded object but forwards the raw bytes (duplicate keys) | Open |
+| R10 | P1 | Resume replaces a durably recorded tool result with an uncertainty placeholder | Open |
+| R11 | P1 | A tool-free reply always counts as `completed` (no verified/unverified outcome) | Open |
+| R12 | P1 | One large early result ends the run with `budget_exhausted` before masking | Open |
+| R13 | P1 | The masking placeholder tells the model to rerun a tool (risky for effects) | Open |
+| R14 | P1 | Fallback usage is charged to the primary model; cache reads and writes are collapsed | Open |
+| R15 | P1 | Session grants are keyed by tool name, not by the reviewed action | Open |
+| R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | Open |
+| R17 | P2 | Standing user constraints can be lost through compaction | Open |
+| R18 | P2 | Recalled memory notes are not revalidated on replay | Open |
+| R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | Open |
+| R20 | P2 | Repository guidance is appended inside the system message | Open |
+| R21 | P3 | Verify/repair workflow, shared run budgets, adversarial fixtures, benchmark suite | Open (roadmap) |

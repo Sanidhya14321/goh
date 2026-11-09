@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.136 — 2026-11-09
+
+External review fixes (see docs/REVIEW_FINDINGS.md R1–R5):
+- Events from parallel read workers and hooks are numbered and emitted one
+  at a time (fixes a data race with `post_tool` hooks).
+- A tool's raw result is journaled before `post_tool` hooks run.
+- Hooks run under the shell sandbox when it is enabled.
+- Once a run decides to stop, no later call in the same batch runs.
+- The repeat guard compares canonical arguments and also checks identical
+  calls inside a parallel read batch.
+
 ## 1.0.0-rc.135 — 2026-11-09
 
 - **MCP reconnect:** when an MCP server exits or its connection drops, the

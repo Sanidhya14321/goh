@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"os/exec"
 	"path"
 	"strings"
@@ -78,6 +79,10 @@ func (a *Agent) runHook(ctx context.Context, h core.HookConfig, event string, pa
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	platform.NewGroup(cmd)
 	cmd.WaitDelay = time.Second
+	// Hooks get the same confinement as tool commands when the sandbox is on.
+	if err := sandbox.Wrap(cmd, a.Tools.Sandbox); err != nil {
+		return hookOutcome{exit: -1, err: err}
+	}
 	if err := cmd.Start(); err != nil {
 		return hookOutcome{exit: -1, err: err}
 	}

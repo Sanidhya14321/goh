@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -22,7 +23,7 @@ const repeatStopped = "Stopped: this exact call was repeated"
 // A "session" approval of repeated_call allows repeats for the rest of the
 // session. Returned errors are journal failures.
 func (a *Agent) checkRepeat(ctx context.Context, c core.Call, preview string) (string, error) {
-	key := c.Function.Name + "\x00" + c.Function.Arguments
+	key := callKey(c)
 	if key == a.lastCall {
 		a.repeats++
 	} else {
@@ -49,4 +50,17 @@ func (a *Agent) checkRepeat(ctx context.Context, c core.Call, preview string) (s
 		return fmt.Sprintf("Permission denied: the user declined repeating this exact %s call. Try a different approach.", c.Function.Name), nil
 	}
 	return "", nil
+}
+
+// callKey identifies a call for repetition checks: the tool name and its
+// arguments in canonical JSON form, so key order or spacing changes do not
+// disguise a repeat.
+func callKey(c core.Call) string {
+	var v any
+	if json.Unmarshal([]byte(c.Function.Arguments), &v) == nil {
+		if b, err := json.Marshal(v); err == nil {
+			return c.Function.Name + "\x00" + string(b)
+		}
+	}
+	return c.Function.Name + "\x00" + c.Function.Arguments
 }
