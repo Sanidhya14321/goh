@@ -79,6 +79,9 @@ func main() {
 	if len(arms) == 0 {
 		arms = []string{"base="}
 	}
+	if resolved, err := exec.LookPath(*gohBin); err == nil {
+		*gohBin, _ = filepath.Abs(resolved) // tasks run in their own folders
+	}
 	tasks, err := loadTasks(*tasksDir, *only)
 	if err != nil {
 		fail(err)
@@ -158,7 +161,11 @@ func loadTasks(dir, only string) ([]task, error) {
 // runTask: fresh copy -> setup -> goh run -> clean regrade with hidden tests.
 func runTask(t task, goh, arm string, extra []string, attempt int, workRoot string) Result {
 	r := Result{Task: t.ID, Arm: arm, Attempt: attempt}
-	base := filepath.Join(workRoot, fmt.Sprintf("%s-%s-%d", arm, t.ID, attempt))
+	base, err := filepath.Abs(filepath.Join(workRoot, fmt.Sprintf("%s-%s-%d", arm, t.ID, attempt)))
+	if err != nil {
+		r.Error = err.Error()
+		return r
+	}
 	work, grade, sessions := filepath.Join(base, "agent"), filepath.Join(base, "grade"), filepath.Join(base, "sessions")
 	if err := copyTree(filepath.Join(t.dir, "repo"), work); err != nil {
 		r.Error = "copy: " + err.Error()
@@ -184,16 +191,25 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	cmd := exec.CommandContext(ctx, goh, args...)
 	cmd.Dir = work
 	stdout, _ := cmd.StdoutPipe()
-	cmd.Stderr = io.Discard
+	// goh's stderr is kept per attempt so failures can be diagnosed.
+	if errFile, err := os.Create(filepath.Join(base, "goh-stderr.log")); err == nil {
+		defer errFile.Close()
+		cmd.Stderr = errFile
+	}
 	if err := cmd.Start(); err != nil {
 		r.Error = "start goh: " + err.Error()
 		return r
 	}
 	readEvents(stdout, &r)
-	err := cmd.Wait()
+	err = cmd.Wait()
 	r.Seconds = time.Since(start).Seconds()
 	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		r.ExitCode = ee.ExitCode()
+	}
+	if r.Status == "" {
+		if b, _ := os.ReadFile(filepath.Join(base, "goh-stderr.log")); len(b) > 0 {
+			r.Error = "goh: " + tail(string(b))
+		}
 	}
 	// Clean regrade: the agent's final tree, then the hidden tests on top.
 	if err := copyTree(work, grade); err != nil {
