@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC115 formatter auto-detection milestone
+
+Backlog R18: built-in formatter discovery, opt-in like `lsp_auto`.
+
 ## RC114 HTML from /export milestone
 
 TUI parity for the HTML transcript.

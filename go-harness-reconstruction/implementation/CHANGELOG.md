@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.115 — 2026-11-09
+
+- Opt-in `"formatter_auto": true` adds well-known formatters found on PATH
+  (gofmt, rustfmt, ruff, prettier, clang-format, shfmt) for their file
+  types. Configured formatters win by name and extension, a disabled one
+  still claims its extensions, and nothing from the repository is run.
+- Test fix: the ChatGPT-default test isolates Windows home folders, which
+  failed RC114's Windows CI on a runner with no sign-in path override.
+
 ## 1.0.0-rc.114 — 2026-11-09
 
 - The TUI `/export` dialog writes the RC113 HTML page when the filename ends

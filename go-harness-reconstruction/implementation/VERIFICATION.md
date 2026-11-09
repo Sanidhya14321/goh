@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC115 formatter auto-detection
+
+`TestWithDetectedFormatters` checks: nothing is added when the option is off; installed gofmt and prettier are added; ruff is skipped because a configured formatter owns `.py`; a disabled configured shfmt is kept; rustfmt (not on PATH) is skipped; the input config is not mutated; and the result passes formatter validation. RC114's Windows CI failure (`TestChatGPTDefaultNeverOverridesExplicitProvider`, which read the runner's real home) is fixed in `d95f30c`. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC114 HTML from /export
 
 `TestExportFormatByExtension` covers the extension choice, including upper case and names without an extension. The setup suite's Markdown export check still passes. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

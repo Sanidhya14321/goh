@@ -308,6 +308,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		c = withChatGPTDefault(c)
 	}
 	c = c.WithDetectedLSP(nil)
+	c = c.WithDetectedFormatters(nil)
 	if c.EffectiveProtocol() == core.ChatGPTProtocol {
 		if c.Model == "" || (*protocol == core.ChatGPTProtocol && *model == "") {
 			if chosen, err := core.ChatGPTModel(); err == nil && chosen != "" {

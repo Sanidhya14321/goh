@@ -44,6 +44,7 @@ func runACP(args []string) error {
 		config = withChatGPTDefault(config)
 	}
 	config = config.WithDetectedLSP(nil)
+	config = config.WithDetectedFormatters(nil)
 	if *sessionDir != "" {
 		config.SessionDir = *sessionDir
 	}

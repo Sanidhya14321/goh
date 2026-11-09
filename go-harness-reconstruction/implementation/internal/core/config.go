@@ -97,6 +97,8 @@ type Config struct {
 	Prices map[string]ModelPrice `json:"prices,omitempty"`
 	// LSPAuto adds installed well-known language servers (see knownLSP).
 	LSPAuto         bool                     `json:"lsp_auto,omitempty"`
+	// FormatterAuto adds installed well-known formatters (see knownFormatters).
+	FormatterAuto bool `json:"formatter_auto,omitempty"`
 	Commands        map[string]CommandConfig `json:"commands,omitempty"`
 	Endpoint        string                   `json:"endpoint"`
 	BaseURL         string                   `json:"base_url,omitempty"`
