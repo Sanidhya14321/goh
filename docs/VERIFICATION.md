@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC133 whole-project snapshots
+
+`TestTrackDiffRestoreLeavesUserRepoAlone` uses a real Git repository with a `.gitignore`, a committed base and an uncommitted edit. It simulates shell changes (edit, delete, create in a new folder, and an ignored build output), then checks:
+- the diff is exactly `M a.txt, A new/c.txt, D src/b.txt` and the patch contains the new line;
+- the restore brings back the uncommitted edit and the deleted file, removes the new file and its empty folder, and leaves the ignored file alone;
+- restoring the returned "before" tree redoes the changes;
+- the user's HEAD and staged state are unchanged;
+- invalid or unknown tree IDs are refused, and so is storage inside the project.
+
+`TestProjectSnapshotsRevertShellChanges` runs a real agent run whose approved shell command clobbers a file and creates a folder. `goh snapshots list` reports both and `diff` shows the change. `restore` without `--yes` changes nothing, `restore --yes` reverts, `undo --yes` brings the run's changes back, and an unknown run number is refused. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC132 hooks
 
 Windows CI follow-up to RC130: `TestParentChildCancellationUnderLoad` timed out because PowerShell children rebuilt their module cache without `PSModuleAnalysisCachePath`. The standard Windows system variables and the PowerShell cache and telemetry settings are now in the safe set. A temporary CI diagnostic confirmed PowerShell starts with the filtered environment while `PGPASSWORD` and the runner variables are withheld. CI is green on Linux, macOS and Windows.

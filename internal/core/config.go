@@ -118,6 +118,10 @@ type Config struct {
 	// LSPAuto adds installed well-known language servers (see knownLSP).
 	LSPAuto bool         `json:"lsp_auto,omitempty"`
 	Hooks   []HookConfig `json:"hooks,omitempty"`
+	// ProjectSnapshots records the whole project (minus .gitignore'd files)
+	// in a private shadow Git repository at the start and end of every run,
+	// so changes made by shell commands can be reverted too.
+	ProjectSnapshots bool `json:"project_snapshots,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
 	// breakpoints (for gateways that reject cache_control).
 	DisablePromptCache bool `json:"disable_prompt_cache,omitempty"`

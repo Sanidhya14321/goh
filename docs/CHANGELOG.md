@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.133 — 2026-11-09
+
+- **Whole-project snapshots** (opt-in, `"project_snapshots": true`): the
+  project is recorded at the start and end of every run in a private shadow
+  Git repository, so changes made by shell commands can be listed, diffed
+  and reverted with `goh snapshots list|diff|restore|undo`. `.gitignore`d
+  files are skipped and the user's own repository is never touched. Restores
+  list first and need `--yes`; every restore can be undone. Gap analysis A2.
+
 ## 1.0.0-rc.132 — 2026-11-09
 
 - **Hooks:** `pre_tool`, `post_tool` and `run_finished` hooks from user

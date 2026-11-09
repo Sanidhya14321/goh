@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC133 whole-project snapshots milestone
+
+Gap analysis A2 closed (opt-in): shadow-Git project snapshots per run with CLI list/diff/restore/undo. TUI integration and default-on remain follow-ups.
+
 ## RC132 hooks milestone
 
 Gap analysis A1 closed: user-config hooks that can refuse or add feedback, never grant.

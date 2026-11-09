@@ -37,6 +37,7 @@ var commandHelp = [][2]string{
 	{"export", "export a session (default: this project's latest) as JSON or Markdown"},
 	{"import", "import a session exported with goh export"},
 	{"changes", "show files changed in a session"},
+	{"snapshots", "whole-project snapshots per run: list, diff, restore, undo"},
 	{"models", "list models available from the configured provider"},
 	{"pr", "check out a GitHub pull request with gh, then open the UI"},
 	{"worktree", "open the UI in a separate git worktree: goh worktree NAME|list"},
@@ -157,6 +158,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "memory" {
 		return runMemory(args[1:])
+	}
+	if args[0] == "snapshots" {
+		return runSnapshots(args[1:], os.Stdout)
 	}
 	if args[0] == "changes" {
 		return changes(args[1:])

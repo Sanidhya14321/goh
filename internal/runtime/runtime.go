@@ -318,6 +318,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if e := a.Store.Append("run_started", map[string]any{"model": a.Config.Model, "protocol": a.Config.EffectiveProtocol(), "profile": a.Config.Profile, "agent": a.Config.Agent, "agent_mode": a.Config.AgentMode}); e != nil {
 		return "failed", e
 	}
+	a.recordProjectSnapshot(ctx, "start")
 	if len(a.Store.Pending()) > 0 {
 		a.event("recovery_required", map[string]any{"pending": a.Store.Pending()})
 		return "failed", errors.New("uncertain tool effects require explicit --acknowledge-uncertain")
@@ -993,6 +994,7 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		d["status"] = status
 		d["error"] = e.Error()
 	}
+	a.recordProjectSnapshot(context.Background(), "end")
 	a.event("run_finished", d)
 	a.runFinishedHooks(status, err)
 	return status, err

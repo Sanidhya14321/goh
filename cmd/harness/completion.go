@@ -15,6 +15,7 @@ var subcommands = map[string][]string{
 	"memory":     {"add", "list", "recall", "delete"},
 	"completion": {"bash", "zsh", "fish"},
 	"worktree":   {"list"},
+	"snapshots":  {"list", "diff", "restore", "undo"},
 }
 
 // sessionIDArgs take a session ID next; IDs come from

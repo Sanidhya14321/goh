@@ -418,6 +418,29 @@ With the `anthropic_messages` protocol, GoHarness marks prompt-cache
 breakpoints so each turn re-reads the conversation from Anthropic's cache.
 Set `"disable_prompt_cache": true` if a gateway rejects `cache_control`.
 
+### Whole-project snapshots
+
+File checkpoints cover edits made through GoHarness's own tools. To also undo
+what shell commands change (installs, code generators, `sed -i`), turn on:
+
+```json
+"project_snapshots": true
+```
+
+GoHarness then records the whole project at the start and end of every run in
+a private shadow Git repository beside the session folder. Files in
+`.gitignore` are skipped, and your own `.git`, index, branches and commits are
+never touched. Snapshots need `git` on PATH; a failed snapshot is reported and
+never stops a run.
+
+```sh
+goh snapshots list SESSION           # files each run changed
+goh snapshots diff SESSION 2         # full diff of run 2
+goh snapshots restore SESSION 2      # list what returning to before run 2 changes
+goh snapshots restore SESSION 2 --yes
+goh snapshots undo SESSION --yes     # put back the state before the last restore
+```
+
 ### Hooks
 
 Hooks run your own commands at points in the agent loop. They are read only
