@@ -6,6 +6,13 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.154 — 2026-11-09
+
+- Benchmark suite expanded to **22 validated tasks** (11 Go, 11 Python),
+  adding multi-package, concurrency, HTTP, refactoring and parsing tasks.
+  Tests the agent can see are also kept in `hidden/`, so grading always uses
+  the originals and edits to them are flagged.
+
 ## 1.0.0-rc.153 — 2026-11-09
 
 - **Benchmark runner (C11):** `cmd/bench` (`make bench-check`) runs pinned

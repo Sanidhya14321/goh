@@ -1,0 +1,8 @@
+{
+  "id": "go-semver-compare",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "Compare in version.go compares versions as strings, so 1.10.0 sorts before 1.9.0. Implement proper semantic version comparison for MAJOR.MINOR.PATCH with an optional leading 'v' and an optional pre-release suffix (a pre-release sorts before the release, compared lexically). Return -1, 0 or 1.",
+  "fail_to_pass": "go test -run TestCompare ./...",
+  "pass_to_pass": "go test ./..."
+}

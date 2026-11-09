@@ -1,0 +1,7 @@
+{
+  "id": "py-pagination",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "The pagination tests in test_pages.py fail. Fix paginate in pages.py (the tests are correct): pages are 1-based, the last page may be short, and a page past the end returns an empty list.",
+  "fail_to_pass": "python3 -m unittest test_pages -v"
+}

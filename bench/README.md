@@ -36,14 +36,11 @@ bench/tasks/<id>/
   solution/   reference fix, used only by --dry-run to validate the task
 ```
 
-The starter set has 8 small tasks in Go and Python, covering:
-- an off-by-one;
-- a two-file config change;
-- a data race;
-- error wrapping;
-- a median edge case;
-- slugify;
-- cent-exact money;
-- CSV quoting.
+The suite has 22 tasks in Go and Python (11 each), covering:
+- single-function bugs (off-by-one, median, Unicode reversal, interval merging, wrapping, pagination);
+- multi-file and multi-package changes (config and server, units and report, a pricing API rename across a package, environment-variable overrides);
+- concurrency (a data race, context cancellation in a worker pool);
+- API behaviour (HTTP validation, error wrapping, semantic versions, an LRU cache, generics);
+- data handling (CSV quoting, cent-exact money, duration parsing, slugify, a mutable-default bug).
 
-Add 20–30 harder tasks from your own repositories (multi-file changes, failing-test repair, longer maintenance) before drawing conclusions. Small suites are noisy.
+Run several attempts per task (`--attempts 3`); with 22 tasks, differences of a task or two between arms are noise. Add harder tasks from your own repositories for longer maintenance work.

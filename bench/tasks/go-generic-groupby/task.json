@@ -1,0 +1,8 @@
+{
+  "id": "go-generic-groupby",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "Implement GroupBy in group.go (it currently panics): a generic function that groups a slice into a map by a key function, preserving the original order within each group.",
+  "fail_to_pass": "go test -run TestGroupBy ./...",
+  "pass_to_pass": "go test ./..."
+}

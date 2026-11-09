@@ -1,0 +1,7 @@
+{
+  "id": "py-wrap-text",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "wrap(text, width) in wrapping.py should return lines no longer than width, breaking at spaces, splitting words longer than width, and collapsing runs of whitespace. It currently drops the last line and never splits long words. Fix it.",
+  "fail_to_pass": "python3 -m unittest test_wrapping -v"
+}

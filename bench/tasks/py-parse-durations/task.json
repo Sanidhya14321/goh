@@ -1,0 +1,7 @@
+{
+  "id": "py-parse-durations",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "parse_duration in durations.py only handles plain seconds. Make it accept strings like '1h30m', '45s', '2h', '1d2h' and '90' (seconds), returning total seconds as an int, and raise ValueError for anything else (including empty strings and unknown units).",
+  "fail_to_pass": "python3 -m unittest test_durations -v"
+}

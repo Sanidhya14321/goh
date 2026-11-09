@@ -1,0 +1,8 @@
+{
+  "id": "py-config-env",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "Settings in app/config.py should let environment variables override file values: APP_PORT (int), APP_DEBUG (true/false, case-insensitive, also 1/0) and APP_NAME. Right now env vars are ignored and DEBUG='false' is treated as true. Implement load_settings(path, env=None) so env defaults to os.environ; app/server.py must use load_settings.",
+  "fail_to_pass": "python3 -m unittest test_config_env -v",
+  "pass_to_pass": "python3 -m unittest discover -v"
+}

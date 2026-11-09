@@ -1,0 +1,8 @@
+{
+  "id": "py-rename-api",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "Rename the function `calc` in shop/pricing.py to `compute_total` (keep a deprecated `calc` alias that still works), and update every caller in the shop package to use the new name.",
+  "fail_to_pass": "python3 -m unittest test_rename -v",
+  "pass_to_pass": "python3 -m unittest discover -v"
+}

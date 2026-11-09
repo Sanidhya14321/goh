@@ -1,0 +1,8 @@
+{
+  "id": "go-worker-cancel",
+  "max_run_seconds": 900,
+  "max_tool_calls": 120,
+  "prompt": "Process in pool.go ignores ctx: when the context is cancelled it keeps processing every job and can block forever. Make it stop promptly on cancellation and return ctx.Err(), while still returning all results when not cancelled.",
+  "fail_to_pass": "go test -race -run TestProcess ./...",
+  "pass_to_pass": "go test ./..."
+}

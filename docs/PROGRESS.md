@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC154 benchmark suite milestone
+
+22 validated tasks.
+
 ## RC153 C11 benchmark milestone
 
 Runner and 8 validated tasks; live runs await the user's go-ahead (they use ChatGPT plan quota).
