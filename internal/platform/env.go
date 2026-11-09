@@ -24,7 +24,10 @@ var safeEnvNames = []string{
 	"SystemRoot", "SystemDrive", "ComSpec", "PATHEXT", "WINDIR", "USERPROFILE", "APPDATA",
 	"LOCALAPPDATA", "TEMP", "TMP", "HOMEDRIVE", "HOMEPATH", "ProgramFiles", "ProgramFiles(x86)",
 	"ProgramData", "CommonProgramFiles", "NUMBER_OF_PROCESSORS", "OS", "PROCESSOR_ARCHITECTURE",
-	"USERNAME", "COMPUTERNAME", "PSModulePath",
+	"USERNAME", "COMPUTERNAME", "PSModulePath", "ALLUSERSPROFILE", "PUBLIC", "ProgramW6432",
+	"CommonProgramW6432", "CommonProgramFiles(x86)", "DriverData", "PROCESSOR_IDENTIFIER",
+	"PROCESSOR_LEVEL", "PROCESSOR_REVISION", "USERDOMAIN", "USERDOMAIN_ROAMINGPROFILE",
+	"SESSIONNAME", "LOGONSERVER", "POWERSHELL_DISTRIBUTION_CHANNEL",
 }
 
 // safeEnvPrefixes cover locale and XDG directory variables.
