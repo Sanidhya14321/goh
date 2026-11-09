@@ -30,6 +30,7 @@ var paletteEntries = []paletteEntry{
 	{"/theme", "Choose a color theme (Ctrl+X T)"},
 	{"/copy", "Copy any recent message to the clipboard"},
 	{"/jobs", "Background jobs: view output or stop"},
+	{"/snapshots", "Whole-project changes per run, with restore commands"},
 	{"/changes", "Files changed in this session, with diffs"},
 	{"/timestamps", "Show or hide when each prompt was sent"},
 	{"/effort", "Reasoning effort for this session: /effort low|medium|high|off"},
@@ -139,6 +140,11 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			if entry.command == "/changes" {
 				m.palette = false
 				m.openChanges()
+				return m, nil
+			}
+			if entry.command == "/snapshots" {
+				m.palette = false
+				m.showSnapshots()
 				return m, nil
 			}
 			if entry.command == "/jobs" {

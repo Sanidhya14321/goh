@@ -15,7 +15,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ✅ (TUI restore moved to C10) |
 | C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
 | C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
-| C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | 🔄 RC152 headless done; TUI snapshot restore pending |
+| C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | ✅ RC152–155 |
 | C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ✅ RC153 (live runs need go-ahead) |
 
 ## Findings log
@@ -113,7 +113,7 @@ MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), co
 
 ### C10 Interfaces (RC152)
 
-Headless `goh run` is benchmark-ready: per-run verify and budget flags, `--allow all`, and distinct exit codes. Pending: restoring whole-project snapshots from the TUI.
+Headless `goh run` is benchmark-ready: per-run verify and budget flags, `--allow all`, and distinct exit codes. RC155 adds `/snapshots` in the TUI (listing plus exact restore commands).
 
 ### C11 Benchmark runner (RC153)
 
@@ -124,3 +124,11 @@ Sources:
 - From the review: DeepSWE, Terminal-Bench 2.1 and SWE-Bench Pro on verifier fixes and time budgets.
 
 Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The starter suite is small (8 tasks); add 20–30 harder tasks before drawing conclusions.
+
+## Ready to benchmark
+
+Every component is reviewed and improved. Next: `bin/goh-bench --goh bin/goh --attempts 3 --arm "base=" --arm "nocheck=--completion-check=false"` with the ChatGPT sign-in (`gpt-6.1-sol`). Candidate A/B arms, each a single change:
+- the completion check on or off;
+- `--reasoning-effort` levels;
+- `--verify` against no `--verify`;
+- a hashline edit tool (C1, not built).

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC155 TUI snapshots
+
+`TestSnapshotsCommandListsRunChanges` checks two cases. With snapshots off, `/snapshots` explains the `project_snapshots` setting. After a real run that creates `made.txt` with snapshots on, it lists `run 1  1 file(s)` and `A made.txt`, along with the restore command for that session. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC154 expanded benchmark suite
 
 `goh-bench --dry-run` reports all 22 tasks OK: each fails on its starting tree and passes, including pass-to-pass, with its reference solution. The dry run caught one broken fixture while the suite was being written (an unused import in a hidden Go test), which was fixed. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

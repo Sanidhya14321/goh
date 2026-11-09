@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC155 component plan complete
+
+All components C1–C11 reviewed and improved; ready to benchmark with gpt-6.1-sol on the user's go-ahead.
+
 ## RC154 benchmark suite milestone
 
 22 validated tasks.

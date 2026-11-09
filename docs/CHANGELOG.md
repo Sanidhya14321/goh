@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.155 — 2026-11-09
+
+- **`/snapshots` in the TUI (C10):** lists each run's whole-project changes
+  and shows the exact `goh snapshots restore` / `undo` commands (restoring
+  rewrites files, so it stays an explicit CLI step).
+
 ## 1.0.0-rc.154 — 2026-11-09
 
 - Benchmark suite expanded to **22 validated tasks** (11 Go, 11 Python),

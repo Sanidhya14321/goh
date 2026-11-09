@@ -559,6 +559,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.openChanges()
 				return m, nil
 			}
+			if strings.TrimSpace(prompt) == "/snapshots" {
+				m.input, m.inputCursor = "", 0
+				m.showSnapshots()
+				return m, nil
+			}
 			if strings.TrimSpace(prompt) == "/jobs" {
 				m.input, m.inputCursor = "", 0
 				m.openJobs()
