@@ -41,7 +41,7 @@ Severity: 🔴 **High**: a security or data-safety loophole, or a gap most users
 
 | # | Severity | Gap | Who has it |
 | --- | --- | --- | --- |
-| A1 | 🔴 | **No hooks** (run a user command before or after a tool, on permission prompts, on finish). Hooks are how teams enforce lint, block paths and log activity. | Crush (`PreToolUse`, `PostToolUse`, `PermissionRequest`…), Goose, Claude Code. OpenCode uses plugins. |
+| A1 | ✅ RC132 | **No hooks** (run a user command before or after a tool, on permission prompts, on finish). Hooks are how teams enforce lint, block paths and log activity. | Crush (`PreToolUse`, `PostToolUse`, `PermissionRequest`…), Goose, Claude Code. OpenCode uses plugins. |
 | A2 | 🔴 | **No whole-project snapshots / revert across turns.** Undo covers only files edited through our tools; anything changed by a shell command (`npm install`, `sed -i`, codegen) cannot be undone. | OpenCode (Git tree snapshots), Cline / Roo (shadow-Git checkpoints), Aider (Git auto-commit). |
 | A3 | 🟠 | **No Git auto-commit or commit-message mode.** | Aider (commits every change with a generated message; `/undo` reverts the commit). |
 | A4 | 🟠 | **No automatic lint/test → fix loop.** The model must decide to run tests itself. Formatters and LSP diagnostics exist, but there is no configured "after edits, run X and feed failures back" step. | Aider (`--auto-lint`, `--auto-test`), Goose recipes. |

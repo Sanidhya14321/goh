@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -58,6 +59,21 @@ type FormatterConfig struct {
 	Timeout    int               `json:"timeout_seconds,omitempty"`
 }
 
+// HookConfig runs a user command at a point in the agent loop. Hooks come only
+// from the user's configuration, never from repository files. A hook can
+// refuse a tool or add feedback; it can never grant a permission.
+type HookConfig struct {
+	// Event is pre_tool, post_tool or run_finished.
+	Event string `json:"event"`
+	// Tools limits tool events to these names (shell-style patterns such as
+	// "mcp_*"); empty means every tool.
+	Tools   []string `json:"tools,omitempty"`
+	Command string   `json:"command"`
+	Args    []string `json:"args,omitempty"`
+	// Timeout in seconds (default 10, at most 120).
+	Timeout int `json:"timeout_seconds,omitempty"`
+}
+
 type Config struct {
 	Memory              bool              `json:"memory,omitempty"`
 	AllowGeneratedEdits bool              `json:"allow_generated_edits,omitempty"`
@@ -100,7 +116,8 @@ type Config struct {
 	// only for cost estimates in goh stats. GoHarness ships no price table.
 	Prices map[string]ModelPrice `json:"prices,omitempty"`
 	// LSPAuto adds installed well-known language servers (see knownLSP).
-	LSPAuto bool `json:"lsp_auto,omitempty"`
+	LSPAuto bool         `json:"lsp_auto,omitempty"`
+	Hooks   []HookConfig `json:"hooks,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
 	// breakpoints (for gateways that reject cache_control).
 	DisablePromptCache bool `json:"disable_prompt_cache,omitempty"`
@@ -181,6 +198,9 @@ func LoadConfig(path string) (Config, error) {
 		if name == "" || strings.ContainsAny(name, "=\x00") {
 			return c, fmt.Errorf("env_passthrough: invalid variable name %q", name)
 		}
+	}
+	if err := ValidateHooks(c.Hooks); err != nil {
+		return c, err
 	}
 	platform.SetEnvPassthrough(c.EnvPassthrough)
 	return c, nil
@@ -367,4 +387,30 @@ func (c Config) CompactAt() int {
 		return 75
 	}
 	return c.CompactionThreshold
+}
+
+// ValidateHooks checks hook events, commands, patterns and timeouts.
+func ValidateHooks(hooks []HookConfig) error {
+	for i, h := range hooks {
+		switch h.Event {
+		case "pre_tool", "post_tool", "run_finished":
+		default:
+			return fmt.Errorf("hooks[%d]: event must be pre_tool, post_tool or run_finished", i)
+		}
+		if strings.TrimSpace(h.Command) == "" || strings.ContainsRune(h.Command, 0) {
+			return fmt.Errorf("hooks[%d]: command is required", i)
+		}
+		if h.Timeout < 0 || h.Timeout > 120 {
+			return fmt.Errorf("hooks[%d]: timeout_seconds must be between 0 and 120", i)
+		}
+		if h.Event == "run_finished" && len(h.Tools) > 0 {
+			return fmt.Errorf("hooks[%d]: tools applies only to tool events", i)
+		}
+		for _, pattern := range h.Tools {
+			if _, err := path.Match(pattern, ""); err != nil || pattern == "" {
+				return fmt.Errorf("hooks[%d]: invalid tool pattern %q", i, pattern)
+			}
+		}
+	}
+	return nil
 }

@@ -418,6 +418,33 @@ With the `anthropic_messages` protocol, GoHarness marks prompt-cache
 breakpoints so each turn re-reads the conversation from Anthropic's cache.
 Set `"disable_prompt_cache": true` if a gateway rejects `cache_control`.
 
+### Hooks
+
+Hooks run your own commands at points in the agent loop. They are read only
+from your user configuration, never from repository files.
+
+```json
+"hooks": [
+  {"event": "pre_tool", "tools": ["shell"], "command": "/Users/me/bin/guard-shell"},
+  {"event": "post_tool", "tools": ["edit_file", "apply_patch"], "command": "/Users/me/bin/lint-changed", "timeout_seconds": 30},
+  {"event": "run_finished", "command": "/Users/me/bin/notify"}
+]
+```
+
+- The command runs directly (no shell) in the project folder, with the same
+  filtered environment as tools plus `GOH_EVENT`, `GOH_TOOL`,
+  `GOH_SESSION_ID` and `GOH_PROJECT`. A JSON payload (`event`, `tool`,
+  `arguments`, and for `post_tool` the `result`) arrives on stdin.
+- `pre_tool` runs **after** you approve a tool and before it runs. Exit 0
+  lets it continue; exit 2 refuses it and stderr is shown to the model. Any
+  other exit, or a timeout, also refuses it (hooks fail closed). A hook can
+  never approve a tool you have not approved.
+- `post_tool`: exit 2 attaches the hook's output to the result as
+  `hook_feedback` (useful for linters); other exits are only reported.
+- `run_finished` is told the final status; it cannot change it.
+- `tools` takes names or patterns such as `mcp_*`; leave it out to match
+  every tool. The default timeout is 10 seconds (at most 120).
+
 `shell_rules` lets you skip the prompt for commands you trust and refuse
 ones you never want run. Each rule has a `match` pattern (`*` matches any
 text) and an `action`: `allow`, `deny` or `ask`. The last matching rule

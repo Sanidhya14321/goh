@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC132 hooks
+
+`TestHooksBlockAddFeedbackAndNotify` drives a real agent run with shell scripts as hooks. A `sh*` pre-tool hook refuses `rm -rf`, and the model receives the hook's stderr. A second shell call passes and a post-tool hook's output arrives as `hook_feedback`. A `read_file` hook that was never triggered does not run. The `run_finished` hook receives `{"event":"run_finished","status":"completed"}`. The hooks saw `GOH_TOOL=shell` but not `OPENAI_API_KEY`. `TestHooksCannotGrantAndFailClosed` checks that without a shell grant an allowing hook neither runs nor lets the command run (`needs_permission`), and that a hook exiting 1 stops an approved tool. `TestValidateHooks` rejects unknown events, missing commands, timeouts over 120 s, `tools` on `run_finished`, and bad patterns. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC131 Anthropic prompt caching
 
 `TestEncodeAnthropicPromptCacheBreakpoints` encodes two tools, two system blocks and a tool round trip, then checks the last tool, the last system block and the final `tool_result` carry `cache_control`, earlier ones do not, and there are exactly 3 breakpoints (the API allows 4). It also checks `disable_prompt_cache` removes every marker. Prefix stability was reviewed: the system prompt is fixed at session start (no timestamps) and MCP tool order is sorted. Cache hit rates against the live API are **not** measured (no live keys); `cache_read_input_tokens` is already parsed into usage. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

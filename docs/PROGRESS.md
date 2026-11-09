@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC132 hooks milestone
+
+Gap analysis A1 closed: user-config hooks that can refuse or add feedback, never grant.
+
 ## RC131 prompt caching milestone
 
 Gap analysis P1 closed (fixture-verified; live hit rate unmeasured).

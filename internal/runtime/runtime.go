@@ -712,7 +712,19 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 	}
 	return a.Tools.Prepare(name, b)
 }
+
+// execute runs one approved tool call, wrapped by any configured hooks.
 func (a *Agent) execute(ctx context.Context, c core.Call) tools.Result {
+	if len(a.Config.Hooks) == 0 {
+		return a.executeTool(ctx, c)
+	}
+	if blocked, ok := a.preToolHooks(ctx, c); !ok {
+		return blocked
+	}
+	return a.postToolHooks(ctx, c, a.executeTool(ctx, c))
+}
+
+func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 	if e := a.checkMode(c.Function.Name); e != nil {
 		return tools.Result{Error: true, Content: e.Error()}
 	}
@@ -982,6 +994,7 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		d["error"] = e.Error()
 	}
 	a.event("run_finished", d)
+	a.runFinishedHooks(status, err)
 	return status, err
 }
 

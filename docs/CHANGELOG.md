@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.132 — 2026-11-09
+
+- **Hooks:** `pre_tool`, `post_tool` and `run_finished` hooks from user
+  configuration. A pre-tool hook can refuse an approved tool (exit 2, or any
+  failure: hooks fail closed) but can never approve one; a post-tool hook can
+  attach feedback for the model. Hooks get the filtered environment and a
+  JSON payload on stdin. Gap analysis item A1.
+
 ## 1.0.0-rc.131 — 2026-11-09
 
 - **Anthropic prompt caching:** requests now mark cache breakpoints on the
