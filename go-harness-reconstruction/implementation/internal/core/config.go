@@ -28,6 +28,10 @@ type MCPConfig struct {
 type CommandConfig struct {
 	Description string `json:"description"`
 	Template    string `json:"template"`
+	// Agent (user configuration only) hands the expanded prompt to this
+	// subagent through the task tool, like an @mention. Command files in a
+	// repository cannot set it.
+	Agent string `json:"agent,omitempty"`
 }
 
 type LSPConfig struct {

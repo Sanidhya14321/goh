@@ -186,3 +186,26 @@ func TestRepairReusedToolIDProducesOneResult(t *testing.T) {
 		t.Fatal("repair was not idempotent")
 	}
 }
+
+func TestCommandAgentDelegatesLikeAMention(t *testing.T) {
+	a, _ := testAgent(t)
+	a.Config.Commands = map[string]core.CommandConfig{
+		"scan": {Template: "Scan $ARGUMENTS for dead code", Agent: "explore"},
+		"bad":  {Template: "x", Agent: "nobody"},
+	}
+	var seen string
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		seen = h[len(h)-1].Content
+		return answer(), nil
+	})
+	if status, e := a.Run(context.Background(), "/scan internal"); e != nil || status != "completed" {
+		t.Fatal(status, e)
+	}
+	if !strings.HasPrefix(seen, "@explore Scan internal for dead code") || !strings.Contains(seen, "mentioned the explore subagent") {
+		t.Fatal(seen)
+	}
+	seen = ""
+	if _, e := a.Run(context.Background(), "/bad"); e == nil || seen != "" {
+		t.Fatal("unknown command agent reached the provider", e)
+	}
+}

@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC121 command agent
+
+`TestCommandAgentDelegatesLikeAMention`: `/scan internal` with `"agent": "explore"` reaches the model as `@explore Scan internal for dead code` plus the delegation note; a command naming an unknown subagent fails before the provider is called. Repository command files are read by `commands.Discover`, which has no agent field, so they cannot set it. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC120 goh uninstall
 
 `TestUninstallListsThenRemovesOnlyOwnFolders` (temporary home): the target list is the program, its `harness` link and the two GoHarness folders; `--keep-data` drops the folders; a program not named goh is never listed; listing removes nothing; `--yes` removes both folders and leaves a neighbouring tool's folder. The built binary was also copied into a temporary prefix with a temporary HOME: the listing, then `--yes`, removed exactly the program and the two folders. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

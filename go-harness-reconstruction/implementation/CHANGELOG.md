@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.121 — 2026-11-09
+
+- A custom command in your own config can name a subagent:
+  `"commands": {"scan": {"template": "Scan $ARGUMENTS", "agent": "explore"}}`.
+  The expanded prompt is handed to that subagent like an `@explore`
+  mention; the task tool keeps its usual approval. Unknown names are refused
+  before anything is sent, and command files in a repository still cannot
+  choose an agent.
+
 ## 1.0.0-rc.120 — 2026-11-09
 
 - `goh uninstall` lists what it would remove: the running `goh` program

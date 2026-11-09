@@ -343,6 +343,16 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("expanded command is empty")
 	}
+	if commandName != "" {
+		if target := a.Config.Commands[commandName].Agent; target != "" {
+			if !a.subagentNames()[target] {
+				return "failed", fmt.Errorf("/%s names unknown subagent %q", commandName, target)
+			}
+			if a.depth == 0 {
+				prompt = "@" + target + " " + prompt
+			}
+		}
+	}
 	prompt, mentioned := a.withAgentMentions(prompt)
 	if len(mentioned) > 0 {
 		a.event("agents_mentioned", map[string]any{"agents": mentioned})
