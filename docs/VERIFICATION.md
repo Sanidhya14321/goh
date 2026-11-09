@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC143 provider capabilities and guidance trust
+
+- `TestReasoningEffortValidation` checks that OpenAI accepts `xhigh` and refuses `max`, and Anthropic accepts `low`/`high`/`xhigh`/`max` and refuses `minimal`.
+- `TestAnthropicThinkingRoundTrip` now requires stored thinking blocks (signature `sig-abc`) to be replayed even without a thinking setting, and checks that adaptive mode encodes `{"type":"adaptive","display":"summarized"}` with `output_config.effort`.
+- `TestGuidanceFilesLoaded` checks that user guidance stays in the system message, project guidance is absent from it and arrives as the next, untrusted user message, and `AGENTS.md` still takes precedence over `CLAUDE.md`.
+
+Live behaviour against current models was **not** tested (no live keys). Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC142 constraints and memory replay
 
 - `TestUserConstraintsSurviveRepeatedCompaction` **fails on RC141**, where the constraint is lost after the first compaction. It now finds `CONSTRAINT-42` verbatim after two compactions.

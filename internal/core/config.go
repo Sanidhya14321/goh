@@ -108,6 +108,10 @@ type Config struct {
 	// ThinkingBudget enables Anthropic extended thinking with this many
 	// tokens (at least 1024 and below output_budget); 0 disables it.
 	ThinkingBudget int `json:"thinking_budget,omitempty"`
+	// AnthropicThinking "adaptive" lets current Claude models decide how
+	// much to think (use reasoning_effort to steer depth); thinking_budget is
+	// for older models that take a fixed budget.
+	AnthropicThinking string `json:"anthropic_thinking,omitempty"`
 	// WebsearchURL is a SearXNG-compatible base URL enabling the websearch tool.
 	WebsearchURL string `json:"websearch_url,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
@@ -284,6 +288,18 @@ func (c Config) Validate() error {
 	if err := c.ValidateReasoningEffort(); err != nil {
 		return err
 	}
+	switch c.AnthropicThinking {
+	case "":
+	case "adaptive":
+		if c.EffectiveProtocol() != "anthropic_messages" {
+			return fmt.Errorf("anthropic_thinking applies only to the anthropic_messages protocol")
+		}
+		if c.ThinkingBudget != 0 {
+			return fmt.Errorf("set either anthropic_thinking (current models) or thinking_budget (older models), not both")
+		}
+	default:
+		return fmt.Errorf(`anthropic_thinking must be "adaptive"`)
+	}
 	if b := c.ThinkingBudget; b != 0 {
 		if c.EffectiveProtocol() != "anthropic_messages" {
 			return fmt.Errorf("thinking_budget applies only to the anthropic_messages protocol (use reasoning_effort for OpenAI)")
@@ -399,16 +415,27 @@ func readConfig(path string) ([]byte, error) {
 // ValidateReasoningEffort accepts OpenAI effort levels. Anthropic extended
 // thinking needs thinking blocks carried across turns, which GoHarness does not
 // implement yet, so the setting is refused there rather than silently ignored.
+// ReasoningEfforts lists the effort levels each protocol family accepts.
+// Which levels a particular model supports is checked by the provider.
+var ReasoningEfforts = map[string][]string{
+	"openai":    {"none", "minimal", "low", "medium", "high", "xhigh"},
+	"anthropic": {"low", "medium", "high", "xhigh", "max"},
+}
+
 func (c Config) ValidateReasoningEffort() error {
-	switch c.ReasoningEffort {
-	case "", "minimal", "low", "medium", "high":
-	default:
-		return fmt.Errorf("reasoning_effort must be minimal, low, medium or high")
+	if c.ReasoningEffort == "" {
+		return nil
 	}
-	if c.ReasoningEffort != "" && c.EffectiveProtocol() == "anthropic_messages" {
-		return fmt.Errorf("reasoning_effort is for OpenAI protocols; use thinking_budget for Anthropic extended thinking")
+	family := "openai"
+	if c.EffectiveProtocol() == "anthropic_messages" {
+		family = "anthropic"
 	}
-	return nil
+	for _, level := range ReasoningEfforts[family] {
+		if c.ReasoningEffort == level {
+			return nil
+		}
+	}
+	return fmt.Errorf("reasoning_effort for this provider must be one of: %s", strings.Join(ReasoningEfforts[family], ", "))
 }
 
 // CompactAt returns the automatic compaction trigger as a percentage.

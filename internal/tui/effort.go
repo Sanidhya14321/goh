@@ -1,8 +1,12 @@
 package tui
 
-import "strings"
+import (
+	"strings"
 
-// setEffort handles "/effort [minimal|low|medium|high|off]" for this session
+	"github.com/Sanidhya14321/goh/internal/core"
+)
+
+// setEffort handles "/effort [level|off]" for this session
 // only; the saved configuration is unchanged.
 func (m *model) setEffort(arg string) {
 	if m.a == nil {
@@ -14,7 +18,11 @@ func (m *model) setEffort(arg string) {
 		if current == "" {
 			current = "off (provider default)"
 		}
-		m.log += "\n[notice] Reasoning effort: " + current + ". Use /effort minimal|low|medium|high|off.\n"
+		family := "openai"
+		if m.a.Config.EffectiveProtocol() == "anthropic_messages" {
+			family = "anthropic"
+		}
+		m.log += "\n[notice] Reasoning effort: " + current + ". Use /effort " + strings.Join(core.ReasoningEfforts[family], "|") + "|off.\n"
 		return
 	}
 	if m.active {

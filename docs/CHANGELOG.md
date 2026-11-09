@@ -6,6 +6,17 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.143 — 2026-11-09
+
+External review fixes (R19, R20):
+- `reasoning_effort` accepts each protocol's current levels: OpenAI
+  `none`…`xhigh`, Anthropic `low`…`max` (sent as `output_config.effort`).
+- `"anthropic_thinking": "adaptive"` for current Claude models, with
+  summarized reasoning; `thinking_budget` remains for older models. Stored
+  thinking blocks are always replayed unchanged during tool use.
+- Repository guidance (`AGENTS.md`/`CLAUDE.md`) moved out of the system
+  prompt into its own labelled, untrusted user-role message.
+
 ## 1.0.0-rc.142 — 2026-11-09
 
 External review fixes (R17, R18):

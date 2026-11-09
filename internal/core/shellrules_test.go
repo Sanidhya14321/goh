@@ -70,9 +70,20 @@ func TestReasoningEffortValidation(t *testing.T) {
 	if c.ValidateReasoningEffort() == nil {
 		t.Fatal("accepted max")
 	}
-	c.ReasoningEffort, c.Protocol = "high", "anthropic_messages"
-	if c.ValidateReasoningEffort() == nil {
-		t.Fatal("anthropic must refuse reasoning_effort")
+	c.ReasoningEffort = "xhigh"
+	if c.ValidateReasoningEffort() != nil {
+		t.Fatal("OpenAI xhigh refused")
+	}
+	// Anthropic sends effort as output_config.effort (low..max), not OpenAI's
+	// minimal/none levels (review R19).
+	c.Protocol = "anthropic_messages"
+	for _, ok := range []string{"low", "high", "xhigh", "max"} {
+		if c.ReasoningEffort = ok; c.ValidateReasoningEffort() != nil {
+			t.Fatal("anthropic refused", ok)
+		}
+	}
+	if c.ReasoningEffort = "minimal"; c.ValidateReasoningEffort() == nil {
+		t.Fatal("anthropic accepted minimal")
 	}
 }
 

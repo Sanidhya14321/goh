@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC143 providers and guidance milestone
+
+R19 and R20 fixed (fixture-verified; live model checks pending).
+
 ## RC142 constraints and memory milestone
 
 R17 and R18 fixed.

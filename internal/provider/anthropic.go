@@ -35,10 +35,15 @@ type anthropicRequest struct {
 	Stream    bool               `json:"stream"`
 	MaxTokens int                `json:"max_tokens"`
 	Thinking  *anthropicThinking `json:"thinking,omitempty"`
+	Output    *anthropicOutput   `json:"output_config,omitempty"`
 }
 type anthropicThinking struct {
 	Type         string `json:"type"`
-	BudgetTokens int    `json:"budget_tokens"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
+	Display      string `json:"display,omitempty"`
+}
+type anthropicOutput struct {
+	Effort string `json:"effort,omitempty"`
 }
 type anthropicText struct {
 	Type         string          `json:"type"`
@@ -232,8 +237,14 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 		return invalid()
 	}
 	body := anthropicRequest{Model: config.Model, Stream: true, MaxTokens: config.OutputBudget}
-	if config.ThinkingBudget > 0 {
+	switch {
+	case config.AnthropicThinking == "adaptive":
+		body.Thinking = &anthropicThinking{Type: "adaptive", Display: "summarized"}
+	case config.ThinkingBudget > 0:
 		body.Thinking = &anthropicThinking{Type: "enabled", BudgetTokens: config.ThinkingBudget}
+	}
+	if config.ReasoningEffort != "" {
+		body.Output = &anthropicOutput{Effort: config.ReasoningEffort}
 	}
 	budget := maxResponse - 4096
 	account := func(s string) bool { budget -= 6*len(s) + 512; return budget >= 0 }
@@ -303,9 +314,10 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 			}
 			started = true
 			blocks := []any{}
-			if config.ThinkingBudget > 0 {
-				// Thinking blocks are replayed verbatim (signatures intact) and
-				// only while thinking is enabled.
+			{
+				// Thinking blocks are replayed verbatim and in order (signatures
+				// intact): current models require them during tool use, and
+				// the API ignores blocks a model cannot read.
 				for _, raw := range m.AnthropicThinking {
 					var kind struct {
 						Type string `json:"type"`

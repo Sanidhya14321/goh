@@ -53,10 +53,17 @@ func TestAnthropicThinkingRoundTrip(t *testing.T) {
 	if assistant[0]["type"] != "thinking" || assistant[0]["signature"] != "sig-abc" || assistant[1]["type"] != "redacted_thinking" || assistant[2]["type"] != "tool_use" {
 		t.Fatal("thinking blocks must lead the assistant turn verbatim", assistant)
 	}
+	// Current models think even when not configured and need their blocks
+	// back during tool use; the request carries no thinking setting then.
 	cfg.ThinkingBudget = 0
 	b, _ = EncodeAnthropic(cfg, history, nil)
-	if strings.Contains(string(b), "thinking") {
-		t.Fatal("thinking replayed while disabled")
+	if !strings.Contains(string(b), "sig-abc") || strings.Contains(string(b), `"budget_tokens"`) {
+		t.Fatal("stored thinking blocks must be replayed without a thinking setting:", string(b))
+	}
+	cfg.AnthropicThinking, cfg.ReasoningEffort = "adaptive", "xhigh"
+	b, _ = EncodeAnthropic(cfg, history, nil)
+	if !strings.Contains(string(b), `"thinking":{"type":"adaptive","display":"summarized"}`) || !strings.Contains(string(b), `"output_config":{"effort":"xhigh"}`) {
+		t.Fatal("adaptive thinking request:", string(b))
 	}
 	chat := chatWireMessages(history)
 	if strings.Contains(mustJSON(t, chat), "anthropic_thinking") {

@@ -72,6 +72,8 @@ type Agent struct {
 	// changedFiles and verifiedAfterChange track this run's outcome.
 	changedFiles, verifiedAfterChange bool
 	eventMu                           sync.Mutex
+	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
+	projectGuidance string
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -151,7 +153,9 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 			Content string `json:"content"`
 		}
 		if json.Unmarshal([]byte(guidance.Content), &doc) == nil && len(doc.Content) <= 64<<10 {
-			a.History[0].Content += "\nProject guidance (untrusted):\n" + doc.Content
+			// Kept out of the system message: repository text is untrusted
+			// data and is sent as its own user-role message (withTaskContext).
+			a.projectGuidance = doc.Content
 			a.GuidanceFiles = append(a.GuidanceFiles, filepath.Join(s.Project, name))
 		}
 		break

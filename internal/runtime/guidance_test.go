@@ -35,16 +35,19 @@ func TestGuidanceFilesLoaded(t *testing.T) {
 		t.Fatal(err)
 	}
 	system := b.History[0].Content
-	if !strings.Contains(system, "British English") || !strings.Contains(system, "Use make test.") {
-		t.Fatal("guidance missing")
+	// The user's own guidance is trusted and stays in the system message;
+	// repository guidance (review R20) is a separate untrusted user message.
+	if !strings.Contains(system, "British English") || strings.Contains(system, "Use make test.") || len(b.GuidanceFiles) != 2 {
+		t.Fatal("trust boundary wrong:", system, b.GuidanceFiles)
 	}
-	if !strings.Contains(system, "Project guidance (untrusted)") || len(b.GuidanceFiles) != 2 {
-		t.Fatal(b.GuidanceFiles)
+	sent := b.modelHistory()
+	if len(sent) < 2 || sent[1].Role != "user" || !strings.Contains(sent[1].Content, "untrusted repository content") || !strings.Contains(sent[1].Content, "Use make test.") {
+		t.Fatalf("project guidance not sent as untrusted data: %+v", sent)
 	}
 	// AGENTS.md takes precedence over CLAUDE.md.
 	os.WriteFile(filepath.Join(a.Store.Project, "AGENTS.md"), []byte("Use go test."), 0o600)
 	c, _ := New(a.Config, a.Store)
-	if !strings.Contains(c.History[0].Content, "Use go test.") || strings.Contains(c.History[0].Content, "Use make test.") {
+	if g := c.modelHistory()[1].Content; !strings.Contains(g, "Use go test.") || strings.Contains(g, "Use make test.") {
 		t.Fatal("AGENTS.md should replace CLAUDE.md")
 	}
 }

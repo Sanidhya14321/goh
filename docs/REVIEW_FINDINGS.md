@@ -24,6 +24,6 @@ the full gates pass.
 | R16 | P1 | Oversized MCP result after a successful action invites a repeat under the grant | ✅ Fixed RC140 |
 | R17 | P2 | Standing user constraints can be lost through compaction | ✅ Validated and fixed RC142: verbatim pinned instructions |
 | R18 | P2 | Recalled memory notes are not revalidated on replay | ✅ Fixed RC142 |
-| R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | Open |
-| R20 | P2 | Repository guidance is appended inside the system message | Open |
+| R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | ✅ Fixed RC143 (fixture-verified; live check pending) |
+| R20 | P2 | Repository guidance is appended inside the system message | ✅ Fixed RC143: separate untrusted user message |
 | R21 | P3 | Verify/repair workflow, shared run budgets, adversarial fixtures, benchmark suite | Open (roadmap) |

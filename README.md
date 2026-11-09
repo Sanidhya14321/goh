@@ -441,6 +441,23 @@ goh snapshots restore SESSION 2 --yes
 goh snapshots undo SESSION --yes     # put back the state before the last restore
 ```
 
+### Reasoning effort and thinking
+
+`"reasoning_effort"` steers how hard the model thinks (`/effort` changes it
+for one session). OpenAI protocols accept `none`, `minimal`, `low`, `medium`,
+`high` and `xhigh`; Anthropic accepts `low`, `medium`, `high`, `xhigh` and
+`max` (sent as `output_config.effort`). Which levels a model supports is
+checked by the provider.
+
+For current Claude models set `"anthropic_thinking": "adaptive"` (the model
+decides how much to think; summaries of its reasoning stream to the UI). Older
+Claude models use a fixed `"thinking_budget"` instead. Thinking blocks are
+always passed back unchanged during tool use.
+
+Repository guidance (`AGENTS.md`, or `CLAUDE.md`) is sent as a separate,
+clearly labelled untrusted message, not as part of the system prompt; your
+own guidance file beside the config stays in the system prompt.
+
 ### Shell sandbox
 
 Approval decides *whether* a command runs; the sandbox limits *what it can do*
