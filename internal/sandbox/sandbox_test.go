@@ -57,6 +57,9 @@ cat ` + outside + `/readme && echo
 curl -s -m 5 ` + srv.URL + ` 2>/dev/null || echo BLOCKED_NET`
 	out, err := sh(t, p, project, script)
 	if err != nil && strings.Contains(err.Error(), "Landlock") {
+		if os.Getenv("GOH_REQUIRE_SANDBOX") == "1" {
+			t.Fatal("sandbox required but unavailable:", err)
+		}
 		t.Skip("kernel lacks Landlock support:", err)
 	}
 	for _, want := range []string{"WROTE_PROJECT", "BLOCKED_WRITE", "BLOCKED_READ", "public", "BLOCKED_NET"} {

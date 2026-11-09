@@ -27,6 +27,9 @@ func TestShellToolRunsInsideSandbox(t *testing.T) {
 	v := object(t, call(t, e, "shell", map[string]any{"command": "echo ok > in.txt; echo x > " + filepath.Join(outside, "out.txt") + " 2>&1; echo done"}))
 	out, _ := v["output"].(string)
 	if strings.Contains(out, "Landlock") {
+		if os.Getenv("GOH_REQUIRE_SANDBOX") == "1" {
+			t.Fatal("sandbox required but unavailable:", out)
+		}
 		t.Skip("kernel lacks Landlock:", out)
 	}
 	if !strings.Contains(out, "done") {

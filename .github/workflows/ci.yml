@@ -24,6 +24,9 @@ jobs:
           cache-dependency-path: go.sum
       - run: go vet ./...
       - run: go test -count=1 ./...
+        env:
+          # Linux and macOS runners must exercise the real shell sandbox.
+          GOH_REQUIRE_SANDBOX: ${{ runner.os == 'Windows' && '0' || '1' }}
       - name: Build and smoke-run the binary
         run: |
           go build -o goh${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/harness
