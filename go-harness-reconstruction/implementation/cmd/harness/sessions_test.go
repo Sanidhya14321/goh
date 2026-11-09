@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"example.com/independent-harness/internal/testutil"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"example.com/independent-harness/internal/session"
 )
@@ -158,5 +160,42 @@ func TestSessionsRenameDeleteRestoreCLI(t *testing.T) {
 	}
 	if infos, _ := session.List(dir); len(infos) != 1 {
 		t.Fatal("restored session not listed")
+	}
+}
+
+func TestSessionsPruneListsThenTrashes(t *testing.T) {
+	dir := t.TempDir()
+	mk := func(age time.Duration) string {
+		s, err := session.New(dir, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		s.Close()
+		when := time.Now().Add(-age)
+		os.Chtimes(filepath.Join(dir, s.ID+".jsonl"), when, when)
+		return s.ID
+	}
+	old, fresh := mk(40*24*time.Hour), mk(time.Hour)
+	var out bytes.Buffer
+	if err := pruneSessions(&out, dir, time.Now().AddDate(0, 0, -30), false); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), old) || strings.Contains(out.String(), fresh) {
+		t.Fatal(out.String())
+	}
+	if infos, _ := session.List(dir); len(infos) != 2 {
+		t.Fatal("listing removed sessions")
+	}
+	if err := pruneSessions(&out, dir, time.Now().AddDate(0, 0, -30), true); err != nil {
+		t.Fatal(err)
+	}
+	if infos, _ := session.List(dir); len(infos) != 1 || infos[0].ID != fresh {
+		t.Fatal("wrong sessions remain", infos)
+	}
+	if err := session.Restore(dir, old); err != nil {
+		t.Fatal("pruned session not restorable", err)
+	}
+	if sessions([]string{"prune", "--session-dir", dir}) == nil {
+		t.Fatal("prune without --days accepted")
 	}
 }

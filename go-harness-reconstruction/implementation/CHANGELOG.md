@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.125 — 2026-11-09
+
+- `goh sessions prune --days N` lists sessions not changed for N days;
+  add `--yes` to move them to the trash. Each stays restorable with
+  `goh sessions restore ID`, and a session open elsewhere is skipped.
+
 ## 1.0.0-rc.124 — 2026-11-09
 
 - `goh stats` adds a tool table (calls and failures per tool, most used

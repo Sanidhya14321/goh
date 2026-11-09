@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC125 sessions prune milestone
+
+Backlog R08: bulk housekeeping through the existing restorable trash.
+
 ## RC124 tool statistics milestone
 
 Backlog R22: tool usage in `goh stats`, as in OpenCode's stats.

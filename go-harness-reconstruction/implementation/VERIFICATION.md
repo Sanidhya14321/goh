@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC125 sessions prune
+
+`TestSessionsPruneListsThenTrashes`: with a 40-day-old and a 1-hour-old session and a 30-day cutoff, the listing names only the old one and removes nothing; `--yes` trashes only the old one; it is then restored; `prune` without `--days` is refused. Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC124 tool statistics
 
 `TestCollectStatsCountsTools` journals four tool calls (one failed) and checks the counts, failure attribution by call ID and ordering (most calls first, then name). Gates passed: vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

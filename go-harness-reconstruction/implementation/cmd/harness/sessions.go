@@ -3,19 +3,21 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"example.com/independent-harness/internal/tui"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"example.com/independent-harness/internal/core"
 	"example.com/independent-harness/internal/session"
 )
 
 func sessions(args []string) error {
-	usage := "sessions list [--format json|table]|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID [--session-dir DIR]"
+	usage := "sessions list [--format json|table]|preview ID|show ID|export ID [--format json|markdown] [--include-tools] [--output FILE]|import FILE [--project DIR]|fork ID [--before-turn N]|salvage ID|rename ID TITLE|delete ID|restore ID|prune --days N [--yes] [--session-dir DIR]"
 	if len(args) == 0 {
 		return errors.New(usage)
 	}
@@ -37,7 +39,7 @@ func sessions(args []string) error {
 			}
 			title, args = args[0], args[1:]
 		}
-	case "list":
+	case "list", "prune":
 	default:
 		return errors.New(usage)
 	}
@@ -51,6 +53,11 @@ func sessions(args []string) error {
 	beforeTurn := 0
 	if command == "fork" {
 		f.IntVar(&beforeTurn, "before-turn", 0, "branch before this one-based user turn; zero copies the full session")
+	}
+	pruneDays, pruneYes := 0, false
+	if command == "prune" {
+		f.IntVar(&pruneDays, "days", 0, "sessions not changed for this many days (required, at least 1)")
+		f.BoolVar(&pruneYes, "yes", false, "move them to the trash (default: only list them)")
 	}
 	exportFormat, includeTools := "json", false
 	if command == "export" {
@@ -104,6 +111,11 @@ func sessions(args []string) error {
 			return err
 		}
 		return encoder.Encode(map[string]string{"id": subject, "title": session.CleanTitle(title)})
+	case "prune":
+		if pruneDays < 1 {
+			return errors.New("usage: goh sessions prune --days N [--yes]")
+		}
+		return pruneSessions(os.Stdout, *dir, time.Now().AddDate(0, 0, -pruneDays), pruneYes)
 	case "delete":
 		if err := session.Trash(*dir, subject); err != nil {
 			return err
@@ -189,4 +201,43 @@ func sessions(args []string) error {
 		return encoder.Encode(session.Info{ID: store.ID, Project: store.Project})
 	}
 	return errors.New(usage)
+}
+
+// pruneSessions lists, or with yes moves to the trash, sessions whose journal
+// was last changed before cutoff. Trashed sessions stay restorable; a session
+// open elsewhere is skipped by session.Trash and reported.
+func pruneSessions(w io.Writer, dir string, cutoff time.Time, yes bool) error {
+	infos, _, err := session.ListAll(dir)
+	if err != nil {
+		return err
+	}
+	var old []session.Info
+	for _, info := range infos {
+		fi, err := os.Stat(filepath.Join(dir, info.ID+".jsonl"))
+		if err == nil && fi.ModTime().Before(cutoff) {
+			old = append(old, info)
+		}
+	}
+	if len(old) == 0 {
+		fmt.Fprintln(w, "No sessions to prune.")
+		return nil
+	}
+	moved := 0
+	for _, info := range old {
+		if !yes {
+			fmt.Fprintf(w, "%s  %s\n", info.ID, tui.Safe(info.Project))
+			continue
+		}
+		if err := session.Trash(dir, info.ID); err != nil {
+			fmt.Fprintf(w, "skipped %s: %v\n", info.ID, err)
+			continue
+		}
+		moved++
+	}
+	if !yes {
+		fmt.Fprintf(w, "%d session(s) would move to the trash; run again with --yes (goh sessions restore ID undoes it).\n", len(old))
+	} else {
+		fmt.Fprintf(w, "Moved %d session(s) to the trash; goh sessions restore ID brings one back.\n", moved)
+	}
+	return nil
 }
