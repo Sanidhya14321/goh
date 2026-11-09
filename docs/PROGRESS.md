@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC149 C4 repository understanding milestone
+
+repo_map covers eight language families.
+
 ## RC148 C3 context milestone
 
 Recent-window masking.

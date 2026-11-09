@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.149 — 2026-11-09
+
+- **Multi-language repository map (C4):** `repo_map` now lists functions,
+  classes, types and methods in Python, JavaScript/TypeScript, Rust,
+  Java/Kotlin/C#/Scala, C/C++ and Ruby (line patterns, no new dependency),
+  alongside the exact Go parser. Same limits, hash-validated cache and
+  per-symbol line numbers.
+
 ## 1.0.0-rc.148 — 2026-11-09
 
 - **Masking window (C3):** context masking now keeps the 10 most recent tool

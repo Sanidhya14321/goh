@@ -97,10 +97,10 @@ func (e *Engine) prepareRepoMap(raw json.RawMessage) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	if !st.IsDir() && !strings.HasSuffix(a.Path, ".go") {
-		return "", false, errors.New("repo_map supports Go files or project directories")
+	if !st.IsDir() && !mapSupported(a.Path) {
+		return "", false, errors.New("repo_map supports Go, Python, JavaScript/TypeScript, Rust, Java/Kotlin/C#/Scala, C/C++ and Ruby files, or project directories")
 	}
-	return "Inspect bounded Go declarations under " + a.Path, false, nil
+	return "Inspect bounded declarations under " + a.Path, false, nil
 }
 func mapRead(r *os.Root, path string) ([]byte, error) {
 	if err := checked(r, path, false); err != nil {
@@ -138,6 +138,9 @@ func shortSignature(s string) string {
 	return s
 }
 func parseSymbols(path string, data []byte) mapCacheEntry {
+	if !strings.HasSuffix(path, ".go") {
+		return regexSymbols(path, data)
+	}
 	digest := hash(data)
 	out := mapCacheEntry{Digest: digest}
 	fset := token.NewFileSet()
@@ -262,7 +265,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 			}
 			return nil
 		}
-		if !strings.HasSuffix(path, ".go") || !d.Type().IsRegular() {
+		if !mapSupported(path) || !d.Type().IsRegular() {
 			return nil
 		}
 		if files >= mapMaxFiles || bytesRead >= mapMaxBytes || len(symbols) >= mapMaxSymbols {

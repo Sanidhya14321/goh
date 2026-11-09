@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC149 multi-language repository map
+
+`TestRegexSymbolsAcrossLanguages` extracts the expected declarations from Python, TypeScript, Rust, Java, C and Ruby samples. The samples include traps: a commented-out `def`, a commented `function`, a C prototype and an `if (` call, none of which may be listed. Writing the test found a bug: a C keyword filter dropped Rust's `fn new`; the filter now applies only to C-like languages. Existing Go repo_map tests pass unchanged. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC148 masking window
 
 `TestMaskingKeepsRecentWindow` fills a 200K window with 15 large reads and triggers masking. RC147 masked 14 and kept 1; RC148 masks 5 and keeps the newest 10. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

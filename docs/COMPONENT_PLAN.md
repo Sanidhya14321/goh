@@ -9,7 +9,7 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C1 | Tool calling and file editing (edit format, matching, errors) | `internal/tools` | ✅ RC146 |
 | C2 | Agent loop and control (planning, stopping, error recovery, verification) | `internal/runtime` | ✅ RC140–147 |
 | C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
-| C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ⬜ |
+| C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ✅ RC149 |
 | C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ⬜ |
 | C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ⬜ |
 | C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ⬜ |
@@ -65,3 +65,15 @@ Chosen:
 - a 10-result masking window (RC148).
 
 Memory writes stay user-initiated only, by design.
+
+### C4 Repository understanding (RC149)
+
+Sources:
+- [Repository map pattern](https://www.agentpatterns.ai/context-engineering/repository-map-pattern/): Aider's tree-sitter and PageRank map; Claude Code chose agentic search instead.
+- [Codebase-Memory (arXiv:2603.27277)](https://arxiv.org/html/2603.27277): structural index over MCP.
+- [Structural indexing for Codex CLI](https://codex.danielvaughan.com/2026/07/06/structural-codebase-indexing-coding-agents-codex-cli-mcp-knowledge-graph-navigation/).
+- [Monorepo index vs grep](https://dailyaiworld.com/blogs/monorepo-coding-agents-structural-index-grep-verdict) (unverified figures).
+
+The evidence is thin and largely vendor-run. Gains concentrate in multi-file changes; small repositories do fine with grep.
+
+Chosen: keep agentic search (grep, glob, read and LSP) as the primary path, and extend the cheap declaration map to the common benchmark languages. Not chosen: a persistent graph index or PageRank ranking without evidence. Revisit after C11 measures time-to-right-file.

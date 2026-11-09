@@ -124,7 +124,7 @@ func (*Engine) Definitions() []Definition {
 	edit["expected_sha256"] = str()
 	edit["replace_all"] = map[string]any{"type": "boolean"}
 	return append([]Definition{
-		{"repo_map", "Inspect a bounded Go declaration map without function bodies. Optional path/query filters and max500 symbols; reports content hashes, scan bounds and syntax errors. No compile/type-checking or external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
+		{"repo_map", "Inspect a bounded declaration map (functions, types, classes, methods) without bodies: Go is parsed exactly; Python, JavaScript/TypeScript, Rust, Java/Kotlin/C#/Scala, C/C++ and Ruby use line patterns that can miss unusual forms. Optional path/query filters and max500 symbols; reports lines, content hashes and scan bounds. No external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
 		{"read_artifact", "Read a retained shell/formatter output artifact by session-local artifact_id; byte offset or tail, max8192 bytes. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}}, "id")},
 		{"list_files", "List project files, skipping .git, node_modules and symlinks; at most 10000 entries.", s(list)},
 		{"read_file", "Read UTF-8 text with line numbers and full-file SHA-256; at most 4MiB.", s(read, "path")},
