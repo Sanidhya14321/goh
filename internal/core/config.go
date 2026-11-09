@@ -156,8 +156,11 @@ type Config struct {
 	// Verify runs a check after a run that changed files, with bounded
 	// automatic repair attempts when it fails.
 	Verify *VerifyConfig `json:"verify,omitempty"`
-	// MaxToolCalls bounds tool calls per run (0 = no limit).
+	// MaxToolCalls bounds tool calls per run, child tasks included (0 = no
+	// limit).
 	MaxToolCalls int `json:"max_tool_calls,omitempty"`
+	// MaxRunSeconds bounds a run's wall time, child tasks included.
+	MaxRunSeconds int `json:"max_run_seconds,omitempty"`
 	// Sandbox confines shell commands, background jobs and formatters.
 	Sandbox *SandboxConfig `json:"sandbox,omitempty"`
 	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
@@ -249,8 +252,8 @@ func LoadConfig(path string) (Config, error) {
 			return c, fmt.Errorf("verify: command is required, repair_attempts 0-3, timeout_seconds up to 600")
 		}
 	}
-	if c.MaxToolCalls < 0 {
-		return c, fmt.Errorf("max_tool_calls must not be negative")
+	if c.MaxToolCalls < 0 || c.MaxRunSeconds < 0 {
+		return c, fmt.Errorf("max_tool_calls and max_run_seconds must not be negative")
 	}
 	if c.Sandbox != nil {
 		for _, w := range c.Sandbox.Writable {

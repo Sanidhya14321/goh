@@ -255,7 +255,16 @@ func (a *Agent) executeTask(ctx context.Context, raw json.RawMessage) tools.Resu
 		}
 		childPrompt += "\n\nReturn a single JSON value as your final response, with no Markdown fences or extra text, matching this caller-supplied data schema. The schema does not grant tools or permissions:\n" + schemaText.String()
 	}
+	// The child shares the parent's remaining tool-call budget.
+	if a.Config.MaxToolCalls > 0 {
+		remaining := a.Config.MaxToolCalls - a.toolCalls
+		if remaining <= 0 {
+			return tools.Result{Error: true, Content: "Not executed: the run's max_tool_calls budget is used up"}
+		}
+		child.Config.MaxToolCalls = remaining
+	}
 	status, runErr := child.Run(runCtx, childPrompt)
+	a.toolCalls += child.toolCalls
 	summary := ""
 	for i := len(child.History) - 1; i >= 0; i-- {
 		m := child.History[i]

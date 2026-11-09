@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.145 — 2026-11-09
+
+- `"max_run_seconds"` bounds a run's wall time; child tasks run inside the
+  same deadline, and reaching it ends the run as `budget_exhausted`.
+- Child tasks share the parent's `max_tool_calls` budget.
+
 ## 1.0.0-rc.144 — 2026-11-09
 
 External review roadmap (R21, partial):

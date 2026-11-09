@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC145 shared budgets milestone
+
+R21 now open only for the live benchmark suite (needs keys) and cost budgets.
+
 ## RC144 verify/repair milestone
 
 R21 partial: verify/repair, max_tool_calls, adversarial canary. Live-model benchmark suite still needs keys.

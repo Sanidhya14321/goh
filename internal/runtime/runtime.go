@@ -350,6 +350,12 @@ func (a *Agent) RepairInterruptedHistory() error {
 	return nil
 }
 func (a *Agent) Run(ctx context.Context, prompt string) (status string, err error) {
+	if a.Config.MaxRunSeconds > 0 && a.depth == 0 {
+		// Child tasks run under this context, so they share the time budget.
+		var stop context.CancelFunc
+		ctx, stop = context.WithTimeout(ctx, time.Duration(a.Config.MaxRunSeconds)*time.Second)
+		defer stop()
+	}
 	a.seq = 0
 	a.runID = ID()
 	status = "failed"
@@ -1107,6 +1113,10 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		status = "cancelled"
 		if err == nil {
 			err = ctx.Err()
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) && a.Config.MaxRunSeconds > 0 && a.depth == 0 {
+			status = "budget_exhausted"
+			err = fmt.Errorf("run stopped at the max_run_seconds limit (%ds); effects of interrupted tools are uncertain", a.Config.MaxRunSeconds)
 		}
 	}
 	if status == "completed" && err == nil {

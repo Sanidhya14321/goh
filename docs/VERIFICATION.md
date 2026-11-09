@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC145 shared run budgets
+
+- `TestMaxRunSecondsBudget` checks that a `sleep 5` under a 1 s limit returns `budget_exhausted` within about 1 s.
+- `TestChildTasksShareToolCallBudget` gives the parent a limit of 3 and a child that never stops. The test asserts the child really ran, and that parent plus child stayed within 3 calls.
+
+Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC144 verify/repair, run budget, adversarial canary
 
 - `TestVerifyRepairCycle`:

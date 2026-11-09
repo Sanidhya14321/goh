@@ -26,5 +26,5 @@ the full gates pass.
 | R18 | P2 | Recalled memory notes are not revalidated on replay | ✅ Fixed RC142 |
 | R19 | P2 | Provider capability gaps: OpenAI effort levels beyond `high`; Anthropic adaptive thinking | ✅ Fixed RC143 (fixture-verified; live check pending) |
 | R20 | P2 | Repository guidance is appended inside the system message | ✅ Fixed RC143: separate untrusted user message |
-| R21 | P3 | Verify/repair workflow, shared run budgets, adversarial fixtures, benchmark suite | ◐ RC144: verify/repair, max_tool_calls and adversarial canary done; wall-time/cost budgets across children and the live benchmark suite remain (benchmark needs live keys) |
+| R21 | P3 | Verify/repair workflow, shared run budgets, adversarial fixtures, benchmark suite | ◐ RC144–145: verify/repair, shared tool-call and wall-time budgets, adversarial canary done; a dollar cost budget and the live benchmark suite remain (both need live usage) |
 | R22 | — | (Found by the canary) Sandboxed shell could read files denied by `file_rules` | ✅ Fixed on macOS RC144; Linux Landlock limit documented |
