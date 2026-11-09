@@ -111,8 +111,11 @@ func CollectStats(dir, project string, since time.Time) (Stats, error) {
 					}
 				}
 			case "message":
-				var m struct{ Role string }
-				if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" {
+				var m struct {
+					Role      string
+					Automatic bool
+				}
+				if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" && !m.Automatic {
 					st.Prompts++
 				}
 			case "usage":

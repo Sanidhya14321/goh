@@ -365,7 +365,7 @@ func chatWireMessages(messages []core.Message) []any {
 	out := make([]any, len(messages))
 	for i, m := range messages {
 		// Provider-specific state never reaches a Chat Completions request.
-		m.AnthropicThinking, m.ResponsesReasoning, m.ResponsesRoute = nil, nil, ""
+		m.AnthropicThinking, m.ResponsesReasoning, m.ResponsesRoute, m.Automatic = nil, nil, "", false
 		if len(m.Images) == 0 {
 			out[i] = m
 			continue

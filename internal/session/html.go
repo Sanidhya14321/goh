@@ -61,7 +61,11 @@ func (s *Store) WriteHTMLTranscript(out io.Writer, includeTools bool) error {
 		var err error
 		switch m.Role {
 		case "user":
-			err = put("<section class=\"user\"><h2>You</h2><div class=\"text\">", text(m.Content), "</div></section>\n")
+			who := "You"
+			if m.Automatic {
+				who = "GoHarness (automatic)"
+			}
+			err = put("<section class=\"user\"><h2>", who, "</h2><div class=\"text\">", text(m.Content), "</div></section>\n")
 		case "assistant":
 			if m.Content == "" && (!includeTools || len(m.ToolCalls) == 0) {
 				continue

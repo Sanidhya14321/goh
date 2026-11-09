@@ -864,6 +864,10 @@ func Run(a *agent.Agent, notice, draft string) error {
 	for _, message := range a.History {
 		switch message.Role {
 		case "user":
+			if message.Automatic {
+				m.log += "\n[GoHarness] " + Safe(message.Content) + "\n"
+				continue
+			}
 			m.rememberPrompt(message.Content)
 			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n"
 		case "assistant":

@@ -15,8 +15,11 @@ func isUserRecord(record Record) bool {
 	if record.Type != "message" {
 		return false
 	}
-	var role struct{ Role string }
-	return json.Unmarshal(record.Data, &role) == nil && role.Role == "user"
+	var role struct {
+		Role      string
+		Automatic bool
+	}
+	return json.Unmarshal(record.Data, &role) == nil && role.Role == "user" && !role.Automatic
 }
 
 func userRecordContent(record Record) string {

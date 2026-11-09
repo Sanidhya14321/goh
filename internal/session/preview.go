@@ -74,6 +74,9 @@ func Preview(dir, id string) (PreviewInfo, error) {
 			}
 			switch message.Role {
 			case "user":
+				if message.Automatic {
+					continue
+				}
 				if result.Title == "" && strings.TrimSpace(message.Content) != "" {
 					result.Title = previewExcerpt(strings.Join(strings.Fields(message.Content), " "), 100)
 				}

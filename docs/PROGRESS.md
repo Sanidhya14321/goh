@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC147 C2 agent loop milestone
+
+Evidence-gated completion reminder; automatic messages separated from user turns.
+
 ## RC146 C1 tool editing milestone
 
 Component plan started (docs/COMPONENT_PLAN.md); C1 tolerant unique-match edits.

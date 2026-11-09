@@ -28,6 +28,8 @@ func testAgent(t *testing.T) (*Agent, string) {
 	c.SessionDir = t.TempDir()
 	c.ContextWindow = 1 << 20
 	c.Model = "fixture"
+	off := false
+	c.CompletionCheck = &off // scripted tests opt in explicitly (see TestCompletionCheck)
 	s, err := session.New(c.SessionDir, root)
 	if err != nil {
 		t.Fatal(err)

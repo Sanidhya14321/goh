@@ -25,6 +25,9 @@ func pinnedInstructions(history []core.Message) (core.Message, bool) {
 		if m.Role != "user" {
 			continue
 		}
+		if m.Automatic && !strings.HasPrefix(m.Content, pinnedMarker) {
+			continue // GoHarness's own reminders are not user instructions
+		}
 		if rest, ok := strings.CutPrefix(m.Content, pinnedMarker); ok {
 			var prior []string
 			if json.Unmarshal([]byte(rest), &prior) == nil {
@@ -49,7 +52,7 @@ func pinnedInstructions(history []core.Message) (core.Message, bool) {
 		return core.Message{}, false
 	}
 	b, _ := json.Marshal(all)
-	return core.Message{Role: "user", Content: pinnedMarker + string(b)}, true
+	return core.Message{Role: "user", Content: pinnedMarker + string(b), Automatic: true}, true
 }
 
 func total(items []string) int {

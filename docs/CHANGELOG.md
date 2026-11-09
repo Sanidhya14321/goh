@@ -6,6 +6,18 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.147 — 2026-11-09
+
+- **Completion check (C2):** when a run is about to finish after changing
+  files and nothing has checked them since, the model is reminded once to
+  run the relevant test or build, or say why none applies. On by default;
+  `"completion_check": false` turns it off; skipped when `verify` is set.
+- Messages GoHarness writes itself (checks, repair requests, pinned
+  instructions) are marked automatic: they no longer count as your turns in
+  undo, revert, fork, the timeline or statistics, and are labelled
+  "GoHarness (automatic)" in the TUI and exports. This also fixes the
+  RC144 verify/repair messages being counted as turns.
+
 ## 1.0.0-rc.146 — 2026-11-09
 
 - **Tolerant edits (C1):** when `edit_file`'s `old_text` is not found

@@ -59,8 +59,11 @@ func userPrompts(records []session.Record) (idx []int, prompts []string) {
 		if r.Type != "message" {
 			continue
 		}
-		var m struct{ Role, Content string }
-		if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" {
+		var m struct {
+			Role, Content string
+			Automatic     bool
+		}
+		if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" && !m.Automatic {
 			idx, prompts = append(idx, i), append(prompts, m.Content)
 		}
 	}
@@ -258,8 +261,11 @@ func Redo(ctx context.Context, dir, branchID string) (Result, error) {
 			continue
 		}
 		if o != nil && r.Type == "message" {
-			var m struct{ Role string }
-			if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" {
+			var m struct {
+				Role      string
+				Automatic bool
+			}
+			if json.Unmarshal(r.Data, &m) == nil && m.Role == "user" && !m.Automatic {
 				newPrompt = true
 			}
 		}

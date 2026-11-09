@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -69,5 +70,45 @@ func TestRunOutcomes(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "new.txt")); err == nil {
 		t.Fatal("unexpected file")
+	}
+}
+
+// C2: a run that changed files without a passing check is reminded once to
+// check before finishing; a run that checked is not.
+func TestCompletionCheck(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for name, checks := range map[string]bool{"unchecked": false, "checked": true} {
+		t.Run(name, func(t *testing.T) {
+			a, _ := testAgent(t)
+			a.Config.CompletionCheck = nil // default on
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			reminders, turn := 0, 0
+			a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+				turn++
+				if last := h[len(h)-1]; last.Role == "user" && strings.Contains(last.Content, "no test, build or other check") {
+					reminders++
+					return answer(toolCall("t", "shell", map[string]any{"command": "test -f new.txt"})), nil
+				}
+				switch turn {
+				case 1:
+					return answer(toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})), nil
+				case 2:
+					if checks {
+						return answer(toolCall("t0", "shell", map[string]any{"command": "test -f new.txt"})), nil
+					}
+				}
+				return answer(), nil
+			})
+			if status, err := a.Run(context.Background(), "go"); status != "completed" {
+				t.Fatal(status, err)
+			}
+			want := 1
+			if checks {
+				want = 0
+			}
+			if reminders != want || lastOutcome(t, a) != OutcomeVerified {
+				t.Fatalf("reminders %d want %d, outcome %s", reminders, want, lastOutcome(t, a))
+			}
+		})
 	}
 }

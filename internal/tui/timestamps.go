@@ -48,10 +48,11 @@ func userPromptTimes(records []session.Record) map[string][]time.Time {
 			continue
 		}
 		var msg struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
+			Role      string `json:"role"`
+			Content   string `json:"content"`
+			Automatic bool   `json:"automatic"`
 		}
-		if json.Unmarshal(r.Data, &msg) == nil && msg.Role == "user" {
+		if json.Unmarshal(r.Data, &msg) == nil && msg.Role == "user" && !msg.Automatic {
 			times[msg.Content] = append(times[msg.Content], time.UnixMilli(r.Time))
 		}
 	}

@@ -156,6 +156,9 @@ type Config struct {
 	// Verify runs a check after a run that changed files, with bounded
 	// automatic repair attempts when it fails.
 	Verify *VerifyConfig `json:"verify,omitempty"`
+	// CompletionCheck (default on) reminds the model once per run to check
+	// its file changes before finishing when nothing has checked them.
+	CompletionCheck *bool `json:"completion_check,omitempty"`
 	// MaxToolCalls bounds tool calls per run, child tasks included (0 = no
 	// limit).
 	MaxToolCalls int `json:"max_tool_calls,omitempty"`

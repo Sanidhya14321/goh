@@ -23,6 +23,14 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC147 completion check and automatic messages
+
+- `TestCompletionCheck` checks that an unchecked change gets exactly one reminder and ends `verified` after the model runs a check, while a run that already checked gets none.
+- `TestAutomaticMessagesAreNotUserTurns` checks that only the real prompt counts as a turn.
+- The rewind suite (5 tests) failed while reminders were counted as turns, which exposed the bug; it passes now.
+
+Scripted runtime tests opt out of the reminder by default in `testAgent`. Gates passed: gofmt, vet (macOS, Linux and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC146 tolerant unique-match edits
 
 `TestFlexibleReplace` checks four cases:

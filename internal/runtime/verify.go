@@ -66,5 +66,5 @@ func (a *Agent) verifyAndMaybeRepair(ctx context.Context) (retry bool, err error
 		tail = "…" + tail[len(tail)-6000:]
 	}
 	msg := fmt.Sprintf("[Automatic check, not a new request] The configured verification command failed after your changes (repair attempt %d of %d).\nCommand: %s\nOutput (end):\n%s\nFix the cause, then finish.", a.repairsUsed, allowed, v.Command, tail)
-	return true, a.commit(core.Message{Role: "user", Content: msg})
+	return true, a.commit(core.Message{Role: "user", Content: msg, Automatic: true})
 }

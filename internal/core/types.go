@@ -27,6 +27,10 @@ type Message struct {
 	AnthropicThinking []json.RawMessage `json:"anthropic_thinking,omitempty"`
 	// Images attached to a user message (base64), sent as image parts.
 	Images []Image `json:"images,omitempty"`
+	// Automatic marks a user-role message GoHarness wrote itself (checks,
+	// repair requests, pinned instructions). It is not a user turn for
+	// undo, revert, timeline or statistics, and never sent to providers.
+	Automatic bool `json:"automatic,omitempty"`
 }
 
 // Image is an attached picture; Data is standard base64 without a prefix.

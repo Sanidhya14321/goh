@@ -33,6 +33,10 @@ func (s *Store) WriteTranscript(out io.Writer, includeTools bool) error {
 		}
 		switch message.Role {
 		case "user":
+			if message.Automatic {
+				w.add("## GoHarness (automatic)\n\n", message.Content, "\n\n")
+				continue
+			}
 			w.add("## User\n\n", message.Content, "\n\n")
 		case "assistant":
 			if message.Content == "" && (!includeTools || len(message.ToolCalls) == 0) {

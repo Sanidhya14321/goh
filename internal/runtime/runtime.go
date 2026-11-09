@@ -77,6 +77,7 @@ type Agent struct {
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
 	verifyFailed           bool
+	completionChecked      bool
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -362,7 +363,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
-	a.toolCalls, a.repairsUsed, a.verifyFailed = 0, 0, false
+	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked = 0, 0, false, false
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
@@ -517,6 +518,14 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		if len(reply.Message.ToolCalls) == 0 {
 			if strings.TrimSpace(reply.Message.Content) == "" {
 				return "failed", errors.New("the model returned an empty reply; nothing was done")
+			}
+			if a.needsCompletionCheck() {
+				a.completionChecked = true
+				if e := a.commit(core.Message{Role: "user", Content: completionCheckPrompt, Automatic: true}); e != nil {
+					return "failed", e
+				}
+				a.event("completion_check", map[string]any{"reason": "files changed without a passing check"})
+				continue
 			}
 			if retry, e := a.verifyAndMaybeRepair(ctx); e != nil {
 				return "failed", e
