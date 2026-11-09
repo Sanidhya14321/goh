@@ -58,7 +58,7 @@ Severity: 🔴 **High**: a security or data-safety loophole, or a gap most users
 
 | # | Severity | Gap | Who has it |
 | --- | --- | --- | --- |
-| P1 | 🔴 | **No Anthropic prompt caching** (`cache_control`). Long sessions resend the whole prefix at full price, often 5–10× the cost of cached reads. | OpenCode, Crush, Goose, Aider, Claude Code. |
+| P1 | ✅ RC131 | **No Anthropic prompt caching** (`cache_control`). Long sessions resend the whole prefix at full price, often 5–10× the cost of cached reads. | OpenCode, Crush, Goose, Aider, Claude Code. |
 | P2 | 🟠 | **No native Gemini, Bedrock, Vertex or Azure adapters.** These work only through an OpenAI-compatible gateway, which loses provider-specific features and auth (AWS SigV4, Google ADC). | OpenCode (via the AI SDK), Goose, Crush. |
 | P3 | 🟠 | **No built-in model catalog** (context windows, prices, capabilities). Users must set `context_window` and prices by hand. | OpenCode (models.dev), Goose (`model_catalog`), Crush (catwalk). |
 | P4 | 🟠 | **Several provider paths have never run against real services:** ChatGPT reasoning summaries, the 401 retry, Anthropic extended thinking, live failover. | VERIFICATION / END_TO_END_AUDIT |

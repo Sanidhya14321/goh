@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC131 Anthropic prompt caching
+
+`TestEncodeAnthropicPromptCacheBreakpoints` encodes two tools, two system blocks and a tool round trip, then checks the last tool, the last system block and the final `tool_result` carry `cache_control`, earlier ones do not, and there are exactly 3 breakpoints (the API allows 4). It also checks `disable_prompt_cache` removes every marker. Prefix stability was reviewed: the system prompt is fixed at session start (no timestamps) and MCP tool order is sorted. Cache hit rates against the live API are **not** measured (no live keys); `cache_read_input_tokens` is already parsed into usage. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.
+
 ## RC130 child-process environment
 
 `TestFilterEnv` checks the default set keeps PATH, HOME, `LC_*`, `XDG_*`, GOPATH and Windows `Path`, and drops `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `AWS_SECRET_ACCESS_KEY`, `GITHUB_TOKEN`, `DATABASE_URL`, a credential-bearing `HTTPS_PROXY` and malformed entries. It also checks that `env_passthrough` exact and `PREFIX_*` names are added and that `*` passes everything. `TestShellDoesNotInheritSecrets` runs `env` through the real shell tool with `OPENAI_API_KEY` and `GITHUB_TOKEN` set: neither value appears, while PATH works and a passthrough variable is visible. MCP and LSP servers use the same `platform.ChildEnvMap`, and their existing tests (including the real clangd run) pass. Gates passed: gofmt, vet (macOS and Windows), race suite, acceptance, and the PTY, setup and ACP suites.

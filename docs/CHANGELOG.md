@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.131 — 2026-11-09
+
+- **Anthropic prompt caching:** requests now mark cache breakpoints on the
+  last tool, the last system block and the newest message, so each turn
+  reuses the previous turn's prefix at cache-read prices instead of paying
+  full input price again. `"disable_prompt_cache": true` turns it off for
+  gateways that reject `cache_control`. Gap analysis item P1.
+
 ## 1.0.0-rc.130 — 2026-11-09
 
 - **Security:** shell commands, background jobs, formatters and MCP/LSP

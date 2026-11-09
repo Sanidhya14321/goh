@@ -41,17 +41,25 @@ type anthropicThinking struct {
 	BudgetTokens int    `json:"budget_tokens"`
 }
 type anthropicText struct {
+	Type         string          `json:"type"`
+	Text         string          `json:"text"`
+	CacheControl *anthropicCache `json:"cache_control,omitempty"`
+}
+
+// anthropicCache marks a prompt-cache breakpoint: everything up to and
+// including the marked block is cached and reused by the next request.
+type anthropicCache struct {
 	Type string `json:"type"`
-	Text string `json:"text"`
 }
 type anthropicMessage struct {
 	Role    string `json:"role"`
 	Content []any  `json:"content"`
 }
 type anthropicTool struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema json.RawMessage `json:"input_schema"`
+	Name         string          `json:"name"`
+	Description  string          `json:"description"`
+	InputSchema  json.RawMessage `json:"input_schema"`
+	CacheControl *anthropicCache `json:"cache_control,omitempty"`
 }
 type anthropicToolUse struct {
 	Type  string          `json:"type"`
@@ -351,6 +359,9 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 		if len(m.Content) > anthropicMaxBlocks {
 			return invalid()
 		}
+	}
+	if !config.DisablePromptCache {
+		markAnthropicCache(&body)
 	}
 	b, err := json.Marshal(body)
 	if err != nil || len(b) > maxResponse {
@@ -749,4 +760,40 @@ func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (co
 	reply.Message.Content = text.String()
 	reply.Message.ToolCalls = calls
 	return reply, nil
+}
+
+// markAnthropicCache sets three of the four allowed prompt-cache breakpoints:
+// the last tool, the last system block and the last block of the newest
+// message. The prefix is rendered tools -> system -> messages, so each request
+// reads the previous request's prefix from the cache and writes one more turn.
+// Prefixes below the model's minimum size are simply not cached.
+func markAnthropicCache(body *anthropicRequest) {
+	ephemeral := &anthropicCache{Type: "ephemeral"}
+	if n := len(body.Tools); n > 0 {
+		body.Tools[n-1].CacheControl = ephemeral
+	}
+	if n := len(body.System); n > 0 {
+		body.System[n-1].CacheControl = ephemeral
+	}
+	if len(body.Messages) == 0 {
+		return
+	}
+	last := &body.Messages[len(body.Messages)-1]
+	for i := len(last.Content) - 1; i >= 0; i-- {
+		raw, err := json.Marshal(last.Content[i])
+		if err != nil {
+			return
+		}
+		var block map[string]any
+		if json.Unmarshal(raw, &block) != nil {
+			return
+		}
+		// Thinking blocks cannot carry a breakpoint; mark the block before.
+		if t, _ := block["type"].(string); t == "thinking" || t == "redacted_thinking" {
+			continue
+		}
+		block["cache_control"] = ephemeral
+		last.Content[i] = block
+		return
+	}
 }

@@ -414,6 +414,10 @@ hold passwords. List anything else a command needs:
 behaviour of passing everything. An MCP or LSP server's own `env` settings are
 always added.
 
+With the `anthropic_messages` protocol, GoHarness marks prompt-cache
+breakpoints so each turn re-reads the conversation from Anthropic's cache.
+Set `"disable_prompt_cache": true` if a gateway rejects `cache_control`.
+
 `shell_rules` lets you skip the prompt for commands you trust and refuse
 ones you never want run. Each rule has a `match` pattern (`*` matches any
 text) and an `action`: `allow`, `deny` or `ask`. The last matching rule

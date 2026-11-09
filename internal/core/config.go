@@ -101,6 +101,9 @@ type Config struct {
 	Prices map[string]ModelPrice `json:"prices,omitempty"`
 	// LSPAuto adds installed well-known language servers (see knownLSP).
 	LSPAuto bool `json:"lsp_auto,omitempty"`
+	// DisablePromptCache stops GoHarness marking Anthropic prompt-cache
+	// breakpoints (for gateways that reject cache_control).
+	DisablePromptCache bool `json:"disable_prompt_cache,omitempty"`
 	// EnvPassthrough names extra environment variables (NAME, or PREFIX_*)
 	// that shell commands, jobs, formatters, MCP and LSP servers receive in
 	// addition to a fixed safe set; secrets are withheld unless listed. A lone

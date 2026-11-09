@@ -20,6 +20,10 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC131 prompt caching milestone
+
+Gap analysis P1 closed (fixture-verified; live hit rate unmeasured).
+
 ## RC130 environment scrubbing milestone
 
 Gap analysis S1/S2 closed: child processes receive only a safe environment plus `env_passthrough`.
