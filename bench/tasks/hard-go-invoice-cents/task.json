@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-invoice-cents",
+  "prompt": "Finance says some invoices don't add up: the invoice total differs from the sum of the printed line totals by a cent, mostly on multi-region orders. Every line must show its own tax-inclusive total and the invoice total must equal their sum. Fix the calculation.",
+  "fail_to_pass": "go test ./pricing/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

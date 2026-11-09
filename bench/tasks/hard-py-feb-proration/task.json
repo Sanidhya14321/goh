@@ -1,0 +1,8 @@
+{
+  "id": "hard-py-feb-proration",
+  "prompt": "Upgrade charges are wrong for customers who change plans mid-month: in February (especially in leap years) and on the last day of a month the prorated amount is off. The charge should be the price difference for the remaining days of that month, counting the change day itself. Fix it.",
+  "fail_to_pass": "python3 -m unittest tests.test_proration -v",
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

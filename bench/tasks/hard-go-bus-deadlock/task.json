@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-bus-deadlock",
+  "prompt": "The service sometimes hangs forever when a restock handler reacts to an item update by updating another item. Event handlers must be allowed to publish further events. Fix the hang without dropping or reordering events.",
+  "fail_to_pass": "go test -race ./events/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

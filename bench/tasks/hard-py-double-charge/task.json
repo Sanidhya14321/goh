@@ -1,0 +1,8 @@
+{
+  "id": "hard-py-double-charge",
+  "prompt": "Some customers were charged twice for one invoice during a payment-gateway slowdown. Retrying after a timeout must never create a second charge for the same invoice, and non-timeout errors should not be retried. Fix the payment flow.",
+  "fail_to_pass": "python3 -m unittest tests.test_payments -v",
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

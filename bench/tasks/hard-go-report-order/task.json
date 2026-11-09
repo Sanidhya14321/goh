@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-report-order",
+  "prompt": "The inventory CSV export is broken: rows with commas in the product name split into extra columns in Excel, and the row order changes between runs for items with the same name. Rows must be sorted by name then SKU and fields properly quoted.",
+  "fail_to_pass": "go test ./report/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

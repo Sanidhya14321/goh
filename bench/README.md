@@ -44,3 +44,23 @@ The suite has 22 tasks in Go and Python (11 each), covering:
 - data handling (CSV quoting, cent-exact money, duration parsing, slugify, a mutable-default bug).
 
 Run several attempts per task (`--attempts 3`); with 22 tasks, differences of a task or two between arms are noise. Add harder tasks from your own repositories for longer maintenance work.
+
+## Hard set (`hard-*`, 10 tasks)
+
+These tasks come from `bench/tools/gen_hard.py`, built on two correct mini-codebases:
+- **Go inventory service:** models, store with atomic batches, event bus, TTL cache, pricing, HTTP API and CSV reports.
+- **Python billing package:** money, periods, proration, exchange rates, payments with retries, usage aggregation.
+
+Each task plants one realistic bug and describes only its **symptom**, like a bug report, with no file names. The hidden tests check the full intended behaviour, and the reference solution is the original correct code, so every task is valid by construction. The covered bugs:
+- cache invalidation not wired across packages;
+- non-atomic batch updates;
+- per-line tax rounding;
+- cursor paging under deletion;
+- an event-bus deadlock;
+- CSV quoting and stable order;
+- February/leap-year proration;
+- an exchange-rate cache keyed without the day;
+- double charges on retry;
+- UTC day bucketing.
+
+`bench/tools/mine_go.py` can also mine tasks from real bug-fix commits. It runs third-party test code, so run it only inside a container or VM.

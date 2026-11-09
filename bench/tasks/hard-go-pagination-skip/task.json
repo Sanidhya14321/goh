@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-pagination-skip",
+  "prompt": "Clients paging through GET /items (using the `next` value as `after`) sometimes miss items or get the same item twice, especially when items are deleted while they page. Fix paging so every remaining item is returned exactly once.",
+  "fail_to_pass": "go test ./api/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

@@ -1,0 +1,8 @@
+{
+  "id": "hard-py-stale-rates",
+  "prompt": "Invoices in foreign currencies converted later in the month use the wrong exchange rate: a rate seen early in a run seems to stick for every later day. Each conversion must use that day's rate. Fix it.",
+  "fail_to_pass": "python3 -m unittest tests.test_rates -v",
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

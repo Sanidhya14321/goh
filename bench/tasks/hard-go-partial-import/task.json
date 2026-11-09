@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-partial-import",
+  "prompt": "After a bulk import fails halfway (for example on a bad row), some items are already changed and subscribers were told about changes that should never have happened. Imports must be all-or-nothing. Fix it.",
+  "fail_to_pass": "go test ./store/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

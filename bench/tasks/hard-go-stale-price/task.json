@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-stale-price",
+  "prompt": "Customers report seeing an old price for up to a minute after we change an item's price or delete it; the price API should always reflect the latest change. Find and fix the cause.",
+  "fail_to_pass": "go test ./service/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

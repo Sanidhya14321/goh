@@ -1,0 +1,8 @@
+{
+  "id": "hard-py-usage-days",
+  "prompt": "Daily usage totals don't match the provider's dashboard: usage logged late in the evening in US time zones lands on the wrong day. Days are UTC calendar days. Fix the aggregation.",
+  "fail_to_pass": "python3 -m unittest tests.test_usage -v",
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}
