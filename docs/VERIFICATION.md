@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC167 scrolling and queue audit
+
+- New tests in `component_audit_test.go`:
+  - the scroll anchor holds while output streams (this test fails when the anchor is disabled);
+  - the scrolled-up hint appears and Esc returns to the latest output;
+  - approval review does not overshoot;
+  - ↑ takes back a queued prompt.
+- The full gates pass: vet, race suite, acceptance, and the TUI, setup and ACP PTY suites.
+
 ## RC166 component audit
 
 - `go test ./internal/tui` passes. That includes the new `component_audit_test.go`, which has one test per fix:

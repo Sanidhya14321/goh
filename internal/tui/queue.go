@@ -32,6 +32,15 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			m.input, m.inputCursor = "", 0
 			m.log += "\n[queued] " + Safe(firstLine(prompt)) + "\n"
 		}
+	case "up":
+		// Take back the newest queued prompt to edit it or delete it.
+		if strings.TrimSpace(m.input) == "" && len(m.queue) > 0 {
+			last := m.queue[len(m.queue)-1]
+			m.queue = m.queue[:len(m.queue)-1]
+			m.input, m.inputCursor = last, len([]rune(last))
+			m.status = "Queued prompt returned to the composer"
+			m.log += "\n[unqueued] " + Safe(firstLine(strings.TrimSpace(last))) + "\n"
+		}
 	case "alt+enter", "shift+enter", "ctrl+j":
 		m.insertInput("\n")
 	case "left":

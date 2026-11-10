@@ -90,6 +90,8 @@ type model struct {
 	fileIndex            *fileIndexMsg
 	jobStopConfirm       string
 	slashPrefix          string
+	anchorText           string
+	anchorWidth          int
 	fileIndexStale       bool // a run finished since the snapshot; files may have changed
 	fileRescanning       bool
 	fork                 *optionPicker
@@ -553,6 +555,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if key == "esc" {
 			m.palette = false
+			m.scrollOffset = 0 // back to the latest output
 			return m, nil
 		}
 		if key == "f2" {
@@ -818,7 +821,7 @@ func (m *model) runControls() string {
 	}
 	controls := "Esc / Ctrl+C cancel  ·  Enter queues a prompt  ·  Ctrl+D exits after cleanup"
 	if n := len(m.queue); n > 0 {
-		controls = fmt.Sprintf("%d queued  ·  ", n) + controls
+		controls = fmt.Sprintf("%d queued (↑ edit last)  ·  ", n) + controls
 	}
 	return controls
 }

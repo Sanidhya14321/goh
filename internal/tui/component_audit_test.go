@@ -1,11 +1,13 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestPasteWhileRunningQueuesIntoComposer(t *testing.T) {
@@ -111,5 +113,72 @@ func TestSettingsKeepsTypedSpaces(t *testing.T) {
 func fuzzType2(m tea.Model, s string) {
 	for _, r := range s {
 		m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+}
+
+func TestScrolledReaderStaysPutWhileOutputStreams(t *testing.T) {
+	m := fuzzModel(t)
+	for i := range 200 {
+		m.log += fmt.Sprintf("line %d\n", i)
+	}
+	m.View()
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	before := ansi.Strip(m.View().Content)
+	m.log += "new 1\nnew 2\nnew 3\n"
+	after := ansi.Strip(m.View().Content)
+	pick := func(s string) string {
+		for _, l := range strings.Split(s, "\n") {
+			if strings.Contains(l, "line ") {
+				return strings.TrimSpace(l)
+			}
+		}
+		return ""
+	}
+	if pick(before) != pick(after) {
+		t.Fatalf("view drifted: %q → %q", pick(before), pick(after))
+	}
+}
+
+func TestScrolledUpShowsHintAndEscReturns(t *testing.T) {
+	m := fuzzModel(t)
+	m.log += strings.Repeat("row\n", 200)
+	m.View()
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	if !strings.Contains(ansi.Strip(m.View().Content), "Scrolled up") {
+		t.Fatal("no scrolled-up hint")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.scrollOffset != 0 || strings.Contains(ansi.Strip(m.View().Content), "Scrolled up") {
+		t.Fatal("Esc should return to the latest output")
+	}
+}
+
+func TestApprovalScrollDoesNotOvershoot(t *testing.T) {
+	m := fuzzModel(t)
+	m.active = true
+	m.pending = &permissionMsg{request: core.Permission{Tool: "shell", Preview: strings.Repeat("x\n", 60)}, response: make(chan core.Decision, 1)}
+	for range 50 {
+		m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+		m.View()
+	}
+	bottom := m.reviewOffset
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	m.View()
+	if m.reviewOffset >= bottom {
+		t.Fatalf("PgUp after overshoot did nothing (%d → %d)", bottom, m.reviewOffset)
+	}
+}
+
+func TestUpTakesBackQueuedPrompt(t *testing.T) {
+	m := fuzzModel(t)
+	m.active = true
+	fuzzType(m, "oops")
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if len(m.queue) != 1 {
+		t.Fatal("not queued")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	if len(m.queue) != 0 || m.input != "oops" {
+		t.Fatalf("queue %v input %q", m.queue, m.input)
 	}
 }

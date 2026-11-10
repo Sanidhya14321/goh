@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.167 — 2026-11-10
+
+- **Reading while a reply streams:** if you scroll up, the rows you are reading stay in place as new output arrives. Before, they slid out of view.
+- **Scrolled-up indicator:** when scrolled up, the hint row says so. At idle, Esc jumps back to the latest output.
+- **Approval and question review:** PgUp responds immediately after overshooting PgDn.
+- **Queued prompts:** during a run, ↑ on an empty input box takes back the newest queued prompt for editing. The hint row mentions this.
+- **Session picker:**
+  - paste works while renaming a session; before, it went into the search box;
+  - Home/End jump to the first or last session.
+
 ## 1.0.0-rc.166 — 2026-11-10
 
 Component-by-component TUI audit:

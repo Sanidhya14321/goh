@@ -187,6 +187,13 @@ func (m *model) View() tea.View {
 	if m.blocked != "" {
 		controls = "Ctrl+P provider commands  /provider setup  Ctrl+D exit"
 	}
+	if m.scrollOffset > 0 && m.pending == nil && m.question == nil {
+		// Without this a reader cannot tell that newer output is below.
+		controls = "↑ Scrolled up · PgDn or wheel for newer"
+		if !m.active {
+			controls += " · Esc jump to latest"
+		}
+	}
 	if !m.lastInterrupt.IsZero() && time.Since(m.lastInterrupt) < 2*time.Second {
 		controls = "Press Ctrl+C again to exit"
 	}
@@ -301,6 +308,9 @@ func (m *model) View() tea.View {
 // Reflow only the visible transcript tail. Cached rows are reused during typing
 // and permission decisions. Scrolling expands the window into older content.
 func (m *model) visibleRows(text string, width, height int, review bool) []transcriptRow {
+	if !review {
+		m.anchorScroll(text, width)
+	}
 	offset := m.scrollOffset
 	limit := max(4096, (height+offset+4)*width*4)
 	if review {
@@ -340,6 +350,7 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 	start := max(0, end-height)
 	if review {
 		start = min(m.reviewOffset, max(0, len(lines)-height))
+		m.reviewOffset = start // overshooting PgDn must not make PgUp feel dead
 		end = min(len(lines), start+height)
 	}
 	return lines[start:end]
@@ -442,4 +453,25 @@ func statusColor(m *model) string {
 		return green
 	}
 	return muted
+}
+
+// anchorScroll keeps a scrolled-up reader on the same rows while output keeps
+// arriving: the offset counts rows from the bottom, so it grows by however
+// many rows the appended text added.
+func (m *model) anchorScroll(text string, width int) {
+	previous := m.anchorText
+	m.anchorText = text
+	if m.scrollOffset == 0 || previous == "" || width != m.anchorWidth {
+		m.anchorWidth = width
+		return
+	}
+	if len(text) <= len(previous) || !strings.HasPrefix(text, previous) {
+		return
+	}
+	lineStart := strings.LastIndexByte(previous, '\n') + 1
+	before := len(transcriptRows(previous[lineStart:], width, "", false))
+	after := len(transcriptRows(text[lineStart:], width, "", false))
+	if after > before {
+		m.scrollOffset += after - before
+	}
 }

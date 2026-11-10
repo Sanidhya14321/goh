@@ -120,6 +120,12 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.loadBatch(v.next)
 		}
 	case tea.PasteMsg:
+		if m.renaming {
+			if len(m.renameText)+len(v.Content) <= 256 {
+				m.renameText += oneLineQuery(v.Content)
+			}
+			return m, nil
+		}
 		if len(m.query)+len(v.Content) <= 256 {
 			m.query += oneLineQuery(v.Content)
 			m.index, m.previewOffset = 0, 0
@@ -145,6 +151,10 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.index, m.previewOffset = max(0, m.index-1), 0
 		case "down":
 			m.index, m.previewOffset = min(max(0, len(matches)-1), m.index+1), 0
+		case "home":
+			m.index, m.previewOffset = 0, 0
+		case "end":
+			m.index, m.previewOffset = max(0, len(matches)-1), 0
 		case "pgup":
 			m.previewOffset = max(0, m.previewOffset-5)
 		case "pgdown":
