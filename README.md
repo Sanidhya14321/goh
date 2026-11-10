@@ -48,6 +48,7 @@ hidden tests, so a run passes only if the real tests pass, whatever the model re
 | Task fix rerun | rc.158 | `hard-py-double-charge` (fixed) | 3 | **3 (100%)** | 0 | 11.7 | 98 s |
 | Line-edit A/B | rc.159 | 10 hard, two arms | 20 | **20 (100%)** | 0 | 11.0 | 73 s |
 | Compound | rc.159 | 4 tasks, three bugs each | 8 | **8 (100%)** | 0 | 20.9 | 139 s |
+| **Real projects** | rc.162 | 19 bug fixes from 8 Go libraries, containerised | 19 | **14 (74%)** | 5 | 11.8 | 77 s |
 
 - Both false completions came from one task, `hard-py-double-charge`, and the cause was a defect in
   that task: its hidden test called a gateway `lookup()` method that nothing in the repository
@@ -57,7 +58,11 @@ hidden tests, so a run passes only if the real tests pass, whatever the model re
 - Turning the completion reminder off made no difference: it never fired, because the model always
   ran its own tests.
 - Optional line-range edits were used once in 13 edits and changed nothing, so they stay off.
-- The self-authored suite is now saturated for this model; harder signal needs real codebases.
+- The self-authored suite is saturated for this model. Real bug fixes from open-source libraries
+  are not: 14/19 on the first run. Four of the five misses were task prompts that left out details
+  the hidden tests check (now corrected); with corrected prompts, those tasks went 4/10, and every
+  miss was an incomplete fix the model believed it had verified. Details:
+  [`docs/bench/real-rc162.md`](docs/bench/real-rc162.md).
 - Runs cut off by the ChatGPT plan's usage limit are excluded, not counted as failures.
 
 Full reports: [`docs/bench/`](docs/bench/). How to run your own: [`bench/README.md`](bench/README.md).

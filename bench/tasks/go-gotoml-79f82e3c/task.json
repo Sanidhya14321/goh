@@ -4,7 +4,7 @@
     "url": "https://github.com/pelletier/go-toml",
     "commit": "a28afeddf84e60af06877531ea14d70faf3cafc2"
   },
-  "prompt": "Decoding into a struct that embeds a nil pointer to an unexported struct type (type outer struct { *inner }) panics with a reflect error when the document sets a field promoted from the embedded type. It should return an error, not panic. Fix it.",
+  "prompt": "Decoding into a struct that embeds a nil pointer to an unexported struct type (type outer struct { *inner }) panics with a reflect error when the document sets a field promoted from the embedded type, either directly (Z = 1) or under a table header. It must return the error \"toml: cannot set embedded pointer to unexported struct: <package>.<type>\" (for example \"toml: cannot set embedded pointer to unexported struct: toml_test.unexportedEmbedInner\"), like encoding/json, and never panic; this applies to every decoding path, including captured raw values. A non-nil embedded pointer must keep decoding normally. Fix it.",
   "fail_to_pass": "go test ./.",
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,

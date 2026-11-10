@@ -4,7 +4,7 @@
     "url": "https://github.com/tidwall/gjson",
     "commit": "6ac9851f5247bff94b0df2262ea60096fc0afb83"
   },
-  "prompt": "Int() and Uint() return wrapped-around garbage for JSON numbers outside the 64-bit range, such as 18446744073709551616 or 9223372036854775808. Out-of-range values should be clamped to the type's minimum or maximum, and negative numbers should give 0 from Uint(). Fix it.",
+  "prompt": "Int() and Uint() return wrapped-around garbage for values outside the 64-bit range, both for JSON numbers (18446744073709551616, 9223372036854775808, -9223372036854775809.1) and for numeric strings (\"18446744073709551616\", \"18446744073709551616.1\"). Out-of-range values must clamp to the type's minimum or maximum, fractional parts are dropped, and negative values give 0 from Uint(). Fix it.",
   "fail_to_pass": "go test ./.",
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,

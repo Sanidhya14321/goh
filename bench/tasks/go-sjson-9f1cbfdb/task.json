@@ -4,7 +4,7 @@
     "url": "https://github.com/tidwall/sjson",
     "commit": "1e706478d96cc587329167bf8c26ea871367fdd2"
   },
-  "prompt": "Setting an array element with a huge index misbehaves: Set(`[1,2,3]`, \"18446744073709551616\", 4) wraps around and writes the value instead of failing with the error \"cannot set array element for non-numeric key '18446744073709551616'\", and very large indexes can pad the array without limit. Reasonable indexes (around 100000) must keep working. Fix it.",
+  "prompt": "Setting array elements with huge indexes misbehaves. Required behaviour: Set(`[1,2,3]`, \"18446744073709551616\", 4) must leave the JSON unchanged and return the error \"cannot set array element for non-numeric key '18446744073709551616'\" (it currently wraps around). Padding an array is limited to 100000 new elements: Set(`[1,2,3]`, \"100003\", 4) works, but Set(`[1,2,3]`, \"100004\", 4) must return the input unchanged with the error \"cannot pad array for key '100004', has 3 elements, limit is 100000\", and Set(\"\", \"b.this.100001\", \"5\") must return \"\" with \"cannot pad array for key '100001', has 0 elements, limit is 100000\". A key too large for an index on a new path, as in Set(\"\", \"b.this.18446744073709551616\", \"5\"), creates an object key instead. Fix it.",
   "fail_to_pass": "go test ./.",
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
