@@ -78,6 +78,7 @@ type Agent struct {
 	toolCalls, repairsUsed int
 	verifyFailed           bool
 	completionChecked      bool
+	wroteTestDouble        bool // a test fake/mock/stub was written this run
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -364,7 +365,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
-	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked = 0, 0, false, false
+	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
@@ -522,10 +523,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			}
 			if a.needsCompletionCheck() {
 				a.completionChecked = true
-				if e := a.commit(core.Message{Role: "user", Content: completionCheckPrompt, Automatic: true}); e != nil {
+				prompt, reason := a.completionCheck()
+				if e := a.commit(core.Message{Role: "user", Content: prompt, Automatic: true}); e != nil {
 					return "failed", e
 				}
-				a.event("completion_check", map[string]any{"reason": "files changed without a passing check"})
+				a.event("completion_check", map[string]any{"reason": reason})
 				continue
 			}
 			if retry, e := a.verifyAndMaybeRepair(ctx); e != nil {

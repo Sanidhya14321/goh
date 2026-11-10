@@ -203,6 +203,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			} else if d.Event.Type == "tool_started" || d.Event.Type == "tool_finished" || d.Event.Type == "error" {
 				m.log += "\n[child " + Safe(d.TaskID) + " " + Safe(d.Event.Type) + "]\n"
 			}
+		case "stream_retry":
+			m.log += "\n[stream broke; the partial reply above was discarded and the request re-sent]\n"
 		case "assistant_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {

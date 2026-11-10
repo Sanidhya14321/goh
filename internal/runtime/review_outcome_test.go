@@ -112,3 +112,55 @@ func TestCompletionCheck(t *testing.T) {
 		})
 	}
 }
+
+// Benchmark finding: checks that pass against a fake the model wrote itself
+// trigger one reminder to confirm calls against the real definitions.
+func TestCompletionCheckTestDouble(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for name, tc := range map[string]struct {
+		path, content string
+		want          int
+	}{
+		"own fake":       {"tests/test_pay.py", "class FakeGateway:\n    pass\n", 1},
+		"plain test":     {"tests/test_pay.py", "def test_pay():\n    assert True\n", 0},
+		"fake in source": {"pay.py", "class FakeGateway:\n    pass\n", 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, root := testAgent(t)
+			a.Config.CompletionCheck = nil
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			reminders, turn := 0, 0
+			a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+				turn++
+				if last := h[len(h)-1]; last.Role == "user" && strings.Contains(last.Content, "fake, mock or stub you wrote") {
+					reminders++
+					return answer(), nil
+				}
+				switch turn {
+				case 1:
+					os.MkdirAll(filepath.Join(root, "tests"), 0o755)
+					return answer(toolCall("c", "create_file", map[string]any{"path": tc.path, "content": tc.content})), nil
+				case 2:
+					return answer(toolCall("t", "shell", map[string]any{"command": "true"})), nil
+				}
+				return answer(), nil
+			})
+			if status, err := a.Run(context.Background(), "go"); status != "completed" {
+				t.Fatal(status, err)
+			}
+			if reminders != tc.want {
+				t.Fatalf("reminders %d want %d", reminders, tc.want)
+			}
+		})
+	}
+}
+
+func TestWritesTestDoublePatch(t *testing.T) {
+	c := core.Call{}
+	c.Function.Name = "apply_patch"
+	b, _ := json.Marshal(map[string]any{"patchText": "*** Begin Patch\n*** Add File: pkg/pay_test.go\n+type fakeGateway struct{}\n*** End Patch"})
+	c.Function.Arguments = string(b)
+	if !writesTestDouble(c) {
+		t.Fatal("patch fake not detected")
+	}
+}

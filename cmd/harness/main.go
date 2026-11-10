@@ -202,6 +202,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	verifyCmd := f.String("verify", "", "run: check command after file changes, with bounded repair (overrides config)")
 	maxToolCalls := f.Int("max-tool-calls", 0, "run: stop after this many tool calls, child tasks included")
 	maxRunSeconds := f.Int("max-run-seconds", 0, "run: stop after this many seconds, child tasks included")
+	retryInterrupted := f.Int("retry-interrupted", 0, "run: re-send a model request whose stream broke, up to N times (0-2); partial replies are discarded")
 	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
 	sessionDir := f.String("session-dir", "", "private session storage")
 	allow := f.String("allow", "", "comma-separated run grants (all = every built-in local tool: file edits, shell, todos, skills, tasks): write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
@@ -342,6 +343,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.MaxToolCalls = *maxToolCalls
 		case "max-run-seconds":
 			c.MaxRunSeconds = *maxRunSeconds
+		case "retry-interrupted":
+			c.RetryInterruptedStreams = *retryInterrupted
 		case "completion-check":
 			c.CompletionCheck = completionCheck
 		}
@@ -490,6 +493,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				if d, ok := e.Data.(map[string]any); ok {
 					fmt.Print(tui.Safe(fmt.Sprint(d["text"])))
 				}
+			case "stream_retry":
+				fmt.Fprintln(os.Stderr, "\nStream broke; the partial reply was discarded and the request re-sent")
 			case "provider_retry":
 				if n, ok := e.Data.(core.RetryNotice); ok {
 					fmt.Fprintf(os.Stderr, "Provider busy (%s); retrying in %.1fs (attempt %d of %d)\n", tui.Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)

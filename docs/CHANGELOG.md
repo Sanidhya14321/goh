@@ -6,6 +6,18 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.158 — 2026-11-10
+
+- **Test-double check:** if a run's checks pass but the model wrote a fake,
+  mock or stub in a test file during the run, the model is reminded once to
+  confirm its calls against the real definitions and run the existing tests.
+  Targets the one false completion pattern seen in the benchmark.
+- **Opt-in stream retry:** `retry_interrupted_streams` (0-2) and
+  `goh run --retry-interrupted N` re-send a model request whose stream broke.
+  Off by default; the partial reply is discarded, its tool calls never run,
+  and the TUI and CLI say so.
+- README front page: overview, screenshots and verified benchmark results.
+
 ## 1.0.0-rc.157 — 2026-11-09
 
 - Errors reported inside a Responses/ChatGPT stream now show the provider's

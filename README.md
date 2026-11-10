@@ -1,9 +1,64 @@
-# GoHarness
+# GoHarness (`goh`)
 
-An original Go coding assistant for macOS and Linux: headless JSON/text CLI,
-Bubble Tea terminal UI, exact file tools, approved commands, durable sessions,
-and explicitly configured local stdio MCP servers. This is a development alpha,
-with selected OpenCode v1.19.5 behavior comparisons, not full OpenCode equivalence.
+An original, local-first coding agent written in Go: a terminal UI, a headless CLI for scripts and
+benchmarks, an HTTP API and an ACP editor adapter. It runs on macOS, Linux and Windows, works with
+the ChatGPT sign-in, OpenAI, Anthropic and any OpenAI-compatible endpoint, and keeps every change
+behind local approvals, a shell sandbox and a durable session journal.
+
+This is a development alpha. No release has been published yet; build from source (below).
+
+![Session view: a verified edit, rendered code and tables, and the session sidebar](docs/images/tui-session.png)
+
+## Why GoHarness
+
+- **Honest completion.** Every run ends with an outcome (`verified`, `unverified`, `no_changes`,
+  `failed_verification`), not just "done". Unchecked changes get one reminder to run a check, and
+  checks that pass only against a fake the model wrote itself get one reminder to confirm the real
+  definitions. An optional `--verify` command repairs failures before finishing.
+- **Enforcement outside the model.** Approvals scoped to a command prefix or web origin, a shell
+  sandbox (sandbox-exec on macOS, Landlock on Linux), a filtered child environment, no writes to
+  `.git`, private-address blocking for web fetches, and hooks that fail closed and can never grant.
+- **Exact, safe edits.** Hash-guarded file writes, whitespace-tolerant edits that must match exactly
+  one place, and whole-project snapshots you can list and restore.
+- **Durable sessions.** An fsynced journal, salvage of damaged journals, resume, fork, undo/redo and
+  rewind. A dropped model stream is never replayed and no uncertain tool is re-run; an opt-in
+  `--retry-interrupted` re-sends only the request.
+- **Context that lasts.** Old tool results are masked (the last 10 kept in full) before anything is
+  summarised, your instructions are pinned verbatim, and prompt caching is used on OpenAI and
+  Anthropic.
+- **A built-in benchmark runner** (`goh-bench`) with hidden tests, clean regrading, tamper detection,
+  false-completion counts and A/B arms.
+
+| Approval with a diff preview | Command palette |
+| --- | --- |
+| ![Approval prompt](docs/images/tui-approval.png) | ![Command palette](docs/images/tui-palette.png) |
+
+## Benchmark results (verified)
+
+![Benchmark results chart](docs/images/bench-results.svg)
+
+Model `gpt-6.1-sol` over the ChatGPT sign-in. Every attempt is graded in a clean copy of the task with
+hidden tests, so a run passes only if the real tests pass, whatever the model reported.
+
+| Run | Harness | Tasks | Attempts | Resolved | False completions | Avg tool calls | Avg time |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Stage 1 | rc.156 | 22 basic (Go, Python) | 22 | **22 (100%)** | 0 | 6.0 | 42 s |
+| Stage 2 | rc.156 | 10 hard, symptom-described | 26 | **25 (96%)** | 1 | 8.7 | 59 s |
+| Stage 2 A/B | rc.157 | same 10 hard | 20 | **19 (95%)** | 1 | 10.2 | 64 s |
+
+- Both false completions are the same task (`hard-py-double-charge`): the model invented a gateway
+  parameter and passed tests against its own fake. The test-double reminder (rc.158) targets this.
+- Turning the completion reminder off made no difference: it never fired, because the model always
+  ran its own tests.
+- Runs cut off by the ChatGPT plan's usage limit are excluded, not counted as failures.
+
+Full reports: [`docs/bench/`](docs/bench/). How to run your own: [`bench/README.md`](bench/README.md).
+Architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+## Reference
+
+The rest of this file is the full reference: install, configuration, permissions, sessions,
+integrations and interfaces.
 
 ## Install
 

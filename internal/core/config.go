@@ -165,6 +165,11 @@ type Config struct {
 	// MaxToolCalls bounds tool calls per run, child tasks included (0 = no
 	// limit).
 	MaxToolCalls int `json:"max_tool_calls,omitempty"`
+	// RetryInterruptedStreams (0-2, default 0) re-sends a model request whose
+	// stream broke before it finished. Off unless configured: the partial reply
+	// is discarded and none of its tool calls ran, so the retry is a new
+	// request, never a replay of the broken stream or of any tool.
+	RetryInterruptedStreams int `json:"retry_interrupted_streams,omitempty"`
 	// MaxRunSeconds bounds a run's wall time, child tasks included.
 	MaxRunSeconds int `json:"max_run_seconds,omitempty"`
 	// Sandbox confines shell commands, background jobs and formatters.
@@ -305,6 +310,9 @@ func ReadConfigText(path string) (string, error) {
 	return string(b), err
 }
 func (c Config) Validate() error {
+	if c.RetryInterruptedStreams < 0 || c.RetryInterruptedStreams > 2 {
+		return fmt.Errorf("retry_interrupted_streams must be 0-2")
+	}
 	if err := c.ValidateModelRoles(); err != nil {
 		return err
 	}

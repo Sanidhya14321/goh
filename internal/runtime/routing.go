@@ -40,6 +40,13 @@ func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
 // authentication failure or cancellation is never retried on another route.
 func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
 	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, delta)
+	for retry := 1; err != nil && errors.Is(err, provider.ErrInterrupted) && ctx.Err() == nil && retry <= a.Config.RetryInterruptedStreams; retry++ {
+		// Nothing from the broken reply was committed or executed, so this
+		// is a fresh request on the same history. The event tells interfaces
+		// to drop the partial text already shown.
+		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error()})
+		reply, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, delta)
+	}
 	if err != nil {
 		return reply, err
 	}

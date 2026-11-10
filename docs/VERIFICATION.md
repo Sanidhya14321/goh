@@ -23,6 +23,16 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC158 test-double check and opt-in stream retry
+
+New tests: `TestCompletionCheckTestDouble` (own fake → one reminder; plain test or fake in source → none),
+`TestWritesTestDoublePatch`, `TestRetryInterruptedStreams` (off → failed with one request; on → completed
+with two; the broken reply's tool call never ran; 3 retries rejected). All gates passed: gofmt, vet
+(macOS/Linux/Windows), race suite, acceptance, TUI PTY, setup and ACP suites.
+
+Stage 2 A/B on rc.157 (`docs/bench/stage2-ab-rc157.md`): base 9/10, nocheck 10/10; the completion check
+fired in 0 of 20 runs. Hard-set total so far: 44/46 resolved, 2 false completions (same task).
+
 ## RC157 stream error codes and partial stage 2
 
 `TestResponsesStreamErrorShowsCode` covers four cases: a top-level error event, a nested `error` object, and a `response.failed` error each keep their code and a cleaned message, and an event with neither falls back to the old hint. Long messages are bounded.

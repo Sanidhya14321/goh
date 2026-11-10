@@ -20,6 +20,12 @@ Not attempted, needing a decision first: custom tool plugins (they would
 execute repository code and need a security design), session sharing
 (uploads conversations), and MCP OAuth (needs a live server).
 
+## RC158 benchmark-driven fixes
+
+Stage 2 showed the completion reminder never fires for gpt-6.1-sol and that the only false completion
+comes from tests against a self-written fake. RC158 adds a targeted test-double reminder and an opt-in
+retry for dropped streams. Next: rerun the hard set with the new check, then harder tasks.
+
 ## RC156 first live benchmark
 
 Stage 1: 21/22 resolved; fixed the ChatGPT context window found by it.
