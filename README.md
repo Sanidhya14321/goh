@@ -686,6 +686,14 @@ retries a call. Servers close before the run's terminal event; a new run starts
 fresh servers, with session grants reusable within the TUI process. Remote
 transports, OAuth, sampling and automatic installation are deferred.
 
+### MCP resources and prompts
+
+Servers that offer resources give the model two read-only tools, `mcp_resources` and
+`mcp_read_resource`. Servers that offer prompt templates are listed with `/mcp` in the TUI and run
+as `/mcp:<server>:<prompt> [name=value ...]`; free text goes to the prompt's first argument. The
+rendered prompt is labelled as coming from that server and grants no permissions. The model never
+fetches prompts on its own.
+
 ### Remote MCP servers
 
 A server with `url` instead of `command` is reached over MCP Streamable

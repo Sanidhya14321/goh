@@ -32,7 +32,7 @@ Sources:
 - [The harness problem](https://blog.can.ac/2026/02/12/the-harness-problem): patch is the weakest format for most models, and the edit tool alone moved one model from 6.7% to 68.3%.
 - [Four CLI agents on one model](https://charlesazam.com/blog/deepdive-benchmark/): Gemini CLI and OpenCode fall back to fuzzy matching; Mistral Vibe uses it only for errors.
 
-Chosen: keep exact matching and hash guards; add a whitespace-tolerant fallback that requires a unique match, plus precise error locations. Not chosen yet: a line-anchored ("hashline") edit tool. It is worth an A/B test in the benchmark (C11) rather than adopting blind, since reports disagree by language.
+Chosen: keep exact matching and hash guards; add a whitespace-tolerant fallback that requires a unique match, plus precise error locations. Line-anchored edits were built as an opt-in (RC159) and A/B tested: gpt-6.1-sol used them once in 13 edits with no change in results, so they stay off.
 
 ### C2 Agent loop and control (RC140–RC147)
 
@@ -109,7 +109,7 @@ Decision: keep children sequential and in the foreground, with shared tool-call 
 
 ### C9 Integrations (RC135, RC137, RC151)
 
-MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), completed-but-oversized results (RC140) and resources (RC151). Still open: MCP prompts (as slash commands) and OAuth, which needs a real OAuth server.
+MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), completed-but-oversized results (RC140) and resources (RC151). MCP prompts as `/mcp:<server>:<prompt>` (RC160). Still open: OAuth, which needs a real OAuth server.
 
 ### C10 Interfaces (RC152)
 

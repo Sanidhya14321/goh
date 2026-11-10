@@ -54,6 +54,8 @@ type Manager struct {
 	failures  []Failure
 	// resourceServers maps servers that offer resources to their sessions.
 	resourceServers map[string]*mcp.ClientSession
+	// promptServers maps servers that offer prompts to their sessions.
+	promptServers map[string]*mcp.ClientSession
 	// reconnects counts restarts per server; reconnectMu serialises them.
 	reconnects  map[string]int
 	reconnectMu sync.Mutex
@@ -236,6 +238,14 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 			m.resourceServers = map[string]*mcp.ClientSession{}
 		}
 		m.resourceServers[name] = session
+		m.mu.Unlock()
+	}
+	if init := session.InitializeResult(); init != nil && init.Capabilities != nil && init.Capabilities.Prompts != nil {
+		m.mu.Lock()
+		if m.promptServers == nil {
+			m.promptServers = map[string]*mcp.ClientSession{}
+		}
+		m.promptServers[name] = session
 		m.mu.Unlock()
 	}
 	count := 0

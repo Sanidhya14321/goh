@@ -49,6 +49,11 @@ func TestMCPHelper(t *testing.T) {
 			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "fixture://docs/api", MIMEType: "text/plain", Text: "RESOURCE-TEXT-55"}}}, nil
 		})
 	}
+	if os.Getenv("HARNESS_MCP_PROMPTS") == "1" {
+		server.AddPrompt(&mcp.Prompt{Name: "review", Description: "Review a file", Arguments: []*mcp.PromptArgument{{Name: "file", Required: true}}}, func(_ context.Context, r *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
+			return &mcp.GetPromptResult{Messages: []*mcp.PromptMessage{{Role: "user", Content: &mcp.TextContent{Text: "PROMPT-77 review " + r.Params.Arguments["file"]}}}}, nil
+		})
+	}
 	if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
 		os.Exit(2)
 	}

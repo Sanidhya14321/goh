@@ -621,7 +621,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
-				m.log += "\nCommands: /provider, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands\n"
+				m.log += "\nCommands: /provider, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
 				names := make([]string, 0, len(m.a.Config.Commands))
 				for name := range m.a.Config.Commands {
 					names = append(names, name)
@@ -629,6 +629,23 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				sort.Strings(names)
 				for _, name := range names {
 					m.log += "/" + name + " — " + Safe(m.a.Config.Commands[name].Description) + "\n"
+				}
+				if len(m.log) > 128<<10 {
+					m.log = m.log[len(m.log)-(128<<10):]
+				}
+				return m, nil
+			}
+			if strings.TrimSpace(prompt) == "/mcp" {
+				m.input = ""
+				list, err := m.a.MCPPrompts(context.Background())
+				m.log += "\nMCP prompts (run as /mcp:<server>:<prompt> [name=value ...]):\n"
+				for _, p := range list {
+					m.log += "/mcp:" + Safe(p.Server) + ":" + Safe(p.Name) + " " + Safe(strings.Join(p.Arguments, " ")) + " — " + Safe(p.Description) + "\n"
+				}
+				if err != nil {
+					m.log += "error: " + Safe(err.Error()) + "\n"
+				} else if len(list) == 0 {
+					m.log += "(none: no connected MCP server offers prompts)\n"
 				}
 				if len(m.log) > 128<<10 {
 					m.log = m.log[len(m.log)-(128<<10):]

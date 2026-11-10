@@ -405,6 +405,16 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("prompt is required")
 	}
+	if text, name, isMCP, err := a.expandMCPPrompt(ctx, prompt); isMCP {
+		if err != nil {
+			return "failed", err
+		}
+		if e := a.Store.Append("command_invoked", map[string]any{"name": "mcp:" + name, "original_prompt": prompt}); e != nil {
+			return "failed", e
+		}
+		a.event("command_expanded", map[string]any{"name": "mcp:" + name, "expanded_bytes": len(text)})
+		prompt = text
+	}
 	expanded, commandName, expandErr := commands.Expand(prompt, a.commandSet())
 	if expandErr != nil {
 		return "failed", expandErr

@@ -103,3 +103,11 @@ type IntegrationFailure struct {
 	Name  string `json:"name"`
 	Error string `json:"error"`
 }
+
+// MCPPrompt describes a prompt template an MCP server offers. Users invoke it
+// as /mcp:<server>:<name>; Arguments lists required names first, optional
+// ones with a trailing "?".
+type MCPPrompt struct {
+	Server, Name, Description string
+	Arguments                 []string
+}

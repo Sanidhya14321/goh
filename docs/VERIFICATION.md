@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC160 MCP prompts
+
+`TestPrompts` (fixture server with a prompt: listed with required argument, rendered with arguments,
+unknown server refused, servers without prompts list none) and `TestMCPPromptExpansion` (free text to
+first argument, `name=value` pairs, server label present, malformed form fails). All gates passed.
+
+Benchmark (rc.159): line-range edit A/B 20/20 with line ranges used once in 13 edits (kept off);
+compound three-bug tasks 8/8.
+
 ## RC158 test-double check and opt-in stream retry
 
 New tests: `TestCompletionCheckTestDouble` (own fake → one reminder; plain test or fake in source → none),

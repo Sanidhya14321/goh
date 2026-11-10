@@ -6,6 +6,15 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.160 — 2026-11-10
+
+- **MCP prompts:** servers that offer prompt templates are listed with `/mcp`
+  in the TUI and run as `/mcp:<server>:<prompt> [name=value ...]` (free text
+  goes to the first argument). The rendered text is labelled as provided by
+  that server and grants no permissions; it is journalled like a custom
+  command. The model never fetches prompts by itself.
+- Refreshed README screenshots (command palette with current commands).
+
 ## 1.0.0-rc.159 — 2026-11-10
 
 - **Line-range edits (opt-in):** `line_edits: true` or `goh run --line-edits`
