@@ -26,7 +26,7 @@ jobs.
 ## RC165 event audit
 
 - `internal/tui/event_fuzz_test.go`:
-  - covers 40 in-session states and 6 setup screens;
+  - covers 30 in-session states and 6 setup screens;
   - sends every event once from a fresh state, then a seeded random walk;
   - each event has a 2 s deadline;
   - checks for panics, blocked handlers, and frames taller or wider than the

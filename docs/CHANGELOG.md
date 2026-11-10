@@ -8,7 +8,7 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## 1.0.0-rc.165 — 2026-11-10
 
-- **Event audit:** a stress test sends every kind of terminal input to 40 TUI
+- **Event audit:** a stress test sends every kind of terminal input to 30 TUI
   states and the six setup screens. Inputs: printable and control keys,
   navigation keys, Ctrl chords, left, right and middle clicks, the wheel,
   motion, empty and very large pastes, focus changes, and resizes down to 1x1
