@@ -56,7 +56,12 @@ func (a *Agent) outcome() string {
 }
 
 // testDoubleRe finds a stand-in the model defines for code it did not write.
-var testDoubleRe = regexp.MustCompile(`(?i)\b(class|type|struct|def|func|function|const|let|var)\s+\w*(fake|mock|stub|dummy)\w*`)
+// It matches named doubles (FakeX, mockY), stand-ins named after an external
+// role (a class or struct ending in Gateway, Client, Service and so on), and
+// common mocking libraries.
+var testDoubleRe = regexp.MustCompile(`(?i)\b(class|type|struct|def|func|function|const|let|var)\s+\w*(fake|mock|stub|dummy|spy)\w*` +
+	`|(?m)^\s*(class\s+\w*|type\s+\w*)(gateway|client|service|repository|repo|api|server|store|provider|backend|processor)\b` +
+	`|\bunittest\.mock\b|\bMagicMock\b|\bMock\(|\bmonkeypatch\b|\bjest\.(fn|mock)\b|\bsinon\.|\bgomock\b|\bmockito\b`)
 
 // isTestPath reports whether path looks like a test file in common layouts.
 func isTestPath(path string) bool {

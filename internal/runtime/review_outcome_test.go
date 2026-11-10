@@ -123,6 +123,9 @@ func TestCompletionCheckTestDouble(t *testing.T) {
 	}{
 		"own fake":       {"tests/test_pay.py", "class FakeGateway:\n    pass\n", 1},
 		"plain test":     {"tests/test_pay.py", "def test_pay():\n    assert True\n", 0},
+		"role stand-in":  {"tests/test_pay.py", "class IdempotentGateway:\n    def charge(self): pass\n", 1},
+		"mock library":   {"tests/test_pay.py", "from unittest.mock import Mock\n", 1},
+		"go stand-in":    {"pay/pay_test.go", "package pay\n\ntype recordingClient struct{}\n", 1},
 		"fake in source": {"pay.py", "class FakeGateway:\n    pass\n", 0},
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -138,7 +141,7 @@ func TestCompletionCheckTestDouble(t *testing.T) {
 				}
 				switch turn {
 				case 1:
-					os.MkdirAll(filepath.Join(root, "tests"), 0o755)
+					os.MkdirAll(filepath.Join(root, filepath.Dir(tc.path)), 0o755)
 					return answer(toolCall("c", "create_file", map[string]any{"path": tc.path, "content": tc.content})), nil
 				case 2:
 					return answer(toolCall("t", "shell", map[string]any{"command": "true"})), nil

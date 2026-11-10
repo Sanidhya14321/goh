@@ -17,6 +17,11 @@ Each entry lists user-visible changes; evidence for each is in
   Off by default; the partial reply is discarded, its tool calls never run,
   and the TUI and CLI say so.
 - README front page: overview, screenshots and verified benchmark results.
+- Benchmark fix: `hard-py-double-charge` now documents the gateway's
+  `lookup()` method its hidden test relies on. Its two false completions came
+  from that missing interface; after the fix it was solved 3 of 3.
+- The test-double check also recognises stand-ins named after an external
+  role (`IdempotentGateway`, `recordingClient`) and mocking libraries.
 
 ## 1.0.0-rc.157 — 2026-11-09
 

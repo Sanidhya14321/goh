@@ -45,9 +45,13 @@ hidden tests, so a run passes only if the real tests pass, whatever the model re
 | Stage 1 | rc.156 | 22 basic (Go, Python) | 22 | **22 (100%)** | 0 | 6.0 | 42 s |
 | Stage 2 | rc.156 | 10 hard, symptom-described | 26 | **25 (96%)** | 1 | 8.7 | 59 s |
 | Stage 2 A/B | rc.157 | same 10 hard | 20 | **19 (95%)** | 1 | 10.2 | 64 s |
+| Task fix rerun | rc.158 | `hard-py-double-charge` (fixed) | 3 | **3 (100%)** | 0 | 11.7 | 98 s |
 
-- Both false completions are the same task (`hard-py-double-charge`): the model invented a gateway
-  parameter and passed tests against its own fake. The test-double reminder (rc.158) targets this.
+- Both false completions came from one task, `hard-py-double-charge`, and the cause was a defect in
+  that task: its hidden test called a gateway `lookup()` method that nothing in the repository
+  mentioned, so the model had to guess an interface (`idempotency_key`, `is_charged`). With the
+  interface documented in the task, the model solved it 3 of 3. Excluding that task's earlier
+  attempts, the hard set stands at 42/42.
 - Turning the completion reminder off made no difference: it never fired, because the model always
   ran its own tests.
 - Runs cut off by the ChatGPT plan's usage limit are excluded, not counted as failures.

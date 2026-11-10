@@ -33,6 +33,13 @@ with two; the broken reply's tool call never ran; 3 retries rejected). All gates
 Stage 2 A/B on rc.157 (`docs/bench/stage2-ab-rc157.md`): base 9/10, nocheck 10/10; the completion check
 fired in 0 of 20 runs. Hard-set total so far: 44/46 resolved, 2 false completions (same task).
 
+Root cause of those false completions: a task defect. The hidden test for `hard-py-double-charge` calls
+`gateway.lookup()`, which nothing in the task repository named. With the old check (name patterns only)
+the reminder fired in 0/3 runs (model fake: `IdempotentGateway` plus `unittest.mock`); with broadened
+detection it fired in 3/3 but could not help (1/3 resolved), because the model correctly reported that no
+real gateway existed to check against. After documenting the interface in the task: 3/3 resolved,
+0 false completions (rc.158).
+
 ## RC157 stream error codes and partial stage 2
 
 `TestResponsesStreamErrorShowsCode` covers four cases: a top-level error event, a nested `error` object, and a `response.failed` error each keep their code and a cleaned message, and an event with neither falls back to the old hint. Long messages are bounded.

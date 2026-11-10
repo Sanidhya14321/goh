@@ -12,5 +12,5 @@
     <rect x="220" y="130" width="325" height="24" rx="3" fill="#2da44e"/>
     <text x="570" y="147" font-weight="600">44/46</text>
   </g>
-  <text x="24" y="210" font-size="12" fill="#57606a">False completions: 0 in stage 1; 2 in stage 2 (both hard-py-double-charge). Budget stops: 0.</text>
+  <text x="24" y="210" font-size="12" fill="#57606a">Both stage 2 misses came from one task defect (fixed; 3/3 since). Budget stops: 0.</text>
 </svg>
