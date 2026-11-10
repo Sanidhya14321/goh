@@ -1,0 +1,20 @@
+{
+  "id": "go-semver-441ff8e5",
+  "git": {
+    "url": "https://github.com/Masterminds/semver",
+    "commit": "2f39fdc11c33c38e8b8b15b1f04334ba84e751f2"
+  },
+  "prompt": "Version.Equal panics when either version is nil. Two nil versions should be equal, and a nil version compared with a non-nil one should be unequal. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "441ff8e5c8c464b3b1090ea5300a8e0fc4287e6f",
+  "source_files": [
+    "version.go"
+  ]
+}

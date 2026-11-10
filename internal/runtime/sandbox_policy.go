@@ -13,8 +13,11 @@ import (
 // in the project, temporary folders and listed paths; GoHarness's own config,
 // credentials and session state are unreadable.
 func sandboxPolicy(c core.Config, project string) *sandbox.Policy {
-	if c.Sandbox == nil || !c.Sandbox.Enabled {
+	if c.Sandbox == nil || !c.Sandbox.Enabled && c.Sandbox.Container == "" {
 		return nil
+	}
+	if c.Sandbox.Container != "" {
+		return &sandbox.Policy{Container: c.Sandbox.Container}
 	}
 	p := &sandbox.Policy{Network: c.Sandbox.Network, Writable: append([]string{project}, sandbox.TempDirs()...)}
 	home, _ := os.UserHomeDir()

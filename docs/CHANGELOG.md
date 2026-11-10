@@ -6,6 +6,21 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.162 — 2026-11-10
+
+- **Container sandbox:** `sandbox.container` or `goh run --sandbox-container
+  NAME` runs every shell command inside a running Docker container
+  (`docker exec`), with the project mounted at the same path. The command
+  gets the container's environment, never the host's.
+- **Benchmark isolation:** a task with `image` runs setup in a container with
+  network, and the agent's shell commands and grading in separate containers
+  with no network, mounting only the attempt folder and a dependency cache.
+  The miner (`bench/tools/mine_go.py`) runs every Go command in Docker too.
+- **19 real-project tasks** mined from bug-fix commits in gjson, cast,
+  BurntSushi/toml, gorilla/mux, go-humanize, go-toml v2, sjson and
+  Masterminds/semver, each validated in containers and given a symptom-only
+  prompt (55 tasks in total).
+
 ## 1.0.0-rc.161 — 2026-11-10
 
 - **Token budget:** `max_run_tokens` and `goh run --max-run-tokens N` stop a

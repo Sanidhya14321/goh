@@ -1,0 +1,20 @@
+{
+  "id": "go-humanize-1b638b2c",
+  "git": {
+    "url": "https://github.com/dustin/go-humanize",
+    "commit": "ac100271b177ad70370353d75f05ff5185a74ffc"
+  },
+  "prompt": "SI formatting of infinities and NaN is wrong: +Inf is printed with the largest SI prefix (as if it were a finite number times 10^30). Infinities and NaN should get no prefix, e.g. SI(+Inf, \"x\") gives \"+Inf x\" and ComputeSI returns an empty prefix. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "1b638b2c0d9b358cbae4b51b74f136d9a6055d1a",
+  "source_files": [
+    "si.go"
+  ]
+}

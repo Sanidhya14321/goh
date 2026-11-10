@@ -1,0 +1,20 @@
+{
+  "id": "go-gjson-9378d3bb",
+  "git": {
+    "url": "https://github.com/tidwall/gjson",
+    "commit": "8d89927eff414537088a6092d53fecf6711c1e75"
+  },
+  "prompt": "Calling Path() on a result from a malformed JSON document panics. For example, Get(`{\"b:\"2}`, \"b:\").Path(...) with the same document crashes the program. Library calls must never panic on bad input; fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "9378d3bb93e20854e1677e0e0248e1d71ae5712f",
+  "source_files": [
+    "gjson.go"
+  ]
+}

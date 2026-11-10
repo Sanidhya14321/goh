@@ -1,0 +1,20 @@
+{
+  "id": "go-toml-d10101f4",
+  "git": {
+    "url": "https://github.com/BurntSushi/toml",
+    "commit": "75a4f17a6da92eb899b599eafc43a2e7ddd76fc2"
+  },
+  "prompt": "Encoding a struct that contains a slice (or nested slice) of structs, where each element has a scalar field followed by a map field, produces invalid TOML: a comma or separator is missing or misplaced around the nested table. For example A []struct{I int; M map[string]int} should encode as an array of tables with the map as a sub-table. Fix the encoder.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "d10101f4fed80a8584aa2346e4701c5f5a184bc5",
+  "source_files": [
+    "encode.go"
+  ]
+}

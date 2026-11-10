@@ -39,6 +39,11 @@ type task struct {
 	PassToPass    string   `json:"pass_to_pass,omitempty"`
 	MaxRunSeconds int      `json:"max_run_seconds,omitempty"`
 	MaxToolCalls  int      `json:"max_tool_calls,omitempty"`
+	// Image, when set, isolates the task in Docker: setup runs in a
+	// container with network, while the agent's shell commands and grading
+	// run in containers with no network. Only the attempt folder and a
+	// shared dependency cache are mounted; no host credentials.
+	Image string `json:"image,omitempty"`
 	// Git, when set, is the starting tree: a repository at a pinned commit
 	// (fetched once into a local cache) instead of a bundled repo/ folder.
 	Git *struct {
@@ -204,10 +209,32 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		r.Error = "copy: " + err.Error()
 		return r
 	}
-	for _, s := range t.Setup {
-		if code, out := sh(work, s, 600); code != 0 {
-			r.Error = fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out))
+	var agentBox string
+	if t.Image != "" {
+		setupBox, err := startContainer(t.Image, base, true)
+		if err != nil {
+			r.Error = err.Error()
 			return r
+		}
+		for _, s := range t.Setup {
+			if code, out := csh(setupBox, work, s, 900); code != 0 {
+				stopContainer(setupBox)
+				r.Error = fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out))
+				return r
+			}
+		}
+		stopContainer(setupBox)
+		if agentBox, err = startContainer(t.Image, base, false); err != nil {
+			r.Error = err.Error()
+			return r
+		}
+		defer stopContainer(agentBox)
+	} else {
+		for _, s := range t.Setup {
+			if code, out := sh(work, s, 600); code != 0 {
+				r.Error = fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out))
+				return r
+			}
 		}
 	}
 	args := []string{"run", "--project", work, "--prompt", t.Prompt, "--format", "json", "--allow", "all", "--session-dir", sessions}
@@ -216,6 +243,9 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	}
 	if t.MaxToolCalls > 0 {
 		args = append(args, "--max-tool-calls", fmt.Sprint(t.MaxToolCalls))
+	}
+	if agentBox != "" {
+		args = append(args, "--sandbox-container", agentBox)
 	}
 	args = append(args, extra...)
 	start := time.Now()
@@ -257,11 +287,20 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 			return r
 		}
 	}
-	code, _ := sh(grade, t.FailToPass, 900)
+	var gradeBox string
+	if t.Image != "" {
+		// A fresh container: nothing the agent left running can interfere.
+		if gradeBox, err = startContainer(t.Image, base, false); err != nil {
+			r.Error = err.Error()
+			return r
+		}
+		defer stopContainer(gradeBox)
+	}
+	code, _ := csh(gradeBox, grade, t.FailToPass, 900)
 	r.FailToPassOK = code == 0
 	r.PassToPassOK = true
 	if t.PassToPass != "" {
-		code, _ = sh(grade, t.PassToPass, 900)
+		code, _ = csh(gradeBox, grade, t.PassToPass, 900)
 		r.PassToPassOK = code == 0
 	}
 	r.Resolved = r.FailToPassOK && r.PassToPassOK
@@ -378,8 +417,17 @@ func differs(hidden, work string) bool {
 func dryRun(tasks []task) int {
 	bad := 0
 	for _, t := range tasks {
-		tmp, _ := os.MkdirTemp("", "goh-bench-dry-")
+		tmp, _ := os.MkdirTemp(dryRoot(), "goh-bench-dry-")
 		defer os.RemoveAll(tmp)
+		var box string
+		if t.Image != "" {
+			var err error
+			if box, err = startContainer(t.Image, tmp, true); err != nil {
+				fmt.Printf("%-30s BROKEN container: %v\n", t.ID, err)
+				bad++
+				continue
+			}
+		}
 		src, err := t.sourceTree()
 		if err != nil {
 			fmt.Printf("%-30s BROKEN source: %v\n", t.ID, err)
@@ -390,21 +438,22 @@ func dryRun(tasks []task) int {
 		copyTree(src, start)
 		copyTree(filepath.Join(t.dir, "hidden"), start)
 		for _, s := range t.Setup {
-			sh(start, s, 600)
+			csh(box, start, s, 600)
 		}
-		before, _ := sh(start, t.FailToPass, 900)
+		before, _ := csh(box, start, t.FailToPass, 900)
 		ref := filepath.Join(tmp, "reference")
 		copyTree(src, ref)
 		copyTree(filepath.Join(t.dir, "solution"), ref)
 		copyTree(filepath.Join(t.dir, "hidden"), ref)
 		for _, s := range t.Setup {
-			sh(ref, s, 600)
+			csh(box, ref, s, 600)
 		}
-		after, _ := sh(ref, t.FailToPass, 900)
+		after, _ := csh(box, ref, t.FailToPass, 900)
 		p2p := 0
 		if t.PassToPass != "" {
-			p2p, _ = sh(ref, t.PassToPass, 900)
+			p2p, _ = csh(box, ref, t.PassToPass, 900)
 		}
+		stopContainer(box)
 		ok := before != 0 && after == 0 && p2p == 0
 		if !ok {
 			bad++
@@ -455,4 +504,18 @@ func summarize(rs []Result) string {
 		fmt.Fprintf(&b, "| %s | %d | %d (%.0f%%) | %d | %d | %.1f | %.0f | %d | %d | %d |\n", n, a.n, a.resolved, 100*float64(a.resolved)/float64(a.n), a.falseDone, a.budget, float64(a.calls)/float64(a.n), a.seconds/float64(a.n), a.prompt, a.cache, a.output)
 	}
 	return b.String()
+}
+
+func asExit(err error, target **exec.ExitError) bool { return errors.As(err, target) }
+
+// dryRoot is a folder Docker can mount (Colima shares the home folder, not
+// the system temporary folder).
+func dryRoot() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Join(home, ".cache", "goh-bench-dry")
+	os.MkdirAll(dir, 0o755)
+	return dir
 }

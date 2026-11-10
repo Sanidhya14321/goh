@@ -1,0 +1,20 @@
+{
+  "id": "go-sjson-1e706478",
+  "git": {
+    "url": "https://github.com/tidwall/sjson",
+    "commit": "6ef6fe7b30e7e56afde5f90f43cb15310f49ed6c"
+  },
+  "prompt": "Deleting the empty key does not work: Delete(`{\"\":\"1\",\"1\":\"2\"}`, \"\") should return `{\"1\":\"2\"}` without an error. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "1e706478d96cc587329167bf8c26ea871367fdd2",
+  "source_files": [
+    "sjson.go"
+  ]
+}

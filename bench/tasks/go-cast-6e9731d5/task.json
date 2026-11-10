@@ -1,0 +1,20 @@
+{
+  "id": "go-cast-6e9731d5",
+  "git": {
+    "url": "https://github.com/spf13/cast",
+    "commit": "48ddde5701366ade1d3aba346e09bb58430d37c6"
+  },
+  "prompt": "ToUint64E fails for numeric strings above the int64 range, such as \"18446744073709551615\" (the largest uint64), returning 0 or an error. Values up to the uint64 maximum must convert; values beyond it should still return an error. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "6e9731d50e379f33d28ef96ddcebcf1314c3f1f3",
+  "source_files": [
+    "caste.go"
+  ]
+}

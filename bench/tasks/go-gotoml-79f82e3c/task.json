@@ -1,0 +1,20 @@
+{
+  "id": "go-gotoml-79f82e3c",
+  "git": {
+    "url": "https://github.com/pelletier/go-toml",
+    "commit": "a28afeddf84e60af06877531ea14d70faf3cafc2"
+  },
+  "prompt": "Decoding into a struct that embeds a nil pointer to an unexported struct type (type outer struct { *inner }) panics with a reflect error when the document sets a field promoted from the embedded type. It should return an error, not panic. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "79f82e3ce59274d863ab007976389b6e102b0ca0",
+  "source_files": [
+    "unmarshaler.go"
+  ]
+}

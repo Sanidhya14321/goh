@@ -1,0 +1,20 @@
+{
+  "id": "go-gotoml-686c980c",
+  "git": {
+    "url": "https://github.com/pelletier/go-toml",
+    "commit": "08b09f19fe930cd9c72cea4c30783be3eaf00937"
+  },
+  "prompt": "Two encoding problems: a named string type whose value receiver implements encoding.TextMarshaler is encoded as the raw string instead of its MarshalText output, and strings containing invalid UTF-8 produce invalid TOML instead of having the bad bytes replaced with U+FFFD. Fix the encoder.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "686c980c47581bf19b6119b60e9a59f2aed04170",
+  "source_files": [
+    "marshaler.go"
+  ]
+}

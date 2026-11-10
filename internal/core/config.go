@@ -96,6 +96,12 @@ type SandboxConfig struct {
 	// Writable lists extra directories commands may write (for example a
 	// build cache); the project and temporary folders are always writable.
 	Writable []string `json:"writable,omitempty"`
+	// Container, when set, runs every shell command inside this already
+	// running Docker container (docker exec) instead of on the host. The
+	// project must be mounted in it at the same absolute path. Host
+	// environment variables are not passed in. Network and file limits are
+	// whatever the container was started with.
+	Container string `json:"container,omitempty"`
 }
 
 type Config struct {

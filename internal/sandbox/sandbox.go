@@ -31,6 +31,9 @@ type Policy struct {
 	// writable folder. Enforced on macOS; Landlock can only add access, so
 	// Linux cannot hide a file inside a writable folder.
 	DenyFiles []string `json:"deny_files,omitempty"`
+	// Container, when set, runs the command in this running Docker
+	// container instead (see core.SandboxConfig.Container).
+	Container string `json:"container,omitempty"`
 }
 
 // helperArg is the hidden first argument that runs the Linux helper.
@@ -44,6 +47,9 @@ var ErrUnsupported = errors.New("the shell sandbox is not supported on this syst
 func Wrap(cmd *exec.Cmd, p *Policy) error {
 	if p == nil {
 		return nil
+	}
+	if p.Container != "" {
+		return wrapContainer(cmd, p.Container)
 	}
 	clean := Policy{Network: p.Network, DenyFiles: p.DenyFiles}
 	for _, d := range p.Writable {

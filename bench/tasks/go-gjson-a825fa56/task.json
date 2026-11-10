@@ -1,0 +1,20 @@
+{
+  "id": "go-gjson-a825fa56",
+  "git": {
+    "url": "https://github.com/tidwall/gjson",
+    "commit": "690362d6edf4bcbde1e9f54d552d3814f1cd5bcb"
+  },
+  "prompt": "String() mangles JSON strings that contain a broken UTF-16 surrogate pair: when a high surrogate escape (like \\ud83d) is not followed by a valid low surrogate, the next character is dropped or corrupted. The result should match what encoding/json decodes for the same input. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "a825fa56d6aca9ba0ac2a103cba8041c898b7d39",
+  "source_files": [
+    "gjson.go"
+  ]
+}

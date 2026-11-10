@@ -1,0 +1,20 @@
+{
+  "id": "go-gotoml-071a36c2",
+  "git": {
+    "url": "https://github.com/pelletier/go-toml",
+    "commit": "57fec25025704dd4862b857a60fe012b9efa0af1"
+  },
+  "prompt": "Unmarshalling a document with extremely deep nesting of arrays or inline tables (for example 100,000 levels) crashes the whole process with a stack overflow. It must return an ordinary error instead. Fix the decoder.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "071a36c2a57244f2e70369bfc69889fda2a1f60f",
+  "source_files": [
+    "unstable/parser.go"
+  ]
+}

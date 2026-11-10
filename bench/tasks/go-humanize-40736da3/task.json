@@ -1,0 +1,20 @@
+{
+  "id": "go-humanize-40736da3",
+  "git": {
+    "url": "https://github.com/dustin/go-humanize",
+    "commit": "528b6f774c2b2dee6e5b25ab302774b530ae6bd0"
+  },
+  "prompt": "CommafWithDigits drops or mangles trailing zero decimals and thousands separators: CommafWithDigits(1000, 2) should give \"1,000.00\", CommafWithDigits(1.23, 3) \"1.230\", and CommafWithDigits(-1000, 2) \"-1,000.00\". Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "40736da3e8ed16369b5e6f109548f243d43a7e34",
+  "source_files": [
+    "comma.go"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "go-humanize-21224679",
+  "git": {
+    "url": "https://github.com/dustin/go-humanize",
+    "commit": "a1b4e66b9a6d890e9e15e7091cf16c8032367d6e"
+  },
+  "prompt": "Byte sizes just below a unit boundary print with the wrong unit: values like 1 MB minus one byte or 1 GB minus 1 KB print as \"1000 kB\"/\"1000 MB\" (or the IEC equivalents) instead of being promoted to \"1.0 MB\", \"1.0 GB\", \"1.0 MiB\" and so on. This affects Bytes, IBytes, BigBytes and BigIBytes. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "212246793da0a95873d1f3be675529f7ab7dc799",
+  "source_files": [
+    "bigbytes.go",
+    "bytes.go"
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "go-cast-1b425f31",
+  "git": {
+    "url": "https://github.com/spf13/cast",
+    "commit": "a79ffed9a6a3da62453e90f35784fc2b8d1b390b"
+  },
+  "prompt": "Passing a typed nil pointer (for example a nil *bool or *string, directly or inside an interface) to the conversion functions does not behave like the zero value of the pointed-to type: it errors or misbehaves. A typed nil should convert to that zero value without an error. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "1b425f3142c8c815d1af9725ee11fbc4cac86915",
+  "source_files": [
+    "indirect.go",
+    "time.go"
+  ]
+}

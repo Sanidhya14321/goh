@@ -1,0 +1,20 @@
+{
+  "id": "go-mux-2b030fc3",
+  "git": {
+    "url": "https://github.com/gorilla/mux",
+    "commit": "e44017df2b8798f6bfff81fff1c0b319c1a54496"
+  },
+  "prompt": "A subrouter with several routes returns the wrong status for a wrong method: with GET /v1/api and GET /v1/api/{id} registered on a /v1 subrouter, a PUT /v1/api should get 405 Method Not Allowed but does not. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "2b030fc311d07b8c5950807800b03b2d32a7142c",
+  "source_files": [
+    "route.go"
+  ]
+}

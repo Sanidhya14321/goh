@@ -1,0 +1,20 @@
+{
+  "id": "go-gjson-eaae8c63",
+  "git": {
+    "url": "https://github.com/tidwall/gjson",
+    "commit": "6ac9851f5247bff94b0df2262ea60096fc0afb83"
+  },
+  "prompt": "Int() and Uint() return wrapped-around garbage for JSON numbers outside the 64-bit range, such as 18446744073709551616 or 9223372036854775808. Out-of-range values should be clamped to the type's minimum or maximum, and negative numbers should give 0 from Uint(). Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "eaae8c63338d6d71ea606b788243ca1c5b39a068",
+  "source_files": [
+    "gjson.go"
+  ]
+}

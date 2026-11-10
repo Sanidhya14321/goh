@@ -1,0 +1,20 @@
+{
+  "id": "go-mux-976b5364",
+  "git": {
+    "url": "https://github.com/gorilla/mux",
+    "commit": "2b030fc311d07b8c5950807800b03b2d32a7142c"
+  },
+  "prompt": "Two routes on the same path and method that differ only by query parameters do not both work: with /api registered once with Queries(\"foo\", \"{foo:[0-9]+}\") and once with Queries(\"bar\", \"{bar:[0-9]+}\"), a GET /api?bar=4 fails to match (or matches with an error). Each route should match its own query. Fix routing.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "976b536446a77de8de2d5559c78f612970fb5e37",
+  "source_files": [
+    "route.go"
+  ]
+}

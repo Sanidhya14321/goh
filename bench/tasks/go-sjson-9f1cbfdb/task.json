@@ -1,0 +1,20 @@
+{
+  "id": "go-sjson-9f1cbfdb",
+  "git": {
+    "url": "https://github.com/tidwall/sjson",
+    "commit": "1e706478d96cc587329167bf8c26ea871367fdd2"
+  },
+  "prompt": "Setting an array element with a huge index misbehaves: Set(`[1,2,3]`, \"18446744073709551616\", 4) wraps around and writes the value instead of failing with the error \"cannot set array element for non-numeric key '18446744073709551616'\", and very large indexes can pad the array without limit. Reasonable indexes (around 100000) must keep working. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "9f1cbfdb58d36d76398c5040fa580087b3d3fb99",
+  "source_files": [
+    "sjson.go"
+  ]
+}

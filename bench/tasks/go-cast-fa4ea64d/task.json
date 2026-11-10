@@ -1,0 +1,21 @@
+{
+  "id": "go-cast-fa4ea64d",
+  "git": {
+    "url": "https://github.com/spf13/cast",
+    "commit": "cb5df5f7f3cc70c3686e95064f90af9ca137ae93"
+  },
+  "prompt": "Converting numeric strings that have a decimal part to integers is inconsistent: inputs like \"10.010\", \".5\", \"+12.\" or \"-.25\" fail or give odd results. The fractional part should simply be dropped, while malformed values such as \"10...17\", \"10.foobar\" or \"10.0E9\" must still be errors. Fix the conversion.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "fa4ea64dd5187a42d6bf419b06bd4f7349ed4027",
+  "source_files": [
+    "cast.go",
+    "number.go"
+  ]
+}

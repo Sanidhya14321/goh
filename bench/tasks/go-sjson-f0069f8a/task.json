@@ -1,0 +1,20 @@
+{
+  "id": "go-sjson-f0069f8a",
+  "git": {
+    "url": "https://github.com/tidwall/sjson",
+    "commit": "aabd7ae3e5c781142655d9f81baa587a69194647"
+  },
+  "prompt": "Delete removes the wrong key when an object has both a \"#\" key and a \"-1\" key: Delete(`{\"#\":200,\"-1\":true}`, \"-1\") should return `{\"#\":200}`. Fix it.",
+  "fail_to_pass": "go test ./.",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150,
+  "image": "golang:1.23",
+  "setup": [
+    "go mod download"
+  ],
+  "source_commit": "f0069f8aa5171ab0fd2ca44b76c8ea243ead411d",
+  "source_files": [
+    "sjson.go"
+  ]
+}
