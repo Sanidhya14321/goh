@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC163 TUI polish
+
+- `go test ./internal/tui` (new `spinner_test.go`: humanized counts, status
+  states, project-relative approval previews, path truncation).
+- `scripts/test_tui.py` PTY suite passes with the new approval banner.
+- Real PTY captures at 120x36 (session, approval, palette) refreshed in
+  `docs/images/`.
+- vet (macOS and Windows), race suite and acceptance gates pass.
+
 ## RC161 token budget
 
 `TestMaxRunTokens`: with a 150-token budget and 100 tokens per turn, the run stops before the third

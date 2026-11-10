@@ -490,6 +490,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	a.ExternalFactory = func() agent.External { return mcpclient.New(c.MCP, store.Project, a.Permission) }
 	if command == "chat" {
+		tui.Version = version
 		return tui.Run(a, notice, draft)
 	}
 	enc := json.NewEncoder(os.Stdout)

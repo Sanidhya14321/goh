@@ -93,7 +93,7 @@ func TestNarrowApprovalViewFitsTerminalCells(t *testing.T) {
 		}},
 	}
 	view := m.View().Content
-	if !strings.Contains(view, "APPROVAL: edit_file") {
+	if !strings.Contains(view, "Allow edit_file?") {
 		t.Fatal("approval title disappeared in a narrow view")
 	}
 	rows := strings.Split(view, "\n")

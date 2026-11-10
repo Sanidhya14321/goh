@@ -1,10 +1,12 @@
 package tui
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type paletteEntry struct {
@@ -201,20 +203,27 @@ func (m *model) paletteView(width, height int) tea.View {
 		padding+cell("  Search  "+m.paletteQuery+" ▏", boxWidth, accent, panel),
 		padding+cell("", boxWidth, muted, panel))
 	entries := m.paletteEntries()
-	visible := max(1, height-len(rows)-3)
+	visible := max(1, height-len(rows)-4)
 	start := max(0, m.paletteIndex-visible+1)
+	nameWidth := 0
+	for _, entry := range entries {
+		nameWidth = max(nameWidth, ansi.StringWidth(entry.command))
+	}
+	nameWidth = min(nameWidth, 18)
 	for i := start; i < min(len(entries), start+visible); i++ {
-		mark, fg := "  ", muted
-		if i == m.paletteIndex {
-			mark, fg = "› ", accent
-		}
 		entry := entries[i]
-		rows = append(rows, padding+cell(mark+entry.command+"  "+entry.label, boxWidth, fg, panel))
+		name := ansi.Truncate(entry.command, nameWidth, "…")
+		name += strings.Repeat(" ", max(0, nameWidth-ansi.StringWidth(name)))
+		if i == m.paletteIndex {
+			rows = append(rows, padding+cell("› "+name+"  "+entry.label, boxWidth, background, accent))
+			continue
+		}
+		rows = append(rows, padding+cell("  ", 2, muted, panel)+cell(name, nameWidth, foreground, panel)+cell("  "+entry.label, boxWidth-nameWidth-2, muted, panel))
 	}
 	if len(entries) == 0 {
 		rows = append(rows, padding+cell("  No matching commands", boxWidth, muted, panel))
 	}
 	rows = append(rows, padding+cell("", boxWidth, foreground, panel),
-		padding+cell("  ↑/↓ select  Enter run  Esc close", boxWidth, muted, panel))
+		padding+cell(fmt.Sprintf("  ↑/↓ select  Enter run  Esc close  ·  %d/%d", min(m.paletteIndex+1, len(entries)), len(entries)), boxWidth, muted, panel))
 	return canvas(rows, width, height)
 }

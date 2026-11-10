@@ -105,8 +105,14 @@ func (m *model) View() tea.View {
 	if project == "" {
 		project, _ = os.Getwd()
 	}
-	footer := cell(" "+Safe(project), width-18, muted, background) +
-		cell("GoHarness · Go", 18, muted, background)
+	right := "goh"
+	if version := Version; version != "" {
+		right += " " + version
+	}
+	right = Safe(modelName) + "  ·  " + right + " "
+	rightWidth := min(ansi.StringWidth(right), max(0, width/2))
+	footer := cell(" "+Safe(shortPath(project, width-rightWidth-3)), width-rightWidth, muted, background) +
+		cell(right, rightWidth, muted, background)
 	home := m.pending == nil && m.question == nil && !m.active &&
 		len(m.todos) == 0 && (m.a == nil || len(m.a.History) <= 1) && (m.log == "" || m.blocked != "")
 
@@ -128,6 +134,14 @@ func (m *model) View() tea.View {
 	draftRows := m.inputRows(promptWidth - 5)
 	if m.input == "" {
 		draft := "Ask anything about your project…"
+		switch {
+		case m.pending != nil:
+			draft = "Waiting for your approval: y allow once · s allow for session · n deny"
+		case m.question != nil:
+			draft = "Answer the question above"
+		case m.active:
+			draft = "Working… type to queue a follow-up"
+		}
 		if m.blocked != "" {
 			draft = "Connect a provider to start chatting"
 		}
@@ -159,7 +173,7 @@ func (m *model) View() tea.View {
 	if m.blocked != "" {
 		controls = "Ctrl+P provider commands  /provider setup  Ctrl+D exit"
 	}
-	promptRows = append(promptRows, cell(controls, promptWidth, muted, background))
+	promptRows = append(promptRows, cell("   "+controls, promptWidth, muted, background))
 
 	var rows []string
 	if home {
@@ -186,7 +200,7 @@ func (m *model) View() tea.View {
 	} else {
 		rows = append(rows,
 			cell("  GoHarness  /  "+filepath.Base(project), columns+4, foreground, panel),
-			cell("  "+m.status+fmt.Sprintf("  ·  %d tokens  ·  %d ms", m.usage, m.durationMS), columns+4, muted, background),
+			cell("  "+m.statusLine(), columns+4, statusColor(m), background),
 			"")
 		if len(m.todos) > 0 && sideWidth == 0 {
 			remaining := 0
@@ -205,8 +219,8 @@ func (m *model) View() tea.View {
 	}
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
-		body = m.pending.request.Preview
-		review = "APPROVAL: " + m.pending.request.Tool + " · PgUp/PgDn review · y once / s " + sessionScopeLabel(m.pending.request) + " / n or Esc deny"
+		body = relativizePreview(m.pending.request.Preview, project)
+		review = "Allow " + m.pending.request.Tool + "?   y once  ·  s " + sessionScopeLabel(m.pending.request) + "  ·  n / Esc deny  ·  PgUp/PgDn scroll"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {
@@ -257,7 +271,7 @@ func (m *model) View() tea.View {
 			}
 			row := ansi.Truncate(rows[i], width-sideWidth-1, "")
 			rows[i] = row + paint(strings.Repeat(" ", max(0, width-sideWidth-1-ansi.StringWidth(row))), foreground, background) +
-				cell("│", 1, muted, background) + cell("  "+side, sideWidth, muted, panel)
+				cell("│", 1, muted, background) + cell("  "+side, sideWidth, sidebarColor(side), panel)
 		}
 	}
 	for len(rows) < height-1 {
@@ -315,39 +329,60 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 }
 
 func (m *model) sidebar(sessionID, modelName string) []string {
-	rows := []string{"SESSION", ""}
+	rows := []string{"SESSION"}
 	if m.sessionTitle != "" {
 		rows = append(rows, m.sessionTitle)
 	}
-	rows = append(rows, sessionID, "", "MODEL", modelName,
-		fmt.Sprintf("%d reported tokens", m.usage))
+	if len(sessionID) > 15 {
+		sessionID = sessionID[len(sessionID)-12:]
+	}
+	rows = append(rows, sessionID, "", "MODEL", modelName)
+	if t := humanTokens(m.usage); t != "" {
+		rows = append(rows, t)
+	}
 	if m.priced {
 		rows = append(rows, fmt.Sprintf("~$%.4f estimated", m.costUSD))
 	}
 	if line := m.contextLine(); line != "" {
 		rows = append(rows, line)
 	}
-	rows = append(rows, "", "TOOLS")
 	if m.a != nil {
-		rows = append(rows, fmt.Sprintf("%d MCP · %d LSP configured", len(m.a.Config.MCP), len(m.a.Config.LSP)))
+		var tools []string
+		if n := len(m.a.Config.MCP); n > 0 {
+			tools = append(tools, fmt.Sprintf("%d MCP server(s)", n))
+		}
+		if n := len(m.a.Config.LSP); n > 0 {
+			tools = append(tools, fmt.Sprintf("%d LSP server(s)", n))
+		}
 		if running := runningJobs(m.a); running > 0 {
-			rows = append(rows, fmt.Sprintf("%d background job(s) · /jobs", running))
+			tools = append(tools, fmt.Sprintf("%d background job(s) · /jobs", running))
+		}
+		if len(tools) > 0 {
+			rows = append(rows, "", "TOOLS")
+			rows = append(rows, tools...)
 		}
 	}
-	rows = append(rows, "", "TASKS")
-	remaining := 0
-	for _, todo := range m.todos {
-		if todo.Status != "completed" {
-			remaining++
+	if len(m.todos) > 0 {
+		done := 0
+		for _, todo := range m.todos {
+			if todo.Status == "completed" {
+				done++
+			}
 		}
-	}
-	rows = append(rows, fmt.Sprintf("Tasks: %d remaining / %d total", remaining, len(m.todos)))
-	for _, todo := range m.todos[:min(len(m.todos), 5)] {
-		mark := "○ "
-		if todo.Status == "completed" {
-			mark = "✓ "
+		rows = append(rows, "", fmt.Sprintf("TASKS  %d/%d", done, len(m.todos)))
+		for _, todo := range m.todos[:min(len(m.todos), 8)] {
+			mark := "○ "
+			switch todo.Status {
+			case "completed":
+				mark = "✓ "
+			case "in_progress":
+				mark = "◐ "
+			}
+			rows = append(rows, mark+todo.Content)
 		}
-		rows = append(rows, mark+todo.Content)
+		if len(m.todos) > 8 {
+			rows = append(rows, fmt.Sprintf("  +%d more · /todos", len(m.todos)-8))
+		}
 	}
 	rows = append(rows, "")
 	if key := m.keyLabel("sidebar_toggle"); key != "" {
@@ -368,4 +403,26 @@ func (m *model) contextLine() string {
 	}
 	percent := m.contextTokens * 100 / m.a.Config.ContextWindow
 	return fmt.Sprintf("Context: %d%% of %dk", min(percent, 100), m.a.Config.ContextWindow/1000)
+}
+
+// sidebarColor highlights section headings (all-caps rows).
+func sidebarColor(row string) string {
+	if row != "" && strings.ToUpper(row) == row && strings.ContainsAny(row, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+		return accent
+	}
+	return muted
+}
+
+func statusColor(m *model) string {
+	switch {
+	case m.pending != nil || m.question != nil:
+		return accent
+	case m.active:
+		return blue
+	case m.status == "failed" || m.status == "cancelled":
+		return red
+	case m.status == "completed":
+		return green
+	}
+	return muted
 }

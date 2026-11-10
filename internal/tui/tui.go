@@ -59,6 +59,9 @@ type model struct {
 	cancel               context.CancelFunc
 	reviewOffset         int
 	durationMS           int64
+	runStarted           time.Time
+	spinFrame            int
+	ticking              bool
 	todos                []core.Todo
 	usage                int
 	width, height        int
@@ -133,6 +136,16 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 	hadFiles := m.fileCompletion != nil
 	defer func() {
 		m.refreshFileCompletion()
+		// A live spinner and elapsed time while a run is active.
+		if m.active && m.runStarted.IsZero() {
+			m.runStarted = time.Now()
+		} else if !m.active {
+			m.runStarted = time.Time{}
+		}
+		if m.active && !m.ticking {
+			m.ticking = true
+			command = tea.Batch(command, spinTick())
+		}
 		// The composer changes height when its completion panel opens or
 		// closes. Invalidate the terminal diff to retire the old panel.
 		if hadSuggestions != m.hasSlashSuggestions() || hadFiles != (m.fileCompletion != nil) {
@@ -140,6 +153,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 	}()
 	switch v := msg.(type) {
+	case spinMsg:
+		m.ticking = false
+		if m.active {
+			m.spinFrame++
+		}
+		return m, nil
 	case exportDoneMsg:
 		if m.export != nil {
 			m.export.saving = false
@@ -775,21 +794,16 @@ func (m *model) compactView() tea.View {
 	if height < 1 {
 		height = 24
 	}
-	header := []string{"GoHarness • Chat", m.status}
+	header := []string{"GoHarness", m.statusLine()}
 	if m.a != nil {
-		header = []string{
-			fmt.Sprintf("GoHarness • %s • session %s", m.a.Config.Model, m.a.Store.ID),
-			m.status,
-			"Agent: " + m.a.Config.Agent + " • Mode: " + m.a.Config.AgentMode + " • Profile: " + m.a.Config.Profile,
-			fmt.Sprintf("Reported tokens: %d • Last run: %d ms", m.usage, m.durationMS),
-		}
+		header[0] = "GoHarness  ·  " + m.a.Config.Agent + "  ·  " + m.a.Config.Model
 	}
 	body, review := m.log, ""
 	if m.pending != nil {
-		review = "APPROVAL: " + m.pending.request.Tool + " • PgUp/PgDn review • y once / s " + sessionScopeLabel(m.pending.request) + " / n or Esc deny"
-		body = m.pending.request.Preview
+		review = "Allow " + m.pending.request.Tool + "?  y once · s " + sessionScopeLabel(m.pending.request) + " · n deny · PgUp/PgDn scroll"
+		body = relativizePreview(m.pending.request.Preview, m.a.Store.Project)
 	} else if m.question != nil {
-		review = "INTERACTIVE QUESTION • answers grant no permissions • PgUp/PgDn review"
+		review = "INTERACTIVE QUESTION · answers grant no permissions · PgUp/PgDn scroll"
 		body = m.question.view()
 	} else if len(m.todos) > 0 {
 		remaining := 0
@@ -798,7 +812,7 @@ func (m *model) compactView() tea.View {
 				remaining++
 			}
 		}
-		header = append(header, fmt.Sprintf("Tasks: %d remaining / %d total • /todos lists all", remaining, len(m.todos)))
+		header = append(header, fmt.Sprintf("Tasks: %d remaining / %d total · /todos lists all", remaining, len(m.todos)))
 		for _, todo := range m.todos[:min(4, len(m.todos))] {
 			header = append(header, "["+todo.Status+"] "+todo.Content)
 		}
@@ -810,18 +824,18 @@ func (m *model) compactView() tea.View {
 		}
 		rows := []string{ansi.Truncate(Safe(title), width, "…")}
 		if height > 1 {
-			rows = append(rows, ansi.Truncate("Ctrl+C cancel • Ctrl+D exit", width, "…"))
+			rows = append(rows, ansi.Truncate("Ctrl+C cancel · Ctrl+D exit", width, "…"))
 		}
 		view := tea.NewView(strings.Join(rows, "\n"))
 		view.AltScreen = true
 		return view
 	}
 
-	controls := "Enter send • Alt+Enter newline • Ctrl+C cancel • Ctrl+D exit • /settings"
+	controls := "Enter send · Alt+Enter newline · Ctrl+P commands · Ctrl+D exit"
 	if m.active {
 		controls = m.runControls()
 	} else if m.blocked != "" {
-		controls = "Ctrl+P provider • /workspace • /settings • Ctrl+D exit"
+		controls = "Ctrl+P provider · /workspace · /settings · Ctrl+D exit"
 	}
 	footer := terminalRows(controls, width)
 	if len(footer) > max(1, height/3) {

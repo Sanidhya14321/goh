@@ -6,6 +6,24 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.163 — 2026-11-10
+
+- **TUI polish pass:** a live spinner and elapsed time while a run works;
+  "Waiting for your approval" / "Waiting for your answer" states in the header
+  and composer; readable token and time counts (12.3k tokens, 4.2s) with empty
+  values hidden instead of "0 tokens · 0 ms".
+- **Approvals:** a plain "Allow <tool>?" banner; diff headers and the shell
+  directory are project-relative, so paths no longer wrap mid-word.
+- **Sidebar:** shorter session ID; tools and tasks sections appear only when
+  there is something to show; task progress shows done/total and in-progress
+  items; headings are highlighted.
+- **Footer:** home-relative project path truncated from the left, with model
+  and version on the right.
+- **Command palette:** descriptions in an aligned column, highlighted
+  selection, and a position counter.
+- **Small terminals:** the compact view uses the same status line and
+  separators as the full layout.
+
 ## 1.0.0-rc.162 — 2026-11-10
 
 - **Container sandbox:** `sandbox.container` or `goh run --sandbox-container

@@ -1347,3 +1347,16 @@ Source comparison covered [Harvest's project-scoped memory consolidation](https:
 [Goose's directory-scoped memory tools](https://github.com/aaif-goose/goose/blob/d66323246cb21f159994415c1f589368b85b0bb1/crates/goose-mcp/src/memory/mod.rs),
 and [Aider's repository-context caching](https://github.com/Aider-AI/aider/blob/5dc9490bb35f9729ef2c95d00a19ccd30c26339c/aider/repomap.py).
 The ledger follows the staged design in the local memory research brief.
+
+## TUI polish pass (rc.163)
+
+A screen-by-screen review of real PTY captures found these problems:
+
+- static "running · 0 tokens · 0 ms" while working;
+- zero-valued sidebar rows ("0 MCP · 0 LSP", "Tasks: 0 remaining / 0 total");
+- absolute temp paths that wrapped mid-word in approval diffs;
+- an unaligned command palette;
+- inconsistent separators between the compact and full layouts.
+
+All are fixed. The header shows a spinner with elapsed time, approvals read
+"Allow <tool>?" with project-relative paths, and empty sections are hidden.
