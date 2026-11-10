@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.159 — 2026-11-10
+
+- **Line-range edits (opt-in):** `line_edits: true` or `goh run --line-edits`
+  lets `edit_file` replace lines `start_line..end_line`, numbered as
+  `read_file` shows them, instead of matching `old_text`. The whole-file
+  `expected_sha256` guard anchors the numbers to the content the model read;
+  `old_text`, if also given, must equal those lines. Off by default; the
+  default tool schema is unchanged. Added for an A/B test against exact-text
+  edits (component plan C1).
+
 ## 1.0.0-rc.158 — 2026-11-10
 
 - **Test-double check:** if a run's checks pass but the model wrote a fake,

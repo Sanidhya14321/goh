@@ -41,6 +41,10 @@ type Engine struct {
 	root, artifacts string
 	// AllowGeneratedEdits is set from user configuration before the engine is used.
 	AllowGeneratedEdits bool
+	// LineEdits lets edit_file replace a numbered line range (start_line,
+	// end_line) instead of matching old_text. Off unless configured, for A/B
+	// comparison; the whole-file expected_sha256 guard still applies.
+	LineEdits bool
 	// DenyPath reports project-relative paths (slash-separated) that the
 	// user's file_rules deny. Denied files are not read, searched, listed or
 	// mapped, as well as not edited.
@@ -95,7 +99,28 @@ func New(root, artifactDir string) (*Engine, error) {
 	return &Engine{root: p, artifacts: artifactDir}, nil
 }
 func Definitions() []Definition { return (*Engine)(nil).Definitions() }
-func (*Engine) Definitions() []Definition {
+func (e *Engine) Definitions() []Definition {
+	defs := baseDefinitions()
+	if e != nil && e.LineEdits {
+		for i, d := range defs {
+			if d.Name != "edit_file" {
+				continue
+			}
+			props := map[string]any{}
+			for k, v := range d.Schema["properties"].(map[string]any) {
+				props[k] = v
+			}
+			props["start_line"] = map[string]any{"type": "integer", "minimum": 1}
+			props["end_line"] = map[string]any{"type": "integer", "minimum": 1}
+			defs[i].Schema = map[string]any{"type": "object", "properties": props,
+				"required": []string{"path", "new_text", "expected_sha256"}, "additionalProperties": false}
+			defs[i].Description = "Edit a file against expected_sha256 (from your latest read_file). Either replace exact old_text (one occurrence unless replace_all), or replace lines start_line..end_line inclusive, numbered as read_file shows them, with new_text (empty new_text deletes the lines). With both, old_text must equal those lines."
+		}
+	}
+	return defs
+}
+
+func baseDefinitions() []Definition {
 	s := func(properties map[string]any, required ...string) map[string]any {
 		if required == nil {
 			required = []string{}
@@ -149,7 +174,9 @@ func decode(name string, raw json.RawMessage) (args, error) {
 		return a, errors.New("arguments must be a JSON object")
 	}
 	var def *Definition
-	for _, d := range Definitions() {
+	// Decode against the widest schema; edit_file rejects a line range
+	// itself when line edits are not enabled.
+	for _, d := range (&Engine{LineEdits: true}).Definitions() {
 		if d.Name == name {
 			v := d
 			def = &v
@@ -328,6 +355,10 @@ func (e *Engine) mutation(r *os.Root, name string, a args) (before, after []byte
 	}
 	if a.Expected == "" || hash(before) != a.Expected {
 		err = errors.New("stale file: expected_sha256 does not match")
+		return
+	}
+	if name == "edit_file" && (a.Start > 0 || a.End > 0) {
+		after, err = lineEdit(before, a, e != nil && e.LineEdits)
 		return
 	}
 	if name == "edit_file" {

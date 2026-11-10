@@ -120,6 +120,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 		return nil, e
 	}
 	t.AllowGeneratedEdits = c.AllowGeneratedEdits
+	t.LineEdits = c.LineEdits
 	t.Sandbox = sandboxPolicy(c, s.Project)
 	if len(c.FileRules) > 0 {
 		t.DenyPath = func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" }

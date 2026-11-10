@@ -99,11 +99,13 @@ type SandboxConfig struct {
 }
 
 type Config struct {
-	Memory              bool              `json:"memory,omitempty"`
-	AllowGeneratedEdits bool              `json:"allow_generated_edits,omitempty"`
-	Protocol            string            `json:"protocol,omitempty"`
-	ModelRoles          map[string]string `json:"model_roles,omitempty"`
-	FallbackProfiles    []string          `json:"fallback_profiles,omitempty"`
+	Memory              bool `json:"memory,omitempty"`
+	AllowGeneratedEdits bool `json:"allow_generated_edits,omitempty"`
+	// LineEdits adds line-range replacement to edit_file (off by default).
+	LineEdits        bool              `json:"line_edits,omitempty"`
+	Protocol         string            `json:"protocol,omitempty"`
+	ModelRoles       map[string]string `json:"model_roles,omitempty"`
+	FallbackProfiles []string          `json:"fallback_profiles,omitempty"`
 	// ShellRules auto-allow or deny shell commands by pattern; see shellrules.go.
 	ShellRules []ShellRule `json:"shell_rules,omitempty"`
 	// FileRules allow, deny or always ask edits by project path pattern.
