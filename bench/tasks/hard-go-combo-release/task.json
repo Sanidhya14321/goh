@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-combo-release",
+  "prompt": "The last release of the inventory service drew several complaints: prices sometimes look out of date, finance found invoices that are a cent off, and the CSV export is unreliable. The QA suite that caught these is not available to you. Find and fix every cause.",
+  "fail_to_pass": "go test ./pricing/ ./report/ ./service/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

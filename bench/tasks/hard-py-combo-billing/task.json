@@ -1,0 +1,8 @@
+{
+  "id": "hard-py-combo-billing",
+  "prompt": "Month-end billing produced wrong numbers in several places: some plan-change charges, some foreign-currency conversions and some daily usage totals. The QA suite is not available to you. Find and fix every cause; days are UTC calendar days.",
+  "fail_to_pass": "python3 -m unittest tests.test_proration tests.test_rates tests.test_usage -v",
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}

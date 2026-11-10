@@ -968,6 +968,38 @@ if __name__ == "__main__":
 ]
 
 
+# Compound tasks: three independent bugs in different files behind one
+# release report. The model must find and fix every cause; each hidden test
+# set must pass. Harder than the single-bug tasks by construction.
+def combo(id, parts, prompt):
+    by = {t["id"]: t for t in TASKS}
+    ts = [by[p] for p in parts]
+    hidden, mutate = {}, []
+    for t in ts:
+        assert t["base"] is ts[0]["base"]
+        mutate += t["mutate"]
+        hidden.update(t["hidden"])
+    if ts[0]["base"] is GO:
+        f2p = "go test " + " ".join(sorted({t["f2p"].split()[-1] for t in ts}))
+        if any("-race" in t["f2p"] for t in ts):
+            f2p = f2p.replace("go test", "go test -race")
+    else:
+        f2p = "python3 -m unittest " + " ".join(t["f2p"].split()[3] for t in ts) + " -v"
+    return dict(id=id, base=ts[0]["base"], prompt=prompt, mutate=mutate, hidden=hidden, f2p=f2p, p2p=ts[0]["p2p"])
+
+
+TASKS += [
+ combo("hard-go-combo-release", ["hard-go-stale-price", "hard-go-invoice-cents", "hard-go-report-order"],
+  "The last release of the inventory service drew several complaints: prices sometimes look out of date, finance found invoices that are a cent off, and the CSV export is unreliable. The QA suite that caught these is not available to you. Find and fix every cause."),
+ combo("hard-go-combo-concurrency", ["hard-go-partial-import", "hard-go-bus-deadlock", "hard-go-pagination-skip"],
+  "Under load the inventory service misbehaves: failed bulk imports leave things half-changed, the service occasionally hangs when event handlers react to updates, and API clients paging through items miss or repeat some. The QA suite is not available to you. Find and fix every cause."),
+ combo("hard-py-combo-billing", ["hard-py-feb-proration", "hard-py-stale-rates", "hard-py-usage-days"],
+  "Month-end billing produced wrong numbers in several places: some plan-change charges, some foreign-currency conversions and some daily usage totals. The QA suite is not available to you. Find and fix every cause; days are UTC calendar days."),
+ combo("hard-py-combo-payments", ["hard-py-double-charge", "hard-py-usage-days", "hard-py-feb-proration"],
+  "After a gateway incident, customers report duplicate charges, usage dashboards disagree with ours near midnight, and some upgrade charges look wrong at month boundaries. The QA suite is not available to you. Find and fix every cause; days are UTC calendar days."),
+]
+
+
 def write(base, path, body):
     p = os.path.join(base, path)
     os.makedirs(os.path.dirname(p), exist_ok=True)

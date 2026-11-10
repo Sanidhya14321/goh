@@ -45,7 +45,7 @@ The suite has 22 tasks in Go and Python (11 each), covering:
 
 Run several attempts per task (`--attempts 3`); with 22 tasks, differences of a task or two between arms are noise. Add harder tasks from your own repositories for longer maintenance work.
 
-## Hard set (`hard-*`, 10 tasks)
+## Hard set (`hard-*`, 14 tasks)
 
 These tasks come from `bench/tools/gen_hard.py`, built on two correct mini-codebases:
 - **Go inventory service:** models, store with atomic batches, event bus, TTL cache, pricing, HTTP API and CSV reports.
@@ -62,5 +62,7 @@ Each task plants one realistic bug and describes only its **symptom**, like a bu
 - an exchange-rate cache keyed without the day;
 - double charges on retry;
 - UTC day bucketing.
+
+**Compound tasks (`hard-*-combo-*`, 4 tasks):** each combines three of the bugs above, in different files, behind one vague release report that names symptoms only and says the QA suite is unavailable. The run passes only if all three hidden test sets pass, so fixing the obvious bug and stopping is a failure.
 
 `bench/tools/mine_go.py` can also mine tasks from real bug-fix commits. It runs third-party test code, so run it only inside a container or VM.

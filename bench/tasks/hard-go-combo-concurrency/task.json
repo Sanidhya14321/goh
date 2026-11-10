@@ -1,0 +1,8 @@
+{
+  "id": "hard-go-combo-concurrency",
+  "prompt": "Under load the inventory service misbehaves: failed bulk imports leave things half-changed, the service occasionally hangs when event handlers react to updates, and API clients paging through items miss or repeat some. The QA suite is not available to you. Find and fix every cause.",
+  "fail_to_pass": "go test -race ./api/ ./events/ ./store/",
+  "pass_to_pass": "go test ./...",
+  "max_run_seconds": 1200,
+  "max_tool_calls": 150
+}
