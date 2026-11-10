@@ -32,6 +32,10 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		return
 	}
 	key := v.String()
+	if key == "esc" && q.custom && len(q.message.request.Questions[q.index].Options) > 0 {
+		q.custom, q.text = false, "" // back to the options, not dismiss everything
+		return
+	}
 	if key == "esc" {
 		q.message.response <- questionResponse{err: agent.ErrQuestionDismissed}
 		m.question = nil
@@ -44,6 +48,8 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 			if strings.TrimSpace(q.text) != "" {
 				q.finish(m, []string{q.text})
 			}
+		case "ctrl+u":
+			q.text = ""
 		case "backspace":
 			r := []rune(q.text)
 			if len(r) > 0 {
@@ -119,7 +125,11 @@ func (q *questionState) view() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Question %d/%d: %s\n\n%s\n\n", q.index+1, len(q.message.request.Questions), Safe(current.Header), Safe(current.Question))
 	if q.custom {
-		b.WriteString("Custom answer: " + Safe(q.text) + "\nEnter submit • Esc dismiss all\n")
+		back := "Esc dismiss"
+		if len(current.Options) > 0 {
+			back = "Esc back to options"
+		}
+		b.WriteString("Custom answer: " + Safe(q.text) + "▏\nEnter submit • " + back + "\n")
 		return b.String()
 	}
 	for i, o := range current.Options {
@@ -134,8 +144,16 @@ func (q *questionState) view() string {
 				check = "[x] "
 			}
 		}
-		b.WriteString(cursor + check + Safe(o.Label) + " — " + Safe(o.Description) + "\n")
+		line := cursor + check + Safe(o.Label)
+		if d := strings.TrimSpace(o.Description); d != "" {
+			line += " — " + Safe(d)
+		}
+		b.WriteString(line + "\n")
 	}
-	b.WriteString("\n↑/↓ choose • Space toggle multiple • Enter submit • c custom • Esc dismiss\n")
+	if current.Multiple {
+		b.WriteString("\n↑/↓ choose • Space toggle • Enter submit (pick at least one) • c custom • Esc dismiss\n")
+	} else {
+		b.WriteString("\n↑/↓ choose • Enter submit • c custom • Esc dismiss\n")
+	}
 	return b.String()
 }

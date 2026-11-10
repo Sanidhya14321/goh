@@ -323,7 +323,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"/export\r")
         wait_for(b"Export transcript", pos)
         os.write(master, b"\x15local transcript.md\r")
-        wait_for(b"export destination must not exist", pos)
+        wait_for(b"already exists; choose another name", pos)
         assert export.read_bytes() == original_export
         os.write(master, b"\x1b")
         time.sleep(.15)

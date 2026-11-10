@@ -6,6 +6,35 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.166 — 2026-11-10
+
+Component-by-component TUI audit:
+
+- **Composer:** a paste during a run now lands in the composer and can be queued as a follow-up, just like typed text. It used to be dropped.
+- **Slash suggestions:** Tab cycles through every match, and the selected one is highlighted. Before, only the first match could be completed.
+- **Approvals:** `Y`, `S` and `N` work with Caps Lock on.
+- **Questions:**
+  - an empty question request is answered instead of crashing;
+  - Esc in a custom answer returns to the options instead of dismissing every question;
+  - options without a description no longer end in a dangling "—";
+  - the custom answer shows a cursor.
+- **Find:** survives the transcript being trimmed during a run, and Esc no longer resets the status of a run that is still going.
+- **Command palette and pickers:**
+  - PgUp/PgDn/Home/End move the selection;
+  - Ctrl+U clears the search;
+  - a pasted search becomes one line;
+  - PgUp/PgDn no longer scroll the transcript behind the palette.
+- **Settings forms:**
+  - Esc with unsaved edits asks first;
+  - ↑/↓ move between fields;
+  - a pasted key loses surrounding whitespace;
+  - a multi-line paste into a single-line field is explained instead of silently ignored.
+- **Export:**
+  - `~/` is expanded;
+  - an existing file is reported before writing.
+- **Jobs:** Ctrl+K asks for a second press before stopping a job.
+- **Status:** the p/m/a/s shortcuts work only on the Status panel, so a letter typed in a diff or snapshot panel no longer leaves the chat. The hint lists the shortcuts.
+
 ## 1.0.0-rc.165 — 2026-11-10
 
 - **Event audit:** a stress test sends every kind of terminal input to 30 TUI

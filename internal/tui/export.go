@@ -2,6 +2,7 @@ package tui
 
 import (
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -56,8 +57,15 @@ func (m *model) exportUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			store := m.a.Store
 			output := name
+			if home, err := os.UserHomeDir(); err == nil && (output == "~" || strings.HasPrefix(output, "~/")) {
+				output = filepath.Join(home, strings.TrimPrefix(output, "~"))
+			}
 			if !filepath.IsAbs(output) {
 				output = filepath.Join(store.Project, output)
+			}
+			if _, err := os.Lstat(output); err == nil {
+				p.problem = "A file with that name already exists; choose another name."
+				return m, nil
 			}
 			includeTools := p.withTools
 			p.problem, p.saving = "", true

@@ -96,6 +96,16 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		m.paletteIndex = max(0, m.paletteIndex-1)
 	case "down":
 		m.paletteIndex = min(max(0, len(entries)-1), m.paletteIndex+1)
+	case "pgup":
+		m.paletteIndex = max(0, m.paletteIndex-10)
+	case "pgdown":
+		m.paletteIndex = min(max(0, len(entries)-1), m.paletteIndex+10)
+	case "home":
+		m.paletteIndex = 0
+	case "end":
+		m.paletteIndex = max(0, len(entries)-1)
+	case "ctrl+u":
+		m.paletteQuery, m.paletteIndex = "", 0
 	case "enter":
 		if len(entries) > 0 {
 			entry := entries[min(m.paletteIndex, len(entries)-1)]

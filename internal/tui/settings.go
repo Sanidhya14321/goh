@@ -19,6 +19,7 @@ type settingsForm struct {
 	save                         func([]SettingsField) error
 	index, cursor, height, width int
 	multiline, saved             bool
+	dirty, confirmDiscard        bool
 }
 
 func (m *settingsForm) Init() tea.Cmd { return nil }
@@ -26,11 +27,17 @@ func (m *settingsForm) Init() tea.Cmd { return nil }
 func (m *settingsForm) insert(text string) {
 	f := &m.fields[m.index]
 	if !m.multiline {
+		// Keys copied from a browser often carry surrounding whitespace or a
+		// trailing newline; a value with an inner line break is refused
+		// visibly instead of being dropped without a word.
 		text = strings.Trim(text, "\r\n")
 		if strings.ContainsAny(text, "\r\n") {
+			m.problem = "This field is a single line; the pasted text had line breaks and was not inserted"
 			return
 		}
+		text = Safe(text)
 	}
+	m.dirty, m.confirmDiscard = true, false
 	if len(f.Value)+len(text) > 1<<20 {
 		return
 	}
@@ -46,17 +53,44 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		msg = key
 	}
+	if len(m.fields) == 0 {
+		if k, ok := msg.(tea.KeyPressMsg); ok && (k.String() == "esc" || k.String() == "ctrl+c") {
+			return m, tea.Quit
+		}
+		return m, nil
+	}
 	f := &m.fields[m.index]
+	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() != "esc" {
+		m.confirmDiscard = false
+	}
 	switch k := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.height = k.Height
 		m.width = k.Width
 	case tea.PasteMsg:
-		m.insert(k.Content)
+		content := k.Content
+		if !m.multiline {
+			content = strings.TrimSpace(content) // pasted keys often carry stray spaces
+		}
+		m.insert(content)
 	case tea.KeyPressMsg:
 		switch k.String() {
 		case "esc", "ctrl+c":
+			if m.dirty && !m.confirmDiscard {
+				m.confirmDiscard = true
+				m.problem = "Unsaved changes. Press Esc again to discard them, or Ctrl+S to save."
+				return m, nil
+			}
 			return m, tea.Quit
+		case "up", "down":
+			if !m.multiline {
+				step := 1
+				if k.String() == "up" {
+					step = len(m.fields) - 1
+				}
+				m.index = (m.index + step) % len(m.fields)
+				m.cursor = len([]rune(m.fields[m.index].Value))
+			}
 		case "ctrl+s":
 			if err := m.save(m.fields); err != nil {
 				m.problem = err.Error()
@@ -91,8 +125,9 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "end":
 			m.cursor = len([]rune(f.Value))
 		case "ctrl+u":
-			f.Value, m.cursor = "", 0
+			f.Value, m.cursor, m.dirty = "", 0, true
 		case "backspace", "delete":
+			m.dirty = true
 			value := []rune(f.Value)
 			if k.String() == "backspace" && m.cursor > 0 {
 				m.cursor--
@@ -164,6 +199,9 @@ func (m *settingsForm) View() tea.View {
 }
 
 func EditSettings(title, hint string, fields []SettingsField, multiline bool, save func([]SettingsField) error) (bool, error) {
+	if len(fields) == 0 {
+		return false, nil
+	}
 	m := &settingsForm{title: title, hint: hint, fields: fields, cursor: len([]rune(fields[0].Value)), height: 24, width: 80, multiline: multiline, save: save}
 	_, err := tea.NewProgram(m).Run()
 	return m.saved, err

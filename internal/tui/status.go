@@ -165,6 +165,11 @@ func (m *model) statusKey(key string) (tea.Model, tea.Cmd) {
 			m.openStatus()
 		}
 	case "p", "m", "a", "s":
+		if m.infoPanel.title != "" {
+			// Diff, snapshot and job panels are read-only: a stray letter
+			// must not leave the conversation for a settings screen.
+			return m, nil
+		}
 		action := map[string]string{"p": "provider", "m": "models", "a": "agents", "s": "settings"}[key]
 		m.infoPanel = nil
 		m.navigation = action
@@ -192,7 +197,7 @@ func (m *model) statusView(width, height int) tea.View {
 	m.infoPanel.offset = offset
 	top := max(0, (height-visible-5)/2)
 	rows := make([]string, top)
-	title, hint := "Status", "  Local snapshot · r refresh · Esc back"
+	title, hint := "Status", "  r refresh · p provider · m models · a agents · s settings · Esc back"
 	if m.infoPanel.title != "" {
 		title, hint = m.infoPanel.title, "  Snapshot · Esc back"
 	}

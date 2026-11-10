@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC166 component audit
+
+- `go test ./internal/tui` passes. That includes the new `component_audit_test.go`, which has one test per fix:
+  - paste during a run;
+  - empty question;
+  - custom-answer Esc;
+  - uppercase approval;
+  - Tab cycling;
+  - one-line picker paste;
+  - settings discard prompt, paste trimming and typed spaces;
+  - find after a trim.
+- `jobs_test` now requires a confirming second Ctrl+K.
+- The full gates pass: vet on macOS and Windows, the race suite, acceptance, and the TUI, setup and ACP PTY suites.
+- The setup PTY suite caught a regression during this work (typed spaces were trimmed in single-line fields). It was fixed before the commit. The suite now expects the new "already exists" export message.
+
 ## RC165 event audit
 
 - `internal/tui/event_fuzz_test.go`:

@@ -93,6 +93,10 @@ func TestJobsPanelShowsOutputAndStops(t *testing.T) {
 	}
 	m.statusKey("esc")
 	m.openJobs()
+	if _, cmd := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl}); cmd != nil || m.jobsPicker == nil ||
+		!strings.Contains(m.jobsPicker.footer, "again to stop") {
+		t.Fatal("first ctrl+k must only ask for confirmation")
+	}
 	_, cmd := m.Update(tea.KeyPressMsg{Code: 'k', Mod: tea.ModCtrl})
 	if cmd == nil || m.jobsPicker != nil {
 		t.Fatal("ctrl+k should stop the job asynchronously")

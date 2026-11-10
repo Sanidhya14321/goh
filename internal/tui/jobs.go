@@ -42,7 +42,7 @@ func (m *model) openJobs() {
 		status, _ := j["status"].(string)
 		options = append(options, Option{Value: id, Label: id + "  " + status, Description: oneLine(command, 60)})
 	}
-	m.jobsPicker = &optionPicker{title: "Background jobs", options: options, footer: "  Enter output  Ctrl+K stop  Esc back · jobs stop when GoHarness exits"}
+	m.jobsPicker = &optionPicker{title: "Background jobs", options: options, footer: jobsFooter}
 }
 
 func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -50,6 +50,7 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key.String() {
 		case "esc", "ctrl+c", "ctrl+d":
 			m.jobsPicker = nil
+			m.jobStopConfirm = ""
 			return m, nil
 		case "ctrl+k":
 			matches := m.jobsPicker.matches()
@@ -57,6 +58,13 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			id := matches[min(m.jobsPicker.index, len(matches)-1)].Value
+			if m.jobStopConfirm != id {
+				// Stopping cannot be undone: the first press asks.
+				m.jobStopConfirm = id
+				m.jobsPicker.footer = "  Press Ctrl+K again to stop " + Safe(id) + " · any other key cancels"
+				return m, nil
+			}
+			m.jobStopConfirm = ""
 			m.jobsPicker = nil
 			if o, ok := m.orphans[id]; ok {
 				engine := m.a.Tools
@@ -79,6 +87,10 @@ func (m *model) jobsUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return jobStoppedMsg{id, status}
 			}
 		}
+	}
+	if _, ok := msg.(tea.KeyPressMsg); ok && m.jobStopConfirm != "" {
+		m.jobStopConfirm = ""
+		m.jobsPicker.footer = jobsFooter
 	}
 	m.jobsPicker.Update(msg)
 	if !m.jobsPicker.chosen {
@@ -145,3 +157,5 @@ func jobStatusLines(a *agent.Agent) []string {
 	}
 	return lines
 }
+
+const jobsFooter = "  Enter output  Ctrl+K stop  Esc back · jobs stop when GoHarness exits"

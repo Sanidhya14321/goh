@@ -130,13 +130,27 @@ func (m *model) inputRows(width int) []string {
 	return rows[first:min(len(rows), first+3)]
 }
 
+// slashQuery is what the suggestions match against: the typed prefix, or,
+// while Tab is cycling through completions, the prefix the cycle began from.
+func (m *model) slashQuery() string {
+	if m.slashPrefix != "" && strings.HasPrefix(m.input, m.slashPrefix) {
+		for _, entry := range m.allPaletteEntries() {
+			if entry.command == m.input {
+				return m.slashPrefix
+			}
+		}
+	}
+	return m.input
+}
+
 func (m *model) slashMatches() []paletteEntry {
-	if !strings.HasPrefix(m.input, "/") || strings.ContainsAny(m.input, " \t\n") {
+	query := m.slashQuery()
+	if !strings.HasPrefix(query, "/") || strings.ContainsAny(query, " \t\n") {
 		return nil
 	}
 	var matches []paletteEntry
 	for _, entry := range m.allPaletteEntries() {
-		if strings.HasPrefix(entry.command, m.input) {
+		if strings.HasPrefix(entry.command, query) {
 			matches = append(matches, entry)
 		}
 	}
@@ -145,5 +159,25 @@ func (m *model) slashMatches() []paletteEntry {
 
 func (m *model) hasSlashSuggestions() bool {
 	matches := m.slashMatches()
-	return len(matches) > 0 && m.input != matches[0].command
+	return len(matches) > 1 || (len(matches) == 1 && m.input != matches[0].command)
+}
+
+// completeSlash fills in the first suggestion; pressing Tab again moves to
+// the next one, so every listed command is reachable from the keyboard.
+func (m *model) completeSlash() bool {
+	matches := m.slashMatches()
+	if len(matches) == 0 {
+		return false
+	}
+	query := m.slashQuery()
+	next := 0
+	for i, entry := range matches {
+		if entry.command == m.input {
+			next = (i + 1) % len(matches)
+		}
+	}
+	m.slashPrefix = query
+	m.input = matches[next].command
+	m.inputCursor = len([]rune(m.input))
+	return true
 }

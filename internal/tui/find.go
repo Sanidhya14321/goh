@@ -44,6 +44,17 @@ func (m *model) startFind(query string) {
 func (m *model) showMatch() {
 	f := m.find
 	lines := strings.Split(m.displayLog(), "\n")
+	// The transcript keeps streaming and is trimmed from the front, so a
+	// remembered line can vanish; drop matches that no longer exist.
+	for len(f.matches) > 0 && f.matches[len(f.matches)-1] >= len(lines) {
+		f.matches = f.matches[:len(f.matches)-1]
+	}
+	if len(f.matches) == 0 {
+		m.find = nil
+		m.status = "Matches scrolled out of the transcript"
+		return
+	}
+	f.current = min(f.current, len(f.matches)-1)
 	line := f.matches[f.current]
 	width := m.wrappedWidth
 	if width <= 0 {
@@ -61,13 +72,19 @@ func (m *model) findKey(key string) (tea.Model, tea.Cmd) {
 	case "esc", "ctrl+c":
 		m.find = nil
 		m.scrollOffset = 0
-		m.status = "ready"
+		if !m.active {
+			m.status = "ready"
+		}
 	case "up", "shift+enter":
-		f.current = (f.current - 1 + len(f.matches)) % len(f.matches)
-		m.showMatch()
+		if len(f.matches) > 0 {
+			f.current = (f.current - 1 + len(f.matches)) % len(f.matches)
+			m.showMatch()
+		}
 	case "down", "enter":
-		f.current = (f.current + 1) % len(f.matches)
-		m.showMatch()
+		if len(f.matches) > 0 {
+			f.current = (f.current + 1) % len(f.matches)
+			m.showMatch()
+		}
 	}
 	return m, nil
 }

@@ -148,11 +148,26 @@ func (m *model) View() tea.View {
 	}
 	draftRows = draftRows[max(0, len(draftRows)-3):]
 	promptRows := m.fileCompletionRows(promptWidth, min(6, max(1, height-16)))
-	if matches := m.slashMatches(); len(matches) > 0 && m.input != matches[0].command {
-		for _, match := range matches[:min(3, len(matches))] {
-			promptRows = append(promptRows, cell("  "+match.command+"  "+match.label, promptWidth, muted, panel))
+	if matches := m.slashMatches(); m.hasSlashSuggestions() {
+		current := 0
+		for i, match := range matches {
+			if match.command == m.input {
+				current = i
+			}
 		}
-		promptRows = append(promptRows, cell("  Tab complete", promptWidth, accent, panel))
+		first := max(0, min(current-1, len(matches)-3))
+		for i := first; i < min(len(matches), first+3); i++ {
+			if matches[i].command == m.input {
+				promptRows = append(promptRows, cell("› "+matches[i].command+"  "+matches[i].label, promptWidth, background, accent))
+				continue
+			}
+			promptRows = append(promptRows, cell("  "+matches[i].command+"  "+matches[i].label, promptWidth, muted, panel))
+		}
+		hint := "  Tab complete"
+		if len(matches) > 1 {
+			hint = fmt.Sprintf("  Tab next (%d matches) · Enter run", len(matches))
+		}
+		promptRows = append(promptRows, cell(hint, promptWidth, accent, panel))
 	}
 	promptRows = append(promptRows, cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel))
 	for _, row := range draftRows {

@@ -121,7 +121,7 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.PasteMsg:
 		if len(m.query)+len(v.Content) <= 256 {
-			m.query += Safe(v.Content)
+			m.query += oneLineQuery(v.Content)
 			m.index, m.previewOffset = 0, 0
 		}
 	case tea.KeyPressMsg:

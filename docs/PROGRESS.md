@@ -1360,3 +1360,7 @@ A screen-by-screen review of real PTY captures found these problems:
 
 All are fixed. The header shows a spinner with elapsed time, approvals read
 "Allow <tool>?" with project-relative paths, and empty sections are hidden.
+
+## TUI component audit (rc.166)
+
+I reviewed each TUI component by hand: the composer, slash suggestions, approval, questions, find, the palette, the option and session pickers, settings forms, export, jobs, the status panel and the launcher. The aim was to find inputs that were silently dropped, keys that did nothing, destructive actions taken on a single key, and stale indexes. 15 fixes, listed in the CHANGELOG, each with a regression test.

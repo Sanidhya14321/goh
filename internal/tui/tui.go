@@ -88,6 +88,8 @@ type model struct {
 	timeline             *timelinePanel
 	fileCompletion       *fileCompletion
 	fileIndex            *fileIndexMsg
+	jobStopConfirm       string
+	slashPrefix          string
 	fileIndexStale       bool // a run finished since the snapshot; files may have changed
 	fileRescanning       bool
 	fork                 *optionPicker
@@ -347,6 +349,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.applyEditor(v)
 		return m, nil
 	case questionMsg:
+		if len(v.request.Questions) == 0 {
+			v.response <- questionResponse{reply: core.QuestionReply{}}
+			return m, m.wait()
+		}
 		m.question = &questionState{message: v, selected: map[int]bool{}}
 		m.reviewOffset = 0
 		return m, m.wait()
@@ -415,9 +421,13 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.question.text += Safe(v.Content)
 			}
 		} else if m.palette {
-			m.paletteQuery += Safe(v.Content)
-			m.paletteIndex = 0
-		} else if !m.active {
+			if len(m.paletteQuery)+len(v.Content) <= 256 {
+				m.paletteQuery += oneLineQuery(v.Content)
+				m.paletteIndex = 0
+			}
+		} else if m.pending == nil && m.question == nil {
+			// While a run is active the composer queues a follow-up, so a
+			// paste must land there just like typed text.
 			m.insertInput(Safe(v.Content))
 		}
 	case tea.KeyPressMsg:
@@ -482,7 +492,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, nil
 		}
 		if m.pending != nil {
-			switch key {
+			switch strings.ToLower(key) {
 			case "pgdown", "down":
 				m.reviewOffset += 5
 			case "pgup", "up":
@@ -501,6 +511,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.pending = nil
 			}
 			return m, nil
+		}
+		if m.palette && !m.active {
+			return m.paletteKey(v)
 		}
 		switch key {
 		case "pgup":
@@ -765,9 +778,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "ctrl+w":
 			m.deleteWord()
 		case "tab":
-			if matches := m.slashMatches(); len(matches) > 0 {
-				m.input = matches[0].command
-				m.inputCursor = len([]rune(m.input))
+			if m.completeSlash() {
 			} else if m.input == "" && m.a != nil {
 				m.navigation = "cycle_agent"
 				return m, tea.Quit

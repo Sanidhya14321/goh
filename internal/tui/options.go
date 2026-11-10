@@ -46,7 +46,7 @@ func (m *optionPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width, m.height = v.Width, v.Height
 	case tea.PasteMsg:
 		if len(m.query)+len(v.Content) <= 256 {
-			m.query += Safe(v.Content)
+			m.query += oneLineQuery(v.Content)
 			m.index = 0
 		}
 	case tea.KeyPressMsg:
@@ -57,6 +57,14 @@ func (m *optionPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.index = max(0, m.index-1)
 		case "down":
 			m.index = min(max(0, len(m.matches())-1), m.index+1)
+		case "pgup":
+			m.index = max(0, m.index-10)
+		case "pgdown":
+			m.index = min(max(0, len(m.matches())-1), m.index+10)
+		case "home":
+			m.index = 0
+		case "end":
+			m.index = max(0, len(m.matches())-1)
 		case "enter":
 			options := m.matches()
 			if len(options) > 0 {
@@ -109,7 +117,10 @@ func (m *optionPicker) View() tea.View {
 		if option.Value == m.current {
 			label += "  ● current"
 		}
-		rows = append(rows, padding+cell(mark+label+"  "+option.Description, boxWidth, color, bg))
+		if option.Description != "" {
+			label += "  " + option.Description
+		}
+		rows = append(rows, padding+cell(mark+label, boxWidth, color, bg))
 	}
 	if len(options) == 0 {
 		rows = append(rows, padding+cell("  No matches", boxWidth, muted, panel))
@@ -155,4 +166,10 @@ func SelectOption(title, current string, options []Option, backdrop string) (str
 	}
 	_, err := tea.NewProgram(m).Run()
 	return m.selected, m.chosen, err
+}
+
+// oneLineQuery makes pasted text usable as a single-line search: newlines and
+// tabs become spaces and terminal controls are removed.
+func oneLineQuery(text string) string {
+	return strings.Join(strings.Fields(Safe(text)), " ")
 }
