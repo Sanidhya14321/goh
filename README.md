@@ -46,6 +46,8 @@ hidden tests, so a run passes only if the real tests pass, whatever the model re
 | Stage 2 | rc.156 | 10 hard, symptom-described | 26 | **25 (96%)** | 1 | 8.7 | 59 s |
 | Stage 2 A/B | rc.157 | same 10 hard | 20 | **19 (95%)** | 1 | 10.2 | 64 s |
 | Task fix rerun | rc.158 | `hard-py-double-charge` (fixed) | 3 | **3 (100%)** | 0 | 11.7 | 98 s |
+| Line-edit A/B | rc.159 | 10 hard, two arms | 20 | **20 (100%)** | 0 | 11.0 | 73 s |
+| Compound | rc.159 | 4 tasks, three bugs each | 8 | **8 (100%)** | 0 | 20.9 | 139 s |
 
 - Both false completions came from one task, `hard-py-double-charge`, and the cause was a defect in
   that task: its hidden test called a gateway `lookup()` method that nothing in the repository
@@ -54,6 +56,8 @@ hidden tests, so a run passes only if the real tests pass, whatever the model re
   attempts, the hard set stands at 42/42.
 - Turning the completion reminder off made no difference: it never fired, because the model always
   ran its own tests.
+- Optional line-range edits were used once in 13 edits and changed nothing, so they stay off.
+- The self-authored suite is now saturated for this model; harder signal needs real codebases.
 - Runs cut off by the ChatGPT plan's usage limit are excluded, not counted as failures.
 
 Full reports: [`docs/bench/`](docs/bench/). How to run your own: [`bench/README.md`](bench/README.md).
