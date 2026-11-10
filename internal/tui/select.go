@@ -83,6 +83,12 @@ func (m *chooser) matches() []session.Info {
 }
 
 func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok, handled := wheelAsKey(msg); handled {
+		if !ok {
+			return m, nil
+		}
+		msg = key
+	}
 	switch v := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = v.Width, v.Height
@@ -175,11 +181,8 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *chooser) View() tea.View {
 	width, height := m.width, m.height
-	if width < 1 {
-		width = 80
-	}
-	if height < 1 {
-		height = 24
+	if width < 1 || height < 1 {
+		return blankView()
 	}
 	previewWidth := 0
 	if width >= 100 && height >= 18 && !m.previewOnly {

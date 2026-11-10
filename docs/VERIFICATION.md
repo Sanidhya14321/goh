@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC164 mouse and first frame
+
+- `internal/tui/mouse_test.go`:
+  - the wheel scrolls the transcript and stops at the bottom;
+  - the wheel moves the palette selection;
+  - clicks, right clicks, releases, motion, focus and blur change nothing;
+  - the first frame before the size is known is blank and uses the
+    alternate screen.
+- Real PTY at 100x20:
+  - the alternate screen (`?1049h`), mouse tracking (`?1002h`) and SGR mouse
+    reporting (`?1006h`) are enabled;
+  - after injected wheel and right-click sequences, the process stays
+    responsive and exits cleanly with Ctrl+D.
+- All gates pass: vet, race, acceptance and the PTY suites.
+
 ## RC163 TUI polish
 
 - `go test ./internal/tui` (new `spinner_test.go`: humanized counts, status

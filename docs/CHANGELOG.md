@@ -6,6 +6,22 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.164 — 2026-11-10
+
+- **No more scrolling into the shell:** the TUI captures the mouse, so the
+  wheel scrolls the conversation (three rows per notch) instead of the
+  terminal's scrollback behind the full-screen view. In pickers, the palette,
+  approvals and questions the wheel moves the selection.
+- **Every input event has a handler:** clicks, right clicks, drags, motion and
+  focus changes are deliberately ignored everywhere, including the setup
+  screens, so none can trigger an action.
+- **Clean first frame:** nothing is drawn until the terminal reports its size,
+  so the first frame can no longer overflow a short window and push the
+  screen down.
+- `GOH_NO_MOUSE=1` leaves the mouse to the terminal for native text
+  selection; most terminals also allow Shift- or Option-drag to select while
+  the mouse is captured.
+
 ## 1.0.0-rc.163 — 2026-11-10
 
 - **TUI polish pass:** a live spinner and elapsed time while a run works;

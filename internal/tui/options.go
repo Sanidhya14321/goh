@@ -35,6 +35,12 @@ func (m *optionPicker) matches() []Option {
 
 func (m *optionPicker) Init() tea.Cmd { return nil }
 func (m *optionPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok, handled := wheelAsKey(msg); handled {
+		if !ok {
+			return m, nil
+		}
+		msg = key
+	}
 	switch v := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width, m.height = v.Width, v.Height
@@ -77,11 +83,8 @@ func (m *optionPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *optionPicker) View() tea.View {
 	width, height := m.width, m.height
-	if width < 1 {
-		width = 80
-	}
-	if height < 1 {
-		height = 24
+	if width < 1 || height < 1 {
+		return blankView()
 	}
 	boxWidth := min(68, max(1, width-4))
 	left := max(0, (width-boxWidth)/2)

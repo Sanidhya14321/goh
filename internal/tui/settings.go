@@ -40,6 +40,12 @@ func (m *settingsForm) insert(text string) {
 }
 
 func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok, handled := wheelAsKey(msg); handled {
+		if !ok {
+			return m, nil
+		}
+		msg = key
+	}
 	f := &m.fields[m.index]
 	switch k := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -136,11 +142,8 @@ func (m *settingsForm) View() tea.View {
 		fmt.Fprint(&b, " • Tab next field")
 	}
 	width, height := m.width, m.height
-	if width < 1 {
-		width = 80
-	}
-	if height < 1 {
-		height = 24
+	if width < 1 || height < 1 {
+		return blankView()
 	}
 	boxWidth := min(82, max(1, width-4))
 	padding := strings.Repeat(" ", max(0, (width-boxWidth)/2))
@@ -185,6 +188,12 @@ var launchItems = []struct {
 func (m *launcher) Init() tea.Cmd { return nil }
 
 func (m *launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if key, ok, handled := wheelAsKey(msg); handled {
+		if !ok {
+			return m, nil
+		}
+		msg = key
+	}
 	if size, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width, m.height = size.Width, size.Height
 	}
@@ -213,11 +222,8 @@ func (m *launcher) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *launcher) View() tea.View {
 	width, height := m.width, m.height
-	if width < 1 {
-		width = 80
-	}
-	if height < 1 {
-		height = 24
+	if width < 1 || height < 1 {
+		return blankView()
 	}
 	boxWidth := min(76, max(1, width-4))
 	padding := strings.Repeat(" ", max(0, (width-boxWidth)/2))

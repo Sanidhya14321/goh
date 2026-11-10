@@ -332,7 +332,7 @@ workspace bar, and an optional session sidebar on terminals at least 112 columns
 wide. **Ctrl+B** toggles the sidebar. **PgUp/PgDn** scroll the transcript.
 Permission previews keep their own scrolling and explicit approval controls.
 **Ctrl+K**, `/help`, and `/palette` also open the command palette.
-`NO_COLOR` enables plain rendering. Smaller terminals use a compact layout.
+`NO_COLOR` enables plain rendering. Smaller terminals use a compact layout. The mouse wheel scrolls the conversation; set `GOH_NO_MOUSE=1` to leave the mouse to your terminal for native text selection.
 **Ctrl+L** redraws the terminal screen.
 
 The composer supports Left/Right, Home/End, Delete, Ctrl+A/Ctrl+E for line

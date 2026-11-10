@@ -152,6 +152,22 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			command = tea.Batch(command, tea.ClearScreen)
 		}
 	}()
+	if wheel, ok := msg.(tea.MouseWheelMsg); ok && !m.overlayOpen() && m.pending == nil && m.question == nil {
+		// The wheel scrolls the conversation, three rows per notch.
+		switch wheel.Button {
+		case tea.MouseWheelUp:
+			m.scrollOffset += 3
+		case tea.MouseWheelDown:
+			m.scrollOffset = max(0, m.scrollOffset-3)
+		}
+		return m, nil
+	}
+	if key, ok, handled := wheelAsKey(msg); handled {
+		if !ok {
+			return m, nil
+		}
+		msg = key
+	}
 	switch v := msg.(type) {
 	case spinMsg:
 		m.ticking = false
@@ -1234,4 +1250,11 @@ func sessionScopeLabel(p core.Permission) string {
 		return "session for " + Safe(strings.TrimPrefix(scope, "origin:"))
 	}
 	return "session for this exact command"
+}
+
+// overlayOpen reports whether a picker or panel covers the conversation; the
+// wheel then moves its selection instead of scrolling the transcript.
+func (m *model) overlayOpen() bool {
+	return m.palette || m.export != nil || m.fork != nil || m.changesPicker != nil || m.jobsPicker != nil ||
+		m.copyPicker != nil || m.themePicker != nil || m.timeline != nil || m.infoPanel != nil
 }

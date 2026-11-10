@@ -50,16 +50,14 @@ func canvas(rows []string, width, height int) tea.View {
 	}
 	view := tea.NewView(strings.Join(rows, "\n"))
 	view.AltScreen = true
+	view.MouseMode = mouseMode()
 	return view
 }
 
 func (m *model) View() tea.View {
 	width, height := m.width, m.height
-	if width < 1 {
-		width = 80
-	}
-	if height < 1 {
-		height = 24
+	if width < 1 || height < 1 {
+		return blankView()
 	}
 	if m.export != nil {
 		return m.exportView(width, height)
