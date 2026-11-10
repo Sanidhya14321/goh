@@ -76,9 +76,11 @@ type Agent struct {
 	projectGuidance string
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
-	verifyFailed           bool
-	completionChecked      bool
-	wroteTestDouble        bool // a test fake/mock/stub was written this run
+	// runTokens counts model tokens (input+output) used by this run.
+	runTokens         int
+	verifyFailed      bool
+	completionChecked bool
+	wroteTestDouble   bool // a test fake/mock/stub was written this run
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -367,6 +369,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
 	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
+	a.runTokens = 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.readyIntegrations = map[string]bool{}
@@ -516,6 +519,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		a.event("assistant_started", map[string]any{"turn": turn})
 		reasoningCtx := core.WithReasoning(ctx, func(s string) { a.event("reasoning_updated", map[string]any{"text": s}) })
 		reasoningCtx = core.WithRetryNotices(reasoningCtx, func(n core.RetryNotice) { a.event("provider_retry", n) })
+		if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+			// Checked between turns, so every requested tool has its result.
+			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
+		}
 		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
 		if e != nil {
 			var finish *provider.FinishError

@@ -167,6 +167,10 @@ type Config struct {
 	// MaxToolCalls bounds tool calls per run, child tasks included (0 = no
 	// limit).
 	MaxToolCalls int `json:"max_tool_calls,omitempty"`
+	// MaxRunTokens bounds model tokens (input plus output, as the provider
+	// reports them) per run, child tasks included (0 = no limit). A
+	// provider-neutral spending cap; checked between model turns.
+	MaxRunTokens int `json:"max_run_tokens,omitempty"`
 	// RetryInterruptedStreams (0-2, default 0) re-sends a model request whose
 	// stream broke before it finished. Off unless configured: the partial reply
 	// is discarded and none of its tool calls ran, so the retry is a new
@@ -265,8 +269,8 @@ func LoadConfig(path string) (Config, error) {
 			return c, fmt.Errorf("verify: command is required, repair_attempts 0-3, timeout_seconds up to 600")
 		}
 	}
-	if c.MaxToolCalls < 0 || c.MaxRunSeconds < 0 {
-		return c, fmt.Errorf("max_tool_calls and max_run_seconds must not be negative")
+	if c.MaxToolCalls < 0 || c.MaxRunSeconds < 0 || c.MaxRunTokens < 0 {
+		return c, fmt.Errorf("max_tool_calls, max_run_seconds and max_run_tokens must not be negative")
 	}
 	if c.Sandbox != nil {
 		for _, w := range c.Sandbox.Writable {

@@ -202,6 +202,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	verifyCmd := f.String("verify", "", "run: check command after file changes, with bounded repair (overrides config)")
 	maxToolCalls := f.Int("max-tool-calls", 0, "run: stop after this many tool calls, child tasks included")
 	maxRunSeconds := f.Int("max-run-seconds", 0, "run: stop after this many seconds, child tasks included")
+	maxRunTokens := f.Int("max-run-tokens", 0, "run: stop before the next model turn once this many tokens are used, child tasks included")
 	lineEdits := f.Bool("line-edits", false, "run: let edit_file replace numbered line ranges as well as exact text")
 	retryInterrupted := f.Int("retry-interrupted", 0, "run: re-send a model request whose stream broke, up to N times (0-2); partial replies are discarded")
 	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
@@ -344,6 +345,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.MaxToolCalls = *maxToolCalls
 		case "max-run-seconds":
 			c.MaxRunSeconds = *maxRunSeconds
+		case "max-run-tokens":
+			c.MaxRunTokens = *maxRunTokens
 		case "line-edits":
 			c.LineEdits = *lineEdits
 		case "retry-interrupted":

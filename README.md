@@ -535,8 +535,10 @@ If the check fails, its output is handed back to the model to fix, at most
 `verified`, or `failed_verification` when the check still fails. The check
 is your own command, so it runs without an approval prompt (inside the
 sandbox when that is on). `"max_tool_calls": N` caps the tool calls in one
-run and `"max_run_seconds": N` its wall time; child tasks count against the
-same budgets. Hitting either ends the run as `budget_exhausted`.
+run, `"max_run_seconds": N` its wall time and `"max_run_tokens": N` the model
+tokens it uses (input plus output, as the provider reports them; a spending
+cap that works the same on every provider). Child tasks count against the same
+budgets. Hitting any of them ends the run as `budget_exhausted` (exit code 5).
 
 ### Shell sandbox
 

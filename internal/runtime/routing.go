@@ -57,6 +57,7 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		// Durable usage for every model call (turns, summaries, titles,
 		// children), charged to the model that served it; never replayed.
 		u := reply.Usage
+		a.runTokens += max(u.Total, u.Prompt+u.Completion)
 		if e := a.Store.Append("usage", map[string]any{"model": reply.Model, "purpose": purpose, "prompt_tokens": u.Prompt, "completion_tokens": u.Completion, "total_tokens": u.Total, "cache_read_tokens": u.CacheRead, "cache_write_tokens": u.CacheWrite}); e != nil {
 			return core.Reply{}, e
 		}

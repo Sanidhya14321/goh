@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.161 — 2026-11-10
+
+- **Token budget:** `max_run_tokens` and `goh run --max-run-tokens N` stop a
+  run (status `budget_exhausted`, exit code 5) before the next model turn once
+  N tokens (input plus output, as the provider reports them) are used, child
+  tasks included. A provider-neutral spending cap; set it in tokens because
+  prices differ by provider and plan.
+
 ## 1.0.0-rc.160 — 2026-11-10
 
 - **MCP prompts:** servers that offer prompt templates are listed with `/mcp`

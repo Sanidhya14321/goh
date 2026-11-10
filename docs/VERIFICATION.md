@@ -23,6 +23,11 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC161 token budget
+
+`TestMaxRunTokens`: with a 150-token budget and 100 tokens per turn, the run stops before the third
+turn with `budget_exhausted`, after both tool calls returned results. All gates passed.
+
 ## RC160 MCP prompts
 
 `TestPrompts` (fixture server with a prompt: listed with required argument, rendered with arguments,
