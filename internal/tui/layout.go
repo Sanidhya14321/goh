@@ -364,7 +364,7 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 	if len(sessionID) > 15 {
 		sessionID = sessionID[len(sessionID)-12:]
 	}
-	rows = append(rows, sessionID, "", "MODEL", modelName)
+	rows = append(rows, Safe(sessionID), "", "MODEL", Safe(modelName))
 	if t := humanTokens(m.usage); t != "" {
 		rows = append(rows, t)
 	}
@@ -398,7 +398,19 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 			}
 		}
 		rows = append(rows, "", fmt.Sprintf("TASKS  %d/%d", done, len(m.todos)))
-		for _, todo := range m.todos[:min(len(m.todos), 8)] {
+		// Show the work that is still open: start just before the first
+		// unfinished task so a long finished prefix cannot hide it.
+		first := 0
+		for i, todo := range m.todos {
+			if todo.Status != "completed" {
+				first = max(0, min(i-1, len(m.todos)-8))
+				break
+			}
+		}
+		if first > 0 {
+			rows = append(rows, fmt.Sprintf("  ✓ %d earlier done", first))
+		}
+		for _, todo := range m.todos[first:min(len(m.todos), first+8)] {
 			mark := "○ "
 			switch todo.Status {
 			case "completed":
@@ -408,8 +420,8 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 			}
 			rows = append(rows, mark+todo.Content)
 		}
-		if len(m.todos) > 8 {
-			rows = append(rows, fmt.Sprintf("  +%d more · /todos", len(m.todos)-8))
+		if rest := len(m.todos) - first - 8; rest > 0 {
+			rows = append(rows, fmt.Sprintf("  +%d more · /todos", rest))
 		}
 	}
 	rows = append(rows, "")

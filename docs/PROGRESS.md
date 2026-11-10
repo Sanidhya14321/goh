@@ -1366,3 +1366,5 @@ All are fixed. The header shows a spinner with elapsed time, approvals read
 I reviewed each TUI component by hand: the composer, slash suggestions, approval, questions, find, the palette, the option and session pickers, settings forms, export, jobs, the status panel and the launcher. The aim was to find inputs that were silently dropped, keys that did nothing, destructive actions taken on a single key, and stale indexes. 15 fixes, listed in the CHANGELOG, each with a regression test.
 
 rc.167 continued the audit with transcript scrolling (an anchor while streaming, a scrolled-up indicator) and editable queued prompts.
+
+rc.168: in the audit, made queued prompts survive an open panel, kept open tasks visible in the sidebar, and stripped terminal control sequences from model text in the todo list and status line.

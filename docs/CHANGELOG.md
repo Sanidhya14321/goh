@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.168 — 2026-11-11
+
+- **Queued prompts:** if a panel or search is open when a queued prompt is due, the prompt returns to the input box. Before, its Enter was swallowed by the panel and the prompt was lost.
+- **Sidebar tasks:**
+  - the list starts just before the first unfinished task, with a "✓ N earlier done" line, so in-progress work is never pushed off by a long run of finished tasks;
+  - task text from the model has terminal control sequences stripped.
+- **Status line and sidebar:** terminal control sequences are stripped from the status line, model name and session ID.
+
 ## 1.0.0-rc.167 — 2026-11-10
 
 - **Reading while a reply streams:** if you scroll up, the rows you are reading stay in place as new output arrives. Before, they slid out of view.

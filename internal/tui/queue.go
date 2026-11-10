@@ -116,6 +116,19 @@ func (m *model) submitQueued() (tea.Model, tea.Cmd) {
 	if m.active || len(m.queue) == 0 {
 		return m, nil
 	}
+	if m.overlayOpen() || m.palette || m.find != nil || m.fileCompletion != nil || m.leader {
+		// Enter would act on the open panel instead of sending the prompt;
+		// hand the queue back rather than lose a prompt into a picker.
+		held := strings.Join(m.queue, "\n\n")
+		if strings.TrimSpace(m.input) != "" {
+			held += "\n\n" + m.input
+		}
+		m.queue = nil
+		m.input, m.inputCursor = "", 0
+		m.insertInput(held)
+		m.status = "Queued prompts returned to the composer; press Enter to send"
+		return m, nil
+	}
 	draft, cursor := m.input, m.inputCursor
 	next := m.queue[0]
 	m.queue = m.queue[1:]

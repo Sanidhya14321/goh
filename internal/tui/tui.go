@@ -309,6 +309,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			json.Unmarshal(b, &d)
 			m.todos = append([]core.Todo{}, d.Todos...)
+			for i := range m.todos {
+				// Model-written text: strip terminal controls before it is drawn.
+				m.todos[i].Content = Safe(strings.Join(strings.Fields(m.todos[i].Content), " "))
+			}
 		case "assistant_completed":
 			b, _ := json.Marshal(v.Data)
 			var d struct {

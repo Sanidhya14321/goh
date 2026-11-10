@@ -74,7 +74,7 @@ func (m *model) statusLine() string {
 			parts = append(parts, d)
 		}
 	} else if m.status != "" {
-		parts = append(parts, m.status)
+		parts = append(parts, Safe(oneLine(m.status, 200)))
 		if d := humanDuration(m.durationMS); d != "" {
 			parts = append(parts, d)
 		}

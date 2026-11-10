@@ -23,6 +23,13 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC168 queue and sidebar audit
+
+- New tests:
+  - a queued prompt survives an open panel;
+  - the sidebar shows open tasks after 20 finished ones.
+- The full gates pass: vet, race suite, acceptance, and the TUI, setup and ACP PTY suites.
+
 ## RC167 scrolling and queue audit
 
 - New tests in `component_audit_test.go`:

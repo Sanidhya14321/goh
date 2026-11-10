@@ -182,3 +182,25 @@ func TestUpTakesBackQueuedPrompt(t *testing.T) {
 		t.Fatalf("queue %v input %q", m.queue, m.input)
 	}
 }
+
+func TestQueuedPromptNotLostIntoOpenPanel(t *testing.T) {
+	m := fuzzModel(t)
+	m.queue = []string{"next task"}
+	m.find = &findState{query: "x", matches: []int{0}}
+	m.Update(queuedSubmitMsg{})
+	if m.input != "next task" || len(m.queue) != 0 {
+		t.Fatalf("queued prompt lost: input %q queue %v", m.input, m.queue)
+	}
+}
+
+func TestSidebarShowsOpenTasksAndStripsControls(t *testing.T) {
+	m := fuzzModel(t)
+	for i := range 20 {
+		m.todos = append(m.todos, core.Todo{Content: fmt.Sprintf("task %d", i), Status: "completed"})
+	}
+	m.todos = append(m.todos, core.Todo{Content: "current work", Status: "in_progress"})
+	rows := strings.Join(m.sidebar("id", "model"), "\n")
+	if !strings.Contains(rows, "current work") || !strings.Contains(rows, "earlier done") {
+		t.Fatalf("open task hidden:\n%s", rows)
+	}
+}
