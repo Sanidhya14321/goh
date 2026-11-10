@@ -18,7 +18,7 @@ type queuedSubmitMsg struct{}
 func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch v.String() {
 	case "esc":
-		m.cancel()
+		m.cancelRun()
 	case "enter":
 		prompt := strings.TrimSpace(m.input)
 		switch {

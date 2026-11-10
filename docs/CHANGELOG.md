@@ -6,6 +6,20 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.165 — 2026-11-10
+
+- **Event audit:** a stress test sends every kind of terminal input to 40 TUI
+  states and the six setup screens. Inputs: printable and control keys,
+  navigation keys, Ctrl chords, left, right and middle clicks, the wheel,
+  motion, empty and very large pastes, focus changes, and resizes down to 1x1
+  and 0x0. Each state gets 300–400 random steps. It checks for crashes,
+  blocked handlers, and frames taller or wider than the terminal.
+- **Fixed:** Esc or Ctrl+C during a run could dereference a missing cancel
+  function. Every cancel path is now nil-safe.
+- **Ctrl+C when idle:** clears a typed draft first. On an empty composer it
+  shows "Press Ctrl+C again to exit" and exits on a second press within two
+  seconds. Before, each press appended "No active run" to the transcript.
+
 ## 1.0.0-rc.164 — 2026-11-10
 
 - **No more scrolling into the shell:** the TUI captures the mouse, so the

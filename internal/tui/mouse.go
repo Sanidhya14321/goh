@@ -45,3 +45,10 @@ func wheelAsKey(msg tea.Msg) (key tea.KeyPressMsg, ok, handled bool) {
 	}
 	return key, false, false
 }
+
+// cancelRun stops the active run, if one was started.
+func (m *model) cancelRun() {
+	if m.cancel != nil {
+		m.cancel()
+	}
+}

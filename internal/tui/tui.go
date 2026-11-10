@@ -60,6 +60,7 @@ type model struct {
 	reviewOffset         int
 	durationMS           int64
 	runStarted           time.Time
+	lastInterrupt        time.Time
 	spinFrame            int
 	ticking              bool
 	todos                []core.Todo
@@ -453,15 +454,24 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		if key == "ctrl+c" {
 			if m.active {
-				m.cancel()
+				m.cancelRun()
 				return m, nil
 			}
-			m.log += "\nNo active run. Ctrl+D exits.\n"
-			return m, nil
+			// Conventional idle Ctrl+C: clear the draft first, then a second
+			// press within two seconds exits.
+			if m.input != "" {
+				m.input, m.inputCursor = "", 0
+				return m, nil
+			}
+			if !m.lastInterrupt.IsZero() && time.Since(m.lastInterrupt) < 2*time.Second {
+				return m, tea.Quit
+			}
+			m.lastInterrupt = time.Now()
+			return m, tea.Tick(2100*time.Millisecond, func(time.Time) tea.Msg { return spinMsg{} })
 		}
 		if key == "ctrl+d" {
 			if m.active {
-				m.cancel()
+				m.cancelRun()
 				m.log += "\nCancelling; Ctrl+D exits after cleanup.\n"
 				return m, nil
 			}
@@ -565,7 +575,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.input, m.inputCursor = "", 0
 				if m.active {
 					// Same rule as Ctrl+D: never leave a run mid-effect.
-					m.cancel()
+					m.cancelRun()
 					m.log += "\nCancelling; Ctrl+D exits after cleanup.\n"
 					return m, nil
 				}
@@ -990,7 +1000,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	_, e := tea.NewProgram(m).Run()
 	close(m.closed)
 	if m.cancel != nil {
-		m.cancel()
+		m.cancelRun()
 	}
 	if m.runDone != nil {
 		select {

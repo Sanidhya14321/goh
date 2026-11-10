@@ -43,3 +43,21 @@ func TestFirstFrameBeforeSizeIsBlank(t *testing.T) {
 		t.Fatalf("unsized first frame: %q alt=%v", v.Content, v.AltScreen)
 	}
 }
+
+func TestIdleCtrlCClearsDraftThenNeedsDoublePress(t *testing.T) {
+	m := &model{width: 100, height: 30, input: "draft", inputCursor: 5}
+	ctrlC := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
+	if _, cmd := m.Update(ctrlC); cmd != nil || m.input != "" {
+		t.Fatal("first Ctrl+C should only clear the draft")
+	}
+	_, cmd := m.Update(ctrlC)
+	if !strings.Contains(m.View().Content, "Press Ctrl+C again to exit") {
+		t.Fatal("missing exit hint")
+	}
+	_ = cmd // the hint timer; running it would wait out the window
+	if _, cmd = m.Update(ctrlC); cmd == nil {
+		t.Fatal("second Ctrl+C should exit")
+	} else if _, quit := cmd().(tea.QuitMsg); !quit {
+		t.Fatal("second Ctrl+C should quit")
+	}
+}

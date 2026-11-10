@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -170,6 +171,9 @@ func (m *model) View() tea.View {
 	}
 	if m.blocked != "" {
 		controls = "Ctrl+P provider commands  /provider setup  Ctrl+D exit"
+	}
+	if !m.lastInterrupt.IsZero() && time.Since(m.lastInterrupt) < 2*time.Second {
+		controls = "Press Ctrl+C again to exit"
 	}
 	promptRows = append(promptRows, cell("   "+controls, promptWidth, muted, background))
 

@@ -23,6 +23,23 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC165 event audit
+
+- `internal/tui/event_fuzz_test.go`:
+  - covers 40 in-session states and 6 setup screens;
+  - sends every event once from a fresh state, then a seeded random walk;
+  - each event has a 2 s deadline;
+  - checks for panics, blocked handlers, and frames taller or wider than the
+    terminal.
+- `TestIdleCtrlCClearsDraftThenNeedsDoublePress`.
+- Real PTY checks:
+  - SIGTERM restores the terminal (alternate screen and mouse tracking off);
+  - SIGHUP exits;
+  - a 300 KB bracketed paste stays responsive.
+- Latency with a 128 KB transcript at 200x60: 0.5 ms per keystroke, 2.3 ms per
+  wheel notch, 2.6 ms per resize (update plus render).
+- All gates pass.
+
 ## RC164 mouse and first frame
 
 - `internal/tui/mouse_test.go`:
