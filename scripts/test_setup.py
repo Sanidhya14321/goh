@@ -10,9 +10,13 @@ import stat
 import sys
 import subprocess
 import tempfile
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from vtscreen import Screen
 import termios
 import threading
 import time
+import fcntl
+import struct
 
 binary = pathlib.Path(os.environ.get("GOH_TEST_BINARY", pathlib.Path(__file__).resolve().parents[1] / "bin/goh"))
 key = "goh-test-provider-key"
@@ -72,16 +76,33 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
     config_dir.mkdir(parents=True)
     (config_dir / "config.json").write_text(json.dumps({"profiles": {"fast": {"model": "fixture-fast"}}}))
     master, slave = pty.openpty()
+    # A fixed 80x24 terminal, matched by the screen emulator.
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
     original = termios.tcgetattr(slave)
     app = subprocess.Popen([binary], cwd=project, env=env, stdin=slave, stdout=slave, stderr=slave)
-    output = bytearray()
+    screen = Screen(24, 80)
+
+    class ScreenBytes(bytearray):
+        """Terminal output that also updates the emulated screen."""
+
+        def extend(self, data):
+            super().extend(data)
+            screen.feed(data)
+
+    output = ScreenBytes()
 
     def wait_for(text, start=0):
+        # The renderer redraws only changed cells, so text can be on screen
+        # without appearing contiguously in the bytes. A screen match counts
+        # only for text that was not already shown when the wait began.
+        needle = text.decode("utf-8", "replace")
+        was_shown = needle in screen.text()
+        found = lambda: text in output[start:] or (not was_shown and needle in screen.text())
         deadline = time.monotonic() + 8
-        while text not in output[start:] and time.monotonic() < deadline:
+        while not found() and time.monotonic() < deadline:
             if select.select([master], [], [], .1)[0]:
                 output.extend(os.read(master, 65536))
-        assert text in output[start:], (text, bytes(output[-900:]))
+        assert found(), (text, bytes(output[-900:]))
 
     def wait_finished(journal, offset):
         # Fast turns can finish without repainting an already visible status.
