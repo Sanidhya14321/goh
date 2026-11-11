@@ -1376,3 +1376,5 @@ rc.170: fixed every P1 from an external review (snapshot restore data loss, file
 rc.171: fixed the review's P2 and P3 findings outside the TUI: shell-made changes in outcomes and verify, user shell status, MCP precision and prompt startup, fresh LSP diagnostics, provider stream and error handling, damaged ChatGPT credentials, portable sessions after malformed calls, transactional trash and restore, ACP stream reconciliation, and CLI session-dir, config and worktree checks.
 
 rc.172: fixed the review's terminal UI findings (small-terminal layouts and unseen approvals, drafts, quoted attachments, retry transcript, status notices, find, paste, keybinds) and added a CI job for the PTY, setup, ACP and acceptance suites.
+
+rc.173: fixed an intermittent Linux sandbox bypass (Landlock applied to one thread, exec from another), caught by the canary test in the new CI runs; the PTY suite matches an emulated screen.

@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC173 Linux sandbox thread race
+
+CI run 43065205413 failed `TestInjectedInstructionsCannotExfiltrateOrPlant` once on ubuntu-latest: the sandboxed shell read a protected file, and a rerun passed. Cause: `landlock_restrict_self` and `PR_SET_NO_NEW_PRIVS` act on the calling thread, and the Go scheduler could move the helper goroutine between `restrict` and `syscall.Exec`. Reproduced in a Linux 6.8 container (arm64, Landlock ABI ≥ 4) under parallel load: the old test binary failed 1 of 4,800 runs with the same message; the fixed binary failed 0 of 4,800. The race is too rare to bound statistically. The fix follows the kernel semantics (`runtime.LockOSThread` in the helper).
+
+The PTY suite now also checks an emulated 80×24 screen; with it, the macOS and Ubuntu terminal jobs passed in CI.
+
 ## RC172 external review: terminal UI
 
 New tests:

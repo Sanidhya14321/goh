@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"syscall"
@@ -39,6 +40,11 @@ func HelperMain() {
 	if len(os.Args) < 5 || os.Args[1] != helperArg || os.Args[3] != "--" {
 		return
 	}
+	// Landlock and no_new_privs apply to the calling OS thread only. Pin
+	// this goroutine so the thread that is restricted is the one that execs;
+	// otherwise the scheduler can move it and exec from an unrestricted
+	// thread, starting the command without the sandbox.
+	runtime.LockOSThread()
 	p, err := decodePolicy(os.Args[2])
 	if err == nil {
 		err = restrict(p)

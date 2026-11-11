@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.173 — 2026-11-11
+
+- **Security (Linux shell sandbox):** Landlock and `no_new_privs` restrict only the calling OS thread, and the sandbox helper could restrict one thread and then exec from another, running the command unsandboxed. This was intermittent. The helper now pins itself to one OS thread from before the restriction until the exec. CI caught it once through the adversarial canary test (a protected credential file was read).
+- **Tests:** the PTY suite matches an emulated screen (`scripts/vtscreen.py`) as well as raw output bytes, because the renderer redraws only the cells that changed. CI no longer retries it.
+
 ## 1.0.0-rc.172 — 2026-11-11
 
 External review, terminal UI and CI findings.
