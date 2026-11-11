@@ -97,8 +97,8 @@ func RunLSP() {
 			}
 			continue
 		}
-		if q.ID == nil {
-			continue
+		if q.ID == nil || q.Method == "" {
+			continue // notifications and the client's replies to our requests
 		}
 		if q.Method == "initialize" {
 			if mode == "bad-initialize" {
