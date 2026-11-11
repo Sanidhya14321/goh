@@ -1,6 +1,20 @@
 #!/usr/bin/env python3
 """Exercise only the newly built application in disposable pseudo-terminals."""
-import json, os, pathlib, pty, select, signal, subprocess, tempfile, termios, time, urllib.request
+import fcntl, json, os, pathlib, pty, select, signal, struct, subprocess, sys, tempfile, termios, time, urllib.request
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from vtscreen import Screen
+
+
+class ScreenBytes(bytearray):
+    """Terminal output that also updates an emulated screen."""
+
+    def __init__(self, screen):
+        super().__init__()
+        self.screen = screen
+
+    def extend(self, data):
+        super().extend(data)
+        self.screen.feed(data)
 
 base = pathlib.Path(__file__).resolve().parents[1]
 reports = []
@@ -46,13 +60,18 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
         arguments += ['--script', str(queue_script if scenario=='queue' else undo_script if scenario=='undo' else typed_script if scenario=='typed' else formatter_script if scenario=='formatter' else child_cancel_script if scenario=='child-cancel' else child_script if scenario=='child' else question_script if scenario=='questions' else task_script if scenario=='tasks' else script)] if scenario in ('script','tasks','questions','child','child-cancel','formatter','typed','undo','queue') else ['--scenario', scenario]
         fixture = subprocess.Popen(arguments, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         master, slave = pty.openpty()
+        # A fixed 80x24 terminal, matched by the screen emulator.
+        fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 24, 80, 0, 0))
+        screen = Screen(24, 80)
         original = termios.tcgetattr(slave)
         process = None
-        output = bytearray()
+        output = ScreenBytes(screen)
         def wait_for(needle, timeout=8):
             deadline = time.monotonic() + timeout
             while time.monotonic() < deadline:
-                if needle in output:
+                # The renderer redraws only changed cells, so also match what
+                # the screen shows, not just the byte stream.
+                if needle in output or needle.decode('utf-8', 'replace') in screen.text():
                     return
                 readable, _, _ = select.select([master], [], [], .05)
                 if readable:

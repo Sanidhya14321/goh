@@ -50,10 +50,7 @@ jobs:
           python-version: '3.12'
       - run: make build GO=go
       - run: make acceptance GO=go
-      # The PTY suite matches raw output bytes; when the renderer redraws only
-      # the changed cells of a line, a needle can be split by cursor moves.
-      # One retry absorbs that until the suite checks an emulated screen.
-      - run: python3 scripts/test_tui.py || python3 scripts/test_tui.py
+      - run: python3 scripts/test_tui.py
       - run: python3 scripts/test_setup.py
       - run: python3 scripts/test_acp.py
   install:
