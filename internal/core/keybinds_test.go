@@ -26,6 +26,7 @@ func TestKeymapRejectsBadBindings(t *testing.T) {
 	for name, user := range map[string]map[string]string{
 		"unknown action":  {"launch_rockets": "ctrl+r"},
 		"reserved key":    {"timeline": "ctrl+c"},
+		"redraw key":      {"command_palette": "ctrl+l"},
 		"malformed":       {"status": "ctrl+"},
 		"conflict":        {"status": "ctrl+p"},
 		"leader list":     {"leader": "ctrl+x,ctrl+o"},

@@ -73,6 +73,11 @@ func (m *model) statusLine() string {
 		if d := humanDuration(elapsed / 1000 * 1000); d != "" {
 			parts = append(parts, d)
 		}
+		// A notice raised during the run (a provider retry, a full queue)
+		// shows beside the spinner instead of being hidden by it.
+		if m.status != "" && m.status != "running" {
+			parts = append(parts, Safe(oneLine(m.status, 120)))
+		}
 	} else if m.status != "" {
 		parts = append(parts, Safe(oneLine(m.status, 200)))
 		if d := humanDuration(m.durationMS); d != "" {

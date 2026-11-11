@@ -1374,3 +1374,5 @@ rc.169: a technical, licensing and documentation audit. Benchmark tasks copied f
 rc.170: fixed every P1 from an external review (snapshot restore data loss, file_rules spelling and attachment bypasses, misleading approval previews, recovery call-ID reuse, sticky startup flags, picker crash, benchmark grading isolation) and three launcher issues.
 
 rc.171: fixed the review's P2 and P3 findings outside the TUI: shell-made changes in outcomes and verify, user shell status, MCP precision and prompt startup, fresh LSP diagnostics, provider stream and error handling, damaged ChatGPT credentials, portable sessions after malformed calls, transactional trash and restore, ACP stream reconciliation, and CLI session-dir, config and worktree checks.
+
+rc.172: fixed the review's terminal UI findings (small-terminal layouts and unseen approvals, drafts, quoted attachments, retry transcript, status notices, find, paste, keybinds) and added a CI job for the PTY, setup, ACP and acceptance suites.

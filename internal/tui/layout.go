@@ -163,9 +163,16 @@ func (m *model) View() tea.View {
 			}
 			promptRows = append(promptRows, cell("  "+matches[i].command+"  "+matches[i].label, promptWidth, muted, panel))
 		}
+		exact := false
+		for _, match := range matches {
+			exact = exact || match.command == m.input
+		}
 		hint := "  Tab complete"
 		if len(matches) > 1 {
-			hint = fmt.Sprintf("  Tab next (%d matches) · Enter run", len(matches))
+			hint = fmt.Sprintf("  Tab next (%d matches)", len(matches))
+		}
+		if exact {
+			hint += " · Enter run" // only a complete command runs
 		}
 		promptRows = append(promptRows, cell(hint, promptWidth, accent, panel))
 	}
@@ -268,6 +275,7 @@ func (m *model) View() tea.View {
 		contentHeight = max(0, contentHeight-len(reviewRows))
 	}
 	lines := m.visibleRows(body, columns-2, contentHeight, review != "")
+	m.reviewHidden = review != "" && len(lines) == 0
 	needle := ""
 	if m.find != nil && review == "" {
 		needle = strings.ToLower(m.find.query)
@@ -349,6 +357,7 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 	end := max(0, len(lines)-offset)
 	start := max(0, end-height)
 	if review {
+		m.reviewHeight = height
 		start = min(m.reviewOffset, max(0, len(lines)-height))
 		m.reviewOffset = start // overshooting PgDn must not make PgUp feel dead
 		end = min(len(lines), start+height)

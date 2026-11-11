@@ -6,6 +6,28 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.172 — 2026-11-11
+
+External review, terminal UI and CI findings.
+
+- **Small terminals:**
+  - The compact layout uses the same transcript as the wide one: hidden reasoning and details stay hidden, and PgUp, `/find` and the mouse wheel work.
+  - Slash suggestions are shown.
+  - `y`/`s` refuse to approve an operation that is not on screen, and Enter refuses a question that is not on screen.
+  - Question dialogs keep the selected option visible, scroll to the custom-answer field, and PgUp/PgDn work while typing.
+  - Settings forms keep the focused field, the save error and the controls visible.
+- **Drafts:** palette commands (`/find`, `/commands` and others), `/sessions` → Esc and the Plan→Build handoff keep what you were typing.
+- **Attachments:** `@"path with spaces"`, as the file picker inserts it, attaches the file.
+- **Streams:** after a retry, the discarded partial reply is removed from the transcript. Provider retries and a full queue show beside the spinner.
+- **Smaller fixes:**
+  - Slash suggestions say "Enter run" only for a complete command.
+  - `/find` scrolls to the wrapped row holding the match.
+  - Session preview PgDn no longer piles up past the end.
+  - Pasted CRLF becomes newlines.
+  - `ctrl+l` (screen redraw) cannot be rebound.
+  - `/commands` lists project commands like the palette.
+- **CI:** a new job runs acceptance and the TUI, setup and ACP PTY suites on Linux and macOS. The PTY suite pins truecolor instead of inheriting the caller's terminal.
+
 ## 1.0.0-rc.171 — 2026-11-11
 
 External review, P2 and P3 fixes outside the terminal UI.

@@ -204,3 +204,78 @@ func TestSidebarShowsOpenTasksAndStripsControls(t *testing.T) {
 		t.Fatalf("open task hidden:\n%s", rows)
 	}
 }
+
+func TestTinyTerminalCannotApproveUnseenOperation(t *testing.T) {
+	m := fuzzModel(t)
+	m.width, m.height = 45, 3
+	response := make(chan core.Decision, 1)
+	m.pending = &permissionMsg{request: core.Permission{Tool: "shell", Preview: "Command: rm -rf build"}, response: response}
+	m.View()
+	m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	select {
+	case d := <-response:
+		t.Fatalf("approved unseen: %+v", d)
+	default:
+	}
+	if m.pending == nil || !strings.Contains(m.status, "Enlarge") {
+		t.Fatalf("status %q", m.status)
+	}
+	m.width, m.height = 100, 30
+	m.View()
+	m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	if d := <-response; !d.Allow {
+		t.Fatal("visible approval refused")
+	}
+}
+
+func TestCompactViewHidesThinkingAndScrolls(t *testing.T) {
+	m := fuzzModel(t)
+	m.width, m.height = 52, 15
+	m.hideThinking = true
+	m.addReasoning("SECRET-THOUGHT")
+	m.flushReasoning()
+	for i := range 60 {
+		m.log += fmt.Sprintf("line %02d\n", i)
+	}
+	content := m.View().Content
+	if strings.Contains(content, "SECRET-THOUGHT") {
+		t.Fatal("hidden reasoning rendered in the compact view")
+	}
+	if !strings.Contains(content, "line 59") {
+		t.Fatalf("tail not shown:\n%s", content)
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	if content := m.View().Content; strings.Contains(content, "line 59") {
+		t.Fatalf("PgUp did not scroll the compact view:\n%s", content)
+	}
+}
+
+func TestQuestionSelectionStaysOnScreen(t *testing.T) {
+	m := fuzzModel(t)
+	m.width, m.height = 64, 18
+	options := []core.QuestionOption{}
+	for i := range 20 {
+		options = append(options, core.QuestionOption{Label: fmt.Sprintf("option-%02d", i)})
+	}
+	m.question = &questionState{selected: map[int]bool{}, message: questionMsg{request: core.QuestionRequest{Questions: []core.Question{{Header: "Pick", Question: "Which?", Options: options}}}, response: make(chan questionResponse, 1)}}
+	m.View()
+	for range 15 {
+		m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+		m.View()
+	}
+	if content := m.View().Content; !strings.Contains(content, "option-15") {
+		t.Fatalf("selected option scrolled out of view:\n%s", content)
+	}
+}
+
+func TestSettingsFormKeepsFocusAndErrorVisible(t *testing.T) {
+	fields := []SettingsField{}
+	for _, l := range []string{"Protocol", "Base URL", "Endpoint", "Model", "Context window", "Output budget", "API key"} {
+		fields = append(fields, SettingsField{Label: l, Value: "value-" + l})
+	}
+	m := &settingsForm{title: "Provider", hint: "Configure the provider.", fields: fields, width: 62, height: 16, index: 6, problem: "API key is required for this endpoint"}
+	content := m.View().Content
+	if !strings.Contains(content, "> API key") || !strings.Contains(content, "API key is required") || !strings.Contains(content, "Ctrl+S save") {
+		t.Fatalf("focus, error or controls hidden:\n%s", content)
+	}
+}

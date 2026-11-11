@@ -38,6 +38,7 @@ var reservedKeys = map[string]bool{
 	"enter": true, "esc": true, "tab": true, "shift+tab": true, "backspace": true,
 	"ctrl+c": true, "ctrl+d": true, "up": true, "down": true, "left": true, "right": true,
 	"alt+enter": true, "ctrl+a": true, "ctrl+e": true, "ctrl+u": true, "ctrl+w": true, "ctrl+r": true,
+	"ctrl+l": true, // redraws the screen before any binding is consulted
 }
 
 var keyPattern = regexp.MustCompile(`^((ctrl|alt|shift)\+)*([a-z0-9]|f([1-9]|1[0-2]))$`)

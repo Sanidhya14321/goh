@@ -1,6 +1,12 @@
 package tui
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/Sanidhya14321/goh/internal/core"
+)
 
 func TestHumanizers(t *testing.T) {
 	for _, c := range []struct {
@@ -52,5 +58,26 @@ func TestRelativizePreviewLeavesCommandsAndContentExact(t *testing.T) {
 func TestShortPathKeepsTail(t *testing.T) {
 	if got := shortPath("/very/long/path/to/project", 10); got != "…o/project" {
 		t.Fatalf("%q", got)
+	}
+}
+
+func TestRunNoticesShowBesideSpinner(t *testing.T) {
+	m := &model{active: true, status: "Queue full (8 prompts); the draft is kept"}
+	if got := m.statusLine(); !strings.Contains(got, "Queue full") {
+		t.Fatalf("%q", got)
+	}
+	m.status = "running"
+	if got := m.statusLine(); strings.Contains(got, "running") {
+		t.Fatalf("%q", got)
+	}
+}
+
+func TestRetryRemovesDiscardedPartialReply(t *testing.T) {
+	m := &model{events: make(chan tea.Msg, 4), log: "You: hi\n"}
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "HALF AN ANS"}})
+	m.Update(core.Event{Type: "stream_retry", Data: map[string]any{"attempt": 1}})
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "Full answer."}})
+	if strings.Contains(m.log, "HALF AN ANS") || !strings.Contains(m.log, "Full answer.") || !strings.Contains(m.log, "discarded") {
+		t.Fatalf("%q", m.log)
 	}
 }

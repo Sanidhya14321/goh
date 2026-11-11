@@ -130,6 +130,7 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			}
 			if entry.command == "/find" || entry.command == "/rename" || entry.command == "/effort" {
 				m.palette = false
+				m.stashDraft()
 				m.input = entry.command + " "
 				m.inputCursor = len([]rune(m.input))
 				return m, nil
@@ -185,6 +186,7 @@ func (m *model) paletteKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 				m.hideSidebar = !m.hideSidebar
 				return m, nil
 			}
+			m.stashDraft()
 			m.input = entry.command
 			m.inputCursor = len([]rune(m.input))
 			return m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})

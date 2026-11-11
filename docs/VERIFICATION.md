@@ -23,6 +23,18 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC172 external review: terminal UI
+
+New tests:
+- `TestTinyTerminalCannotApproveUnseenOperation` (45×3), `TestCompactViewHidesThinkingAndScrolls` (52×15), `TestQuestionSelectionStaysOnScreen` (64×18), `TestSettingsFormKeepsFocusAndErrorVisible` (62×16);
+- `TestPaletteCommandsKeepTheDraft`, `TestQuotedMentionsAttachPathsWithSpaces`;
+- `TestRetryRemovesDiscardedPartialReply`, `TestRunNoticesShowBesideSpinner`;
+- the keymap test rejects `ctrl+l`.
+
+`scripts/test_setup.py` asserted that a quoted picker path was not attached, which was the reported bug; it now checks that picking inserts only the path and that sending attaches it. The TUI suite passes with `COLORTERM` unset. The full gates pass: vet, race suite, acceptance, and the TUI (25 scenarios), setup and ACP suites.
+
+Not done: moving to Go 1.27.4 for GO-2026-6859 needs a toolchain download, which this session did not do.
+
 ## RC171 external review: P2/P3 fixes outside the TUI
 
 New tests reproduce each finding:

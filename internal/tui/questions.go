@@ -42,8 +42,17 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		return
 	}
 	current := q.message.request.Questions[q.index]
+	if key == "enter" && m.reviewHidden {
+		m.status = "Enlarge the terminal to see the question before answering (Esc dismisses)"
+		return
+	}
+	defer m.followQuestionCursor()
 	if q.custom {
 		switch key {
+		case "pgdown":
+			m.reviewOffset += 5
+		case "pgup":
+			m.reviewOffset = max(0, m.reviewOffset-5)
 		case "enter":
 			if strings.TrimSpace(q.text) != "" {
 				q.finish(m, []string{q.text})
@@ -81,6 +90,7 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 	case "c":
 		q.custom = true
 		q.text = ""
+		m.reviewOffset = 1 << 30 // the input is at the end; the view clamps
 	case "space", " ":
 		if current.Multiple && len(current.Options) > 0 {
 			q.selected[q.cursor] = !q.selected[q.cursor]
@@ -88,6 +98,7 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 	case "enter":
 		if len(current.Options) == 0 {
 			q.custom = true
+			m.reviewOffset = 1 << 30
 			return
 		}
 		var answers []string
@@ -106,6 +117,33 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		q.finish(m, answers)
 	}
 }
+
+// followQuestionCursor scrolls the question so the selected option stays on
+// screen after the cursor moves (Enter answers what is highlighted, so it
+// must be visible).
+func (m *model) followQuestionCursor() {
+	q := m.question
+	if q == nil || q.custom || m.reviewHeight <= 0 {
+		return
+	}
+	text := q.view()
+	i := strings.Index(text, "\n> ")
+	if i < 0 {
+		return
+	}
+	width := m.wrappedWidth
+	if width <= 0 {
+		width = max(1, m.width-4)
+	}
+	row := len(terminalRows(text[:i+1], width)) // rows before the cursor line
+	switch {
+	case row < m.reviewOffset:
+		m.reviewOffset = row
+	case row >= m.reviewOffset+m.reviewHeight:
+		m.reviewOffset = row - m.reviewHeight + 1
+	}
+}
+
 func (q *questionState) finish(m *model, answer []string) {
 	q.answers = append(q.answers, answer)
 	q.index++

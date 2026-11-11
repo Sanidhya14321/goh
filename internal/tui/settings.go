@@ -169,12 +169,13 @@ func (m *settingsForm) View() tea.View {
 		}
 		fmt.Fprintf(&b, "%s%s\n%s\n", mark, f.Label, Safe(shown))
 	}
+	var tail strings.Builder
 	if m.problem != "" {
-		fmt.Fprintln(&b, "\n"+Safe(m.problem))
+		fmt.Fprintln(&tail, "\n"+Safe(m.problem))
 	}
-	fmt.Fprint(&b, "\nCtrl+S save • Esc back • Ctrl+U clear field")
+	fmt.Fprint(&tail, "\nCtrl+S save • Esc back • Ctrl+U clear field")
 	if !m.multiline {
-		fmt.Fprint(&b, " • Tab next field")
+		fmt.Fprint(&tail, " • Tab next field")
 	}
 	width, height := m.width, m.height
 	if width < 1 || height < 1 {
@@ -183,10 +184,21 @@ func (m *settingsForm) View() tea.View {
 	boxWidth := min(82, max(1, width-4))
 	padding := strings.Repeat(" ", max(0, (width-boxWidth)/2))
 	lines := terminalRows(b.String(), max(1, boxWidth-4))
-	// Keep the save/error controls in view on shorter terminals.
-	if len(lines) > height-2 {
-		lines = append(lines[:max(0, height-4)], lines[len(lines)-2:]...)
+	footer := terminalRows(tail.String(), max(1, boxWidth-4))
+	// On short terminals the error and controls always show, and the fields
+	// scroll so the focused one stays visible.
+	if room := max(1, height-1-len(footer)); len(lines) > room {
+		focus := 0
+		for i, line := range lines {
+			if strings.HasPrefix(line, "> ") {
+				focus = i
+				break
+			}
+		}
+		start := min(max(0, focus-room/2), len(lines)-room)
+		lines = lines[start : start+room]
 	}
+	lines = append(lines, footer...)
 	rows := []string{""}
 	for i, line := range lines {
 		fg := foreground

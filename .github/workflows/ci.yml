@@ -31,6 +31,28 @@ jobs:
         run: |
           go build -o goh${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/harness
           ./goh${{ runner.os == 'Windows' && '.exe' || '' }} version
+  terminal:
+    # The compiled binary in real pseudo-terminals, plus CLI, setup and ACP
+    # scenarios, against the scripted local model (no credentials).
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: make build GO=go
+      - run: make acceptance GO=go
+      - run: python3 scripts/test_tui.py
+      - run: python3 scripts/test_setup.py
+      - run: python3 scripts/test_acp.py
   install:
     # One-command installers against a local release-layout server, natively.
     strategy:

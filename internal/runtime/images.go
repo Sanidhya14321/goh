@@ -27,10 +27,8 @@ var imageTypes = map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".
 func (a *Agent) promptImages(prompt string) ([]core.Image, error) {
 	var paths []string
 	seen := map[string]bool{}
-	for _, field := range strings.Fields(mentionText(prompt)) {
-		path, ok := strings.CutPrefix(field, "@")
-		path = strings.TrimRight(path, ".,;:!?)\"'")
-		if !ok || imageTypes[strings.ToLower(filepath.Ext(path))] == "" || seen[path] {
+	for _, path := range mentions(prompt) {
+		if imageTypes[strings.ToLower(filepath.Ext(path))] == "" || seen[path] {
 			continue
 		}
 		seen[path] = true

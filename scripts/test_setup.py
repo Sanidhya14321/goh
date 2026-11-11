@@ -262,7 +262,10 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"\r")
         wait_finished(journal_before, len(before_files))
         assert len(requests) == count+1
-        assert prompts[-1] == 'Inspect @"docs/query fixture.md" ', prompts
+        # Choosing a file inserts only its path (no request, nothing shown);
+        # sending attaches it like any @path, quoted because of the space.
+        assert prompts[-1].startswith('Inspect @"docs/query fixture.md" '), prompts
+        assert '<file path="docs/query fixture.md">' in prompts[-1], prompts
         assert b"FILE_BODY_MUST_STAY_LOCAL" not in output
         time.sleep(.1)
         count = len(requests)

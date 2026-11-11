@@ -267,6 +267,7 @@ func (m *chooser) View() tea.View {
 		}
 		lines := terminalRows(strings.Join(preview, "\n"), max(1, detailWidth-3))
 		start := min(m.previewOffset, max(0, len(lines)-(height-6)))
+		m.previewOffset = start // PgDn past the end must not pile up offset
 		for y := 4; y < len(rows); y++ {
 			text := ""
 			if at := start + y - 4; at < len(lines) {

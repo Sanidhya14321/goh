@@ -66,3 +66,34 @@ func TestChangesPanelShowsCheckpointDiff(t *testing.T) {
 		t.Fatal("opened during a run")
 	}
 }
+
+func TestPaletteCommandsKeepTheDraft(t *testing.T) {
+	cfg := core.Defaults()
+	cfg.SessionDir, cfg.Model, cfg.ContextWindow = t.TempDir(), "fixture", 1<<20
+	store, err := session.New(cfg.SessionDir, testutil.TempDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	a, err := agent.New(cfg, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &model{a: a, width: 100, height: 30, input: "half-written prompt", inputCursor: 19}
+	m.palette, m.paletteQuery = true, "/commands"
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.input != "half-written prompt" {
+		t.Fatalf("/commands from the palette left %q", m.input)
+	}
+	m.palette, m.paletteQuery, m.paletteIndex = true, "/find", 0
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if !strings.HasPrefix(m.input, "/find") {
+		t.Fatalf("palette /find: %q", m.input)
+	}
+	m.input += "needle"
+	m.inputCursor = len([]rune(m.input))
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.input != "half-written prompt" {
+		t.Fatalf("after /find the draft is %q", m.input)
+	}
+}

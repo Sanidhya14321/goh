@@ -30,6 +30,7 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		default:
 			m.queue = append(m.queue, m.input)
 			m.input, m.inputCursor = "", 0
+			m.status = "running"
 			m.log += "\n[queued] " + Safe(firstLine(prompt)) + "\n"
 		}
 	case "up":
@@ -84,6 +85,9 @@ func (m *model) afterRun(done doneMsg) tea.Cmd {
 		// with the go-ahead ready in the composer (queued prompts kept too).
 		m.a.HandoffPlan = ""
 		draft := "Carry out the approved plan."
+		if typed := strings.TrimSpace(m.input); typed != "" {
+			draft += "\n\n" + typed // what the user was typing is kept
+		}
 		if len(m.queue) > 0 {
 			draft += "\n\n" + strings.Join(m.queue, "\n\n")
 			m.queue = nil

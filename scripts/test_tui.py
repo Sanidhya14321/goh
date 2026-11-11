@@ -89,7 +89,9 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     break
                 except OSError:
                     time.sleep(.02)
-            env = dict(os.environ, TERM='xterm-256color')
+            # The colour assertions expect 24-bit escapes, so pin truecolor
+            # instead of inheriting the caller's terminal.
+            env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor')
             if case=='editor_handoff':
                 fake_editor=root/'fake-editor.sh'
                 fake_editor.write_text('#!/bin/sh\nprintf "%s" "$(cat "$1") rewritten in editor" > "$1"\n')

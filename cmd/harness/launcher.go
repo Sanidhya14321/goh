@@ -314,6 +314,7 @@ func chatFirst(args []string) error {
 				project, sessionID = next, ""
 			}
 		case "sessions":
+			draft = nav.Draft
 			cfg := core.Defaults()
 			if nav.Config != nil {
 				cfg = *nav.Config

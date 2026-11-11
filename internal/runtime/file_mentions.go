@@ -7,7 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/tools"
@@ -22,6 +24,39 @@ var attachedFileBlock = regexp.MustCompile(`(?s)<file path="[^"\n]*">\n.*?\n</fi
 // contents.
 func mentionText(prompt string) string {
 	return attachedFileBlock.ReplaceAllString(prompt, " ")
+}
+
+// mentions returns the @paths in the user's own text, in order. A path with
+// spaces or quotes is written @"path with spaces" (Go string quoting, as the
+// file picker inserts it); other mentions end at whitespace, with trailing
+// punctuation dropped.
+func mentions(prompt string) []string {
+	text := mentionText(prompt)
+	var out []string
+	for i := 0; i < len(text); i++ {
+		if text[i] != '@' || (i > 0 && !unicode.IsSpace(rune(text[i-1])) && text[i-1] != '(') {
+			continue
+		}
+		rest := text[i+1:]
+		if strings.HasPrefix(rest, `"`) {
+			if q, err := strconv.QuotedPrefix(rest); err == nil {
+				if path, err := strconv.Unquote(q); err == nil && path != "" {
+					out = append(out, path)
+				}
+				i += len(q)
+				continue
+			}
+		}
+		end := strings.IndexFunc(rest, unicode.IsSpace)
+		if end < 0 {
+			end = len(rest)
+		}
+		if path := strings.TrimRight(rest[:end], ".,;:!?)\"'"); path != "" {
+			out = append(out, path)
+		}
+		i += end
+	}
+	return out
 }
 
 // pathDenied applies file_rules to a project-relative path both as written
@@ -54,10 +89,8 @@ func (a *Agent) withFileMentions(prompt string) (string, []string) {
 	var attached []string
 	seen := map[string]bool{}
 	total := 0
-	for _, field := range strings.Fields(mentionText(prompt)) {
-		path, ok := strings.CutPrefix(field, "@")
-		path = strings.TrimRight(path, ".,;:!?)\"'")
-		if !ok || path == "" || seen[path] || imageTypes[strings.ToLower(filepath.Ext(path))] != "" || len(attached) == maxMentionFiles {
+	for _, path := range mentions(prompt) {
+		if seen[path] || imageTypes[strings.ToLower(filepath.Ext(path))] != "" || len(attached) == maxMentionFiles {
 			continue
 		}
 		seen[path] = true

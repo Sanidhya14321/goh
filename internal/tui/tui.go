@@ -45,6 +45,17 @@ type doneMsg struct {
 	err    error
 }
 type model struct {
+	// reviewHidden is set by the view when a pending approval or question
+	// has none of its content on screen; it cannot be answered unseen.
+	reviewHidden bool
+	// reviewHeight is how many rows the last render gave a review body.
+	reviewHeight int
+	// stashedDraft is a draft set aside while a palette command uses the
+	// composer; it returns when that command has run.
+	stashedDraft string
+	// partialReply is the assistant text streamed since the last other
+	// event, removed from the transcript if the stream is retried.
+	partialReply         string
 	a                    *agent.Agent
 	events               chan tea.Msg
 	input                string
@@ -214,6 +225,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.flushReasoning()
+		if strings.HasPrefix(m.status, "Provider busy") && (v.Type == "assistant_updated" || v.Type == "tool_started" || v.Type == "assistant_completed") {
+			m.status = "running" // the retry got through
+		}
 		if v.Type == "provider_retry" {
 			if n, ok := v.Data.(core.RetryNotice); ok {
 				m.status = fmt.Sprintf("Provider busy (%s); retrying in %.1fs, attempt %d of %d", Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)
@@ -225,6 +239,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					m.sessionTitle = Safe(t)
 				}
 			}
+		}
+		if v.Type != "assistant_updated" && v.Type != "stream_retry" {
+			m.partialReply = "" // the reply text so far is final
 		}
 		switch v.Type {
 		case "subagent_event":
@@ -245,7 +262,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.log += "\n[child " + Safe(d.TaskID) + " " + Safe(d.Event.Type) + "]\n"
 			}
 		case "stream_retry":
-			m.log += "\n[stream broke; the partial reply above was discarded and the request re-sent]\n"
+			// Remove the abandoned partial reply; the retry streams it anew.
+			if m.partialReply != "" && strings.HasSuffix(m.log, m.partialReply) {
+				m.log = m.log[:len(m.log)-len(m.partialReply)]
+			}
+			m.partialReply = ""
+			m.log += "\n[stream broke; the partial reply was discarded and the request re-sent]\n"
 		case "assistant_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -253,6 +275,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			json.Unmarshal(b, &d)
 			m.log += Safe(d.Text)
+			m.partialReply += Safe(d.Text)
 		case "tool_started":
 			b, _ := json.Marshal(v.Data)
 			var tool struct {
@@ -399,6 +422,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.status = v.id + " " + v.status
 		return m, nil
 	case tea.PasteMsg:
+		// Windows (CRLF) and old Mac (CR) line endings paste as newlines,
+		// not as a control character.
+		v.Content = strings.ReplaceAll(strings.ReplaceAll(v.Content, "\r\n", "\n"), "\r", "\n")
 		if m.export != nil {
 			return m.exportUpdate(v)
 		}
@@ -507,11 +533,13 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				if m.reviewOffset < 0 {
 					m.reviewOffset = 0
 				}
-			case "y":
-				m.pending.response <- core.Decision{Allow: true}
-				m.pending = nil
-			case "s":
-				m.pending.response <- core.Decision{Allow: true, Session: true}
+			case "y", "s":
+				if m.reviewHidden {
+					// Approving needs the operation on screen.
+					m.status = "Enlarge the terminal to see the operation before approving (n denies)"
+					return m, nil
+				}
+				m.pending.response <- core.Decision{Allow: true, Session: strings.ToLower(key) == "s"}
 				m.pending = nil
 			case "n", "esc":
 				m.pending.response <- core.Decision{}
@@ -573,6 +601,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
+			if m.stashedDraft != "" && strings.HasPrefix(strings.TrimSpace(prompt), "/") {
+				// A command opened from the palette over a draft: put the
+				// draft back once the command has used the composer.
+				defer m.restoreStashedDraft()
+			}
 			if strings.TrimSpace(prompt) == "/export" {
 				m.input, m.inputCursor = "", 0
 				m.openExport()
@@ -688,13 +721,15 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
 				m.log += "\nCommands: /provider, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
-				names := make([]string, 0, len(m.a.Config.Commands))
-				for name := range m.a.Config.Commands {
+				// The same set the palette shows: configured and project commands.
+				set := m.a.CommandSet()
+				names := make([]string, 0, len(set))
+				for name := range set {
 					names = append(names, name)
 				}
 				sort.Strings(names)
 				for _, name := range names {
-					m.log += "/" + name + " — " + Safe(m.a.Config.Commands[name].Description) + "\n"
+					m.log += "/" + name + " — " + Safe(set[name].Description) + "\n"
 				}
 				if len(m.log) > 128<<10 {
 					m.log = m.log[len(m.log)-(128<<10):]
@@ -850,7 +885,9 @@ func (m *model) compactView() tea.View {
 	if m.a != nil {
 		header[0] = "GoHarness  ·  " + m.a.Config.Agent + "  ·  " + m.a.Config.Model
 	}
-	body, review := m.log, ""
+	// The same transcript as the wide layout: hidden reasoning and details
+	// stay hidden, and scrolling, /find and turn jumps work.
+	body, review := m.displayLog(), ""
 	if m.pending != nil {
 		review = "Allow " + m.pending.request.Tool + "?  y once · s " + sessionScopeLabel(m.pending.request) + " · n deny · PgUp/PgDn scroll"
 		body = relativizePreview(m.pending.request.Preview, m.a.Store.Project)
@@ -878,8 +915,11 @@ func (m *model) compactView() tea.View {
 		if height > 1 {
 			rows = append(rows, ansi.Truncate("Ctrl+C cancel · Ctrl+D exit", width, "…"))
 		}
+		// Nothing of a pending operation fits: it cannot be approved unseen.
+		m.reviewHidden = review != ""
 		view := tea.NewView(strings.Join(rows, "\n"))
 		view.AltScreen = true
+		view.MouseMode = mouseMode()
 		return view
 	}
 
@@ -910,6 +950,15 @@ func (m *model) compactView() tea.View {
 	available := height - len(footer) - len(input)
 	files := m.fileCompletionRows(width, min(5, max(0, available-1)))
 	available -= len(files)
+	if m.hasSlashSuggestions() && available > 2 {
+		// Tab cycles these, so they must be visible here too.
+		names := []string{}
+		for _, match := range m.slashMatches() {
+			names = append(names, match.command)
+		}
+		files = append(files, ansi.Truncate("Tab: "+strings.Join(names, " "), width, "…"))
+		available--
+	}
 	reviewRows := []string{}
 	if review != "" {
 		reviewRows = terminalRows(review, width)
@@ -924,17 +973,28 @@ func (m *model) compactView() tea.View {
 	}
 	rows := append(header, reviewRows...)
 	visible := max(0, available-len(rows))
-	lines := terminalRows(body, width)
-	start := max(0, len(lines)-visible)
-	if review != "" {
-		start = min(m.reviewOffset, max(0, len(lines)-visible))
+	needle := ""
+	if m.find != nil && review == "" {
+		needle = strings.ToLower(m.find.query)
 	}
-	rows = append(rows, lines[start:min(start+visible, len(lines))]...)
+	shown := 0
+	if visible > 0 {
+		for _, row := range m.visibleRows(body, width, visible, review != "") {
+			text := row.text
+			if needle != "" && strings.Contains(strings.ToLower(text), needle) {
+				text = "▸ " + text
+			}
+			rows = append(rows, ansi.Truncate(text, width, "…"))
+			shown++
+		}
+	}
+	m.reviewHidden = review != "" && shown == 0
 	rows = append(rows, files...)
 	rows = append(rows, input...)
 	rows = append(rows, footer...)
 	view := tea.NewView(strings.Join(rows, "\n"))
 	view.AltScreen = true
+	view.MouseMode = mouseMode()
 	return view
 }
 func Run(a *agent.Agent, notice, draft string) error {
@@ -1293,4 +1353,23 @@ func sessionScopeLabel(p core.Permission) string {
 func (m *model) overlayOpen() bool {
 	return m.palette || m.export != nil || m.fork != nil || m.changesPicker != nil || m.jobsPicker != nil ||
 		m.copyPicker != nil || m.themePicker != nil || m.timeline != nil || m.infoPanel != nil
+}
+
+// restoreStashedDraft puts a stashed draft back if the composer is free.
+func (m *model) restoreStashedDraft() {
+	if m.stashedDraft == "" {
+		return
+	}
+	if strings.TrimSpace(m.input) == "" {
+		m.input, m.inputCursor = m.stashedDraft, len([]rune(m.stashedDraft))
+	}
+	m.stashedDraft = ""
+}
+
+// stashDraft sets a non-empty draft aside before a palette command writes
+// into the composer.
+func (m *model) stashDraft() {
+	if strings.TrimSpace(m.input) != "" && !strings.HasPrefix(strings.TrimSpace(m.input), "/") {
+		m.stashedDraft = m.input
+	}
 }

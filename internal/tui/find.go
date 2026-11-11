@@ -61,6 +61,12 @@ func (m *model) showMatch() {
 		width = max(1, m.width-4)
 	}
 	after := len(transcriptRows(strings.Join(lines[line:], "\n"), width, "", false))
+	// On a line that wraps, aim at the row holding the match rather than
+	// the start of the line, which can be several screens above it.
+	if i := strings.Index(strings.ToLower(lines[line]), strings.ToLower(f.query)); i > 0 {
+		end := min(len(lines[line]), i+len(f.query))
+		after -= max(0, len(transcriptRows(lines[line][:end], width, "", false))-1)
+	}
 	h := m.transcriptHeight()
 	m.scrollOffset = max(0, after-h+h/3)
 	m.status = fmt.Sprintf("Match %d/%d: %s · ↑/↓ next · Esc done", f.current+1, len(f.matches), oneLine(lines[line], 50))
