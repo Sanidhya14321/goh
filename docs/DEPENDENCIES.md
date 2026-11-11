@@ -4,7 +4,7 @@ The six direct dependencies (`bubbletea/v2`, `x/ansi`, the MCP Go SDK, `jsonsche
 
 Exact upstream license, attribution and patent files are preserved under `licenses/`. `licenses/inventory.json` records paths and SHA-256 hashes. Original project material uses Apache-2.0 in `LICENSE`; third-party notices retain their original terms.
 
-Go 1.27.3 is development tooling and supplies the standard library/runtime to release binaries. Its license and bundled third-party notices are in `licenses/go1.27.3/`. REA 6.8.0, Node, Bun and OpenCode are research tooling/reference artifacts, outside the product dependency graph and not runtime requirements.
+Go 1.27.4 is development tooling and supplies the standard library/runtime to release binaries (raised from 1.27.3 for GO-2026-6859, an HTTP server race fixed in 1.27.4). Its license and bundled third-party notices are in `licenses/go1.27.4/`; they are byte-identical to 1.27.3's. REA 6.8.0, Node, Bun and OpenCode are research tooling/reference artifacts, outside the product dependency graph and not runtime requirements.
 
 | Module | Version | Host CLI | License text summary |
 |---|---|---|---|

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository layout
 
-- Root — the product: **GoHarness** (`goh`), an original Go coding assistant (headless JSON/text CLI, Bubble Tea TUI, file/shell tools, durable sessions, stdio MCP, ACP, LSP). Go module `github.com/Sanidhya14321/goh`, Go 1.27.3. Code lives in `cmd/` and `internal/`; Python integration scripts in `scripts/`; dependency licenses in `licenses/`.
+- Root — the product: **GoHarness** (`goh`), an original Go coding assistant (headless JSON/text CLI, Bubble Tea TUI, file/shell tools, durable sessions, stdio MCP, ACP, LSP). Go module `github.com/Sanidhya14321/goh`, Go 1.27.4. Code lives in `cmd/` and `internal/`; Python integration scripts in `scripts/`; dependency licenses in `licenses/`.
 - `docs/` — `ARCHITECTURE.md`, `CHANGELOG.md`, `VERIFICATION.md`, `PROGRESS.md`, `END_TO_END_AUDIT.md`, `BENCHMARKS.md`, `DEPENDENCIES.md`, `ORIGIN_LEDGER.md`. Update CHANGELOG, VERIFICATION and PROGRESS (and END_TO_END_AUDIT when relevant) when a milestone lands.
 - `docs/plan/` — the user's `IMPLEMENTATION_PLAN.md` (must remain unchanged) and `specs/` (behavioral contracts, `COMPATIBILITY_MATRIX.md`).
 - `research/` — local reference material and comparison evidence (pinned OpenCode v1.19.5 source under `research/reference`, captured evidence under `research/evidence/`, notes and reports, the local Go toolchain under `research/tooling/go`). Mostly git-ignored. **Never copy code, prompts, or fixtures from research into `cmd/` or `internal/`** — see `docs/ORIGIN_LEDGER.md`. Product code is independently authored Apache-2.0; reference material is only for observing behavior.

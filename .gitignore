@@ -20,3 +20,5 @@
 !/research/go.mod
 /bench/results/
 /bench/.cache/
+/harness
+/goh

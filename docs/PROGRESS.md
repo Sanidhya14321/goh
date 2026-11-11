@@ -1378,3 +1378,5 @@ rc.171: fixed the review's P2 and P3 findings outside the TUI: shell-made change
 rc.172: fixed the review's terminal UI findings (small-terminal layouts and unseen approvals, drafts, quoted attachments, retry transcript, status notices, find, paste, keybinds) and added a CI job for the PTY, setup, ACP and acceptance suites.
 
 rc.173: fixed an intermittent Linux sandbox bypass (Landlock applied to one thread, exec from another), caught by the canary test in the new CI runs; the PTY suite matches an emulated screen.
+
+rc.174: moved to Go 1.27.4 for GO-2026-6859 and removed an accidentally committed build output.

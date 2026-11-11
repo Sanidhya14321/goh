@@ -15,7 +15,7 @@ clearance is inferred from this ledger.
 | OpenCode binary and root license | Official v1.19.5 release; pinned commit in reference-manifest.json | Retained only under research/reference; not linked or shipped as original product |
 | Upstream request/prompt traces | Actual reference model requests saved as research evidence | Research only; never used as Go product prompts or redistributed in release package |
 | REA skill/guides and package | morluto/rea skill commit 71f680d7c1aa7a45ba0325fe87b104744b0c105f; rea-agents6.8.0 npm package | Development tooling; source revision and package identity separate; not runtime dependencies |
-| Go distribution | Official go1.27.3 archive, verified publisher SHA256 | Local development toolchain; bundled notices retained |
+| Go distribution | Official go1.27.4 archive (go1.27.3 before RC174), verified publisher SHA256 | Local development toolchain; bundled notices retained |
 | Dependencies | Exact selected Go graph in go.mod/go.sum | Inventory, original notices and license hashes under licenses/ |
 | Real-project benchmark tasks | `hidden/` and `solution/` files under `bench/tasks/` whose `task.json` names an upstream `git` source | Third-party (MIT / BSD-3-Clause); exact upstream license texts and copyright notices in `bench/licenses/`; test material only, not shipped in binaries |
 | OpenCode UI screenshots | `research/evidence/opencode-ui-*.png`, captured from the pinned MIT-licensed release for side-by-side comparison | Research evidence only; not product assets |

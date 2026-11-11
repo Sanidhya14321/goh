@@ -362,7 +362,7 @@ to run a GoHarness CLI operation by entering its arguments as a JSON array,
 such as `["sessions", "list"]`. The menu passes arguments directly to
 GoHarness. `goh setup` opens the provider form directly.
 
-Go 1.27.3 is pinned. Build requires Go and network access for pinned modules;
+Go 1.27.4 is pinned. Build requires Go and network access for pinned modules;
 the resulting `goh` binary requires neither Go, Node, Bun, nor REA.
 From this directory:
 

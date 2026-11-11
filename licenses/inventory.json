@@ -1,5 +1,5 @@
 {
-  "go": "1.27.3",
+  "go": "1.27.4",
   "scope": "Complete selected Go module graph, including build/test-only dependencies; compiled_for_host_cli is the macOS arm64 package graph, not a per-symbol link analysis.",
   "modules": [
     {

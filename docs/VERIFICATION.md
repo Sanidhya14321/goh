@@ -23,6 +23,10 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC174 Go 1.27.4
+
+The official go1.27.4 darwin-arm64 archive was checked against the SHA-256 published at go.dev/dl (`91a44a2b…bd0bb4`) and installed as `research/tooling/go`; 1.27.3 is kept beside it as `go1.27.3`. `go mod tidy -diff` is clean. The full gates pass on 1.27.4: vet (macOS and Windows), race suite, acceptance, the TUI, setup and ACP suites, and the bounded fuzz targets. `govulncheck` was not rerun: downloading it was not permitted in this session.
+
 ## RC173 Linux sandbox thread race
 
 CI run 43065205413 failed `TestInjectedInstructionsCannotExfiltrateOrPlant` once on ubuntu-latest: the sandboxed shell read a protected file, and a rerun passed. Cause: `landlock_restrict_self` and `PR_SET_NO_NEW_PRIVS` act on the calling thread, and the Go scheduler could move the helper goroutine between `restrict` and `syscall.Exec`. Reproduced in a Linux 6.8 container (arm64, Landlock ABI ≥ 4) under parallel load: the old test binary failed 1 of 4,800 runs with the same message; the fixed binary failed 0 of 4,800. The race is too rare to bound statistically. The fix follows the kernel semantics (`runtime.LockOSThread` in the helper).

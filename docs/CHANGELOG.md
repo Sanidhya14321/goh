@@ -6,6 +6,11 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.174 — 2026-11-11
+
+- **Go 1.27.4:** the toolchain moves from 1.27.3 for GO-2026-6859 (a standard-library HTTP server race between request-body reads and response-header writes; the review found no reproduction through GoHarness's handlers). `go.mod`, CI and the local toolchain use 1.27.4. Its bundled notices (`licenses/go1.27.4/`) are byte-identical to 1.27.3's.
+- **Repository:** removed a `harness` build output that was committed by mistake in rc.170. `/harness` and `/goh` are now ignored.
+
 ## 1.0.0-rc.173 — 2026-11-11
 
 - **Security (Linux shell sandbox):** Landlock and `no_new_privs` restrict only the calling OS thread, and the sandbox helper could restrict one thread and then exec from another, running the command unsandboxed. This was intermittent. The helper now pins itself to one OS thread from before the restriction until the exec. CI caught it once through the adversarial canary test (a protected credential file was read).
