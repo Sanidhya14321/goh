@@ -3,9 +3,12 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
 func TestHostGradingDropsSecrets(t *testing.T) {
+	testutil.RequireUnixShell(t) // the benchmark grades with /bin/sh
 	t.Setenv("GOH_BENCH_FAKE_TOKEN", "leak")
 	t.Setenv("SSH_AUTH_SOCK", "/tmp/agent.sock")
 	code, out := csh("", t.TempDir(), "env", 30)

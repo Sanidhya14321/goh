@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
 func TestUserShellRecordsCallAndFeedsNextTurn(t *testing.T) {
@@ -74,6 +75,7 @@ func TestUserShellRefusals(t *testing.T) {
 }
 
 func TestUserShellReportsFailureAndKeepsCancelledEffectUncertain(t *testing.T) {
+	testutil.RequireUnixShell(t)
 	a, root := testAgent(t)
 	if status, err := a.RunShell(context.Background(), "exit 7"); status != "failed" || err == nil || !strings.Contains(err.Error(), "7") {
 		t.Fatalf("exit 7: %s %v", status, err)
