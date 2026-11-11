@@ -94,7 +94,7 @@ func New(config map[string]core.LSPConfig, project string, approve func(context.
 			m.configErr = fmt.Errorf("LSP server %q requires a valid name, command and explicit extensions", name)
 		}
 		if len(c.LanguageID) > 128 || !utf8.ValidString(c.LanguageID) || strings.ContainsRune(c.LanguageID, '\x00') {
-			m.configErr = fmt.Errorf("LSP server %s language_id invalid or exceeds128 bytes", name)
+			m.configErr = fmt.Errorf("LSP server %s language_id invalid or exceeds 128 bytes", name)
 		}
 		c.Args = append([]string(nil), c.Args...)
 		c.Extensions = append([]string(nil), c.Extensions...)
@@ -426,7 +426,7 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 		old, opened := s.documents[uri]
 		if !opened {
 			if len(s.documents) >= 64 {
-				return nil, errors.New("LSP opened-document limit of64 reached; start a new run")
+				return nil, errors.New("LSP opened-document limit of 64 reached; start a new run")
 			}
 			version := 1
 			if err := s.process.rpc.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{"uri": uri, "languageId": languageID(path, cfg.LanguageID), "version": version, "text": text}}); err != nil {
@@ -540,7 +540,7 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 	}
 	data, _ := json.Marshal(map[string]any{"server": serverName, "operation": args.Operation, "result": answerResult.data})
 	if len(data) > maxResult {
-		return resultError("failed", errors.New("LSP result envelope exceeds64KiB; output omitted"))
+		return resultError("failed", errors.New("LSP result envelope exceeds 64KiB; output omitted"))
 	}
 	return tools.Result{Content: string(data)}
 }

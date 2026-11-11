@@ -1,10 +1,11 @@
 # GoHarness — Architecture and Status Overview
 
-*Snapshot: 9 November 2026 · version `1.0.0-rc.128` · commit `36eb4a6`*
+*Snapshot: 11 November 2026 · version `1.0.0-rc.168`*
 
-GoHarness (`goh`) is an original coding assistant written in Go, modelled on the behaviour of
-OpenCode v1.19.5. It is independently written and Apache‑2.0 licensed: the reference sources under
-`research/` were used only to observe behaviour, never copied (see `ORIGIN_LEDGER.md`).
+GoHarness (`goh`) is an original coding assistant written in Go. Its behaviour was compared against
+OpenCode v1.19.5 during development, but it is independently written and Apache‑2.0 licensed: the
+reference sources under `research/` were used only to observe behaviour, never copied (see
+`ORIGIN_LEDGER.md`).
 
 It ships as a **single static binary** (CGO disabled) for macOS, Linux and Windows. It has a terminal UI, a
 headless CLI, a local HTTP API, an editor protocol (ACP), and durable, recoverable sessions.
@@ -15,37 +16,35 @@ headless CLI, a local HTTP API, an editor protocol (ACP), and durable, recoverab
 
 | Metric | Value |
 | --- | --- |
-| Release candidates landed | 128 (RC1 → RC128), every one gated and pushed |
-| Commits | ~150 on `main` (Sanidhya14321/goharness) |
-| Code | 27,247 lines of product Go + 14,654 lines of tests, in 22 internal packages + 3 commands |
-| CI | Ubuntu, macOS and Windows, native, green through RC128 |
+| Release candidates landed | 168 (RC1 → RC168), every one gated |
+| Commits | 208 on `main` (Sanidhya14321/goh) |
+| Code | 31,989 lines of product Go + 17,489 lines of tests, in 24 internal packages + 4 commands |
+| CI | Ubuntu, macOS and Windows, native (`.github/workflows/ci.yml`) |
 | Gates per milestone | gofmt · `go vet` (macOS + Windows) · `go test -race ./...` · CLI acceptance scenarios · PTY TUI suite · setup suite · ACP suite |
-| Dependencies | Pinned; Bubble Tea stack for the TUI, standard library for everything else |
+| Dependencies | Pinned; Bubble Tea stack for the TUI, MCP Go SDK, standard library for everything else |
 | Releases published | **None yet**, by design (features first, then release) |
 
 ### Size by package (lines of Go: product / tests)
 
 | Package | Product | Tests | Role |
 | --- | ---: | ---: | --- |
-| `internal/tui` | 5,224 | 1,912 | Bubble Tea terminal UI |
-| `internal/runtime` | 3,186 | 4,135 | Agent loop, tool dispatch, approval policy, compaction, subagents |
-| `internal/tools` | 3,093 | 1,644 | File, patch, search, shell, job and artifact tools |
-| `cmd/harness` | 2,976 | 1,034 | `goh` entry point and all CLI subcommands |
-| `internal/core` | 2,110 | 939 | Config, profiles, routing, ChatGPT OAuth, credential store |
-| `internal/session` | 1,802 | 1,097 | Durable journal, export/import, salvage, stats |
-| `internal/provider` | 1,629 | 996 | Anthropic, OpenAI Chat Completions, OpenAI Responses adapters |
-| `internal/lspclient` | 1,113 | 393 | Language-server client (diagnostics, definitions) |
+| `internal/tui` | 5,923 | 2,546 | Bubble Tea terminal UI |
+| `internal/runtime` | 4,308 | 5,306 | Agent loop, tool dispatch, approval policy, hooks, compaction, subagents, verification |
+| `internal/tools` | 3,534 | 1,847 | File, patch, line-edit, search, repo map, shell, job and artifact tools |
+| `cmd/harness` | 3,238 | 1,127 | `goh` entry point and all CLI subcommands |
+| `internal/core` | 2,361 | 966 | Config, profiles, routing, ChatGPT OAuth, credential store |
+| `internal/session` | 1,836 | 1,128 | Durable journal, export/import, salvage, stats |
+| `internal/provider` | 1,776 | 1,130 | Anthropic, OpenAI Chat Completions, OpenAI Responses adapters |
+| `internal/lspclient` | 1,109 | 393 | Language-server client (diagnostics, definitions) |
+| `internal/mcpclient` | 1,025 | 645 | MCP over stdio and Streamable HTTP (tools, resources, prompts) |
 | `internal/snapshots` | 914 | 375 | Per-file checkpoints with undo/redo |
 | `internal/acp` | 702 | 60 | Agent Client Protocol for editors |
-| `internal/mcpclient` | 635 | 482 | MCP over stdio and Streamable HTTP |
-| `internal/webfetch` | 538 | 307 | Bounded, safe URL fetching |
-| `internal/skills` | 433 | 156 | Skill discovery and loading |
-| `internal/commands` | 405 | 225 | Custom slash-command discovery and expansion |
-| `internal/localapi` | 379 | 289 | `goh serve` local HTTP API |
-| `internal/memory` | 339 | 71 | Opt-in project notes |
-| `internal/rewind` | 332 | 299 | Turn-level undo/redo of a conversation |
-| others | ~1,450 | ~240 | `platform`, `structured`, `formatters`, `websearch`, `ignore`, `testutil`, `scripted-model`, `acceptance` |
-| **Total** | **27,247** | **14,654** | |
+| `internal/webfetch` | 589 | 352 | Bounded, safe URL fetching |
+| `cmd/bench` | 580 | 53 | `goh-bench` benchmark runner |
+| `internal/sandbox` | 404 | 131 | Shell sandbox (sandbox-exec, Landlock, optional container) |
+| `internal/projectsnap` | 218 | 119 | Whole-project Git snapshots |
+| others | ~3,700 | ~1,300 | `skills`, `commands`, `localapi`, `memory`, `platform`, `rewind`, `structured`, `formatters`, `websearch`, `ignore`, `testutil`, `scripted-model`, `acceptance` |
+| **Total** | **31,989** | **17,489** | |
 
 ---
 
@@ -117,8 +116,9 @@ Multiple named **profiles**, **model roles** (a separate model for summaries and
 5. **Approvals that cannot be widened by accident.** `shell_rules` and `file_rules` allow, deny or ask.
    "Allow" never covers a compound shell command. Repository files cannot pick the agent or model. A third
    identical tool call needs fresh approval (loop guard).
-6. **Two layers of undo.** Per-file checkpoints (content-addressed, no Git required, binary-safe) **plus**
-   turn-level rewind/redo of the conversation.
+6. **Three layers of undo.** Per-file checkpoints (content-addressed, no Git required, binary-safe),
+   whole-project Git snapshots that also cover shell changes, **plus** turn-level rewind/redo of the
+   conversation.
 7. **One binary with no runtime.** No Node and no Bun. It is pure Go with CGO off, cross-compiled for six
    OS/architecture targets, and starts instantly.
 8. **Recovery-first UX.** Chat opens even when setup is broken. A 401 sends the user to provider setup with
@@ -139,6 +139,7 @@ flowchart TB
         H["harness<br/>(goh entry, CLI)"]
         SM["scripted-model<br/>(test endpoint)"]
         AC["acceptance<br/>(CLI scenarios)"]
+        BN["bench<br/>(goh-bench runner)"]
     end
     subgraph front["Front ends"]
         TUI[tui]
@@ -163,12 +164,14 @@ flowchart TB
         FMT[formatters]
         IG[ignore]
         ST[structured]
+        SB[sandbox]
+        PS[projectsnap]
     end
     SES[(session)]
     H --> TUI & ACP & API & RT
     TUI & ACP & API --> RT
     RT --> PR & CORE & SES
-    RT --> TL & SN & RW & LSP & MCP & WF & SK & CM & MEM & FMT & ST
+    RT --> TL & SN & PS & SB & RW & LSP & MCP & WF & SK & CM & MEM & FMT & ST
     TL --> IG
     PR --> CORE
 ```
@@ -320,20 +323,11 @@ Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tra
 
 | Area | Status |
 | --- | --- |
-| **Release** | Release scripts and checksum-verifying installers exist; **nothing published yet** (your go-ahead needed; `goh upgrade` depends on it). |
-| **Credentials** | OS keychain storage and multiple ChatGPT accounts are not done (need your decision). |
+| **Release** | Release scripts and checksum-verifying installers exist; **nothing published yet** (needs the owner's go-ahead). There is no `goh upgrade` command. |
+| **Credentials** | OS keychain storage and multiple ChatGPT accounts are not done. |
 | **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
 | **Sharing** | Session share/upload: not done (it would upload conversations). |
 | **MCP OAuth** | Not done; needs a real OAuth MCP server to test against. |
-| **Snapshots** | Per-file checkpoints only; OpenCode-style whole-tree Git snapshots (R11) remain a larger project. |
 | **TUI ↔ server** | Attaching the TUI to a running `goh serve` is not done. |
-| **Live-only checks** | ChatGPT reasoning summaries, the 401 retry, Anthropic extended thinking and real multi-provider failover have fixture tests but no live tests. |
-| **Platforms** | Windows shell (cmd.exe) path and ACL privacy have no dedicated tests yet. |
-
-## 7. Suggested next steps (pick one)
-
-1. **Publish RC128 as a pre-release** so the installers and `goh upgrade` work end to end.
-2. **Whole-tree snapshots (R11)**, closing the biggest remaining behaviour gap with OpenCode's revert.
-3. **Keychain + multiple accounts**, a credential-hardening milestone.
-4. **TUI attach to `goh serve`**, enabling a remote or headless server with a local UI.
-5. **A live verification pass** (with your approval and keys) for the unverified provider paths.
+| **Live-only checks** | The ChatGPT path is exercised by live benchmark runs (`docs/bench/`). Anthropic extended thinking and real multi-provider failover have fixture tests only. |
+| **Sandbox** | Linux Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can); documented limit. |

@@ -1,6 +1,6 @@
 # Dependency inventory
 
-The three direct dependencies and the complete selected module graph are pinned in `go.mod` and verified through `go.sum`. The table includes test-only and graph-only modules; “host CLI” means the module appears in `go list -deps ./cmd/harness` on macOS ARM64. It does not assert that every file or symbol ships in a binary.
+The six direct dependencies (`bubbletea/v2`, `x/ansi`, the MCP Go SDK, `jsonschema/v6`, `x/net`, `x/sys`) and the complete selected module graph are pinned in `go.mod` and verified through `go.sum`. The table includes test-only and graph-only modules; “host CLI” means the module appears in `go list -deps ./cmd/harness` on macOS ARM64. It does not assert that every file or symbol ships in a binary.
 
 Exact upstream license, attribution and patent files are preserved under `licenses/`. `licenses/inventory.json` records paths and SHA-256 hashes. Original project material uses Apache-2.0 in `LICENSE`; third-party notices retain their original terms.
 
@@ -56,4 +56,4 @@ Vulnerability audit: the local `govulncheck` result is retained under `research/
 
 The initial transitive `golang.org/x/text v0.14.0` selection produced module-only findings GO-2026-5970 and GO-2026-6629. It was raised to pinned `v0.41.0`, which also raised graph-only `golang.org/x/tools` to `v0.48.0` and `golang.org/x/mod` to `v0.38.0`. All three requested direct dependency pins remain unchanged. The subsequent source/symbol scan with govulncheck v1.9.0, Go 1.27.3 and database modification time 2026-11-02T22:01:43Z returned no findings. Exact scanner metadata is in the retained JSON record.
 
-The web-fetch HTML tokenizer pins golang.org/x/net v0.62.0. Minimal version selection also advances x/sync to v0.24.0, x/sys to v0.49.0 and x/text to v0.43.0; the original three UI/MCP/schema dependency pins remain unchanged. Exact selected versions and copied notices are recorded in go.mod/go.sum and licenses/inventory.json.
+The web-fetch HTML tokenizer pins golang.org/x/net v0.62.0. Minimal version selection also advances x/sync to v0.24.0, x/sys to v0.49.0 and x/text to v0.43.0; the original UI/MCP/schema dependency pins remain unchanged. Exact selected versions and copied notices are recorded in go.mod/go.sum and licenses/inventory.json.

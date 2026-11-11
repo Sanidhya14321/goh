@@ -60,7 +60,7 @@ func readFrame(r *bufio.Reader) ([]byte, error) {
 			part, err := r.ReadSlice('\n')
 			headerBytes += len(part)
 			if headerBytes > 8192 {
-				return nil, errors.New("LSP header exceeds8KiB")
+				return nil, errors.New("LSP header exceeds 8KiB")
 			}
 			buffer = append(buffer, part...)
 			if err == bufio.ErrBufferFull {

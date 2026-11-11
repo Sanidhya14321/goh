@@ -51,7 +51,7 @@ func (a *Agent) taskDefinition() core.Tool {
 func parseTask(raw json.RawMessage) (taskArguments, error) {
 	var args taskArguments
 	if len(raw) > 128<<10 || !utf8.Valid(raw) {
-		return args, errors.New("task arguments must be UTF-8 and at most128KiB")
+		return args, errors.New("task arguments must be UTF-8 and at most 128KiB")
 	}
 	d := json.NewDecoder(bytes.NewReader(raw))
 	d.DisallowUnknownFields()
@@ -153,7 +153,7 @@ func (a *Agent) prepareTask(raw json.RawMessage) (string, bool, error) {
 		return "", true, errors.New("nested subagent delegation is disabled")
 	}
 	if a.tasksRun >= maxTasksPerRun {
-		return "", true, errors.New("subagent limit of8 tasks per parent run reached")
+		return "", true, errors.New("subagent limit of 8 tasks per parent run reached")
 	}
 	c, e := a.childConfiguration(args.Type)
 	if e != nil {

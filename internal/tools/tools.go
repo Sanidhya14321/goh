@@ -117,6 +117,13 @@ func (e *Engine) Definitions() []Definition {
 			defs[i].Description = "Edit a file against expected_sha256 (from your latest read_file). Either replace exact old_text (one occurrence unless replace_all), or replace lines start_line..end_line inclusive, numbered as read_file shows them, with new_text (empty new_text deletes the lines). With both, old_text must equal those lines."
 		}
 	}
+	if e != nil && e.Sandbox != nil {
+		for i, d := range defs {
+			if d.Name == "shell" {
+				defs[i].Description = strings.Replace(d.Description, "This is not sandboxed.", "Runs inside the configured OS sandbox: writes outside the project and temporary folders fail, and network access may be blocked.", 1)
+			}
+		}
+	}
 	return defs
 }
 
@@ -149,13 +156,13 @@ func baseDefinitions() []Definition {
 	edit["expected_sha256"] = str()
 	edit["replace_all"] = map[string]any{"type": "boolean"}
 	return append([]Definition{
-		{"repo_map", "Inspect a bounded declaration map (functions, types, classes, methods) without bodies: Go is parsed exactly; Python, JavaScript/TypeScript, Rust, Java/Kotlin/C#/Scala, C/C++ and Ruby use line patterns that can miss unusual forms. Optional path/query filters and max500 symbols; reports lines, content hashes and scan bounds. No external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
-		{"read_artifact", "Read a retained shell/formatter output artifact by session-local artifact_id; byte offset or tail, max8192 bytes. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}}, "id")},
+		{"repo_map", "Inspect a bounded declaration map (functions, types, classes, methods) without bodies: Go is parsed exactly; Python, JavaScript/TypeScript, Rust, Java/Kotlin/C#/Scala, C/C++ and Ruby use line patterns that can miss unusual forms. Optional path/query filters and max 500 symbols; reports lines, content hashes and scan bounds. No external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
+		{"read_artifact", "Read a retained shell/formatter output artifact by session-local artifact_id; byte offset or tail, max 8192 bytes. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}}, "id")},
 		{"list_files", "List project files, skipping .git, node_modules and symlinks; at most 10000 entries.", s(list)},
 		{"read_file", "Read UTF-8 text with line numbers and full-file SHA-256; at most 4MiB.", s(read, "path")},
-		{"grep", "Search UTF-8 project text by Go regular expression with optional directory/file path and include glob; return at most100 ordered lines. Filesystem safety/exclusions apply; no shell is invoked.", s(map[string]any{"pattern": str(), "path": str(), "include": str()}, "pattern")},
+		{"grep", "Search UTF-8 project text by Go regular expression with optional directory/file path and include glob; return at most 100 ordered lines. Filesystem safety/exclusions apply; no shell is invoked.", s(map[string]any{"pattern": str(), "path": str(), "include": str()}, "pattern")},
 		{"search", "Search project text with a Go regular expression; return bounded matching lines.", s(search, "pattern")},
-		{"glob", "Find files by glob pattern (*, ?, character classes, ** directories, {a,b} alternatives). Optional project-relative directory path. Return at most100 lexically sorted project-relative paths; skip .git, node_modules, .harness and symlinks.", s(map[string]any{"pattern": str(), "path": str()}, "pattern")},
+		{"glob", "Find files by glob pattern (*, ?, character classes, ** directories, {a,b} alternatives). Optional project-relative directory path. Return at most 100 lexically sorted project-relative paths; skip .git, node_modules, .harness and symlinks.", s(map[string]any{"pattern": str(), "path": str()}, "pattern")},
 		{"apply_patch", "Apply an exact multi-file patch with Add/Update/Delete/Move headers. Existing source paths require expected_sha256 hash map; new destinations must not exist and parent directories must exist. Publications are individually atomic, not a multi-file transaction.", s(map[string]any{"patchText": str(), "expected_sha256": map[string]any{"type": "object", "additionalProperties": str()}}, "patchText")},
 		{"create_file", "Create a new UTF-8 file; fail if it exists. Parent directory must exist.", s(map[string]any{"path": str(), "content": str()}, "path", "content")},
 		{"write_file", "Create a file, or replace an existing file with expected_sha256.", s(write, "path", "content")},

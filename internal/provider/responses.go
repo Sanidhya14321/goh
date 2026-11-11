@@ -117,11 +117,8 @@ type responsesResult struct {
 	} `json:"incomplete_details"`
 }
 
-func parseResponses(r io.Reader, delta func(string)) (core.Reply, error) {
-	return parseResponsesReasoning(r, delta, nil)
-}
-
-// parseResponsesReasoning also passes reasoning summary text to reasoning.
+// parseResponsesReasoning parses a Responses SSE stream, sending text to delta
+// and reasoning summary text to reasoning (either may be nil).
 func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(string)) (core.Reply, error) {
 	scanner := bufio.NewScanner(io.LimitReader(r, maxResponse+1))
 	scanner.Buffer(make([]byte, 4096), maxResponse)

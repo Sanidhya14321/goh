@@ -1,8 +1,10 @@
 # File-change checkpoints
 
-This original package implements opt-in, per-operation checkpoints for explicitly
-named project files. It is a deliberately narrower reconstruction than OpenCode's
-Git tree snapshots and message-range revert. It works in a non-Git project,
+This original package implements per-operation checkpoints for explicitly named
+project files. The runtime enables them by default in best-effort mode (a failed
+capture is reported, never blocks the edit); `snapshots: true` makes them strict.
+Whole-project Git snapshots that also cover shell changes live separately in
+`internal/projectsnap`. It works in a non-Git project,
 preserves binary bytes, and never executes Git or changes the user's index,
 branches, commits, chat history, or unrelated files.
 

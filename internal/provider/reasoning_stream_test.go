@@ -20,7 +20,7 @@ func TestResponsesReasoningSummaryStreamsToSink(t *testing.T) {
 		t.Fatalf("thought %q text %q reply %q", thought.String(), text.String(), reply.Message.Content)
 	}
 	// Without a sink the same stream still parses.
-	if _, err := parseResponses(strings.NewReader(stream), nil); err != nil {
+	if _, err := parseResponsesReasoning(strings.NewReader(stream), nil, nil); err != nil {
 		t.Fatal(err)
 	}
 }

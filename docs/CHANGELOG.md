@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.169 — 2026-11-11
+
+- **Licensing:** real-project benchmark tasks now carry their upstream license texts and copyright notices (`bench/licenses/`; MIT and BSD-3-Clause). `THIRD_PARTY_NOTICES`, `ORIGIN_LEDGER.md` and the README record them, and the README gains a License section.
+- **Shell tool description:** when the shell sandbox is configured, the model is told commands run inside it, instead of "not sandboxed".
+- **Wording:** tool descriptions and error messages no longer run numbers into words ("at most100" → "at most 100").
+- **Docs:** ARCHITECTURE, END_TO_END_AUDIT, DEPENDENCIES, BENCHMARKS, COMPONENT_PLAN, REVIEW_FINDINGS, the compatibility matrix, bench and package READMEs updated to RC168 facts; broken `../` paths fixed; the stale `GAP_ANALYSIS.md` (RC129) and the superseded `bench/stage1-rc155.md` removed.
+- **Dead code:** removed the test-only `parseResponses` wrapper.
+
 ## 1.0.0-rc.168 — 2026-11-11
 
 - **Queued prompts:** if a panel or search is open when a queued prompt is due, the prompt returns to the input box. Before, its Enter was swallowed by the panel and the prompt was lost.

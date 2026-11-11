@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC169 technical, licensing and documentation audit
+
+- Build, `go vet` and the full test suite pass; `licenses/` matches `go list -m all` exactly, and every "Host CLI" entry in DEPENDENCIES.md matches `go list -deps ./cmd/harness`.
+- A reference-count scan of all product functions found one test-only wrapper (`parseResponses`), now removed.
+- Tracked research evidence contains no reference prompts; product code contains no copied upstream source (OpenCode is named only in behavioural comments).
+- New test: `TestShellDescriptionReflectsSandbox`.
+- The full gates pass: vet, race suite, acceptance, and the TUI (25 scenarios), setup and ACP PTY suites.
+- Not rerun: `govulncheck` (downloading the tool was not permitted in this session); the last retained result is in `research/evidence/govulncheck.json`.
+
 ## RC168 queue and sidebar audit
 
 - New tests:
@@ -1427,8 +1436,8 @@ cleanup, admission, durable startup and recovery without authority restoration.
   startup were measured. No reliability/speed superiority claim is made.
 - Public-release ownership, branding, contribution and legal review remain open.
 
-See ../PROGRESS.md, ../research/FEATURE_MAP.md and
-../specs/COMPATIBILITY_MATRIX.md for exact scoped evidence and next actions.
+See PROGRESS.md, research/FEATURE_MAP.md (local) and
+plan/specs/COMPATIBILITY_MATRIX.md for exact scoped evidence and next actions.
 
 
 ## Expanded-feature verification (same pinned reference)
@@ -1474,7 +1483,7 @@ Final added glob-parser fuzz run: 67,442 executions, no failures. Final source/s
 
 Skills, exact multi-file patches, JSON model/agent profiles, strict build/plan mode,
 pure custom commands and structured questions are now integrated over the same
-runtime. Detailed contracts/capture identities: ../specs/features/{skills,
+runtime. Detailed contracts/capture identities: plan/specs/features/{skills,
 apply-patch,profiles,commands,questions}.md. All observed reference data remains in
 research; original product prompts and implementation remain separate.
 

@@ -2,6 +2,12 @@
 
 Reference identity: OpenCode v1.19.5, executable SHA256 `feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c`.
 
+> **Later changes (reviewed at RC168).** Rows record the state when their evidence was captured. Since then:
+> exact edits gained whitespace-tolerant matching that must still match exactly one place (`internal/tools/flexible_edit.go`);
+> sessions gained `fork --before-turn` boundary forks; native Anthropic gained extended/adaptive thinking;
+> whole-project Git snapshots (`internal/projectsnap`), an OS shell sandbox and hooks were added. Upstream-format
+> session import, desktop/browser clients and plugins remain out of scope.
+
 This matrix separates reference observations from Go acceptance tests. Go implementation and passing unit tests alone do not establish compatibility. The first comparisons are semantic (tool pairing, effects, outcome), not identical prose, identifiers, timing, or terminal layout.
 
 | Feature | Reference evidence | Go contract | Comparison status | Limits |

@@ -1,8 +1,9 @@
 # Origin ledger
 
-Original project identity: Independent Harness. Original source, prompts, fixtures,
-and documentation are Apache-2.0. This implementation was AI-assisted in Codex,
-with the user's plan providing requirements. No human authorship or legal
+Original project identity: GoHarness (`goh`; earlier working name "Independent Harness").
+Original source, prompts, fixtures, and documentation are Apache-2.0. This implementation
+was AI-assisted (OpenAI Codex for the early milestones, then Claude Code, as recorded in
+commit trailers), with the user's plan providing requirements. No human authorship or legal
 clearance is inferred from this ledger.
 
 | Material | Origin | Handling |
@@ -16,6 +17,8 @@ clearance is inferred from this ledger.
 | REA skill/guides and package | morluto/rea skill commit 71f680d7c1aa7a45ba0325fe87b104744b0c105f; rea-agents6.8.0 npm package | Development tooling; source revision and package identity separate; not runtime dependencies |
 | Go distribution | Official go1.27.3 archive, verified publisher SHA256 | Local development toolchain; bundled notices retained |
 | Dependencies | Exact selected Go graph in go.mod/go.sum | Inventory, original notices and license hashes under licenses/ |
+| Real-project benchmark tasks | `hidden/` and `solution/` files under `bench/tasks/` whose `task.json` names an upstream `git` source | Third-party (MIT / BSD-3-Clause); exact upstream license texts and copyright notices in `bench/licenses/`; test material only, not shipped in binaries |
+| OpenCode UI screenshots | `research/evidence/opencode-ui-*.png`, captured from the pinned MIT-licensed release for side-by-side comparison | Research evidence only; not product assets |
 | Project plan | User-provided IMPLEMENTATION_PLAN.md | Kept unchanged at docs/plan/IMPLEMENTATION_PLAN.md |
 
 Implementation did not copy OpenCode implementation files, recovered functions,

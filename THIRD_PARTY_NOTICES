@@ -1,6 +1,6 @@
 Third-party notices
 
-Independent Harness original source and project documentation are licensed under Apache-2.0; see LICENSE.
+GoHarness original source and project documentation are licensed under Apache-2.0; see LICENSE.
 
 This distribution uses the Go runtime and the pinned Go module graph listed in DEPENDENCIES.md. Exact upstream license and attribution documents are reproduced, without replacing their copyright notices, in licenses/. licenses/inventory.json maps each module/version to copied texts and file digests. Some selected modules are used only by tests or tooling; they are retained in this source distribution inventory.
 
@@ -11,3 +11,5 @@ OpenCode is a separately acquired MIT-licensed behavioral reference in research/
 Contributors and their copyright notices are identified in the preserved upstream license files. This inventory is descriptive and does not provide a legal opinion.
 
 The HTML tokenizer uses golang.org/x/net v0.62.0 (BSD-3-Clause), with exact copyright/license and patent notices retained under licenses/golang.org__x__net@v0.62.0/. See updated dependency inventory for MVS-selected transitive versions.
+
+The real-project benchmark tasks under bench/tasks/ contain test and reference-fix files copied from third-party open-source Go libraries (MIT and BSD-3-Clause). Those files keep their upstream licenses; the exact license texts and copyright notices are reproduced in bench/licenses/, with a task-to-upstream index in bench/licenses/README.md. Benchmark tasks are not part of release binaries.

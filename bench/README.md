@@ -36,6 +36,9 @@ bench/tasks/<id>/
   solution/   reference fix, used only by --dry-run to validate the task
 ```
 
+Real-project tasks replace `repo/` with a `git` source (`{"url", "commit"}`) and usually an `image`, so the
+starting tree is cloned at a pinned commit and graded in a container.
+
 The suite has 22 tasks in Go and Python (11 each), covering:
 - single-function bugs (off-by-one, median, Unicode reversal, interval merging, wrapping, pagination);
 - multi-file and multi-package changes (config and server, units and report, a pricing API rename across a package, environment-variable overrides);
@@ -65,4 +68,13 @@ Each task plants one realistic bug and describes only its **symptom**, like a bu
 
 **Compound tasks (`hard-*-combo-*`, 4 tasks):** each combines three of the bugs above, in different files, behind one vague release report that names symptoms only and says the QA suite is unavailable. The run passes only if all three hidden test sets pass, so fixing the obvious bug and stopping is a failure.
 
-`bench/tools/mine_go.py` can also mine tasks from real bug-fix commits. It runs third-party test code, so run it only inside a container or VM.
+## Real-project set (19 tasks)
+
+Mined with `bench/tools/mine_go.py` from real bug-fix commits in eight Go libraries (`spf13/cast`,
+`tidwall/gjson`, `tidwall/sjson`, `pelletier/go-toml`, `BurntSushi/toml`, `dustin/go-humanize`,
+`gorilla/mux`, `Masterminds/semver`). Results: [`docs/bench/real-rc162.md`](../docs/bench/real-rc162.md).
+The miner and these tasks run third-party test code, so run them only inside a container or VM.
+
+Their `hidden/` and `solution/` files are copied from the upstream projects and stay under the upstream
+licenses (MIT, BSD-3-Clause); the license texts and a task index are in [`licenses/`](licenses/README.md).
+Keep that index current when mining new tasks.

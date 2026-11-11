@@ -26,7 +26,7 @@ func questionDefinition() core.Tool {
 func parseQuestion(raw json.RawMessage) (core.QuestionRequest, error) {
 	var r core.QuestionRequest
 	if len(raw) > 32<<10 || !utf8.Valid(raw) {
-		return r, errors.New("question payload must be UTF-8 and at most32KiB")
+		return r, errors.New("question payload must be UTF-8 and at most 32KiB")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
@@ -44,7 +44,7 @@ func parseQuestion(raw json.RawMessage) (core.QuestionRequest, error) {
 			return r, fmt.Errorf("question %d needs a nonempty header<=128 bytes and prompt<=4096 bytes", i+1)
 		}
 		if q.Options == nil || len(q.Options) > 16 {
-			return r, errors.New("question options must be an array of at most16 choices")
+			return r, errors.New("question options must be an array of at most 16 choices")
 		}
 		seen := map[string]bool{}
 		for _, o := range q.Options {

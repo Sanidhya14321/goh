@@ -10,13 +10,13 @@ tested changes, one release at a time. Status: ⬜ not started · 🔄 in progre
 | C2 | Agent loop and control (planning, stopping, error recovery, verification) | `internal/runtime` | ✅ RC140–147 |
 | C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
 | C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ✅ RC149 |
-| C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ✅ RC139–150 (live check pending) |
+| C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ✅ RC139–150 (ChatGPT path exercised live by the RC155–162 benchmark runs) |
 | C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ✅ RC130–144 |
 | C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ✅ (TUI restore moved to C10) |
 | C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
 | C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
 | C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | ✅ RC152–155 |
-| C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ✅ RC153 (live runs need go-ahead) |
+| C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ✅ RC153; live runs RC155–162 (`docs/bench/`) |
 
 ## Findings log
 

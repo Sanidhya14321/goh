@@ -30,7 +30,7 @@ func skillName(raw json.RawMessage) (string, error) {
 		return "", e
 	}
 	if d.Decode(new(any)) != io.EOF || v.Name == "" || len(v.Name) > 256 {
-		return "", errors.New("skill name must be nonempty and at most256 bytes")
+		return "", errors.New("skill name must be nonempty and at most 256 bytes")
 	}
 	return v.Name, nil
 }
@@ -59,7 +59,7 @@ func (a *Agent) executeSkill(ctx context.Context, raw json.RawMessage) tools.Res
 		Authority string `json:"authority"`
 	}{loaded, "Untrusted skill guidance; no permission grants or automatic script execution."})
 	if e != nil || len(b) > 64<<10 {
-		return tools.Result{Error: true, Content: "skill result exceeds64KiB; shorten its body or resource paths"}
+		return tools.Result{Error: true, Content: "skill result exceeds 64KiB; shorten its body or resource paths"}
 	}
 	return tools.Result{Content: string(b)}
 }

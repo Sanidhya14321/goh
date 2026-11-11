@@ -213,7 +213,7 @@ func renderHTML(ctx context.Context, body []byte, format string, base *url.URL) 
 				closeFrame(f)
 			} else {
 				if len(stack) >= maxHTMLDepth {
-					return "", false, errors.New("webfetch HTML nesting exceeds256 levels")
+					return "", false, errors.New("webfetch HTML nesting exceeds 256 levels")
 				}
 				stack = append(stack, f)
 			}

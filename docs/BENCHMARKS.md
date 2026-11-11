@@ -18,19 +18,19 @@ latency distributions, provider token efficiency or live task success. Those
 measurements remain open. File reads run at most four at a time; side effects
 are serialized; streams, tool payloads and retained command output are bounded.
 
-##6 November2026: Go declaration map and paged output
+## 6 November 2026: Go declaration map and paged output
 
-Original local fixture only, Apple M5 Pro darwin/arm64, Go1.27.3. In
-research/evidence/repomap-benchmark.txt,100 iterations of the same16-file workload
-report warm440,100ns/op,233,865B/op,566allocs/op and cold898,184ns/op,523,265B/op,
-6,231allocs/op. Cold resets only the parse cache; both paths read/hash source.
+Original local fixture only, Apple M5 Pro darwin/arm64, Go 1.27.3. In
+research/evidence/repomap-benchmark.txt, 100 iterations of the same 16-file workload
+report warm 440,100 ns/op, 233,865 B/op, 566 allocs/op and cold 898,184 ns/op, 523,265 B/op,
+6,231 allocs/op. Cold resets only the parse cache; both paths read/hash source.
 This microbenchmark does not establish cross-platform or end-to-end speedup,
 LLM quality, live-provider cost or superiority to upstream agents.
 
-An independent32-file CLI/REA fixture reads297,654 source bytes and emits6,330
+An independent 32-file CLI/REA fixture reads 297,654 source bytes and emits 6,330
 bytes of declaration-map JSON (97.87% smaller in bytes, not tokenizer-measured
-model tokens). A repeated scan reports32 parse-cache hits. A70,017-byte command
-output's ending marker is retrieved with a64-byte tail page although absent from
+model tokens). A repeated scan reports 32 parse-cache hits. A 70,017-byte command
+output's ending marker is retrieved with a 64-byte tail page although absent from
 the inline preview. Limits and exact evidence/build identities are retained in
 research/evidence/efficiency-report.json and go-efficiency.json. The map omits
 bodies/comments and is not a semantic replacement for reading implementation.

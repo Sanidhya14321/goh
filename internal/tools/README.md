@@ -26,7 +26,8 @@ between the final hash check and rename, nor a multi-file transaction. A failed
 parent directory sync is reported as a possible completed publication.
 
 `shell` accepts `command`, optional relative `cwd`, and `timeout_seconds` (default
-120, maximum 600). Shell commands are not sandboxed. On macOS/Linux they run in
+120, maximum 600). The tool itself does not sandbox; the runtime wraps commands in the optional OS
+sandbox (`internal/sandbox`) when one is configured. On macOS/Linux they run in
 an owned process group, drain stdout/stderr concurrently, retain an 8 KiB preview
 and a private output artifact capped at 1 MiB. Cancellation/timeouts signal the
 group with TERM, allow up to two seconds, then KILL. Parent exit also settles
@@ -39,11 +40,11 @@ trusted private directory supplied by the caller.
 
 `glob` discovers paths using `pattern` and optional relative directory `path`.
 Patterns support recursive basenames, `**` directory components, `*`, `?`,
-character classes, and bounded comma-brace alternatives. Results are at most100
+character classes, and bounded comma-brace alternatives. Results are at most 100
 lexicographically sorted project-relative files with explicit truncation. The
 same directory/symlink exclusions apply. Its deterministic ordering and strict
 pattern errors intentionally differ from the OpenCode reference. See
-`specs/features/GLOB.md` at the project root for evidence and exact bounds.
+`docs/plan/specs/features/glob.md` for evidence and exact bounds.
 
 `apply_patch` accepts `patchText` plus an `expected_sha256` map for all existing
 sources. It supports exact Add/Update/Delete/Move patch operations and obtains
@@ -52,4 +53,4 @@ source/destination and the planned result budget validate before publication;
 all writes stage first. Late failure or cancellation reports interrupted effects
 and requires runtime recovery acknowledgment. Publications are individual file
 operations with no multi-file rollback guarantee. See
-`specs/features/apply-patch.md` for grammar, evidence, limits and differences.
+`docs/plan/specs/features/apply-patch.md` for grammar, evidence, limits and differences.

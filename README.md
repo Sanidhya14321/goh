@@ -367,7 +367,7 @@ the resulting `goh` binary requires neither Go, Node, Bun, nor REA.
 From this directory:
 
 ```sh
-make GO=../research/tooling/go/bin/go build
+make GO=research/tooling/go/bin/go build
 ./bin/scripted-model --scenario text
 ```
 
@@ -459,7 +459,8 @@ overwrites an existing path. There is no multi-file transaction or universal
 compare-and-swap against external programs. See `internal/tools/README.md` for limits.
 
 Approved shell commands run `/bin/sh -c` in the project or validated relative cwd.
-Commands are not sandboxed. Stdout/stderr drain concurrently, retaining a bounded
+Commands run unsandboxed unless the optional shell sandbox is configured (see
+Shell sandbox below). Stdout/stderr drain concurrently, retaining a bounded
 preview and a private output artifact (1 MiB). Cancellation and timeouts terminate
 the owned process group, allow two seconds, then escalate. Deliberately detached
 processes are outside the guarantee. Effects are not rolled back.
@@ -727,22 +728,22 @@ localhost), no redirects. Without `websearch_url` there is no search tool.
 ## Verify and package
 
 ```sh
-make GO=../research/tooling/go/bin/go test race vet fuzz acceptance
-make GO=../research/tooling/go/bin/go VERSION=0.1.0-dev release
+make GO=research/tooling/go/bin/go test race vet fuzz acceptance
+make GO=research/tooling/go/bin/go VERSION=0.1.0-dev release
 ```
 
-Release preparation builds four CGO-free binaries under `dist/`, with checksums,
+Release preparation builds six CGO-free binaries (macOS, Linux and Windows on arm64 and amd64) under `dist/`, with checksums,
 build metadata and dependency notices. It performs no remote publication.
-Cross-compilation does not prove runtime correctness. See `VERIFICATION.md` and
-`../specs/COMPATIBILITY_MATRIX.md` for actual coverage, gaps and reference evidence.
+Cross-compilation does not prove runtime correctness. See `docs/VERIFICATION.md` and
+`docs/plan/specs/COMPATIBILITY_MATRIX.md` for actual coverage, gaps and reference evidence.
 Original code, prompts and documentation are Apache-2.0; dependency terms are
-preserved in `licenses/` and `THIRD_PARTY_NOTICES`. See `../ORIGIN_LEDGER.md`.
+preserved in `licenses/` and `THIRD_PARTY_NOTICES`. See `docs/ORIGIN_LEDGER.md`.
 
 ## Reconstructed features beyond the initial alpha
 
 The full pinned OpenCode repository is available for research, including both
 runtime families and the web/desktop/server/SDK/integration packages. See
-`../research/FEATURE_BACKLOG.md` for repository-wide coverage and pending work.
+`research/FEATURE_BACKLOG.md` (local research notes, not tracked) for repository-wide coverage and pending work.
 Source discovery alone does not establish runtime parity.
 
 New built-ins:
@@ -797,7 +798,7 @@ current task state. It starts no MCP servers or tools. Existing uncertain effect
 block it. Context summaries imported from history remain untrusted data; current
 system framing is always re-anchored on resume/import.
 
-Contracts and scoped REA captures are linked from `../specs/features/`. Current
+Contracts and scoped REA captures are linked from `docs/plan/specs/features/`. Current
 Go glob/grep behavior deliberately differs in ordering, output format, exclusions,
 Gitignore handling, strict schema validation and some path semantics. Full OpenCode
 parity, its external services, UI and all providers are still pending.
@@ -896,7 +897,7 @@ Prompt payload max 32 KiB, 1–8 questions, header 128 bytes, question 4096 byte
 choice label 256 bytes/description 2048 bytes, answer 4096 bytes, combined replies 32 KiB.
 Question events are `question_requested` and `question_resolved`; permission
 events remain separate. All features share the existing provider/runtime/journal.
-See `../specs/features/` for actual REA evidence, original contracts and gaps.
+See `docs/plan/specs/features/` for actual REA evidence, original contracts and gaps.
 
 ## Controlled child tasks, web fetching and local LSP
 
@@ -985,7 +986,7 @@ integrations. LSP and MCP close concurrently before the run's terminal event;
 the TUI waits for active runtime cleanup before releasing its session resources.
 
 The new contracts and exact scoped reference/Go evidence are in
-`../specs/features/{subagents,webfetch,lsp}.md`. Native provider/auth, richer LSP,
+`docs/plan/specs/features/{subagents,webfetch,lsp}.md`. Native provider/auth, richer LSP,
 formatters, worktrees, plugins, server/API/ACP and web/desktop remain in the
 repository-wide backlog. Cross-compilation still does not prove platform runtime
 correctness.
@@ -1318,3 +1319,12 @@ test inputs or configuration that the claim depends on. Recall results may
 reach the configured model provider and appear in the session journal. Deleting
 a ledger note removes it from future recall. Earlier sessions retain their
 recorded tool results.
+
+## License
+
+GoHarness is licensed under the Apache License 2.0 (see [`LICENSE`](LICENSE)). Third-party Go
+modules keep their own licenses; exact texts are in [`licenses/`](licenses/) and summarised in
+[`THIRD_PARTY_NOTICES`](THIRD_PARTY_NOTICES) and [`docs/DEPENDENCIES.md`](docs/DEPENDENCIES.md).
+Real-project benchmark tasks contain files from MIT and BSD-licensed libraries; see
+[`bench/licenses/`](bench/licenses/README.md). Provenance is recorded in
+[`docs/ORIGIN_LEDGER.md`](docs/ORIGIN_LEDGER.md).

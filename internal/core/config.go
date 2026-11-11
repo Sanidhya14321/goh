@@ -452,14 +452,14 @@ func readConfig(path string) ([]byte, error) {
 		return nil, fmt.Errorf("configuration must be a regular file")
 	}
 	if info.Size() > 1<<20 {
-		return nil, fmt.Errorf("configuration exceeds1MiB")
+		return nil, fmt.Errorf("configuration exceeds 1MiB")
 	}
 	b, e := io.ReadAll(io.LimitReader(f, (1<<20)+1))
 	if e != nil {
 		return nil, e
 	}
 	if len(b) > 1<<20 {
-		return nil, fmt.Errorf("configuration exceeds1MiB")
+		return nil, fmt.Errorf("configuration exceeds 1MiB")
 	}
 	return b, nil
 }

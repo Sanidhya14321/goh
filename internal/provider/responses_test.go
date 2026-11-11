@@ -11,12 +11,12 @@ import (
 
 func TestResponsesCompletesBeforeMakingToolCallsAvailable(t *testing.T) {
 	const partial = "data: {\"type\":\"response.output_item.added\",\"item\":{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"read_file\",\"arguments\":\"{}\"}}\n\n"
-	reply, err := parseResponses(strings.NewReader(partial), nil)
+	reply, err := parseResponsesReasoning(strings.NewReader(partial), nil, nil)
 	if !errors.Is(err, ErrInterrupted) || len(reply.Message.ToolCalls) != 0 {
 		t.Fatal("partial Responses stream exposed tool calls")
 	}
 	complete := "data: " + `{"type":"response.completed","response":{"status":"completed","usage":{"input_tokens":6,"output_tokens":4,"total_tokens":10},"output":[{"type":"reasoning","id":"rs_fixture","summary":[],"encrypted_content":"opaque-fixture"},{"type":"function_call","namespace":"goharness","call_id":"call_1","name":"read_file","arguments":"{}","status":"completed"}]}}` + "\n\n"
-	reply, err = parseResponses(strings.NewReader(partial+complete), nil)
+	reply, err = parseResponsesReasoning(strings.NewReader(partial+complete), nil, nil)
 	if err != nil || len(reply.Message.ToolCalls) != 1 || reply.Usage.Total != 10 || reply.Finish != "tool_calls" {
 		t.Fatalf("did not assemble the completed tool reply: %+v %v", reply, err)
 	}
