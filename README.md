@@ -1217,6 +1217,7 @@ the server a dedicated session directory.
 
 | Request | Result |
 |---|---|
+| `GET /v1/info` | The server's project, session directory, model, agent and protocol |
 | `POST /v1/sessions` with an empty body | Creates a session and returns its ID with HTTP 201 |
 | `GET /v1/sessions?limit=100&after=...` | Lists sessions for the configured project in ID order. Use `next_after` as the next cursor. |
 | `POST /v1/sessions/{session}/run` with `{"prompt":"Inspect this project"}` | Streams NDJSON and returns `X-Harness-Run-ID` |
@@ -1244,6 +1245,29 @@ submitting a run with `"acknowledge_uncertain":true`.
 
 The HTTP API uses harness-specific routes and event frames. Editor clients
 that speak ACP can use the stdio command below.
+
+### Attaching the terminal UI
+
+`goh attach` opens the terminal UI against a running server, on the same
+machine (the API is loopback only):
+
+```sh
+export HARNESS_SERVER_TOKEN=...   # the server's token
+goh attach 127.0.0.1:4096          # a new session
+goh attach --continue              # the server project's latest session
+goh attach --session ID
+```
+
+Prompts run on the server, with its model, tools, grants, sandbox and
+project. Approvals and questions appear in the attached UI and are answered
+there. Esc or Ctrl+C cancels the server's run. `/new` and `/sessions` create
+and switch server sessions. The UI reads the session journal the server
+writes, without taking its writer lock. Anything that would write the
+session locally is refused while attached: `!command`, `/compact`, undo/redo,
+fork, and model, agent or provider changes. Make those changes on the server
+or in `goh chat`. If the session has uncertain tool effects, inspect the
+project and attach with `--acknowledge-uncertain`. `--token-env NAME` reads
+the token from another variable.
 
 ## ACP editor adapter
 

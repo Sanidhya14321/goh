@@ -53,6 +53,7 @@ jobs:
       - run: python3 scripts/test_tui.py
       - run: python3 scripts/test_setup.py
       - run: python3 scripts/test_acp.py
+      - run: python3 scripts/test_attach.py
   install:
     # One-command installers against a local release-layout server, natively.
     strategy:

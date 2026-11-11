@@ -62,13 +62,17 @@ type Agent struct {
 	Provider        Model
 	External        External
 	ExternalFactory func() External
-	Emit            func(core.Event)
-	Approve         func(context.Context, core.Permission) (core.Decision, error)
-	Ask             func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
-	Grants          map[string]bool
-	Todos           []core.Todo
-	History         []core.Message
-	seq             int
+	// Remote, when set, runs prompts on a GoHarness server instead of in
+	// this process (`goh attach`). Its events and input requests still go
+	// through Emit, Approve and Ask; local-only operations are refused.
+	Remote  func(ctx context.Context, prompt string) (status string, err error)
+	Emit    func(core.Event)
+	Approve func(context.Context, core.Permission) (core.Decision, error)
+	Ask     func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
+	Grants  map[string]bool
+	Todos   []core.Todo
+	History []core.Message
+	seq     int
 	// changedFiles and verifiedAfterChange track this run's outcome.
 	changedFiles, verifiedAfterChange bool
 	// fingerprint is the project state after the last known change, used to
@@ -312,6 +316,10 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 
 var errPermission = errors.New("explicit permission required")
 
+// ErrAttached refuses operations that need a local session writer while the
+// agent is attached to a server.
+var ErrAttached = errors.New("not available while attached to a server; run it in `goh chat` or on the server")
+
 // sanitizeToolArguments replaces tool-call arguments that are not a JSON
 // object with "{}" before the reply is journaled, and returns the original
 // text by call ID. A malformed call is never executed; storing it verbatim
@@ -447,6 +455,9 @@ func (a *Agent) RepairInterruptedHistory() error {
 	return nil
 }
 func (a *Agent) Run(ctx context.Context, prompt string) (status string, err error) {
+	if a.Remote != nil {
+		return a.Remote(ctx, prompt)
+	}
 	if a.Config.MaxRunSeconds > 0 && a.depth == 0 {
 		// Child tasks run under this context, so they share the time budget.
 		var stop context.CancelFunc

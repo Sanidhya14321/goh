@@ -23,6 +23,15 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC175 goh attach
+
+- `internal/remote` tests run a real local API server over a scripted model, under the race detector:
+  - `TestRunRelaysEventsApprovalsAndQuestions`: an approved write lands in the server project, a question is answered, events stream, and the read-only view reads the server's history and refuses writes;
+  - `TestDeniedApprovalAndCancellation`: a denied write is not applied, and cancelling the client cancels the server's run;
+  - `TestNewRefusesNonLoopbackAndMissingToken`, `TestWrongTokenIsReported`.
+- `scripts/test_attach.py` runs the real binaries: `goh serve` with the scripted model, and `goh attach` in an emulated 100×30 terminal. The edit is approved and applied on the server, the shell check is denied, both decisions are in the server's journal, and `!command` is refused while attached. It is added to the CI terminal job.
+- The full gates pass: vet (macOS and Windows), race suite, acceptance, and the TUI, setup, ACP and attach suites.
+
 ## RC174 Go 1.27.4
 
 The official go1.27.4 darwin-arm64 archive was checked against the SHA-256 published at go.dev/dl (`91a44a2b…bd0bb4`) and installed as `research/tooling/go`; 1.27.3 is kept beside it as `go1.27.3`. `go mod tidy -diff` is clean. The full gates pass on 1.27.4: vet (macOS and Windows), race suite, acceptance, the TUI, setup and ACP suites, and the bounded fuzz targets. `govulncheck` was not rerun: downloading it was not permitted in this session.

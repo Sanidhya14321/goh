@@ -51,6 +51,7 @@ var commandHelp = [][2]string{
 	{"settings", "open settings"},
 	{"memory", "opt-in project notes: add, list, recall, delete"},
 	{"serve", "local HTTP API"},
+	{"attach", "terminal UI for a running goh serve: goh attach [ADDRESS]"},
 	{"acp", "Agent Client Protocol over stdio for editors"},
 	{"config", "print the effective configuration, secrets removed"},
 	{"doctor", "check configuration and integrations"},
@@ -129,6 +130,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "serve" {
 		return serve(args[1:])
+	}
+	if args[0] == "attach" {
+		return runAttach(args[1:])
 	}
 	if args[0] == "doctor" {
 		return doctor(args[1:])

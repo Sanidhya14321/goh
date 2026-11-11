@@ -25,7 +25,7 @@ make bench-check  # builds bin/goh-bench (cmd/bench) and dry-runs bench/tasks
 go test ./internal/runtime -run TestName     # single test
 ```
 
-Python integration scripts in `scripts/` drive the compiled binary: `test_tui.py` (PTY scenarios), `test_setup.py`, `test_acp.py`, and `test_openai_live.py --binary bin/goh` (live — makes real inference requests with the saved ChatGPT auth; don't run without the user's approval). `scripts/capture_*.py` and `research/compare_*.py` produce comparison evidence against reference products.
+Python integration scripts in `scripts/` drive the compiled binary: `test_tui.py` (PTY scenarios), `test_setup.py`, `test_acp.py`, `test_attach.py` (serve + attach), and `test_openai_live.py --binary bin/goh` (live — makes real inference requests with the saved ChatGPT auth; don't run without the user's approval). `scripts/capture_*.py` and `research/compare_*.py` produce comparison evidence against reference products.
 
 Tests are deterministic: use `cmd/scripted-model` (a scripted local model endpoint) rather than live credentials.
 
@@ -40,7 +40,7 @@ Tests are deterministic: use `cmd/scripted-model` (a scripted local model endpoi
 - `internal/tui` — Bubble Tea UI: composer, command palette, `/provider` `/connect` `/models` `/fork` `/export` `/timeline` `/status` dialogs.
 - `cmd/bench` — `goh-bench` benchmark runner (hidden tests, clean regrading, tamper detection, A/B arms); tasks in `bench/`, reports in `docs/bench/`. `cmd/acceptance` — CLI fixture scenarios.
 - Enforcement packages: `sandbox` (sandbox-exec on macOS, Landlock on Linux), `rewind`/`snapshots`/`projectsnap` (undo, rewind, whole-project snapshots), `ignore`, `platform`.
-- Other: `memory`, `websearch`, `mcpclient` (stdio MCP), `acp`, `lspclient`, `localapi` (serve), `commands` (custom command expansion), `skills`, `snapshots`, `structured`, `formatters`, `webfetch`.
+- Other: `remote` (client for `goh serve`, used by `goh attach`), `memory`, `websearch`, `mcpclient` (stdio MCP), `acp`, `lspclient`, `localapi` (serve), `commands` (custom command expansion), `skills`, `snapshots`, `structured`, `formatters`, `webfetch`.
 
 Credential rule: `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` are only sent to official HTTPS hosts; gateways use a saved key or their own `api_key_env`.
 

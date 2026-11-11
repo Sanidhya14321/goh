@@ -70,6 +70,7 @@ flowchart LR
 | **Headless CLI** | `goh run` gives text or JSON events. Piped stdin works (`cat log \| goh run explain`). Uses the same journal and approvals as the TUI. |
 | **Session CLI** | `list` (json/table/ids, `--project`), `preview`, `show`, `export` (JSON/Markdown/HTML), `import`, `fork --before-turn`, `salvage`, `rename`, `delete`/`restore` (trash), `prune --days`. |
 | **Workflow helpers** | `goh pr N` runs `gh pr checkout` and opens the UI. `goh worktree NAME` opens the UI in an isolated git worktree. `goh changes` shows file checkpoints. `goh stats` shows tokens, cost estimates and per-tool calls and failures. |
+| **Server UI** | `goh attach [ADDRESS]` opens the terminal UI against a running `goh serve` (prompts, approvals, questions, cancellation, `/new`, `/sessions`). |
 | **Admin** | `goh auth login/status/models/logout/list`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh uninstall` (lists first; `--yes` to act). |
 | **Integrations** | ACP for editors (Zed and similar). `goh serve` local API. MCP servers over stdio and remote Streamable HTTP. LSP language servers (auto-detected when enabled). Formatters (auto-detected when enabled). |
 
@@ -328,6 +329,6 @@ Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tra
 | **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
 | **Sharing** | Session share/upload: not done (it would upload conversations). |
 | **MCP OAuth** | Not done; needs a real OAuth MCP server to test against. |
-| **TUI ↔ server** | Attaching the TUI to a running `goh serve` is not done. |
+| **TUI ↔ server** | `goh attach` (RC175) runs prompts on a local `goh serve`; operations that write the session locally are refused while attached. Remote (non-loopback) servers are out of scope. |
 | **Live-only checks** | The ChatGPT path is exercised by live benchmark runs (`docs/bench/`). Anthropic extended thinking and real multi-provider failover have fixture tests only. |
 | **Sandbox** | Linux Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can); documented limit. |

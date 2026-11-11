@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.175 — 2026-11-11
+
+- **`goh attach [ADDRESS]`:** the terminal UI for a running `goh serve` on the same machine.
+  - Prompts run on the server, with its model, tools, grants, sandbox and project.
+  - Approvals and questions are answered in the attached UI, and Esc or Ctrl+C cancels the server's run.
+  - `--session ID` and `--continue` pick a session; `/new` and `/sessions` create and switch server sessions.
+  - The UI reads the server's journal without taking its writer lock (`session.OpenReadOnly`). `!command`, `/compact`, undo/redo, fork, and model, agent or provider changes are refused while attached.
+- **Local API:** `GET /v1/info` returns the server's project, session directory, model, agent and protocol.
+- **`internal/remote`:** a client for the local API, used by attach. It accepts only numeric loopback `http` addresses, never follows redirects, and answers a cancelled or failed prompt with a denial or dismissal, so the server never waits on it.
+
 ## 1.0.0-rc.174 — 2026-11-11
 
 - **Go 1.27.4:** the toolchain moves from 1.27.3 for GO-2026-6859 (a standard-library HTTP server race between request-body reads and response-header writes; the review found no reproduction through GoHarness's handlers). `go.mod`, CI and the local toolchain use 1.27.4. Its bundled notices (`licenses/go1.27.4/`) are byte-identical to 1.27.3's.

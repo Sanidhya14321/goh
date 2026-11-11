@@ -54,6 +54,44 @@ type Store struct {
 	file    *os.File
 	records []Record
 	failed  error
+	// readOnly marks a view opened with OpenReadOnly: another process
+	// owns the journal, and every write is refused.
+	readOnly bool
+}
+
+// ErrReadOnly is returned for writes to a read-only session view.
+var ErrReadOnly = errors.New("session is open read-only here; it is written by the GoHarness server it is attached to")
+
+// OpenReadOnly reads a journal that another process may be writing (an
+// attached `goh serve`), without taking the writer lock or repairing it. A
+// torn tail is ignored rather than truncated. The view never writes.
+func OpenReadOnly(dir, id, project string) (*Store, error) {
+	if !validID.MatchString(id) {
+		return nil, errors.New("invalid session ID")
+	}
+	f, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err != nil || !info.Mode().IsRegular() {
+		return nil, errors.New("session journal must be a regular file")
+	}
+	records, _, _, err := readRecords(f)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %w", ErrDamaged, err)
+	}
+	if len(records) == 0 || records[0].Type != "session_start" {
+		return nil, errors.New("journal missing session_start")
+	}
+	var header Info
+	if err := json.Unmarshal(records[0].Data, &header); err != nil || header.ID != id || !filepath.IsAbs(header.Project) {
+		return nil, errors.New("invalid session identity")
+	}
+	if project != "" && header.Project != project {
+		return nil, ErrProjectMismatch
+	}
+	return &Store{ID: id, Project: header.Project, records: records, readOnly: true}, nil
 }
 
 func New(dir, project string) (*Store, error) {
@@ -251,6 +289,9 @@ func (s *Store) appendLocked(kind string, data any) error {
 // (used when copying records from an older journal, keeping their absence of
 // a time honest rather than inventing one).
 func (s *Store) appendAt(kind string, data any, at int64) error {
+	if s.readOnly {
+		return ErrReadOnly
+	}
 	if s.file == nil {
 		return errors.New("session closed")
 	}

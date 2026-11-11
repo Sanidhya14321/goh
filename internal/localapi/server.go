@@ -79,12 +79,33 @@ func New(config core.Config, project, token string) (*Server, error) {
 		return nil, errors.New("server project must be an existing directory")
 	}
 	s := &Server{config: config, project: project, token: sha256.Sum256([]byte(token)), routes: http.NewServeMux()}
+	s.routes.HandleFunc("GET /v1/info", s.info)
 	s.routes.HandleFunc("GET /v1/sessions", s.list)
 	s.routes.HandleFunc("POST /v1/sessions", s.create)
 	s.routes.HandleFunc("POST /v1/sessions/{session}/run", s.prompt)
 	s.routes.HandleFunc("POST /v1/runs/{run}/inputs/{input}", s.submit)
 	s.routes.HandleFunc("POST /v1/runs/{run}/cancel", s.cancel)
 	return s, nil
+}
+
+// Info describes the server to an attaching terminal UI. The session
+// directory lets that UI (on the same machine: the API is loopback only)
+// read journals the server writes, without taking the writer lock.
+type Info struct {
+	Project    string `json:"project"`
+	SessionDir string `json:"session_dir"`
+	Model      string `json:"model"`
+	Agent      string `json:"agent"`
+	Protocol   string `json:"protocol"`
+}
+
+func (s *Server) info(w http.ResponseWriter, _ *http.Request) {
+	dir, err := filepath.Abs(s.config.SessionDir)
+	if err != nil {
+		problem(w, http.StatusInternalServerError, "cannot resolve session storage")
+		return
+	}
+	respond(w, http.StatusOK, Info{Project: s.project, SessionDir: dir, Model: s.config.Model, Agent: s.config.Agent, Protocol: s.config.EffectiveProtocol()})
 }
 
 // IsLoopbackHost accepts only numeric loopback addresses, with an optional port.

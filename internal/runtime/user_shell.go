@@ -20,6 +20,9 @@ import (
 // the shell call and its output (as tool data), so the model sees the result
 // on the next prompt. No model request is made.
 func (a *Agent) RunShell(ctx context.Context, command string) (status string, err error) {
+	if a.Remote != nil {
+		return "failed", ErrAttached
+	}
 	a.seq = 0
 	a.runID = ID()
 	status = "failed"

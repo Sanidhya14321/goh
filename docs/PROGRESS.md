@@ -1380,3 +1380,5 @@ rc.172: fixed the review's terminal UI findings (small-terminal layouts and unse
 rc.173: fixed an intermittent Linux sandbox bypass (Landlock applied to one thread, exec from another), caught by the canary test in the new CI runs; the PTY suite matches an emulated screen.
 
 rc.174: moved to Go 1.27.4 for GO-2026-6859 and removed an accidentally committed build output.
+
+rc.175: `goh attach` opens the terminal UI against a running `goh serve` (prompts, approvals, questions and cancellation on the server; read-only local view of its journal).
