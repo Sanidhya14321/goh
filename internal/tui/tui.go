@@ -198,6 +198,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.fileRescanning = false
 		if m.fileCompletion != nil {
 			m.fileCompletion.matches = m.completionMatches(v.files, m.fileCompletion.query)
+			m.fileCompletion.selected = min(m.fileCompletion.selected, max(0, len(m.fileCompletion.matches)-1))
 		}
 	case tea.WindowSizeMsg:
 		m.width = v.Width

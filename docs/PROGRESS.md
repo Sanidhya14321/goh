@@ -1370,3 +1370,5 @@ rc.167 continued the audit with transcript scrolling (an anchor while streaming,
 rc.168: in the audit, made queued prompts survive an open panel, kept open tasks visible in the sidebar, and stripped terminal control sequences from model text in the todo list and status line.
 
 rc.169: a technical, licensing and documentation audit. Benchmark tasks copied from upstream libraries now carry their licenses, the shell tool description reflects the sandbox, stale docs were updated or removed, and one dead wrapper was deleted.
+
+rc.170: fixed every P1 from an external review (snapshot restore data loss, file_rules spelling and attachment bypasses, misleading approval previews, recovery call-ID reuse, sticky startup flags, picker crash, benchmark grading isolation) and three launcher issues.

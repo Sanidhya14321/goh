@@ -167,12 +167,14 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 	if changes, err = s.Diff(ctx, before, tree); err != nil {
 		return "", nil, err
 	}
+	if err = s.checkUnrecorded(ctx, before, changes); err != nil {
+		return before, nil, err
+	}
 	if _, err = s.run(ctx, nil, "read-tree", tree); err != nil {
 		return before, nil, err
 	}
-	if _, err = s.run(ctx, nil, "checkout-index", "--all", "--force"); err != nil {
-		return before, nil, err
-	}
+	// Remove files the target lacks first, so a folder that becomes a file
+	// is already empty when checkout writes the file.
 	for _, c := range changes {
 		if c.Status != "D" { // D: present now, absent in tree
 			continue
@@ -186,7 +188,54 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 		}
 		removeEmptyParents(s.project, filepath.Dir(p))
 	}
+	if _, err = s.run(ctx, nil, "checkout-index", "--all", "--force"); err != nil {
+		return before, nil, err
+	}
 	return before, changes, nil
+}
+
+// checkUnrecorded refuses a restore that would replace a directory with a
+// file when that directory holds files the snapshot did not record (ignored
+// files, for example): checkout would delete them with no way to undo.
+func (s *Store) checkUnrecorded(ctx context.Context, before string, changes []Change) error {
+	for _, c := range changes {
+		if c.Status == "D" {
+			continue
+		}
+		dir := filepath.Join(s.project, filepath.FromSlash(c.Path))
+		if fi, err := os.Lstat(dir); err != nil || !fi.IsDir() {
+			continue
+		}
+		out, err := s.run(ctx, nil, "ls-tree", "-r", "-z", "--name-only", before, "--", c.Path+"/")
+		if err != nil {
+			return err
+		}
+		recorded := map[string]bool{}
+		for _, n := range strings.Split(out, "\x00") {
+			if n != "" {
+				recorded[n] = true
+			}
+		}
+		var lost string
+		_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+			if err != nil || lost != "" {
+				return filepath.SkipAll
+			}
+			if d.IsDir() {
+				return nil
+			}
+			rel, _ := filepath.Rel(s.project, p)
+			if !recorded[filepath.ToSlash(rel)] {
+				lost = filepath.ToSlash(rel)
+				return filepath.SkipAll
+			}
+			return nil
+		})
+		if lost != "" {
+			return fmt.Errorf("restore would replace folder %s with a file and delete %s, which no snapshot records; move it first", c.Path, lost)
+		}
+	}
+	return nil
 }
 
 func removeEmptyParents(root, dir string) {

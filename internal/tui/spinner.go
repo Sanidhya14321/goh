@@ -100,13 +100,51 @@ func shortPath(path string, width int) string {
 	return path
 }
 
-// relativizePreview replaces the project prefix in approval previews so diff
-// headers show project-relative paths that fit the screen.
+// relativizePreview shortens the project prefix to a relative path in the
+// header lines of approval previews (diff headers, patch file lines and the
+// working directory) so they fit the screen. Commands and diff bodies are
+// shown exactly as they will run: rewriting them could name a different file.
 func relativizePreview(preview, project string) string {
 	if project == "" {
 		return preview
 	}
 	project = strings.TrimRight(project, "/")
-	preview = strings.ReplaceAll(preview, project+"/", "")
-	return strings.ReplaceAll(preview, "Directory: "+project+"\n", "Directory: . (project root)\n")
+	lines := strings.Split(preview, "\n")
+	for i, line := range lines {
+		label, rest, ok := previewPathLine(line)
+		if !ok {
+			continue
+		}
+		switch {
+		case label == "Directory: " && rest == project:
+			lines[i] = "Directory: . (project root)"
+		case strings.HasPrefix(rest, project+"/"):
+			rest = strings.TrimPrefix(rest, project+"/")
+			if label != "Directory: " {
+				rest = strings.ReplaceAll(rest, " -> "+project+"/", " -> ")
+			}
+			lines[i] = label + rest
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// previewPathLine splits a preview header line that names a path into its
+// label and the path text.
+func previewPathLine(line string) (label, rest string, ok bool) {
+	for _, l := range []string{"--- ", "+++ ", "Directory: "} {
+		if strings.HasPrefix(line, l) {
+			return l, line[len(l):], true
+		}
+	}
+	// apply_patch: "File N: KIND /abs/path[ -> /abs/dest]"
+	if strings.HasPrefix(line, "File ") {
+		if i := strings.Index(line, ": "); i > 0 {
+			if j := strings.IndexByte(line[i+2:], ' '); j > 0 {
+				cut := i + 2 + j + 1
+				return line[:cut], line[cut:], true
+			}
+		}
+	}
+	return "", "", false
 }

@@ -105,3 +105,38 @@ func TestLargeEarlyResultDoesNotExhaustBudget(t *testing.T) {
 		t.Fatalf("model did not get an excerpt with paging advice: %.300s", second)
 	}
 }
+
+// A provider that reuses a call ID must not let an interrupted call inherit
+// an earlier call's recorded success.
+func TestRepairDoesNotReuseResultOfEarlierCallWithSameID(t *testing.T) {
+	a, _ := testAgent(t)
+	first := toolCall("call_1", "write_file", map[string]any{"path": "first.txt", "content": "a"})
+	second := toolCall("call_1", "write_file", map[string]any{"path": "second.txt", "content": "b"})
+	a.commit(core.Message{Role: "user", Content: "one"})
+	a.commit(core.Message{Role: "assistant", ToolCalls: []core.Call{first}})
+	a.start(first)
+	a.finish(first, tools.Result{Content: `{"written":"first.txt"}`})
+	a.commit(core.Message{Role: "tool", ToolCallID: "call_1", Content: `{"written":"first.txt"}`})
+	a.commit(core.Message{Role: "assistant", Content: "done"})
+	a.commit(core.Message{Role: "user", Content: "two"})
+	a.commit(core.Message{Role: "assistant", ToolCalls: []core.Call{second}})
+	a.start(second)
+	// crash: second call started, no result
+	a.Store.Close()
+	s, err := session.Open(a.Config.SessionDir, a.Store.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	resumed, err := New(a.Config, s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := resumed.RepairInterruptedHistory(); err != nil {
+		t.Fatal(err)
+	}
+	last := resumed.History[len(resumed.History)-1]
+	if last.Role != "tool" || strings.Contains(last.Content, "first.txt") || !strings.Contains(last.Content, "uncertain") {
+		t.Fatalf("interrupted call got %q", last.Content)
+	}
+}

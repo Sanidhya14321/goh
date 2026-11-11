@@ -319,9 +319,21 @@ func (a *Agent) RepairInterruptedHistory() error {
 	// The journal is the source of truth: a result recorded before the
 	// interruption is reused exactly; a call that started without a recorded
 	// result is uncertain; a call that never started was not executed.
+	// Providers may reuse a call ID across turns, so only records after the
+	// latest message that issued an ID describe that call.
 	recorded := map[string]json.RawMessage{}
 	started := map[string]bool{}
 	for _, r := range a.Store.Records() {
+		if r.Type == "message" {
+			var m core.Message
+			if json.Unmarshal(r.Data, &m) == nil {
+				for _, c := range m.ToolCalls {
+					delete(started, c.ID)
+					delete(recorded, c.ID)
+				}
+			}
+			continue
+		}
 		var d struct {
 			ID     string          `json:"id"`
 			Result json.RawMessage `json:"result"`

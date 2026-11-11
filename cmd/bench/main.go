@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -53,10 +54,15 @@ type task struct {
 	dir string
 }
 
+var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
+
 // sourceTree returns the folder holding the task's starting tree.
 func (t task) sourceTree() (string, error) {
 	if t.Git == nil {
 		return filepath.Join(t.dir, "repo"), nil
+	}
+	if !fullCommit.MatchString(t.Git.Commit) {
+		return "", fmt.Errorf("task %s: git.commit must be a full 40-character commit ID", t.ID)
 	}
 	cache, err := filepath.Abs(filepath.Join(filepath.Dir(filepath.Dir(t.dir)), ".cache", t.ID+"-"+t.Git.Commit[:12]))
 	if err != nil {
@@ -345,11 +351,20 @@ func readEvents(rd io.Reader, r *Result) {
 	}
 }
 
+// sh runs a task's own setup command on the host with the full environment
+// (it may need network credentials or caches); model-edited code goes
+// through csh instead.
 func sh(dir, command string, seconds int) (int, string) {
+	return shEnv(dir, command, seconds, nil)
+}
+
+// shEnv runs command with env (nil: the current environment).
+func shEnv(dir, command string, seconds int, env []string) (int, string) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", command)
 	cmd.Dir = dir
+	cmd.Env = env
 	out, err := cmd.CombinedOutput()
 	if err == nil {
 		return 0, string(out)

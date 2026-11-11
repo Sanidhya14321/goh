@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/Sanidhya14321/goh/internal/tools"
 )
 
 const (
@@ -21,7 +23,10 @@ var attachImageExt = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, 
 // attachFiles renders `goh run --file` attachments. Text files are inlined in
 // <file> blocks; images become @path mentions, which the runtime validates and
 // attaches. Paths are read through os.Root, so they must stay in the project.
-func attachFiles(project string, paths []string) (string, error) {
+// A path denied by file_rules (in any spelling) is refused, and anything but
+// a regular file is refused before it is opened, so a named pipe cannot hang
+// the CLI.
+func attachFiles(project string, paths []string, denied func(rel string) bool) (string, error) {
 	root, err := os.OpenRoot(project)
 	if err != nil {
 		return "", err
@@ -40,12 +45,20 @@ func attachFiles(project string, paths []string) (string, error) {
 			return "", fmt.Errorf("--file %s: must be inside the project", p)
 		}
 		name := filepath.ToSlash(clean)
+		if denied != nil && (denied(name) || denied(tools.CanonicalRel(root.Name(), name))) {
+			return "", fmt.Errorf("--file %s: access to this path is denied by the user's file_rules", p)
+		}
 		if attachImageExt[strings.ToLower(filepath.Ext(clean))] {
 			if strings.ContainsAny(name, " \t\n") {
 				return "", fmt.Errorf("--file %s: image paths cannot contain spaces", p)
 			}
 			out.WriteString(" @" + name)
 			continue
+		}
+		if info, err := root.Lstat(clean); err != nil {
+			return "", fmt.Errorf("--file %s: %w", p, err)
+		} else if !info.Mode().IsRegular() {
+			return "", fmt.Errorf("--file %s: not a regular file", p)
 		}
 		f, err := root.Open(clean)
 		if err != nil {

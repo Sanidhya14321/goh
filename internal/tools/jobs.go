@@ -337,6 +337,18 @@ func (e *Engine) Jobs() []map[string]any {
 }
 
 // StopJobs stops every running background job. Call it before exiting.
+// ShareJobs gives next this engine's background jobs, so a chat rebuilt for
+// the same session and project (after a model or agent switch) keeps them
+// running and listed. Both engines must use the same project and session
+// storage; from then on either one's StopJobs stops them.
+func (e *Engine) ShareJobs(next *Engine) error {
+	if e.root != next.root || filepath.Dir(e.artifacts) != filepath.Dir(next.artifacts) {
+		return errors.New("background jobs can only move to the same project and session storage")
+	}
+	next.jobs = e.jobs
+	return nil
+}
+
 func (e *Engine) StopJobs() {
 	e.jobs.mu.Lock()
 	list := make([]*job, 0, len(e.jobs.jobs))

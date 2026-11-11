@@ -6,6 +6,18 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.170 — 2026-11-11
+
+Fixes from an external review (P1 findings and launcher issues).
+
+- **Snapshot restore** refuses to replace a folder with a file when that folder holds files no snapshot recorded (ignored files, for example), and removes deleted files before checkout, so a folder that becomes a file no longer stops a restore part-way.
+- **file_rules deny** now covers every spelling of a path: other letter case on case-insensitive filesystems and symlinked folders. It also covers `@image` mentions and `goh run --file`, which now checks rules after loading the config. Mentions inside attached file contents no longer attach further files. `--file` refuses non-regular files before opening them, so a named pipe can no longer hang the CLI.
+- **Approval previews** shorten the project path only in header lines (diff headers, patch file lines, working directory). Commands and diff content are shown exactly as they will run.
+- **Recovery:** when a provider reuses a tool call ID, an interrupted call no longer inherits the recorded result of an earlier call with the same ID. `--acknowledge-uncertain`, `--continue`, `--fork`, `--title` and `--session` apply only to the session chat starts with, not to sessions opened later from pickers.
+- **`@` picker:** no crash when a rescan shrinks the list under the selection.
+- **Benchmarks:** host grading runs with the filtered child environment (no credentials or agent sockets). Agent and grading containers mount the dependency cache read-only, with a private build cache. A short `git.commit` is an error, not a panic.
+- **Chat navigation:** background jobs survive opening `/models`, `/agents`, `/settings` and other pickers when chat returns to the same session. A workspace saved in `/settings` takes effect, and saving in `/provider` replaces a model chosen earlier in chat.
+
 ## 1.0.0-rc.169 — 2026-11-11
 
 - **Licensing:** real-project benchmark tasks now carry their upstream license texts and copyright notices (`bench/licenses/`; MIT and BSD-3-Clause). `THIRD_PARTY_NOTICES`, `ORIGIN_LEDGER.md` and the README record them, and the README gains a License section.

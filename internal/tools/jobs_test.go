@@ -102,3 +102,28 @@ func TestJobLimitsAndValidation(t *testing.T) {
 		t.Fatal("job_start must need approval")
 	}
 }
+
+func TestShareJobsKeepsJobsAcrossRebuiltChat(t *testing.T) {
+	project, artifacts := testutil.TempDir(t), t.TempDir()
+	old, err := New(project, artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := runJob(t, old, "job_start", map[string]string{"command": "sleep 30"})
+	id, _ := started["id"].(string)
+	next, err := New(project, artifacts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(next.StopJobs)
+	if err := old.ShareJobs(next); err != nil {
+		t.Fatal(err)
+	}
+	if got := runJob(t, next, "job_output", map[string]string{"id": id}); got["status"] != "running" {
+		t.Fatalf("shared job: %v", got)
+	}
+	other, _ := New(t.TempDir(), artifacts)
+	if old.ShareJobs(other) == nil {
+		t.Fatal("jobs moved to another project")
+	}
+}

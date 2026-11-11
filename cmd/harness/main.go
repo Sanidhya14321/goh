@@ -22,6 +22,7 @@ import (
 	"github.com/Sanidhya14321/goh/internal/mcpclient"
 	agent "github.com/Sanidhya14321/goh/internal/runtime"
 	"github.com/Sanidhya14321/goh/internal/session"
+	"github.com/Sanidhya14321/goh/internal/tools"
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
 
@@ -117,7 +118,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			_, err := configureProvider()
 			return err
 		}
-		return launch()
+		project := "."
+		return launch(&project)
 	}
 	if args[0] == "auth" {
 		return chatGPTAuth(args[1:])
@@ -276,11 +278,6 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		if strings.TrimSpace(*prompt) == "" {
 			return errors.New("--file needs a message")
 		}
-		attached, err := attachFiles(*project, files)
-		if err != nil {
-			return err
-		}
-		*prompt += attached
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("format must be text or json")
@@ -288,6 +285,13 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	c, e := core.LoadConfig(*configPath)
 	if e != nil {
 		return e
+	}
+	if len(files) > 0 {
+		attached, err := attachFiles(*project, files, func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" })
+		if err != nil {
+			return err
+		}
+		*prompt += attached
 	}
 	f.Visit(func(v *flag.Flag) {
 		switch v.Name {
@@ -463,8 +467,18 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
-	// Background jobs belong to this chat and never outlive it.
-	defer a.Tools.StopJobs()
+	// Background jobs belong to this chat and never outlive it. Opening a
+	// picker or settings rebuilds the chat; jobs carry over when it reopens
+	// on the same session (see parkedJobs).
+	if command == "chat" {
+		adoptParkedJobs(store.ID, a.Tools)
+	}
+	keepJobs := false
+	defer func() {
+		if !keepJobs {
+			a.Tools.StopJobs()
+		}
+	}()
 	if len(store.Pending()) > 0 && !*ack {
 		return errors.New("uncertain tool effects: inspect session/project, then resume with --acknowledge-uncertain; no tools replayed")
 	}
@@ -491,7 +505,12 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	a.ExternalFactory = func() agent.External { return mcpclient.New(c.MCP, store.Project, a.Permission) }
 	if command == "chat" {
 		tui.Version = version
-		return tui.Run(a, notice, draft)
+		err := tui.Run(a, notice, draft)
+		if nav := (*tui.ChatNavigation)(nil); errors.As(err, &nav) {
+			parkedJobs = &parkedEngine{session: store.ID, tools: a.Tools}
+			keepJobs = true
+		}
+		return err
 	}
 	enc := json.NewEncoder(os.Stdout)
 	var emitErr error
@@ -681,3 +700,33 @@ func withChatGPTDefault(c core.Config) core.Config {
 // local project. Web access, language servers and MCP must still be named.
 var allLocalGrants = []string{"write_file", "create_file", "edit_file", "apply_patch", "todowrite", "skill", "shell", "task",
 	"child:write_file", "child:create_file", "child:edit_file", "child:apply_patch", "child:shell", "snapshot_undo", "snapshot_redo"}
+
+// parkedEngine holds the tool engine of a chat that closed for navigation, so
+// its background jobs survive until the chat reopens.
+type parkedEngine struct {
+	session string
+	tools   *tools.Engine
+}
+
+var parkedJobs *parkedEngine
+
+// adoptParkedJobs moves parked jobs to next when the chat reopens on the same
+// session and project, and stops them otherwise.
+func adoptParkedJobs(session string, next *tools.Engine) {
+	p := parkedJobs
+	parkedJobs = nil
+	if p == nil {
+		return
+	}
+	if p.session != session || p.tools.ShareJobs(next) != nil {
+		p.tools.StopJobs()
+	}
+}
+
+// stopParkedJobs stops jobs left by a chat that will not reopen.
+func stopParkedJobs() {
+	if p := parkedJobs; p != nil {
+		parkedJobs = nil
+		p.tools.StopJobs()
+	}
+}

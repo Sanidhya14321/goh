@@ -150,7 +150,39 @@ func editWorkspace(project *string) (bool, error) {
 	})
 }
 
+// startupFlags are chat flags that act on the first session only; the value
+// says whether the flag takes a separate argument.
+var startupFlags = map[string]bool{"session": true, "title": true, "continue": false, "fork": false, "acknowledge-uncertain": false}
+
+// withoutStartupFlags drops startupFlags from args, in any of the forms the
+// flag package accepts (-x, --x, -x=v, --x v).
+func withoutStartupFlags(args []string) []string {
+	out := make([]string, 0, len(args))
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if a == "--" {
+			return append(out, args[i:]...)
+		}
+		name := strings.TrimLeft(a, "-")
+		if !strings.HasPrefix(a, "-") || name == "" {
+			out = append(out, a)
+			continue
+		}
+		name, _, hasValue := strings.Cut(name, "=")
+		takesValue, ok := startupFlags[name]
+		if !ok {
+			out = append(out, a)
+			continue
+		}
+		if takesValue && !hasValue {
+			i++ // skip the value
+		}
+	}
+	return out
+}
+
 func chatFirst(args []string) error {
+	defer stopParkedJobs()
 	project, sessionID, draft := "", "", ""
 	var profile, agent *string
 	chatGPTModel := ""
@@ -185,6 +217,10 @@ func chatFirst(args []string) error {
 		}
 		info = ""
 		err := runCommand(command, skipChooser, notice, draft)
+		// Flags that pick, copy, name or acknowledge the starting session
+		// apply once. After any navigation the launcher passes the session
+		// itself, so they must not reach the next session too.
+		args = withoutStartupFlags(args)
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
@@ -254,10 +290,19 @@ func chatFirst(args []string) error {
 			info = "Switched to Build to carry out the approved plan. Press Enter to start."
 		case "provider":
 			draft = nav.Draft
-			_, actionErr = configureProvider()
+			var saved bool
+			saved, actionErr = configureProvider()
+			if saved {
+				// The saved route replaces any model chosen in chat.
+				chatGPTModel, providerModel = "", ""
+			}
 		case "settings":
 			draft = nav.Draft
-			actionErr = launch()
+			workspace := project
+			actionErr = launch(&workspace)
+			if workspace != "." && workspace != project {
+				project, sessionID = workspace, ""
+			}
 		case "workspace":
 			next := project
 			if next == "" {
@@ -404,9 +449,13 @@ func selectChatGPTModel(current, backdrop string) (string, bool, error) {
 	return tui.SelectOption("Select ChatGPT model", current, options, backdrop)
 }
 
-func launch() error {
+// launch runs the settings menu. A workspace chosen there is written to
+// *project, so the chat that opens next uses it.
+func launch(project *string) error {
 	var status string
-	project := "."
+	if *project == "" {
+		*project = "."
+	}
 	for {
 		action, err := tui.LaunchMenu(status)
 		if err != nil {
@@ -426,9 +475,9 @@ func launch() error {
 			err = editConfiguration()
 		case "project":
 			var saved bool
-			saved, err = editWorkspace(&project)
+			saved, err = editWorkspace(project)
 			if saved {
-				status = "Workspace: " + project
+				status = "Workspace: " + *project
 			}
 		case "chat":
 			return nil

@@ -231,6 +231,7 @@ func (m *model) fileCompletionKey(key string) bool {
 		picker.selected = min(max(0, len(picker.matches)-1), picker.selected+1)
 	case "enter", "tab":
 		if len(picker.matches) > 0 {
+			picker.selected = min(max(0, picker.selected), len(picker.matches)-1)
 			chosen := picker.matches[picker.selected]
 			if strings.ContainsFunc(chosen, unicode.IsSpace) || strings.ContainsAny(chosen, "\\\"") {
 				chosen = strconv.Quote(chosen)

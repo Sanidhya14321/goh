@@ -34,6 +34,21 @@ func TestRelativizePreview(t *testing.T) {
 	}
 }
 
+func TestRelativizePreviewLeavesCommandsAndContentExact(t *testing.T) {
+	in := "Command: cat /repo/file\nDirectory: /repo/sub\nTimeout: 5s"
+	if got := relativizePreview(in, "/repo"); got != "Command: cat /repo/file\nDirectory: sub\nTimeout: 5s" {
+		t.Fatalf("%q", got)
+	}
+	diff := "--- /repo/a.go\n+++ /repo/a.go\n-x := \"/repo/b\"\n+x := \"/repo/c\""
+	if got := relativizePreview(diff, "/repo"); got != "--- a.go\n+++ a.go\n-x := \"/repo/b\"\n+x := \"/repo/c\"" {
+		t.Fatalf("%q", got)
+	}
+	patch := "File 1: MOVE /repo/a.go -> /repo/b.go\nFile 1 before (-):\n-/repo/x"
+	if got := relativizePreview(patch, "/repo"); got != "File 1: MOVE a.go -> b.go\nFile 1 before (-):\n-/repo/x" {
+		t.Fatalf("%q", got)
+	}
+}
+
 func TestShortPathKeepsTail(t *testing.T) {
 	if got := shortPath("/very/long/path/to/project", 10); got != "…o/project" {
 		t.Fatalf("%q", got)

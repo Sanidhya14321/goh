@@ -54,7 +54,7 @@ type Engine struct {
 	mapMu    sync.Mutex
 	mapCache map[string]mapCacheEntry
 	mapOrder []string
-	jobs     jobTable
+	jobs     *jobTable // shared with an engine that takes over (ShareJobs)
 }
 type args struct {
 	Path     string `json:"path,omitempty"`
@@ -96,7 +96,7 @@ func New(root, artifactDir string) (*Engine, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Engine{root: p, artifacts: artifactDir}, nil
+	return &Engine{root: p, artifacts: artifactDir, jobs: &jobTable{}}, nil
 }
 func Definitions() []Definition { return (*Engine)(nil).Definitions() }
 func (e *Engine) Definitions() []Definition {
@@ -823,7 +823,10 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 
 // denied reports whether a project-relative path is denied by file_rules.
 func (e *Engine) denied(rel string) bool {
-	return e != nil && e.DenyPath != nil && rel != "" && rel != "." && e.DenyPath(filepath.ToSlash(rel))
+	if e == nil || e.DenyPath == nil || rel == "" || rel == "." {
+		return false
+	}
+	return e.DenyPath(filepath.ToSlash(rel)) || e.DenyPath(CanonicalRel(e.root, rel))
 }
 
 // errDenied is returned for direct access to a denied path.

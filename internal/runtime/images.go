@@ -27,7 +27,7 @@ var imageTypes = map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".
 func (a *Agent) promptImages(prompt string) ([]core.Image, error) {
 	var paths []string
 	seen := map[string]bool{}
-	for _, field := range strings.Fields(prompt) {
+	for _, field := range strings.Fields(mentionText(prompt)) {
 		path, ok := strings.CutPrefix(field, "@")
 		path = strings.TrimRight(path, ".,;:!?)\"'")
 		if !ok || imageTypes[strings.ToLower(filepath.Ext(path))] == "" || seen[path] {
@@ -53,6 +53,9 @@ func (a *Agent) promptImages(prompt string) ([]core.Image, error) {
 		clean := filepath.Clean(filepath.FromSlash(path))
 		if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
 			return nil, fmt.Errorf("@%s: images must be inside the project", path)
+		}
+		if a.pathDenied(clean) {
+			return nil, fmt.Errorf("@%s: access to this path is denied by the user's file_rules", path)
 		}
 		info, err := root.Lstat(clean)
 		if err != nil {

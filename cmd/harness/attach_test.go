@@ -5,13 +5,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
 func TestAttachFiles(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o600)
 	os.WriteFile(filepath.Join(dir, "bin"), []byte{0, 1}, 0o600)
-	got, err := attachFiles(dir, []string{"a.go", "shot.png", filepath.Join(dir, "a.go")})
+	got, err := attachFiles(dir, []string{"a.go", "shot.png", filepath.Join(dir, "a.go")}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -19,7 +21,7 @@ func TestAttachFiles(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 	for _, bad := range []string{"../x", "bin", "missing.txt"} {
-		if _, err := attachFiles(dir, []string{bad}); err == nil {
+		if _, err := attachFiles(dir, []string{bad}, nil); err == nil {
 			t.Fatalf("%s accepted", bad)
 		}
 	}
@@ -36,5 +38,34 @@ func TestCommandPrompt(t *testing.T) {
 		if _, err := commandPrompt(bad, ""); err == nil {
 			t.Fatalf("%q accepted", bad)
 		}
+	}
+}
+
+func TestAttachFilesRefusesDeniedAndSpecialFiles(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "deny.txt"), []byte("secret\n"), 0o600)
+	os.Symlink(".", filepath.Join(dir, "loop"))
+	denied := func(rel string) bool { return rel == "deny.txt" }
+	bad := []string{"deny.txt", "loop/deny.txt"}
+	if _, err := os.Stat(filepath.Join(dir, "DENY.TXT")); err == nil {
+		bad = append(bad, "DENY.TXT")
+	}
+	for _, p := range bad {
+		if _, err := attachFiles(dir, []string{p}, denied); err == nil || !strings.Contains(err.Error(), "denied") {
+			t.Fatalf("%s: %v", p, err)
+		}
+	}
+	if err := testutil.Mkfifo(t, filepath.Join(dir, "pipe")); err == nil {
+		if _, err := attachFiles(dir, []string{"pipe"}, nil); err == nil || !strings.Contains(err.Error(), "not a regular file") {
+			t.Fatalf("pipe: %v", err)
+		}
+	}
+}
+
+func TestWithoutStartupFlags(t *testing.T) {
+	in := []string{"chat", "--continue", "--fork", "--title", "T", "--session=abc", "-session", "x", "--acknowledge-uncertain", "--profile=p", "--model", "m", "-acknowledge-uncertain=true"}
+	got := strings.Join(withoutStartupFlags(in), " ")
+	if got != "chat --profile=p --model m" {
+		t.Fatalf("%q", got)
 	}
 }

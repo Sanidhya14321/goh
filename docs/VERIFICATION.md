@@ -23,6 +23,20 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC170 external review: P1 fixes
+
+Each fix has a test that reproduces the reported failure:
+- `TestRestoreRefusesToDeleteUnrecordedFiles` (ignored file kept; restore then succeeds);
+- `TestAttachmentsHonourFileRulesInEverySpelling`, `TestDenyCoversOtherSpellings`, `TestAttachFilesRefusesDeniedAndSpecialFiles` (case, symlinked folder, image, nested mention, FIFO);
+- `TestRelativizePreviewLeavesCommandsAndContentExact`;
+- `TestRepairDoesNotReuseResultOfEarlierCallWithSameID`;
+- `TestWithoutStartupFlags`;
+- `TestFileCompletionSurvivesShrinkingRescan`;
+- `TestHostGradingDropsSecrets`, `TestShortCommitIsAnError`;
+- `TestShareJobsKeepsJobsAcrossRebuiltChat`.
+
+The full gates pass: vet, race suite, acceptance, the TUI (25 scenarios), setup and ACP PTY suites, and `make bench-check` (55/55 tasks valid). The container cache change was not exercised against Docker in this run.
+
 ## RC169 technical, licensing and documentation audit
 
 - Build, `go vet` and the full test suite pass; `licenses/` matches `go list -m all` exactly, and every "Host CLI" entry in DEPENDENCIES.md matches `go list -deps ./cmd/harness`.

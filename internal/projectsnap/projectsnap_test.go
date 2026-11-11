@@ -117,3 +117,42 @@ func TestTrackDiffRestoreLeavesUserRepoAlone(t *testing.T) {
 		t.Fatal("allowed storage inside the project")
 	}
 }
+
+func TestRestoreRefusesToDeleteUnrecordedFiles(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	ctx := context.Background()
+	project := t.TempDir()
+	write(t, project, ".gitignore", "*.local\n")
+	write(t, project, "cfg", "old\n")
+	s, err := Open(t.TempDir(), project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, err := s.Track(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(project, "cfg")); err != nil {
+		t.Fatal(err)
+	}
+	write(t, project, "cfg/tracked.txt", "t\n")
+	write(t, project, "cfg/secret.local", "keep me\n")
+	if _, _, err := s.Restore(ctx, old); err == nil || !strings.Contains(err.Error(), "secret.local") {
+		t.Fatalf("restore err = %v, want refusal naming the ignored file", err)
+	}
+	if got := read(t, project, "cfg/secret.local"); got != "keep me\n" {
+		t.Fatalf("ignored file = %q", got)
+	}
+	// Without the ignored file, the restore goes ahead.
+	if err := os.Remove(filepath.Join(project, "cfg/secret.local")); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Restore(ctx, old); err != nil {
+		t.Fatal(err)
+	}
+	if got := read(t, project, "cfg"); got != "old\n" {
+		t.Fatalf("cfg = %q", got)
+	}
+}

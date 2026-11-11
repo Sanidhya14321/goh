@@ -131,3 +131,25 @@ func TestFileIndexRefreshKeepsOldMatchesWhileRescanning(t *testing.T) {
 		t.Fatal("rescan result not applied", got)
 	}
 }
+
+func TestFileCompletionSurvivesShrinkingRescan(t *testing.T) {
+	root := t.TempDir()
+	for _, n := range []string{"a1.go", "a2.go", "a3.go"} {
+		os.WriteFile(filepath.Join(root, n), []byte("x"), 0o600)
+	}
+	index := scanProjectFiles(root, nil)
+	m := &model{width: 40, height: 12, fileIndex: &index}
+	m.Update(tea.KeyPressMsg{Code: '@', Text: "@"})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	if m.fileCompletion == nil || m.fileCompletion.selected != 2 {
+		t.Fatalf("setup: %+v", m.fileCompletion)
+	}
+	os.Remove(filepath.Join(root, "a2.go"))
+	os.Remove(filepath.Join(root, "a3.go"))
+	m.Update(scanProjectFiles(root, nil))
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter}) // must not panic
+	if !strings.Contains(m.input, "@a1.go") {
+		t.Fatalf("input %q", m.input)
+	}
+}
