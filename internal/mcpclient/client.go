@@ -391,14 +391,30 @@ func (m *Manager) Validate(name string, args json.RawMessage) error {
 	if e = rejectDuplicateKeys(args); e != nil {
 		return fmt.Errorf("invalid MCP arguments: %w", e)
 	}
-	var value map[string]any
-	if e = json.Unmarshal(args, &value); e != nil {
+	value, e := decodeArgs(args)
+	if e != nil {
 		return fmt.Errorf("invalid MCP arguments: %w", e)
 	}
 	if value == nil {
 		return errors.New("MCP arguments must be an object")
 	}
 	return b.schema.Validate(value)
+}
+
+// decodeArgs decodes tool arguments keeping numbers as json.Number, so an
+// integer beyond float64 precision (a 64-bit ID, for example) is validated
+// and sent with its exact digits.
+func decodeArgs(args json.RawMessage) (map[string]any, error) {
+	d := json.NewDecoder(bytes.NewReader(args))
+	d.UseNumber()
+	var value map[string]any
+	if err := d.Decode(&value); err != nil {
+		return nil, err
+	}
+	if d.More() {
+		return nil, errors.New("trailing data after the arguments object")
+	}
+	return value, nil
 }
 
 // Execute assumes the caller has approved the exact call. An interruption is
@@ -429,8 +445,8 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 	defer cancel()
 	// Send exactly what was validated and approved: the decoded object
 	// re-encoded, never the model's original bytes.
-	var validated map[string]any
-	if e := json.Unmarshal(args, &validated); e != nil {
+	validated, e := decodeArgs(args)
+	if e != nil {
 		return fail(e)
 	}
 	result, e := b.session.CallTool(ctx, &mcp.CallToolParams{Name: b.original, Arguments: validated})

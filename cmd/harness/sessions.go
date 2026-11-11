@@ -44,10 +44,7 @@ func sessions(args []string) error {
 		return errors.New(usage)
 	}
 	f := flag.NewFlagSet("sessions "+command, flag.ContinueOnError)
-	defaultDir := core.Defaults().SessionDir
-	if value, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
-		defaultDir = value
-	}
+	defaultDir := configuredSessionDir()
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	output, project := "", ""
 	beforeTurn := 0
@@ -259,4 +256,18 @@ func pruneSessions(w io.Writer, dir string, cutoff time.Time, yes bool) error {
 		fmt.Fprintf(w, "Moved %d session(s) to the trash; goh sessions restore ID brings one back.\n", moved)
 	}
 	return nil
+}
+
+// configuredSessionDir is the default for --session-dir in commands that
+// manage saved sessions: session_dir from the user config, then
+// HARNESS_SESSION_DIR, then the built-in default, so they find the same
+// sessions chat writes.
+func configuredSessionDir() string {
+	if c, err := core.LoadConfig(""); err == nil && c.SessionDir != "" {
+		return c.SessionDir
+	}
+	if v, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
+		return v
+	}
+	return core.Defaults().SessionDir
 }

@@ -36,6 +36,11 @@ func TestMCPHelper(t *testing.T) {
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: input.Text}}}, nil
 	})
 	empty := map[string]any{"type": "object", "additionalProperties": false}
+	if os.Getenv("HARNESS_MCP_RAW") == "1" {
+		server.AddTool(&mcp.Tool{Name: "raw", InputSchema: map[string]any{"type": "object", "properties": map[string]any{"id": map[string]any{"type": "integer"}}}}, func(_ context.Context, r *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: string(r.Params.Arguments)}}}, nil
+		})
+	}
 	server.AddTool(&mcp.Tool{Name: "wait", InputSchema: empty}, func(ctx context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		<-ctx.Done()
 		return nil, ctx.Err()

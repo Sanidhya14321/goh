@@ -7,10 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"os"
 	"strconv"
 
-	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/projectsnap"
 	"github.com/Sanidhya14321/goh/internal/runtime"
 	"github.com/Sanidhya14321/goh/internal/session"
@@ -77,10 +75,7 @@ func runSnapshots(args []string, w io.Writer) error {
 		}
 	}
 	f := flag.NewFlagSet("snapshots", flag.ContinueOnError)
-	defaultDir := core.Defaults().SessionDir
-	if v, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
-		defaultDir = v
-	}
+	defaultDir := configuredSessionDir()
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	yes := f.Bool("yes", false, "restore (default: only list what would change)")
 	if err := f.Parse(args[2+n:]); err != nil || f.NArg() != 0 {

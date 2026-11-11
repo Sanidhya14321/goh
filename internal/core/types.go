@@ -21,7 +21,10 @@ type Message struct {
 	ToolCalls          []Call            `json:"tool_calls,omitempty"`
 	ToolCallID         string            `json:"tool_call_id,omitempty"`
 	ResponsesReasoning []json.RawMessage `json:"responses_reasoning,omitempty"`
-	ResponsesRoute     string            `json:"responses_route,omitempty"`
+	// ResponsesRoute identifies the provider route (protocol, endpoint and
+	// model) that produced ResponsesReasoning or AnthropicThinking; that
+	// state is replayed only on the same route.
+	ResponsesRoute string `json:"responses_route,omitempty"`
 	// AnthropicThinking holds an assistant turn's thinking blocks exactly as
 	// received, replayed with that turn while extended thinking is on.
 	AnthropicThinking []json.RawMessage `json:"anthropic_thinking,omitempty"`

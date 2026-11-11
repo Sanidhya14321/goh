@@ -41,13 +41,16 @@ type rpcClient struct {
 	once        sync.Once
 	err         error
 	diagnostics map[string]json.RawMessage
+	// diagVersion is the document version a server attached to the
+	// diagnostics it published (0 when it attached none).
+	diagVersion map[string]int
 	changed     chan struct{}
 	serverSlots chan struct{}
 	settings    map[string]any
 }
 
 func newRPC(reader io.ReadCloser, writer io.WriteCloser, settings map[string]any) *rpcClient {
-	c := &rpcClient{serverSlots: make(chan struct{}, 8), reader: reader, writer: writer, pending: map[uint64]chan rpcMessage{}, done: make(chan struct{}), diagnostics: map[string]json.RawMessage{}, changed: make(chan struct{}, 1), settings: settings}
+	c := &rpcClient{serverSlots: make(chan struct{}, 8), reader: reader, writer: writer, pending: map[uint64]chan rpcMessage{}, done: make(chan struct{}), diagnostics: map[string]json.RawMessage{}, diagVersion: map[string]int{}, changed: make(chan struct{}, 1), settings: settings}
 	go c.readLoop()
 	return c
 }
@@ -128,6 +131,7 @@ func (c *rpcClient) readLoop() {
 			if message.Method == "textDocument/publishDiagnostics" {
 				var params struct {
 					URI         string          `json:"uri"`
+					Version     int             `json:"version"`
 					Diagnostics json.RawMessage `json:"diagnostics"`
 				}
 				if json.Unmarshal(message.Params, &params) == nil && params.URI != "" && len(params.Diagnostics) > 0 {
@@ -138,6 +142,7 @@ func (c *rpcClient) readLoop() {
 					c.mu.Lock()
 					if len(c.diagnostics) < 64 || c.diagnostics[params.URI] != nil {
 						c.diagnostics[params.URI] = params.Diagnostics
+						c.diagVersion[params.URI] = params.Version
 					}
 					c.mu.Unlock()
 					select {
@@ -321,11 +326,26 @@ func (c *rpcClient) failure() error {
 	}
 	return errors.New("LSP connection closed")
 }
-func (c *rpcClient) cachedDiagnostics(uri string) (json.RawMessage, bool) {
+
+// cachedDiagnostics returns diagnostics published for uri, skipping ones a
+// server marked as being for a version older than version.
+func (c *rpcClient) cachedDiagnostics(uri string, version int) (json.RawMessage, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	data, ok := c.diagnostics[uri]
+	if v := c.diagVersion[uri]; ok && v != 0 && v < version {
+		return nil, false
+	}
 	return append(json.RawMessage(nil), data...), ok
+}
+
+// forgetDiagnostics drops published diagnostics for uri once new text has
+// been sent, so a read waits for the server's diagnostics of that text.
+func (c *rpcClient) forgetDiagnostics(uri string) {
+	c.mu.Lock()
+	delete(c.diagnostics, uri)
+	delete(c.diagVersion, uri)
+	c.mu.Unlock()
 }
 
 func (c *rpcClient) notifyContext(ctx context.Context, method string, params any) error {

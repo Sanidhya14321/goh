@@ -150,7 +150,7 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 				}
 				reply, e := read(resp.Body, delta)
 				resp.Body.Close()
-				if e == nil && responses && len(reply.Message.ResponsesReasoning) != 0 {
+				if e == nil && (responses && len(reply.Message.ResponsesReasoning) != 0 || anthropic && len(reply.Message.AnthropicThinking) != 0) {
 					reply.Message.ResponsesRoute = responsesRoute(c.Config)
 				}
 				return reply, e
@@ -224,6 +224,7 @@ type chunk struct {
 		Index int `json:"index"`
 		Delta struct {
 			Content   *string `json:"content"`
+			Refusal   *string `json:"refusal"`
 			ToolCalls []struct {
 				Index    int    `json:"index"`
 				ID       string `json:"id"`
@@ -285,13 +286,16 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 			if v.Index != 0 {
 				return errors.New("unsupported choice index")
 			}
-			if finished && (v.Delta.Content != nil || len(v.Delta.ToolCalls) > 0) {
+			if finished && (v.Delta.Content != nil || v.Delta.Refusal != nil || len(v.Delta.ToolCalls) > 0) {
 				return errors.New("content after finish")
 			}
-			if v.Delta.Content != nil {
-				content.WriteString(*v.Delta.Content)
-				if delta != nil {
-					delta(*v.Delta.Content)
+			// A refusal is the model's reply, as in the non-streaming parser.
+			for _, text := range []*string{v.Delta.Content, v.Delta.Refusal} {
+				if text != nil {
+					content.WriteString(*text)
+					if delta != nil {
+						delta(*text)
+					}
 				}
 			}
 			for _, part := range v.Delta.ToolCalls {

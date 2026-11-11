@@ -19,10 +19,7 @@ import (
 // anywhere.
 func stats(args []string) error {
 	f := flag.NewFlagSet("stats", flag.ContinueOnError)
-	defaultDir := core.Defaults().SessionDir
-	if d, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
-		defaultDir = d
-	}
+	defaultDir := configuredSessionDir()
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	days := f.Int("days", 0, "only sessions written in the last N days (0 = all)")
 	project := f.String("project", "", "only sessions for this project directory")

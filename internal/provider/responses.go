@@ -7,10 +7,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"regexp"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/Sanidhya14321/goh/internal/session"
 )
 
 const toolNamespace = "goharness"
@@ -295,9 +298,21 @@ func responsesStreamError(raw string) error {
 	if e.Response != nil && e.Response.Error != nil {
 		code, msg = firstNonEmpty(e.Response.Error.Code, code), firstNonEmpty(e.Response.Error.Message, msg)
 	}
-	msg = strings.Join(strings.Fields(msg), " ")
-	if len(msg) > 300 {
-		msg = msg[:300] + "…"
+	// Both fields come from the provider and end up in events and the
+	// journal: keep the code to an identifier, and strip control characters
+	// and credential-shaped text from a bounded message.
+	if !errorCode.MatchString(code) {
+		code = ""
+	}
+	msg = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return ' '
+		}
+		return r
+	}, msg)
+	msg = session.RedactSecrets(strings.Join(strings.Fields(msg), " "))
+	if r := []rune(msg); len(r) > 300 {
+		msg = string(r[:300]) + "…"
 	}
 	text := "OpenAI Responses request failed"
 	if code != "" {
@@ -310,6 +325,8 @@ func responsesStreamError(raw string) error {
 	}
 	return errors.New(text)
 }
+
+var errorCode = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
 
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {

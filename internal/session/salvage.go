@@ -31,7 +31,7 @@ func ListAll(dir string) ([]Info, []Damaged, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	var infos []Info
+	infos := []Info{} // an empty list, not null, in JSON output
 	var damaged []Damaged
 	for _, entry := range entries {
 		if !entry.Type().IsRegular() || !strings.HasSuffix(entry.Name(), ".jsonl") {

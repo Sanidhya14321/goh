@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -30,6 +31,14 @@ func runConfigShow(args []string, w io.Writer) error {
 	}
 	c, err := core.LoadConfig(*configPath)
 	if err != nil {
+		return err
+	}
+	// Resolve the active profile and agent as a run does, so the model shown
+	// is the one that would be used.
+	if dir, err := os.Getwd(); err == nil {
+		c, _ = c.WithProjectAgents(dir)
+	}
+	if c, err = c.Resolve("", ""); err != nil {
 		return err
 	}
 	c = withChatGPTDefault(c).WithDetectedLSP(nil).WithDetectedFormatters(nil)

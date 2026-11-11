@@ -362,3 +362,12 @@ func FuzzAnthropicSSE(f *testing.F) {
 		}
 	})
 }
+
+// An Anthropic stream that ends early is an interrupted stream, which the
+// runtime may retry like the other protocols.
+func TestAnthropicEarlyEOFIsInterrupted(t *testing.T) {
+	partial := anthroStart() + anthroBlock(0, map[string]any{"type": "text", "text": ""}) + anthroDelta(0, map[string]any{"type": "text_delta", "text": "half"})
+	if _, err := parseAnthropic(strings.NewReader(partial), nil, nil); !errors.Is(err, ErrInterrupted) {
+		t.Fatalf("err = %v, want ErrInterrupted", err)
+	}
+}

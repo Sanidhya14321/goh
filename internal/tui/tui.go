@@ -710,8 +710,15 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				}
 				if err != nil {
 					m.log += "error: " + Safe(err.Error()) + "\n"
+				} else if len(list) == 0 && len(m.a.Config.MCP) > 0 {
+					names := make([]string, 0, len(m.a.Config.MCP))
+					for name := range m.a.Config.MCP {
+						names = append(names, Safe(name))
+					}
+					sort.Strings(names)
+					m.log += "(servers run only during a request, so their prompts are listed while one runs. Configured: " + strings.Join(names, ", ") + ". /mcp:<server>:<prompt> starts the server and runs the prompt.)\n"
 				} else if len(list) == 0 {
-					m.log += "(none: no connected MCP server offers prompts)\n"
+					m.log += "(none: no MCP servers are configured)\n"
 				}
 				if len(m.log) > 128<<10 {
 					m.log = m.log[len(m.log)-(128<<10):]

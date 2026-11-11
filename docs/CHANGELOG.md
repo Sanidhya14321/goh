@@ -6,6 +6,31 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.171 — 2026-11-11
+
+External review, P2 and P3 fixes outside the terminal UI.
+
+- **Outcomes and verify:** files changed by shell commands or background jobs now count as changes (a project fingerprint that skips ignored files, build and test caches, and GoHarness's own session storage). A run that edits through the shell is no longer `no_changes`, and the configured verify runs.
+- **`!command`:** a non-zero exit reports `failed`. A cancelled or interrupted command stays an uncertain effect for resume, as model calls do.
+- **MCP:** integer arguments keep their exact digits (no float64 rounding). `/mcp:<server>:<prompt>` starts the servers before expanding the prompt. The idle `/mcp` listing explains that servers run only during a request.
+- **LSP:** diagnostics read after an edit wait for the server's diagnostics of the new text, and versioned diagnostics for older text are ignored.
+- **Providers:**
+  - Anthropic thinking is replayed only to the route (protocol, endpoint, model) that produced it.
+  - An Anthropic stream that ends early counts as interrupted, so `--retry-interrupted` applies.
+  - Streamed Chat Completions refusals become the reply.
+  - Responses stream errors drop control characters, mask credential-shaped text and keep the code to an identifier.
+  - Non-streaming Chat Completions keep cached-token counts for cost estimates.
+- **ChatGPT sign-in:** a damaged credential file no longer blocks `goh auth login` (it is replaced) or `goh auth logout` (it is removed).
+- **Sessions:**
+  - A malformed tool call is stored with `{}` arguments, and the error result keeps the original text, so the session can still be forked, imported and replayed.
+  - Delete and restore check every destination first and undo partial moves.
+  - `sessions preview` shows a renamed title.
+  - An empty session directory lists as `[]`.
+  - `sessions`, `stats`, `changes`, `snapshots` and `export` read `session_dir` from the config file.
+- **ACP:** after a stream retry, the editor is told the partial text was discarded. A final reply suffix the stream did not deliver is sent. Agent files load from `--project`.
+- **CLI:** `goh config` shows the model the active profile and agent resolve to. `goh worktree` reuses a folder only if the current repository lists it as a worktree.
+- **Local API:** running a damaged session returns 409 with the salvage command, not a generic 404.
+
 ## 1.0.0-rc.170 — 2026-11-11
 
 Fixes from an external review (P1 findings and launcher issues).

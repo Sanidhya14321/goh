@@ -89,3 +89,21 @@ func TestThinkingBudgetValidation(t *testing.T) {
 		t.Fatal("thinking_budget accepted for chat completions")
 	}
 }
+
+func TestAnthropicThinkingStaysOnItsRoute(t *testing.T) {
+	cfg := anthroConfig()
+	cfg.OutputBudget = 4096
+	thinking := json.RawMessage(`{"type":"thinking","thinking":"t","signature":"sig-route"}`)
+	call := core.Call{ID: "toolu_1", Type: "function"}
+	call.Function.Name, call.Function.Arguments = "read_file", `{"path":"a"}`
+	assistant := core.Message{Role: "assistant", AnthropicThinking: []json.RawMessage{thinking}, ToolCalls: []core.Call{call}, ResponsesRoute: responsesRoute(cfg)}
+	history := []core.Message{{Role: "user", Content: "go"}, assistant, {Role: "tool", ToolCallID: "toolu_1", Content: "{}"}}
+	if b, _ := EncodeAnthropic(cfg, history, nil); !strings.Contains(string(b), "sig-route") {
+		t.Fatal("thinking dropped on its own route")
+	}
+	other := cfg
+	other.BaseURL = "https://other.example/v1"
+	if b, _ := EncodeAnthropic(other, history, nil); strings.Contains(string(b), "sig-route") {
+		t.Fatal("thinking replayed to another endpoint")
+	}
+}

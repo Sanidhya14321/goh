@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/Sanidhya14321/goh/internal/testutil"
 	"io"
 	"net/http"
@@ -194,5 +195,28 @@ func TestCorruptCredentialsAreReplacedBySignIn(t *testing.T) {
 		if model, err := ChatGPTModel(); err != nil || model != "m" {
 			t.Fatalf("%s: credentials unreadable after sign-in: %v", name, err)
 		}
+	}
+}
+
+// The CLI paths, not only the save helper: sign-in gets past a damaged file
+// (it is replaced on success) and sign-out removes it.
+func TestDamagedCredentialsDoNotBlockLoginOrLogout(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	path, err := chatGPTPath("chatgpt-account.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.MkdirAll(filepath.Dir(path), 0o700)
+	os.WriteFile(path, []byte(`{"client_id":"c","sub`), 0o600)
+	opened := errors.New("browser step reached")
+	if _, err := LoginChatGPT(context.Background(), func(string) error { return opened }); !errors.Is(err, opened) {
+		t.Fatalf("login stopped at the damaged file: %v", err)
+	}
+	if err := LogoutChatGPT(context.Background()); err != nil {
+		t.Fatalf("logout: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatal("damaged file not removed")
 	}
 }

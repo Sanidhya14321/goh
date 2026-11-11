@@ -23,6 +23,20 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC171 external review: P2/P3 fixes outside the TUI
+
+New tests reproduce each finding:
+- `TestRunOutcomes` (shell edit, shell edit checked, cache only), `TestFingerprintIgnoresStateAndCaches`;
+- `TestUserShellReportsFailureAndKeepsCancelledEffectUncertain`;
+- `TestLargeIntegersReachTheServerExactly`, `TestMCPPromptConnectsBeforeExpanding`;
+- `TestLSPDiagnosticsDescribeTheCurrentText` (fails without the fix; delayed-diagnostics fixture mode);
+- `TestAnthropicThinkingStaysOnItsRoute`, `TestAnthropicEarlyEOFIsInterrupted`, `TestStreamedRefusalIsTheReply`, `TestResponsesStreamErrorIsSanitised`, `TestJSONCompletionKeepsCachedTokens`;
+- `TestDamagedCredentialsDoNotBlockLoginOrLogout`;
+- `TestMalformedToolCallKeepsSessionPortable` (fails without the fix), `TestTrashConflictKeepsSessionTogether`, `TestPreviewUsesSavedTitleAndEmptyListIsArray`, `TestSessionCommandsUseConfiguredSessionDir`;
+- `TestRetryAndFinalSuffixReachTheEditor`, `TestRunWorktree` (unrelated repository), `TestDamagedSessionPointsToSalvage`.
+
+The PTY suite first caught journal writes in a session folder inside the project being counted as changes (paths compared before resolving `/var` → `/private/var`); fixed. The full gates pass: vet, race suite, acceptance, and the TUI (25 scenarios), setup and ACP suites.
+
 ## RC170 external review: P1 fixes
 
 Each fix has a test that reproduces the reported failure:

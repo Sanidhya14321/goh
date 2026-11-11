@@ -94,6 +94,9 @@ func Preview(dir, id string) (PreviewInfo, error) {
 			result.Status = finished.Status
 		}
 	}
+	if m, err := ReadMeta(dir, id); err == nil && m.Title != "" {
+		result.Title = m.Title // a saved (renamed) title, as in session lists
+	}
 	if result.Title == "" {
 		result.Title = "New conversation"
 	}

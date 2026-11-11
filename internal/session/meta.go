@@ -150,21 +150,53 @@ func Trash(dir, id string) error {
 	if _, err := os.Lstat(filepath.Join(trashDir(dir), id+".jsonl")); err == nil {
 		return fmt.Errorf("session %s is already in the trash", id)
 	}
-	// Sidecars first, journal last: an interrupted delete leaves a session
-	// that still opens, never an orphaned journal in the trash.
 	for _, name := range sidecars(id) {
-		if err := os.Rename(filepath.Join(dir, name), filepath.Join(trashDir(dir), name)); err != nil && !os.IsNotExist(err) {
-			return err
+		if _, err := os.Lstat(filepath.Join(trashDir(dir), name)); err == nil {
+			return fmt.Errorf("%s already exists in the trash; nothing deleted", name)
 		}
+	}
+	// Sidecars first, journal last: an interrupted delete leaves a session
+	// that still opens, never an orphaned journal in the trash. A failed move
+	// puts back the ones already made.
+	moved, err := moveAll(sidecars(id), dir, trashDir(dir))
+	if err != nil {
+		return err
 	}
 	if runtime.GOOS == "windows" {
 		held.Close()
 		held = nil
 	}
 	if err := os.Rename(journal, filepath.Join(trashDir(dir), id+".jsonl")); err != nil {
+		undoMoves(moved, dir, trashDir(dir))
 		return fmt.Errorf("could not move the journal (is the session open?): %w", err)
 	}
 	return nil
+}
+
+// moveAll renames each existing name from src to dst. On failure it puts
+// back what it moved and returns the error; otherwise it returns the names
+// it moved.
+func moveAll(names []string, src, dst string) ([]string, error) {
+	var moved []string
+	for _, name := range names {
+		err := os.Rename(filepath.Join(src, name), filepath.Join(dst, name))
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil {
+			undoMoves(moved, src, dst)
+			return nil, err
+		}
+		moved = append(moved, name)
+	}
+	return moved, nil
+}
+
+// undoMoves moves names back from dst to src, newest first.
+func undoMoves(names []string, src, dst string) {
+	for i := len(names) - 1; i >= 0; i-- {
+		_ = os.Rename(filepath.Join(dst, names[i]), filepath.Join(src, names[i]))
+	}
 }
 
 // Restore moves a trashed session back. It refuses to overwrite anything.
@@ -182,13 +214,15 @@ func Restore(dir, id string) error {
 		}
 	}
 	// Journal first, so an interrupted restore leaves an openable session.
+	// A failed sidecar move returns everything to the trash.
 	if err := os.Rename(src, filepath.Join(dir, id+".jsonl")); err != nil {
 		return err
 	}
-	for _, name := range sidecars(id) {
-		if err := os.Rename(filepath.Join(trashDir(dir), name), filepath.Join(dir, name)); err != nil && !os.IsNotExist(err) {
-			return err
+	if _, err := moveAll(sidecars(id), trashDir(dir), dir); err != nil {
+		if os.Rename(filepath.Join(dir, id+".jsonl"), src) != nil {
+			return fmt.Errorf("restored the journal but not all of its files: %w", err)
 		}
+		return err
 	}
 	return nil
 }

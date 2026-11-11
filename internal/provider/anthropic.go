@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"reflect"
 	"regexp"
@@ -232,6 +233,7 @@ func anthropicSchemaBudget(value reflect.Value, depth int, budget *int) bool {
 // EncodeAnthropic lowers normalized text and complete client-tool call/result
 // groups. It never fetches or dereferences input-schema references.
 func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.Tool) ([]byte, error) {
+	route := responsesRoute(config)
 	invalid := func() ([]byte, error) { return nil, errors.New("invalid or unsupported Anthropic request") }
 	if !anthropicString(config.Model, 512, true) || config.OutputBudget < 1 || len(messages) == 0 || len(messages) > anthropicMaxMessages || len(tools) > anthropicMaxBlocks {
 		return invalid()
@@ -317,8 +319,14 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 			{
 				// Thinking blocks are replayed verbatim and in order (signatures
 				// intact): current models require them during tool use, and
-				// the API ignores blocks a model cannot read.
-				for _, raw := range m.AnthropicThinking {
+				// the API ignores blocks a model cannot read. They go back only
+				// to the route (protocol, endpoint, model) that produced them;
+				// untagged blocks come from sessions saved before tagging.
+				thinking := m.AnthropicThinking
+				if m.ResponsesRoute != "" && m.ResponsesRoute != route {
+					thinking = nil
+				}
+				for _, raw := range thinking {
 					var kind struct {
 						Type string `json:"type"`
 					}
@@ -752,7 +760,7 @@ func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (co
 		if errors.Is(err, context.DeadlineExceeded) {
 			return reply, context.DeadlineExceeded
 		}
-		return reply, errors.New("Anthropic stream read failed")
+		return reply, fmt.Errorf("Anthropic stream read failed: %w", ErrInterrupted)
 	}
 	if limited.N == 0 {
 		return reply, errors.New("Anthropic stream exceeds byte limit")
@@ -763,7 +771,7 @@ func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (co
 		}
 	}
 	if !started || !finished || !stopped || active != -1 {
-		return reply, errors.New("interrupted Anthropic stream")
+		return reply, fmt.Errorf("interrupted Anthropic stream: %w", ErrInterrupted)
 	}
 	reply.Usage, _ = anthropicCoreUsage(usage)
 	if reply.Finish == "length" || reply.Finish == "content_filter" {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -56,14 +57,36 @@ func (a *Agent) RunShell(ctx context.Context, command string) (status string, er
 		return "failed", e
 	}
 	result := a.execute(ctx, call)
+	var outcome struct {
+		Status   string `json:"status"`
+		ExitCode *int   `json:"exit_code"`
+	}
+	json.Unmarshal([]byte(result.Content), &outcome)
+	// As for model calls: an interrupted command may have had effects, so
+	// its start stays unresolved and resume reports it as uncertain.
+	switch {
+	case outcome.Status == "cleanup_incomplete":
+		return "cleanup_incomplete", errors.New("command cleanup incomplete; inspect retained artifacts")
+	case outcome.Status == "timed_out" || outcome.Status == "interrupted" || outcome.Status == "cancelled" || ctx.Err() != nil:
+		if e := a.Store.Append("tool_observation", map[string]any{"id": call.ID, "result": result}); e != nil {
+			return "failed", e
+		}
+		if ctx.Err() != nil {
+			return "cancelled", ctx.Err()
+		}
+		return "failed", errors.New("command interrupted; inspect effects before acknowledging recovery")
+	}
 	if e := a.finish(call, result); e != nil {
 		return "failed", e
 	}
 	if e := a.saveResults([]core.Call{call}, []tools.Result{result}); e != nil {
 		return "failed", e
 	}
-	if ctx.Err() != nil {
-		return "cancelled", ctx.Err()
+	if outcome.ExitCode != nil && *outcome.ExitCode != 0 {
+		return "failed", fmt.Errorf("command exited with status %d", *outcome.ExitCode)
+	}
+	if result.Error {
+		return "failed", errors.New("command failed")
 	}
 	return "completed", nil
 }

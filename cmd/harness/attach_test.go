@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
@@ -67,5 +68,23 @@ func TestWithoutStartupFlags(t *testing.T) {
 	got := strings.Join(withoutStartupFlags(in), " ")
 	if got != "chat --profile=p --model m" {
 		t.Fatalf("%q", got)
+	}
+}
+
+func TestSessionCommandsUseConfiguredSessionDir(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", "")
+	os.Unsetenv("HARNESS_SESSION_DIR")
+	path, err := core.UserConfigPath()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(t.TempDir(), "my-sessions")
+	os.MkdirAll(filepath.Dir(path), 0o700)
+	if err := os.WriteFile(path, []byte(`{"session_dir": "`+filepath.ToSlash(want)+`"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := configuredSessionDir(); filepath.Clean(got) != filepath.Clean(want) {
+		t.Fatalf("got %q want %q", got, want)
 	}
 }

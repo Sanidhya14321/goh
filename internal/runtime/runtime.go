@@ -71,7 +71,12 @@ type Agent struct {
 	seq             int
 	// changedFiles and verifiedAfterChange track this run's outcome.
 	changedFiles, verifiedAfterChange bool
-	eventMu                           sync.Mutex
+	// fingerprint is the project state after the last known change, used to
+	// notice files changed by shell commands and background jobs.
+	fingerprint string
+	// externalConnected is set once connectExternal has run in this run.
+	externalConnected bool
+	eventMu           sync.Mutex
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
 	projectGuidance string
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
@@ -124,6 +129,15 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	t.AllowGeneratedEdits = c.AllowGeneratedEdits
 	t.LineEdits = c.LineEdits
 	t.Sandbox = sandboxPolicy(c, s.Project)
+	if c.SessionDir != "" {
+		// Session storage (journals, artifacts, job registry) and project
+		// snapshots, in case they sit inside the project.
+		for _, d := range []string{c.SessionDir, ProjectSnapshotDir(c.SessionDir)} {
+			if abs, err := filepath.Abs(d); err == nil {
+				t.StateDirs = append(t.StateDirs, abs)
+			}
+		}
+	}
 	if len(c.FileRules) > 0 {
 		t.DenyPath = func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" }
 	}
@@ -298,6 +312,71 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 
 var errPermission = errors.New("explicit permission required")
 
+// sanitizeToolArguments replaces tool-call arguments that are not a JSON
+// object with "{}" before the reply is journaled, and returns the original
+// text by call ID. A malformed call is never executed; storing it verbatim
+// would make the session impossible to fork, import or send to providers
+// that validate history.
+func sanitizeToolArguments(m *core.Message) map[string]string {
+	var bad map[string]string
+	for i, c := range m.ToolCalls {
+		var obj map[string]json.RawMessage
+		if json.Unmarshal([]byte(c.Function.Arguments), &obj) == nil && obj != nil {
+			continue
+		}
+		if bad == nil {
+			bad = map[string]string{}
+		}
+		bad[c.ID] = c.Function.Arguments
+		m.ToolCalls[i].Function.Arguments = "{}"
+	}
+	return bad
+}
+
+func truncateRunes(s string, n int) string {
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "…"
+	}
+	return s
+}
+
+// connectExternal starts the run's MCP servers (asking for permission as
+// needed) and settles their startup records. It runs once per run: before
+// an /mcp: prompt is expanded, or before the first model request.
+func (a *Agent) connectExternal(ctx context.Context) (string, error) {
+	a.externalConnected = true
+	if connector, ok := a.External.(interface{ Connect(context.Context) error }); ok {
+		if e := connector.Connect(ctx); e != nil {
+			if errors.Is(e, errPermission) {
+				return "needs_permission", e
+			}
+			return "failed", e
+		}
+		if reporter, ok := a.External.(interface {
+			Failures() []core.IntegrationFailure
+		}); ok {
+			for _, f := range reporter.Failures() {
+				if e := a.integrationDegraded("mcp", f.Name, f.Error); e != nil {
+					return "failed", e
+				}
+				b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": f.Error})
+				if e := a.integrationSettled("mcp_start:"+f.Name, tools.Result{Content: string(b), Error: true}); e != nil {
+					return "failed", e
+				}
+			}
+		}
+		for _, call := range a.mcpStarts {
+			if a.readyIntegrations[call.ID] {
+				continue // already settled as failed and stopped
+			}
+			if e := a.integrationReady(call.Function.Name); e != nil {
+				return "failed", e
+			}
+		}
+	}
+	return "", nil
+}
+
 func (a *Agent) RepairInterruptedHistory() error {
 	// Explicit recovery acknowledgment does not execute any tool. Supply missing results
 	// so the next provider request has valid call/result groups.
@@ -380,10 +459,12 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
+	a.fingerprint, _ = a.Tools.Fingerprint()
 	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
 	a.runTokens = 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
+	a.externalConnected = false
 	a.readyIntegrations = map[string]bool{}
 	a.LSP = nil
 	if !a.isPlan() && a.depth == 0 && len(a.Config.LSP) > 0 {
@@ -419,6 +500,12 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	}
 	if strings.TrimSpace(prompt) == "" {
 		return "failed", errors.New("prompt is required")
+	}
+	if strings.HasPrefix(strings.TrimSpace(prompt), "/mcp:") {
+		// The prompt comes from a server, so connect before expanding it.
+		if st, e := a.connectExternal(ctx); e != nil {
+			return st, e
+		}
 	}
 	if text, name, isMCP, err := a.expandMCPPrompt(ctx, prompt); isMCP {
 		if err != nil {
@@ -477,33 +564,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if e := a.commit(core.Message{Role: "user", Content: prompt, Images: images}); e != nil {
 		return "failed", e
 	}
-	if connector, ok := a.External.(interface{ Connect(context.Context) error }); ok {
-		if e := connector.Connect(ctx); e != nil {
-			if errors.Is(e, errPermission) {
-				return "needs_permission", e
-			}
-			return "failed", e
-		}
-		if reporter, ok := a.External.(interface {
-			Failures() []core.IntegrationFailure
-		}); ok {
-			for _, f := range reporter.Failures() {
-				if e := a.integrationDegraded("mcp", f.Name, f.Error); e != nil {
-					return "failed", e
-				}
-				b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": f.Error})
-				if e := a.integrationSettled("mcp_start:"+f.Name, tools.Result{Content: string(b), Error: true}); e != nil {
-					return "failed", e
-				}
-			}
-		}
-		for _, call := range a.mcpStarts {
-			if a.readyIntegrations[call.ID] {
-				continue // already settled as failed and stopped
-			}
-			if e := a.integrationReady(call.Function.Name); e != nil {
-				return "failed", e
-			}
+	if !a.externalConnected { // not connected earlier for an /mcp: prompt
+		if st, e := a.connectExternal(ctx); e != nil {
+			return st, e
 		}
 	}
 	catalog, discoveryErr := skills.New(ctx, a.Store.Project, a.Config.SkillPaths)
@@ -543,6 +606,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			}
 			return "failed", e
 		}
+		badArgs := sanitizeToolArguments(&reply.Message)
 		if e = a.commit(reply.Message); e != nil {
 			return "failed", e
 		}
@@ -551,6 +615,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			if strings.TrimSpace(reply.Message.Content) == "" {
 				return "failed", errors.New("the model returned an empty reply; nothing was done")
 			}
+			a.noticeUntrackedChanges() // background jobs, for example
 			if a.needsCompletionCheck() {
 				a.completionChecked = true
 				prompt, reason := a.completionCheck()
@@ -600,6 +665,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				continue
 			}
 			preview, side, prepErr := a.prepare(c.Function.Name, args)
+			if original, bad := badArgs[c.ID]; bad {
+				prepErr = fmt.Errorf("not executed: the arguments were not a JSON object: %s", truncateRunes(original, 200))
+				args = json.RawMessage(original) // count repeats of the same bad text
+			}
 			if prepErr != nil {
 				results[i] = tools.Result{Content: prepErr.Error(), Error: true}
 				if e := a.finish(c, results[i]); e != nil {

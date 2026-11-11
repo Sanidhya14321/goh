@@ -59,4 +59,12 @@ func TestRunWorktree(t *testing.T) {
 	if err := runWorktree([]string{"plain"}, open); err == nil || !strings.Contains(err.Error(), "not a worktree") {
 		t.Fatal(err)
 	}
+	// A separate repository at the expected path is not this repo's worktree.
+	other := filepath.Join(base, "repo-other")
+	os.Mkdir(other, 0o755)
+	run(other, "init", "-q")
+	os.Chdir(repo)
+	if err := runWorktree([]string{"other"}, open); err == nil || !strings.Contains(err.Error(), "not a worktree") {
+		t.Fatal("unrelated repository accepted:", err)
+	}
 }

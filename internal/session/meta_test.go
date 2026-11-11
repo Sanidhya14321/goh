@@ -93,3 +93,35 @@ func TestRestoreRefusesOverwrite(t *testing.T) {
 		t.Fatal("restore overwrote an existing file")
 	}
 }
+
+func TestTrashConflictKeepsSessionTogether(t *testing.T) {
+	dir, project := t.TempDir(), t.TempDir()
+	id := journalWith(t, dir, project, core.Message{Role: "user", Content: "hi"})
+	SetTitle(dir, id, "keep me")
+	os.MkdirAll(filepath.Join(dir, id+"-artifacts"), 0o700)
+	os.WriteFile(filepath.Join(dir, id+"-artifacts", "out.log"), []byte("x"), 0o600)
+	// A leftover with the same name already in the trash.
+	os.MkdirAll(filepath.Join(trashDir(dir), id+"-artifacts", "old"), 0o700)
+	if err := Trash(dir, id); err == nil {
+		t.Fatal("trash succeeded over a conflict")
+	}
+	if m, _ := ReadMeta(dir, id); m.Title != "keep me" {
+		t.Fatalf("title split from its journal: %q", m.Title)
+	}
+	if _, err := os.Stat(filepath.Join(dir, id+".jsonl")); err != nil {
+		t.Fatal("journal moved")
+	}
+}
+
+func TestPreviewUsesSavedTitleAndEmptyListIsArray(t *testing.T) {
+	dir, project := t.TempDir(), t.TempDir()
+	id := journalWith(t, dir, project, core.Message{Role: "user", Content: "first prompt"})
+	SetTitle(dir, id, "Renamed")
+	if p, err := Preview(dir, id); err != nil || p.Title != "Renamed" {
+		t.Fatalf("%q %v", p.Title, err)
+	}
+	empty := t.TempDir()
+	if infos, _, err := ListAll(empty); err != nil || infos == nil {
+		t.Fatal("empty directory listed as null")
+	}
+}

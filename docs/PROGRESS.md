@@ -1372,3 +1372,5 @@ rc.168: in the audit, made queued prompts survive an open panel, kept open tasks
 rc.169: a technical, licensing and documentation audit. Benchmark tasks copied from upstream libraries now carry their licenses, the shell tool description reflects the sandbox, stale docs were updated or removed, and one dead wrapper was deleted.
 
 rc.170: fixed every P1 from an external review (snapshot restore data loss, file_rules spelling and attachment bypasses, misleading approval previews, recovery call-ID reuse, sticky startup flags, picker crash, benchmark grading isolation) and three launcher issues.
+
+rc.171: fixed the review's P2 and P3 findings outside the TUI: shell-made changes in outcomes and verify, user shell status, MCP precision and prompt startup, fresh LSP diagnostics, provider stream and error handling, damaged ChatGPT credentials, portable sessions after malformed calls, transactional trash and restore, ACP stream reconciliation, and CLI session-dir, config and worktree checks.

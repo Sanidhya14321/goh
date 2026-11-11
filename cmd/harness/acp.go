@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 
 	"github.com/Sanidhya14321/goh/internal/acp"
@@ -32,8 +33,9 @@ func runACP(args []string) error {
 	if err != nil {
 		return err
 	}
-	// Editors start the adapter in the workspace; agent files load from there.
-	if dir, err := os.Getwd(); err == nil {
+	// Agent files load from the project the adapter serves (--project,
+	// which defaults to the directory the editor started it in).
+	if dir, err := filepath.Abs(*project); err == nil {
 		config, _ = config.WithProjectAgents(dir)
 	}
 	config, err = config.Resolve(*profile, *agent)

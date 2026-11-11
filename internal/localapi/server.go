@@ -226,6 +226,8 @@ func (s *Server) prompt(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, session.ErrBusy) {
 			problem(w, http.StatusConflict, "session already has an active writer")
+		} else if errors.Is(err, session.ErrDamaged) {
+			problem(w, http.StatusConflict, "session journal is damaged; recover it with `goh sessions salvage "+r.PathValue("session")+"`")
 		} else {
 			problem(w, http.StatusNotFound, "session unavailable in this project")
 		}

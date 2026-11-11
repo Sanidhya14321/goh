@@ -48,3 +48,38 @@ func TestMCPPromptExpansion(t *testing.T) {
 		t.Fatal("malformed prompt accepted")
 	}
 }
+
+// lazyPromptExternal only serves prompts after Connect, like a real manager.
+type lazyPromptExternal struct {
+	promptExternal
+	connected int
+}
+
+func (l *lazyPromptExternal) Connect(context.Context) error { l.connected++; return nil }
+func (l *lazyPromptExternal) GetPrompt(ctx context.Context, server, name string, args map[string]string) (string, error) {
+	if l.connected == 0 {
+		return "", errNotConnected
+	}
+	return l.promptExternal.GetPrompt(ctx, server, name, args)
+}
+
+var errNotConnected = errorString("no connected MCP server")
+
+type errorString string
+
+func (e errorString) Error() string { return string(e) }
+
+func TestMCPPromptConnectsBeforeExpanding(t *testing.T) {
+	a, _ := testAgent(t)
+	ext := &lazyPromptExternal{}
+	a.ExternalFactory = func() External { return ext }
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		return core.Reply{Message: core.Message{Role: "assistant", Content: "ok"}, Finish: "stop"}, nil
+	})
+	if status, err := a.Run(context.Background(), "/mcp:s:review main.go"); status != "completed" {
+		t.Fatal(status, err)
+	}
+	if ext.connected != 1 {
+		t.Fatalf("connected %d times, want once per run", ext.connected)
+	}
+}

@@ -10,13 +10,17 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
 func RunLSP() {
 	reader := bufio.NewReader(os.Stdin)
 	mode := os.Getenv("LSP_FIXTURE_MODE")
+	var writeMu sync.Mutex
 	write := func(v any) {
+		writeMu.Lock()
+		defer writeMu.Unlock()
 		b, _ := json.Marshal(v)
 		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n", len(b))
 		for len(b) > 0 {
@@ -83,8 +87,13 @@ func RunLSP() {
 			if strings.Contains(text, "BROKEN") {
 				diagnostics = append(diagnostics, map[string]any{"range": map[string]any{"start": map[string]int{"line": 1, "character": 4}, "end": map[string]int{"line": 1, "character": 5}}, "severity": 1, "message": "Fixture error: BROKEN"})
 			}
-			if mode != "silent-diagnostics" {
-				write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnostics}})
+			publish := map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnostics}}
+			switch mode {
+			case "silent-diagnostics":
+			case "delayed-diagnostics": // like a server that analyses in the background
+				go func() { time.Sleep(300 * time.Millisecond); write(publish) }()
+			default:
+				write(publish)
 			}
 			continue
 		}

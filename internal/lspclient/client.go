@@ -429,12 +429,14 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 				return nil, errors.New("LSP opened-document limit of 64 reached; start a new run")
 			}
 			version := 1
+			s.process.rpc.forgetDiagnostics(uri)
 			if err := s.process.rpc.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{"uri": uri, "languageId": languageID(path, cfg.LanguageID), "version": version, "text": text}}); err != nil {
 				return nil, err
 			}
 			s.documents[uri] = document{version, text}
 		} else if old.text != text {
 			version := old.version + 1
+			s.process.rpc.forgetDiagnostics(uri)
 			if err := s.process.rpc.notify("textDocument/didChange", map[string]any{"textDocument": map[string]any{"uri": uri, "version": version}, "contentChanges": []any{map[string]string{"text": text}}}); err != nil {
 				return nil, err
 			}
@@ -451,7 +453,7 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 				timer := time.NewTimer(diagnosticsWait)
 				defer timer.Stop()
 				for {
-					if data, ok := s.process.rpc.cachedDiagnostics(uri); ok {
+					if data, ok := s.process.rpc.cachedDiagnostics(uri, s.documents[uri].version); ok {
 						return data, nil
 					}
 					select {

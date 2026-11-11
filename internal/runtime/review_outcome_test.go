@@ -41,6 +41,9 @@ func TestRunOutcomes(t *testing.T) {
 	}
 	create := toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})
 	check := toolCall("t", "shell", map[string]any{"command": "test -f new.txt"})
+	shellEdit := toolCall("s", "shell", map[string]any{"command": "echo x > made.txt"})
+	checkShell := toolCall("u", "shell", map[string]any{"command": "test -f made.txt"})
+	cacheOnly := toolCall("p", "shell", map[string]any{"command": "mkdir -p __pycache__ && echo x > __pycache__/a.pyc"})
 	for name, tc := range map[string]struct {
 		calls [][]core.Call
 		want  string
@@ -48,6 +51,11 @@ func TestRunOutcomes(t *testing.T) {
 		"no changes": {nil, OutcomeNoChanges},
 		"unverified": {[][]core.Call{{create}}, OutcomeUnverified},
 		"verified":   {[][]core.Call{{create}, {check}}, OutcomeVerified},
+		// Edits made through the shell count as changes too.
+		"shell edit":         {[][]core.Call{{shellEdit}}, OutcomeUnverified},
+		"shell edit checked": {[][]core.Call{{shellEdit}, {checkShell}}, OutcomeVerified},
+		// Test caches are not changes.
+		"cache only": {[][]core.Call{{cacheOnly}}, OutcomeNoChanges},
 	} {
 		t.Run(name, func(t *testing.T) {
 			a, _ := testAgent(t)

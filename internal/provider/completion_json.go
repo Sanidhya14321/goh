@@ -41,7 +41,7 @@ func parseJSONCompletion(r io.Reader, delta func(string)) (core.Reply, error) {
 	}
 	var envelope struct {
 		Error   json.RawMessage `json:"error"`
-		Usage   *core.Usage     `json:"usage"`
+		Usage   *chatUsage      `json:"usage"`
 		Choices []struct {
 			Index   int    `json:"index"`
 			Finish  string `json:"finish_reason"`
@@ -56,7 +56,16 @@ func parseJSONCompletion(r io.Reader, delta func(string)) (core.Reply, error) {
 		return reply, errors.New("invalid provider JSON completion")
 	}
 	choice := envelope.Choices[0]
-	reply = core.Reply{Message: choice.Message.Message, Usage: envelope.Usage, Finish: choice.Finish}
+	reply = core.Reply{Message: choice.Message.Message, Finish: choice.Finish}
+	if envelope.Usage != nil {
+		// Cached prompt tokens, as in the streaming parser, so cost
+		// estimates price them at the cache rate.
+		u := envelope.Usage.Usage
+		if d := envelope.Usage.Details; d != nil && d.Cached >= 0 && d.Cached <= u.Prompt {
+			u.CacheRead = d.Cached
+		}
+		reply.Usage = &u
+	}
 	if reply.Finish != "stop" && reply.Finish != "tool_calls" {
 		reason := reply.Finish
 		if reason != "length" && reason != "content_filter" {

@@ -2,8 +2,11 @@ package runtime
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 )
@@ -67,5 +70,32 @@ func TestUserShellRefusals(t *testing.T) {
 	before := len(a.History)
 	if _, err := a.RunShell(context.Background(), "echo x"); err == nil || len(a.History) != before {
 		t.Fatal("plan mode allowed a typed shell command", err)
+	}
+}
+
+func TestUserShellReportsFailureAndKeepsCancelledEffectUncertain(t *testing.T) {
+	a, root := testAgent(t)
+	if status, err := a.RunShell(context.Background(), "exit 7"); status != "failed" || err == nil || !strings.Contains(err.Error(), "7") {
+		t.Fatalf("exit 7: %s %v", status, err)
+	}
+	if len(a.Store.Pending()) != 0 {
+		t.Fatal("a completed failing command left a pending effect")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for i := 0; i < 200; i++ {
+			if _, err := os.Stat(filepath.Join(root, "made.txt")); err == nil {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		cancel()
+	}()
+	status, _ := a.RunShell(ctx, "touch made.txt; sleep 30")
+	if status != "cancelled" {
+		t.Fatalf("status %s", status)
+	}
+	if len(a.Store.Pending()) != 1 {
+		t.Fatalf("pending = %v, want the cancelled command", a.Store.Pending())
 	}
 }

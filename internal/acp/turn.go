@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -24,6 +25,9 @@ type turn struct {
 	candidate *toolCall
 	sequence  int
 	runID     string
+	// streamed is the reply text sent to the editor since the last model
+	// call began, to reconcile it with the final reply.
+	streamed strings.Builder
 
 	// Guarded by the server mutex. The reader delivers one reply.
 	permission *permissionRequest
@@ -103,8 +107,23 @@ func (t *turn) event(event core.Event) {
 		t.runID = event.RunID
 	case "assistant_updated":
 		if text, ok := data["text"].(string); ok && text != "" {
+			t.streamed.WriteString(text)
 			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(text)})
 		}
+	case "stream_retry":
+		// ACP cannot take back text already sent, so say it was discarded.
+		if t.streamed.Len() > 0 {
+			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock("\n\n[The connection dropped; the partial reply above was discarded. Retrying.]\n\n")})
+		}
+		t.streamed.Reset()
+	case "assistant_completed":
+		// Send any final text the stream did not deliver as deltas.
+		if m, ok := data["message"].(core.Message); ok {
+			if sent := t.streamed.String(); strings.HasPrefix(m.Content, sent) && len(m.Content) > len(sent) {
+				t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(m.Content[len(sent):])})
+			}
+		}
+		t.streamed.Reset()
 	case "reasoning_updated":
 		if text, ok := data["text"].(string); ok && text != "" {
 			t.update(map[string]any{"sessionUpdate": "agent_thought_chunk", "content": textBlock(text)})

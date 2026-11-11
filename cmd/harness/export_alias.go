@@ -2,11 +2,9 @@ package main
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/session"
 )
 
@@ -30,10 +28,7 @@ func exportAlias(command string, args []string) error {
 // latestHere finds the newest session for the current directory, honouring a
 // --session-dir flag or HARNESS_SESSION_DIR.
 func latestHere(args []string) (string, error) {
-	dir := core.Defaults().SessionDir
-	if v, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
-		dir = v
-	}
+	dir := configuredSessionDir()
 	for i, a := range args {
 		if v, ok := strings.CutPrefix(a, "--session-dir="); ok {
 			dir = v

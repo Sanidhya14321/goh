@@ -49,6 +49,9 @@ type Engine struct {
 	// user's file_rules deny. Denied files are not read, searched, listed or
 	// mapped, as well as not edited.
 	DenyPath func(rel string) bool
+	// StateDirs are absolute folders holding GoHarness's own state (session
+	// storage); Fingerprint ignores them when they sit inside the project.
+	StateDirs []string
 	// Sandbox, when set, confines shell commands and background jobs.
 	Sandbox  *sandbox.Policy
 	mapMu    sync.Mutex

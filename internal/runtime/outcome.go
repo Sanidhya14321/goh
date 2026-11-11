@@ -33,14 +33,38 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		if writesTestDouble(c) {
 			a.wroteTestDouble = true
 		}
-	case c.Function.Name == "shell" && a.changedFiles:
+		a.fingerprint, _ = a.Tools.Fingerprint()
+	case c.Function.Name == "shell":
+		if a.noticeUntrackedChanges() {
+			return // the command changed files, so it did not check them
+		}
 		var out struct {
 			ExitCode *int `json:"exit_code"`
 		}
-		if json.Unmarshal([]byte(r.Content), &out) == nil && out.ExitCode != nil && *out.ExitCode == 0 {
+		if a.changedFiles && json.Unmarshal([]byte(r.Content), &out) == nil && out.ExitCode != nil && *out.ExitCode == 0 {
 			a.verifiedAfterChange = true
 		}
 	}
+}
+
+// noticeUntrackedChanges compares the project with the state after the last
+// known change. Files changed by a shell command or background job count as
+// a change like an edit: the outcome and the configured verify then cover
+// them. Ignored files and build or test caches do not count.
+func (a *Agent) noticeUntrackedChanges() bool {
+	if a.Tools == nil {
+		return false
+	}
+	now, ok := a.Tools.Fingerprint()
+	if !ok || a.fingerprint == "" || now == a.fingerprint {
+		if ok && a.fingerprint == "" {
+			a.fingerprint = now
+		}
+		return false
+	}
+	a.fingerprint = now
+	a.changedFiles, a.verifiedAfterChange = true, false
+	return true
 }
 
 func (a *Agent) outcome() string {

@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/rewind"
 	"github.com/Sanidhya14321/goh/internal/session"
 	"github.com/Sanidhya14321/goh/internal/snapshots"
@@ -37,10 +36,7 @@ func changes(args []string) error {
 		return errors.New(usage)
 	}
 	f := flag.NewFlagSet("changes "+operation, flag.ContinueOnError)
-	defaultDir := core.Defaults().SessionDir
-	if d, ok := os.LookupEnv("HARNESS_SESSION_DIR"); ok {
-		defaultDir = d
-	}
+	defaultDir := configuredSessionDir()
 	dir := f.String("session-dir", defaultDir, "private session storage")
 	id := f.String("id", "", "checkpoint ID")
 	turn := f.Int("turn", 0, "user turn to revert, with every later turn (revert-turn)")

@@ -140,3 +140,41 @@ func TestRepairDoesNotReuseResultOfEarlierCallWithSameID(t *testing.T) {
 		t.Fatalf("interrupted call got %q", last.Content)
 	}
 }
+
+// A malformed tool call is refused without breaking fork or import later.
+func TestMalformedToolCallKeepsSessionPortable(t *testing.T) {
+	a, _ := testAgent(t)
+	bad := core.Call{ID: "bad_1", Type: "function"}
+	bad.Function.Name, bad.Function.Arguments = "read_file", `{"path": "a.go"` // truncated JSON
+	turn := 0
+	var sawError string
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		turn++
+		if turn == 1 {
+			return answer(bad), nil
+		}
+		sawError = h[len(h)-1].Content
+		return answer(), nil
+	})
+	if status, err := a.Run(context.Background(), "read it"); status != "completed" {
+		t.Fatal(status, err)
+	}
+	if !strings.Contains(sawError, "not a JSON object") || !strings.Contains(sawError, "a.go") {
+		t.Fatalf("model was told %q", sawError)
+	}
+	a.Store.Close() // the CLI forks a session no chat holds open
+	fork, _, err := session.ForkBefore(a.Config.SessionDir, a.Store.ID, 0)
+	if err != nil {
+		t.Fatalf("fork: %v", err)
+	}
+	fork.Close()
+	var buf strings.Builder
+	if err := session.Export(a.Config.SessionDir, a.Store.ID, &buf); err != nil {
+		t.Fatal(err)
+	}
+	imported, err := session.Import(a.Config.SessionDir, strings.NewReader(buf.String()), "")
+	if err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	imported.Close()
+}

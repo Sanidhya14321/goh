@@ -118,3 +118,20 @@ func TestCancelledRequestIsNotRetried(t *testing.T) {
 		t.Fatal("started cancelled network request")
 	}
 }
+
+func TestStreamedRefusalIsTheReply(t *testing.T) {
+	wire := "data: {\"choices\":[{\"index\":0,\"delta\":{\"refusal\":\"I can't help with that.\"}}]}\n\n" +
+		"data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+	r, err := Parse(strings.NewReader(wire), nil)
+	if err != nil || r.Message.Content != "I can't help with that." {
+		t.Fatalf("%q %v", r.Message.Content, err)
+	}
+}
+
+func TestJSONCompletionKeepsCachedTokens(t *testing.T) {
+	body := `{"choices":[{"index":0,"finish_reason":"stop","message":{"role":"assistant","content":"hi"}}],"usage":{"prompt_tokens":10000,"completion_tokens":2,"total_tokens":10002,"prompt_tokens_details":{"cached_tokens":9000}}}`
+	r, err := parseJSONCompletion(strings.NewReader(body), nil)
+	if err != nil || r.Usage == nil || r.Usage.CacheRead != 9000 || r.Usage.Prompt != 10000 {
+		t.Fatalf("%+v %v", r.Usage, err)
+	}
+}

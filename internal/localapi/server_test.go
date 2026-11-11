@@ -287,3 +287,21 @@ func TestDisconnectCancelsPendingPermission(t *testing.T) {
 		t.Fatal("unapproved file was created", err)
 	}
 }
+
+func TestDamagedSessionPointsToSalvage(t *testing.T) {
+	f := newFixture(t)
+	id := f.create()
+	path := filepath.Join(f.config.SessionDir, id+".jsonl")
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	file.WriteString("{not a record}\n{\"type\":\"message\"}\n")
+	file.Close()
+	res := f.request("POST", "/v1/sessions/"+id+"/run", `{"prompt":"go"}`, 409, nil)
+	body, _ := io.ReadAll(res.Body)
+	res.Body.Close()
+	if !strings.Contains(string(body), "salvage") {
+		t.Fatalf("%s", body)
+	}
+}

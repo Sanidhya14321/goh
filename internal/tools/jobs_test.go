@@ -3,6 +3,8 @@ package tools
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -125,5 +127,30 @@ func TestShareJobsKeepsJobsAcrossRebuiltChat(t *testing.T) {
 	other, _ := New(t.TempDir(), artifacts)
 	if old.ShareJobs(other) == nil {
 		t.Fatal("jobs moved to another project")
+	}
+}
+
+func TestFingerprintIgnoresStateAndCaches(t *testing.T) {
+	root := testutil.TempDir(t)
+	e, err := New(root, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessions := filepath.Join(root, "sessions")
+	os.MkdirAll(sessions, 0o700)
+	e.StateDirs = []string{sessions}
+	before, ok := e.Fingerprint()
+	if !ok {
+		t.Fatal("no fingerprint")
+	}
+	os.WriteFile(filepath.Join(sessions, "x.jsonl"), []byte("{}"), 0o600)
+	os.MkdirAll(filepath.Join(root, "__pycache__"), 0o700)
+	os.WriteFile(filepath.Join(root, "__pycache__", "m.pyc"), []byte("c"), 0o600)
+	if after, _ := e.Fingerprint(); after != before {
+		t.Fatal("state or cache write counted as a change")
+	}
+	os.WriteFile(filepath.Join(root, "main.go"), []byte("package main"), 0o600)
+	if after, _ := e.Fingerprint(); after == before {
+		t.Fatal("project change not noticed")
 	}
 }

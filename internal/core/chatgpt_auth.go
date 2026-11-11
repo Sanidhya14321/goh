@@ -59,6 +59,10 @@ func chatGPTPath(name string) (string, error) {
 	return filepath.Join(filepath.Dir(cfg), "credentials", name), nil
 }
 
+// ErrChatGPTDamaged reports a saved ChatGPT credential file that cannot be
+// used. Sign-in replaces it and sign-out removes it.
+var ErrChatGPTDamaged = errors.New("saved ChatGPT credentials are unusable")
+
 func readChatGPTAccount() (chatGPTAccount, error) {
 	var account chatGPTAccount
 	path, err := chatGPTPath("chatgpt-account.json")
@@ -70,16 +74,16 @@ func readChatGPTAccount() (chatGPTAccount, error) {
 		return account, ErrChatGPTLogin
 	}
 	if err != nil {
-		return account, fmt.Errorf("could not open the ChatGPT credential file %s; run `goh auth login` (or /connect) to replace it", path)
+		return account, fmt.Errorf("%w: could not open %s; run `goh auth login` (or /connect) to replace it", ErrChatGPTDamaged, path)
 	}
 	defer f.Close()
 	info, err := f.Stat()
 	if err != nil || !info.Mode().IsRegular() || !platform.PrivateFile(info, 0600) || info.Size() > 1<<20 {
-		return account, fmt.Errorf("ChatGPT credentials at %s must be a private regular file (mode 0600); run `goh auth login` (or /connect) to replace it", path)
+		return account, fmt.Errorf("%w: %s must be a private regular file (mode 0600); run `goh auth login` (or /connect) to replace it", ErrChatGPTDamaged, path)
 	}
 	if json.NewDecoder(io.LimitReader(f, 1<<20)).Decode(&account) != nil ||
 		account.ClientID == "" || account.Subject == "" || !hasPlanScope(account.Tokens.Scope) {
-		return account, errors.New("invalid saved ChatGPT credentials; sign in again with `goh auth login` or /connect")
+		return account, fmt.Errorf("%w: invalid contents; sign in again with `goh auth login` or /connect", ErrChatGPTDamaged)
 	}
 	return account, nil
 }
@@ -251,6 +255,10 @@ func LogoutChatGPT(ctx context.Context) error {
 	if errors.Is(err, ErrChatGPTLogin) {
 		return nil
 	}
+	if errors.Is(err, ErrChatGPTDamaged) {
+		// Nothing readable to revoke; removing the file is all that is left.
+		a, err = chatGPTAccount{}, nil
+	}
 	if err != nil {
 		return err
 	}
@@ -265,7 +273,10 @@ func LogoutChatGPT(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return os.Remove(path)
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+	return nil
 }
 
 // LoginChatGPT runs the documented public-client loopback flow. open receives
@@ -277,7 +288,9 @@ func LoginChatGPT(ctx context.Context, open func(string) error) (string, error) 
 	}
 	defer unlock()
 	previous, err := readChatGPTAccount()
-	if err != nil && !errors.Is(err, ErrChatGPTLogin) {
+	if errors.Is(err, ErrChatGPTDamaged) {
+		previous = chatGPTAccount{} // replaced by this sign-in
+	} else if err != nil && !errors.Is(err, ErrChatGPTLogin) {
 		return "", err
 	}
 	hostPath, err := chatGPTPath("chatgpt-host")

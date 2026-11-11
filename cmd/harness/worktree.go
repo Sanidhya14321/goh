@@ -39,8 +39,8 @@ func runWorktree(args []string, open func() error) error {
 	path := root + "-" + name
 	branch := "goh/" + name
 	if _, err := os.Stat(path); err == nil {
-		if top, err := gitTop(git, path); err != nil || !sameDir(top, path) {
-			return fmt.Errorf("%s exists and is not a worktree; choose another name", path)
+		if top, err := gitTop(git, path); err != nil || !sameDir(top, path) || !isWorktreeOf(git, path) {
+			return fmt.Errorf("%s exists and is not a worktree of this repository; choose another name", path)
 		}
 	} else {
 		add := []string{"worktree", "add", "-b", branch, path}
@@ -58,6 +58,21 @@ func runWorktree(args []string, open func() error) error {
 		return err
 	}
 	return open()
+}
+
+// isWorktreeOf reports whether dir is listed as a worktree of the repository
+// in the current directory, so a separate clone at the same path is refused.
+func isWorktreeOf(git, dir string) bool {
+	out, err := exec.Command(git, "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if p, ok := strings.CutPrefix(line, "worktree "); ok && sameDir(p, dir) {
+			return true
+		}
+	}
+	return false
 }
 
 func gitTop(git, dir string) (string, error) {

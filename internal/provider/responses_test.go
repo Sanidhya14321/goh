@@ -45,3 +45,14 @@ func TestResponsesCompletesBeforeMakingToolCallsAvailable(t *testing.T) {
 		t.Fatal("reasoning from a different model route was replayed")
 	}
 }
+
+func TestResponsesStreamErrorIsSanitised(t *testing.T) {
+	raw := `{"code":"` + strings.Repeat("x", 500) + `\u001b[31m","message":"bad key sk-proj-ABCDEFGHIJKLMNOPQRSTUVWXYZ012345 \u001b[2Jcleared"}`
+	msg := responsesStreamError(raw).Error()
+	if strings.Contains(msg, "\x1b") || strings.Contains(msg, "ABCDEFGHIJKLMNOP") || strings.Contains(msg, "xxxxxxxx") {
+		t.Fatalf("unsanitised: %q", msg)
+	}
+	if !strings.Contains(msg, "sk-proj-[redacted]") || !strings.Contains(msg, "cleared") {
+		t.Fatalf("message lost: %q", msg)
+	}
+}

@@ -28,3 +28,17 @@ func TestDuplicateKeysRefusedAndValidatedObjectSent(t *testing.T) {
 		}
 	}
 }
+
+func TestLargeIntegersReachTheServerExactly(t *testing.T) {
+	m := manager(t, map[string]string{"HARNESS_MCP_RAW": "1"}, true)
+	if err := m.Connect(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	r := m.Execute(context.Background(), "mcp__fixture__raw", json.RawMessage(`{"id":9007199254740993}`))
+	if r.Error || !strings.Contains(r.Content, "9007199254740993") {
+		t.Fatalf("server received %s", r.Content)
+	}
+	if r := m.Execute(context.Background(), "mcp__fixture__raw", json.RawMessage(`{"id":1.5}`)); !r.Error {
+		t.Fatal("non-integer accepted for an integer field")
+	}
+}
