@@ -46,7 +46,7 @@ var commandHelp = [][2]string{
 	{"mcp", "list configured MCP servers: goh mcp list"},
 	{"agents", "list built-in, configured and project agents"},
 	{"stats", "token usage and activity over recent days"},
-	{"auth", "sign in with ChatGPT: login, status, models, logout; list credential sources"},
+	{"auth", "sign in with ChatGPT: login, status, models, logout; list credential sources; store file|keychain"},
 	{"setup", "configure a provider"},
 	{"settings", "open settings"},
 	{"memory", "opt-in project notes: add, list, recall, delete"},

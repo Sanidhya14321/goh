@@ -92,6 +92,10 @@ func (c Config) ProviderKey() (string, error) {
 	if err != nil {
 		return "", nil
 	}
+	if inKeychain(path) {
+		b, err := keychainSecret(path)
+		return string(b), err
+	}
 	info, err := os.Lstat(path)
 	if os.IsNotExist(err) {
 		return "", nil
@@ -115,16 +119,12 @@ func (c Config) SaveProviderKey(key string) error {
 		return err
 	}
 	if key == "" {
-		err = os.Remove(path)
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
+		return removeSecret(path)
 	}
 	if len(key) > 4096 || strings.ContainsAny(key, "\r\n\x00") {
 		return fmt.Errorf("invalid provider key")
 	}
-	return writePrivate(path, key)
+	return saveSecret(path, []byte(key))
 }
 
 // CheckProjectCredentialBoundary keeps saved keys outside the project tools'

@@ -23,6 +23,17 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC179 OS credential store
+
+- `TestCredentialStoreMovesSecrets`: a provider key and a ChatGPT account move to sealed files and back. No plaintext copy is left, and the OS store holds only the 32-byte key, which moving back deletes. New saves follow the choice and removal clears both forms. A sealed file copied over another one's name is refused, which fails with the name binding removed.
+- `TestUnopenableSealedSecretIsDamaged` (key gone, garbage file), `TestKeychainUnavailable` (choice refused and unchanged) and `TestInterruptedMovePrefersTheOSCopy`, which fails when the plain file is read first; `TestForgetCredentialKey` (uninstall).
+- `TestOSStoreRoundTrip` passed against the real macOS login keychain with `GOH_OS_STORE_TEST=1`, using a separate test service name, and left no entry. It runs on Windows CI against DPAPI. `security -i` was measured to cut lines at about 4 KiB and run the remainder as a command, so the store keeps only the key and the macOS helper refuses values over 2 KiB.
+
+Gates passed on macOS with Go 1.27.4:
+- gofmt, `go vet` (also with `GOOS=windows` and `GOOS=linux`) and `go test -race ./...`;
+- `make acceptance`;
+- the TUI, setup, ACP, attach and resume-setup PTY suites.
+
 ## RC178 second review, terminal UI and CLI findings
 
 Tests for each reviewed scenario:

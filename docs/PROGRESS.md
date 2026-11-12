@@ -1388,3 +1388,5 @@ rc.176: fixed the second review's P1 findings (attach acknowledgment scope, appr
 rc.177: fixed the second review's runtime and protocol findings (restored-time rewrites, legacy Anthropic thinking, credential-shaped error codes, streamed-versus-journaled text, legacy malformed sessions, unversioned LSP diagnostics).
 
 rc.178: fixed the second review's terminal UI and CLI findings (approvals and answers on small terminals, `--session`/`--project`, resume through provider setup, palette drafts, `/mcp` listing, worktree branch).
+
+rc.179: OS credential store (`goh auth store keychain|file`): saved secrets sealed with a key held by the macOS Keychain, the Secret Service or Windows DPAPI.

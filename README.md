@@ -356,6 +356,13 @@ directory so the agent's project scope stays separate from the credentials.
 An environment key, if set, takes precedence.
 Leave the key field blank to keep a saved key or enter `REMOVE` to delete it.
 
+To keep saved keys and the ChatGPT authorization out of plain files, run
+`goh auth store keychain`. Each secret is then sealed (AES-256-GCM) with a key
+that only the OS credential store holds: the macOS Keychain, the Secret
+Service on Linux (requires `secret-tool`), or DPAPI for your Windows account.
+`goh auth store file` moves them back, and `goh auth store` shows the current
+choice.
+
 In the settings menu, press **s** to edit the full user JSON configuration. This
 includes profiles, roles, integrations, and other file settings. Press **r**
 to run a GoHarness CLI operation by entering its arguments as a JSON array,

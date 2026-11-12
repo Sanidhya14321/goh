@@ -14,9 +14,14 @@ import (
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
 
+const authUsage = "usage: goh auth login|status|models|logout|list|store [file|keychain]"
+
 func chatGPTAuth(args []string) error {
+	if len(args) == 2 && args[0] == "store" || len(args) == 1 && args[0] == "store" {
+		return authStore(args[1:])
+	}
 	if len(args) != 1 {
-		return errors.New("usage: goh auth login|status|models|logout|list")
+		return errors.New(authUsage)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -55,7 +60,11 @@ func chatGPTAuth(args []string) error {
 		if err != nil {
 			return err
 		}
-		fmt.Println("ChatGPT authorization is saved locally.")
+		if where := core.ChatGPTKeptIn(); where != "" {
+			fmt.Println("ChatGPT authorization is saved in the " + where + ".")
+		} else {
+			fmt.Println("ChatGPT authorization is saved locally.")
+		}
 		if model != "" {
 			fmt.Println("Default model:", tui.Safe(model))
 		}
@@ -82,6 +91,32 @@ func chatGPTAuth(args []string) error {
 		fmt.Println("ChatGPT authorization cleared.")
 		return nil
 	default:
-		return errors.New("usage: goh auth login|status|models|logout|list")
+		return errors.New(authUsage)
 	}
+}
+
+// authStore shows or changes where saved credentials are kept.
+func authStore(args []string) error {
+	if len(args) == 0 {
+		store, err := core.CredentialStore()
+		if err != nil {
+			return err
+		}
+		if store == core.StoreKeychain {
+			fmt.Println("Saved credentials are kept in the " + core.CredentialStoreName() + ".")
+		} else {
+			fmt.Println("Saved credentials are kept in private files (OS store: " + core.CredentialStoreName() + ").")
+		}
+		return nil
+	}
+	moved, err := core.SetCredentialStore(args[0])
+	if err != nil {
+		return err
+	}
+	where := "private files"
+	if args[0] == core.StoreKeychain {
+		where = "the " + core.CredentialStoreName()
+	}
+	fmt.Printf("Saved credentials are now kept in %s (%d moved).\n", where, moved)
+	return nil
 }

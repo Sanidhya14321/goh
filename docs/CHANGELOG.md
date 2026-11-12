@@ -6,6 +6,16 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.179 — 2026-11-12
+
+OS credential store.
+
+- **`goh auth store keychain`:** the saved ChatGPT authorization and provider keys move into files sealed with AES-256-GCM. The key is kept by the OS credential store: the macOS Keychain, the Secret Service through `secret-tool` on Linux, or DPAPI for the Windows account. Copying the credential folder without that key reveals nothing. Each sealed file is bound to its own name. `goh auth store file` moves everything back to private files and deletes the key. Plain `goh auth store` shows the current choice. Private files remain the default.
+- **Secrets stay off command lines.** The helpers receive secrets on standard input. The macOS helper refuses values it would truncate.
+- **Damaged sealed credentials** behave like damaged files: a missing key, or a file that does not open with it, is reported. Sign-in replaces it and sign-out clears it. Each secret is read from wherever it is, so an interrupted move loses nothing.
+- `goh auth status` and `goh auth list` name the OS store when it holds the key.
+- `goh uninstall` also deletes that key from the OS store, unless `--keep-data` is given.
+
 ## 1.0.0-rc.178 — 2026-11-12
 
 Second external review: terminal UI and CLI findings.

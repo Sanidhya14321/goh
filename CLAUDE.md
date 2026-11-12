@@ -34,7 +34,7 @@ Tests are deterministic: use `cmd/scripted-model` (a scripted local model endpoi
 - `cmd/harness` — `goh` entrypoint: CLI subcommands (`chat`, `sessions`, `auth`, `serve`, ACP mode), launcher and pickers. Bare `goh` opens the TUI.
 - `internal/runtime` — the agent loop: system/summarization prompts (`runtime.go`), tool dispatch and permission policy, context compaction, subagents, skills, memory, todos, questions, LSP/webfetch integration.
 - `internal/provider` — model adapters: Anthropic SSE, OpenAI Chat Completions (with JSON-reply and stream-option fallback), OpenAI Responses (incl. `openai_chatgpt` protocol bound to the official endpoint). Shared error classification in `errors.go`.
-- `internal/core` — config, provider profiles/routing, user settings, ChatGPT OAuth (PKCE, private credential store), shared types.
+- `internal/core` — config, provider profiles/routing, user settings, ChatGPT OAuth (PKCE, private credential store; `credential_store.go` seals secrets with a key from `internal/secretstore`, the OS keychain/Secret Service/DPAPI), shared types.
 - `internal/session` — durable conversation journal (the source of truth for resume, fork, export), portable JSON export, Markdown transcripts, compaction records.
 - `internal/tools` — exact file tools, patch grammar, glob/grep, shell execution with approval, change tracking, repo map.
 - `internal/tui` — Bubble Tea UI: composer, command palette, `/provider` `/connect` `/models` `/fork` `/export` `/timeline` `/status` dialogs.

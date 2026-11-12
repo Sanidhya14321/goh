@@ -71,7 +71,7 @@ flowchart LR
 | **Session CLI** | `list` (json/table/ids, `--project`), `preview`, `show`, `export` (JSON/Markdown/HTML), `import`, `fork --before-turn`, `salvage`, `rename`, `delete`/`restore` (trash), `prune --days`. |
 | **Workflow helpers** | `goh pr N` runs `gh pr checkout` and opens the UI. `goh worktree NAME` opens the UI in an isolated git worktree. `goh changes` shows file checkpoints. `goh stats` shows tokens, cost estimates and per-tool calls and failures. |
 | **Server UI** | `goh attach [ADDRESS]` opens the terminal UI against a running `goh serve` (prompts, approvals, questions, cancellation, `/new`, `/sessions`). |
-| **Admin** | `goh auth login/status/models/logout/list`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh uninstall` (lists first; `--yes` to act). |
+| **Admin** | `goh auth login/status/models/logout/list/store`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh uninstall` (lists first; `--yes` to act). |
 | **Integrations** | ACP for editors (Zed and similar). `goh serve` local API. MCP servers over stdio and remote Streamable HTTP. LSP language servers (auto-detected when enabled). Formatters (auto-detected when enabled). |
 
 ### 2.2 Model providers
@@ -112,7 +112,7 @@ Multiple named **profiles**, **model roles** (a separate model for summaries and
    (JSON, Markdown or HTML), imported on another machine with project relocation, trashed and restored.
 4. **Credential discipline.** `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are sent only to official HTTPS hosts. Gateways
    use their own key variable. Failover to another provider happens **only** through an explicit
-   `fallback_profiles` list. Credentials sit in private (0600) files. `goh config` and `goh auth list` never
+   `fallback_profiles` list. Credentials sit in private (0600) files, or are sealed with a key held by the OS credential store (`goh auth store keychain`). `goh config` and `goh auth list` never
    print a secret.
 5. **Approvals that cannot be widened by accident.** `shell_rules` and `file_rules` allow, deny or ask.
    "Allow" never covers a compound shell command. Repository files cannot pick the agent or model. A third
@@ -293,7 +293,7 @@ flowchart LR
     UC["User config (JSON)<br/>profiles · roles · rules · MCP · LSP · prices"] --> CFG[core.Config]
     ENV["Env: OPENAI_API_KEY / ANTHROPIC_API_KEY<br/>(official HTTPS hosts only)"] --> CFG
     GW["Gateway api_key_env"] --> CFG
-    CRED["Private credential files (0600)<br/>ChatGPT OAuth tokens, saved keys"] --> CFG
+    CRED["Private credential files (0600), or sealed<br/>with a key in the OS store<br/>ChatGPT OAuth tokens, saved keys"] --> CFG
     REPO["Repository files<br/>.harness commands / skills / agents"] -->|"cannot set model,<br/>provider or agent"| RT[runtime]
     CFG --> RT
     CFG --> SHOW["goh config / goh auth list<br/>(redacted)"]
@@ -325,7 +325,7 @@ Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tra
 | Area | Status |
 | --- | --- |
 | **Release** | Release scripts and checksum-verifying installers exist; **nothing published yet** (needs the owner's go-ahead). There is no `goh upgrade` command. |
-| **Credentials** | OS keychain storage and multiple ChatGPT accounts are not done. |
+| **Credentials** | Multiple ChatGPT accounts are not done. The Linux Secret Service path depends on `secret-tool` being installed. |
 | **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
 | **Sharing** | Session share/upload: not done (it would upload conversations). |
 | **MCP OAuth** | Not done; needs a real OAuth MCP server to test against. |
