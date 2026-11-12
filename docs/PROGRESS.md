@@ -1390,3 +1390,5 @@ rc.177: fixed the second review's runtime and protocol findings (restored-time r
 rc.178: fixed the second review's terminal UI and CLI findings (approvals and answers on small terminals, `--session`/`--project`, resume through provider setup, palette drafts, `/mcp` listing, worktree branch).
 
 rc.179: OS credential store (`goh auth store keychain|file`): saved secrets sealed with a key held by the macOS Keychain, the Secret Service or Windows DPAPI.
+
+rc.180: `goh upgrade`, the tag-triggered release workflow, and the first published release; build output removed from the git history.

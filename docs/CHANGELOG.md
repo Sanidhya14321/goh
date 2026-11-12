@@ -6,6 +6,14 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.180 — 2026-11-12
+
+First published release.
+
+- **`goh upgrade`:** installs the latest release over the running `goh`. It checks the binary's single entry in `SHA256SUMS` and runs the new binary before replacing anything; any failure leaves the installation unchanged. `--check` only looks, and `--version TAG` picks a release. Downloads use HTTPS, or plain HTTP only to a loopback address. On Windows the previous executable is kept as `goh.exe.old`.
+- **Release workflow:** pushing a `v*` tag runs vet and the tests, builds all six platforms with `make release`, and publishes the release. The binaries, `SHA256SUMS`, both installers, the notices and `licenses.tar.gz` are attached. The notes come from this changelog.
+- The repository history no longer contains the 19 MB `harness` build output committed in rc.170 and removed in rc.174.
+
 ## 1.0.0-rc.179 — 2026-11-12
 
 OS credential store.

@@ -71,7 +71,7 @@ flowchart LR
 | **Session CLI** | `list` (json/table/ids, `--project`), `preview`, `show`, `export` (JSON/Markdown/HTML), `import`, `fork --before-turn`, `salvage`, `rename`, `delete`/`restore` (trash), `prune --days`. |
 | **Workflow helpers** | `goh pr N` runs `gh pr checkout` and opens the UI. `goh worktree NAME` opens the UI in an isolated git worktree. `goh changes` shows file checkpoints. `goh stats` shows tokens, cost estimates and per-tool calls and failures. |
 | **Server UI** | `goh attach [ADDRESS]` opens the terminal UI against a running `goh serve` (prompts, approvals, questions, cancellation, `/new`, `/sessions`). |
-| **Admin** | `goh auth login/status/models/logout/list/store`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh uninstall` (lists first; `--yes` to act). |
+| **Admin** | `goh auth login/status/models/logout/list/store`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh upgrade` (checksum-verified; `--check`), `goh uninstall` (lists first; `--yes` to act). |
 | **Integrations** | ACP for editors (Zed and similar). `goh serve` local API. MCP servers over stdio and remote Streamable HTTP. LSP language servers (auto-detected when enabled). Formatters (auto-detected when enabled). |
 
 ### 2.2 Model providers
@@ -324,7 +324,7 @@ Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tra
 
 | Area | Status |
 | --- | --- |
-| **Release** | Release scripts and checksum-verifying installers exist; **nothing published yet** (needs the owner's go-ahead). There is no `goh upgrade` command. |
+| **Release** | Tags `v*` publish through `.github/workflows/release.yml`; installers and `goh upgrade` verify `SHA256SUMS`. Binaries are not code-signed or notarized. |
 | **Credentials** | Multiple ChatGPT accounts are not done. The Linux Secret Service path depends on `secret-tool` being installed. |
 | **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
 | **Sharing** | Session share/upload: not done (it would upload conversations). |

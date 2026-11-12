@@ -1,0 +1,38 @@
+name: release
+# Pushing a tag vX.Y.Z[-pre] builds every platform from that commit, checks
+# it, and publishes a GitHub release whose notes are the matching
+# docs/CHANGELOG.md section. The installers and `goh upgrade` read the
+# release marked latest.
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - name: Build release files
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          make release GO=go VERSION="$version"
+          tar -czf dist/licenses.tar.gz -C dist licenses
+          test "$(./dist/goh-linux-amd64 version)" = "$version"
+      - name: Release notes from the changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v head="## $version " 'index($0, head) == 1 {on = 1; next} on && /^## / {exit} on {print}' docs/CHANGELOG.md > notes.md
+          test -s notes.md || { echo "docs/CHANGELOG.md has no section for $version"; exit 1; }
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          files=$(find dist -maxdepth 1 -type f | sort)
+          gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md --latest --verify-tag

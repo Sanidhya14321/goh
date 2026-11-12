@@ -18,7 +18,7 @@ make race         # go test -race ./...
 make vet
 make fuzz         # bounded fuzz targets (3s each)
 make acceptance   # builds, then go run ./cmd/acceptance (CLI fixture scenarios)
-make release      # scripts/release.sh -> dist/goh-{darwin,linux,windows}-{arm64,amd64}
+make release      # scripts/release.sh -> dist/goh-{darwin,linux,windows}-{arm64,amd64}; pushing a v* tag publishes via .github/workflows/release.yml
 make demo         # scripted-model text scenario
 make bench-check  # builds bin/goh-bench (cmd/bench) and dry-runs bench/tasks
 

@@ -56,6 +56,7 @@ var commandHelp = [][2]string{
 	{"config", "print the effective configuration, secrets removed"},
 	{"doctor", "check configuration and integrations"},
 	{"version", "print the version"},
+	{"upgrade", "install the latest release over this goh (--check to only look)"},
 	{"uninstall", "remove goh and its data (lists first; --yes to remove)"},
 	{"completion", "print a shell completion script: bash, zsh or fish"},
 }
@@ -148,6 +149,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "uninstall" {
 		return runUninstall(args[1:], os.Stdout)
+	}
+	if args[0] == "upgrade" {
+		return runUpgrade(args[1:], os.Stdout)
 	}
 	if args[0] == "pr" {
 		return runPR(args[1:], func() error { return chatFirst([]string{"chat"}) })

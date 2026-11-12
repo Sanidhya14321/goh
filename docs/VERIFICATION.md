@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC180 goh upgrade and first release
+
+- `TestUpgradeReplacesTheExecutable` and `TestUpgradeRefusals` (tampered binary, missing or duplicated checksum, binary that does not run). Each refusal leaves the executable unchanged and no temporary files. Also `TestUpgradeCommand` (up to date, `--check`, remote plain HTTP refused) and `TestReplaceExecutableKeepsOldOnWindowsOnly`.
+- End to end on macOS: `make release VERSION=9.9.9-e2e` was served on loopback. A `1.0.0-old` build upgraded itself to `9.9.9-e2e`. Running again reported "up to date". After the served binary was tampered with, a fresh old build refused it and still reported `1.0.0-old`.
+- History rewrite: `git filter-branch --index-filter` removed `harness` from the 16 commits from rc.170 on. The final tree hash `cbe24da` is unchanged, no blob over 2 MB remains, and the local pack went from 47.6 MiB of loose objects to 6.4 MiB. A bundle of the old history was kept locally before the force-push.
+
 ## RC179 OS credential store
 
 - `TestCredentialStoreMovesSecrets`: a provider key and a ChatGPT account move to sealed files and back. No plaintext copy is left, and the OS store holds only the 32-byte key, which moving back deletes. New saves follow the choice and removal clears both forms. A sealed file copied over another one's name is refused, which fails with the name binding removed.

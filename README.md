@@ -90,8 +90,17 @@ irm https://github.com/Sanidhya14321/goh/releases/latest/download/install.ps1 | 
 Both scripts download the binary for your platform with `SHA256SUMS`, refuse to
 install on a missing, duplicated or mismatched checksum, and install to
 `~/.local/bin` (or `%LOCALAPPDATA%\Programs\goh`). Set `GOH_VERSION` to pin a
-release tag or `GOH_INSTALL_DIR` to choose the destination. These URLs work once
-a release is published; no V1 release has been published yet.
+release tag or `GOH_INSTALL_DIR` to choose the destination.
+
+To update later, run `goh upgrade`. It installs the latest release over the
+running `goh` with the same checks, and runs the new binary once before
+replacing anything. `goh upgrade --check` only reports whether a newer release
+exists, and `--version TAG` installs a specific one. On Windows the previous
+executable is kept as `goh.exe.old`.
+
+Releases are built and published by `.github/workflows/release.yml` when a
+`v*` tag is pushed. The release notes are that version's section of
+`docs/CHANGELOG.md`.
 
 ## Build and try locally
 
