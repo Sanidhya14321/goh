@@ -45,3 +45,51 @@ func TestRetryInterruptedStreams(t *testing.T) {
 		t.Fatal("3 retries accepted")
 	}
 }
+
+// What interfaces show must end up equal to the journaled reply: a suffix
+// the stream left out is sent, and a final reply that does not continue the
+// streamed text replaces it.
+func TestShownTextMatchesTheFinalReply(t *testing.T) {
+	for name, tc := range map[string]struct {
+		streamed, final string
+		reset           bool
+	}{
+		"suffix":  {"FIRST", "FIRST AND LAST", false},
+		"differs": {"DRAFT", "FINAL", true},
+		"same":    {"SAME", "SAME", false},
+		"silent":  {"", "QUIET", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, _ := testAgent(t)
+			a.Config.RetryInterruptedStreams = 1
+			calls := 0
+			a.Provider = modelFunc(func(_ context.Context, _ []core.Message, _ []core.Tool, delta func(string)) (core.Reply, error) {
+				calls++
+				if calls == 1 {
+					delta("ABANDONED")
+					return core.Reply{}, provider.ErrInterrupted
+				}
+				if tc.streamed != "" {
+					delta(tc.streamed)
+				}
+				return core.Reply{Message: core.Message{Role: "assistant", Content: tc.final}, Finish: "stop"}, nil
+			})
+			shown, reset := "", false
+			a.Emit = func(e core.Event) {
+				switch e.Type {
+				case "stream_retry", "assistant_reset":
+					reset = reset || e.Type == "assistant_reset"
+					shown = ""
+				case "assistant_updated":
+					shown += e.Data.(map[string]any)["text"].(string)
+				}
+			}
+			if status, err := a.Run(context.Background(), "go"); status != "completed" {
+				t.Fatal(status, err)
+			}
+			if shown != tc.final || reset != tc.reset {
+				t.Fatalf("shown %q (reset %v), journal %q", shown, reset, tc.final)
+			}
+		})
+	}
+}

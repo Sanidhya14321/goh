@@ -320,10 +320,11 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 				// Thinking blocks are replayed verbatim and in order (signatures
 				// intact): current models require them during tool use, and
 				// the API ignores blocks a model cannot read. They go back only
-				// to the route (protocol, endpoint, model) that produced them;
-				// untagged blocks come from sessions saved before tagging.
+				// to the route (protocol, endpoint, model) that produced them.
+				// Untagged blocks (sessions saved before tagging) have no
+				// known origin and are never sent.
 				thinking := m.AnthropicThinking
-				if m.ResponsesRoute != "" && m.ResponsesRoute != route {
+				if m.ResponsesRoute == "" || m.ResponsesRoute != route {
 					thinking = nil
 				}
 				for _, raw := range thinking {
@@ -375,6 +376,12 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 	if len(pending) != 0 || len(body.Messages) == 0 {
 		return invalid()
 	}
+	if body.Thinking != nil && !anthropicToolLoopHasThinking(body.Messages) {
+		// The API requires the thinking that led to the tool calls being
+		// answered; when it was not replayed (another route, or none was
+		// produced), this request continues without thinking.
+		body.Thinking = nil
+	}
 	for _, m := range body.Messages {
 		if len(m.Content) > anthropicMaxBlocks {
 			return invalid()
@@ -388,6 +395,30 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 		return invalid()
 	}
 	return b, nil
+}
+
+// anthropicToolLoopHasThinking reports whether a request that ends in tool
+// results replays thinking before the tool calls they answer. Requests that
+// end with the user's own text always pass.
+func anthropicToolLoopHasThinking(messages []anthropicMessage) bool {
+	last := messages[len(messages)-1]
+	if last.Role != "user" || len(last.Content) == 0 {
+		return true
+	}
+	if _, ok := last.Content[0].(anthropicToolResult); !ok {
+		return true
+	}
+	for i := len(messages) - 2; i >= 0; i-- {
+		if messages[i].Role != "assistant" {
+			continue
+		}
+		if len(messages[i].Content) == 0 {
+			return false
+		}
+		_, ok := messages[i].Content[0].(json.RawMessage)
+		return ok
+	}
+	return true
 }
 
 type anthropicUsage struct {

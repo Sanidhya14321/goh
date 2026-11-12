@@ -1384,3 +1384,5 @@ rc.174: moved to Go 1.27.4 for GO-2026-6859 and removed an accidentally committe
 rc.175: `goh attach` opens the terminal UI against a running `goh serve` (prompts, approvals, questions and cancellation on the server; read-only local view of its journal).
 
 rc.176: fixed the second review's P1 findings (attach acknowledgment scope, approval preview headers, file-rule aliases for new files and Unicode spellings, length-framed attachments, benchmark container isolation) and its `goh attach` findings.
+
+rc.177: fixed the second review's runtime and protocol findings (restored-time rewrites, legacy Anthropic thinking, credential-shaped error codes, streamed-versus-journaled text, legacy malformed sessions, unversioned LSP diagnostics).

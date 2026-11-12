@@ -6,6 +6,20 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.177 — 2026-11-12
+
+Second external review: runtime and protocol findings.
+
+- **Outcomes and verify:** a shell command that rewrites a file and restores its size, mode and modification time now counts as a change. The project fingerprint includes the inode change time and number on Linux and macOS, which every write updates and no call can set back. Elsewhere it hashes the content of files up to 1 MiB.
+- **Anthropic thinking:** thinking blocks without a route tag (sessions saved before rc.171) are never replayed. When a tool loop cannot replay the thinking behind its calls, that request continues without thinking instead of being rejected.
+- **Responses errors:** a provider error code is shown only if it has the shape of an identifier (lowercase words joined by `_` or `.`, each at most 24 characters) and nothing in it looks like a credential.
+- **Streamed text and the journal:** interfaces now end up showing exactly the reply that is journaled.
+  - Text that the final reply adds after what streamed is sent as a last delta.
+  - A final reply that does not continue the streamed text is sent in full after a new `assistant_reset` event. The terminal UI, `goh run` and ACP all handle that event.
+  - The terminal UI tracks where a partial reply starts, so a retry removes it even when reasoning was shown after it.
+- **Portable sessions:** tool calls with malformed arguments in older sessions are repaired (`{}`, never executed) when exporting, forking, importing or salvaging, so those sessions can be forked and reimported.
+- **LSP:** the client declares `publishDiagnostics.versionSupport`, so servers attach the document version. Unversioned diagnostics are taken only after 400 ms without a newer publish, so a late publish for the previous text is replaced by the current one.
+
 ## 1.0.0-rc.176 — 2026-11-12
 
 Second external review: the P1 findings and the `goh attach` findings.

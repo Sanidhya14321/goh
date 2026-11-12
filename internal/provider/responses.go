@@ -301,7 +301,7 @@ func responsesStreamError(raw string) error {
 	// Both fields come from the provider and end up in events and the
 	// journal: keep the code to an identifier, and strip control characters
 	// and credential-shaped text from a bounded message.
-	if !errorCode.MatchString(code) {
+	if !errorCode.MatchString(code) || session.RedactSecrets(code) != code {
 		code = ""
 	}
 	msg = strings.Map(func(r rune) rune {
@@ -326,7 +326,11 @@ func responsesStreamError(raw string) error {
 	return errors.New(text)
 }
 
-var errorCode = regexp.MustCompile(`^[A-Za-z0-9_.:-]{1,64}$`)
+// errorCode accepts the shape of provider error codes (rate_limit_exceeded,
+// insufficient_quota, server_error): lowercase words joined by _ or ., each
+// at most 24 characters. A credential, which is one long run or has
+// uppercase letters or dashes, does not fit.
+var errorCode = regexp.MustCompile(`^[a-z][a-z0-9]{0,23}(?:[_.][a-z0-9]{1,24}){0,5}$`)
 
 func firstNonEmpty(values ...string) string {
 	for _, v := range values {

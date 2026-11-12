@@ -97,3 +97,21 @@ func TestRetryRemovesDiscardedPartialReply(t *testing.T) {
 		t.Fatalf("%q", m.log)
 	}
 }
+
+func TestRetryRemovesPartialReplyFollowedByReasoning(t *testing.T) {
+	m := &model{events: make(chan tea.Msg, 8), log: "You: hi\n"}
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "ABANDONED TEXT"}})
+	m.Update(core.Event{Type: "reasoning_updated", Data: map[string]any{"text": "thinking more"}})
+	m.Update(core.Event{Type: "stream_retry", Data: map[string]any{"attempt": 1}})
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "FIRST"}})
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": " AND LAST"}})
+	if strings.Contains(m.log, "ABANDONED") || !strings.Contains(m.log, "FIRST AND LAST") {
+		t.Fatalf("%q", m.log)
+	}
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "\nDRAFT"}})
+	m.Update(core.Event{Type: "assistant_reset", Data: map[string]any{}})
+	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "FINAL"}})
+	if strings.Contains(m.log, "DRAFT") || !strings.HasSuffix(m.log, "FINAL") {
+		t.Fatalf("%q", m.log)
+	}
+}

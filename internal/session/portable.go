@@ -35,11 +35,42 @@ func portableRecords(records []Record) []Record {
 	var out []Record
 	for _, record := range records {
 		switch record.Type {
-		case "message", "context_compacted", "todos_updated":
+		case "message":
+			out = append(out, repairToolArguments(record))
+		case "context_compacted", "todos_updated":
 			out = append(out, record)
 		}
 	}
 	return out
+}
+
+// repairToolArguments replaces tool-call arguments that are not a JSON
+// object with "{}", as the runtime has done before journaling since rc.171.
+// Sessions saved earlier can hold a malformed call (never executed); without
+// this they export but cannot be forked, imported or salvaged.
+func repairToolArguments(record Record) Record {
+	var message core.Message
+	if json.Unmarshal(record.Data, &message) != nil || len(message.ToolCalls) == 0 {
+		return record
+	}
+	changed := false
+	for i, call := range message.ToolCalls {
+		var object map[string]json.RawMessage
+		if json.Unmarshal([]byte(call.Function.Arguments), &object) == nil && object != nil {
+			continue
+		}
+		message.ToolCalls[i].Function.Arguments = "{}"
+		changed = true
+	}
+	if !changed {
+		return record
+	}
+	data, err := json.Marshal(message)
+	if err != nil {
+		return record
+	}
+	record.Data = data
+	return record
 }
 
 // Export snapshots a session under its writer lock. Content is unredacted.
@@ -95,6 +126,11 @@ func Import(dir string, r io.Reader, projectOverride string) (*Store, error) {
 	}
 	if len(portable.Pending) > 0 {
 		return nil, errors.New("archive contains uncertain effects; resolve the source session before importing")
+	}
+	for i, record := range portable.Records {
+		if record.Type == "message" {
+			portable.Records[i] = repairToolArguments(record)
+		}
 	}
 	if err := validatePortableRecords(portable.Records); err != nil {
 		return nil, err

@@ -72,6 +72,12 @@ type Manager struct {
 // reported, not stopped.
 const diagnosticsWait = 5 * time.Second
 
+// diagnosticsSettle is how long unversioned pushed diagnostics must go
+// without a newer publish before they are taken as describing the current
+// text. Servers that support versionSupport (declared at initialize) attach
+// the document version and skip the wait.
+const diagnosticsSettle = 400 * time.Millisecond
+
 var errDiagnosticsPending = errors.New("LSP server has not published diagnostics for this file yet; try again shortly")
 
 // maxRestarts bounds approved restarts of one disconnected server per run.
@@ -326,7 +332,7 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 	}
 	m.servers[name] = s
 	m.mu.Unlock()
-	params := map[string]any{"processId": os.Getpid(), "rootUri": fileURI(m.project), "rootPath": m.project, "workspaceFolders": []any{map[string]any{"uri": fileURI(m.project), "name": filepath.Base(m.project)}}, "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"synchronization": map[string]any{"didSave": false}, "diagnostic": map[string]any{"dynamicRegistration": false}}, "workspace": map[string]any{"configuration": true}}, "initializationOptions": cfg.Initialization, "clientInfo": map[string]string{"name": "independent-harness", "version": "0.1.0"}}
+	params := map[string]any{"processId": os.Getpid(), "rootUri": fileURI(m.project), "rootPath": m.project, "workspaceFolders": []any{map[string]any{"uri": fileURI(m.project), "name": filepath.Base(m.project)}}, "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"synchronization": map[string]any{"didSave": false}, "diagnostic": map[string]any{"dynamicRegistration": false}, "publishDiagnostics": map[string]any{"versionSupport": true}}, "workspace": map[string]any{"configuration": true}}, "initializationOptions": cfg.Initialization, "clientInfo": map[string]string{"name": "independent-harness", "version": "0.1.0"}}
 	result, err := p.rpc.call(ctx, "initialize", params)
 	if err != nil {
 		s.broken = true
@@ -453,10 +459,18 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 				timer := time.NewTimer(diagnosticsWait)
 				defer timer.Stop()
 				for {
-					if data, ok := s.process.rpc.cachedDiagnostics(uri, s.documents[uri].version); ok {
+					var settle <-chan time.Time
+					data, ok, unversioned, quiet := s.process.rpc.cachedDiagnostics(uri, s.documents[uri].version)
+					switch {
+					case ok && (!unversioned || quiet >= diagnosticsSettle):
 						return data, nil
+					case ok:
+						// Unversioned diagnostics can describe the text before
+						// the change: take the latest once publishing settles.
+						settle = time.After(diagnosticsSettle - quiet)
 					}
 					select {
+					case <-settle:
 					case <-s.process.rpc.changed:
 					case <-s.process.rpc.done:
 						return nil, s.process.rpc.failure()

@@ -287,3 +287,65 @@ func TestForkBeforeUsesDurableTurnNumberAcrossCompaction(t *testing.T) {
 		t.Fatal("source journal changed", err)
 	}
 }
+
+// Sessions saved before tool arguments were sanitized can hold a malformed
+// call; they must still fork, export and reimport.
+func TestLegacyMalformedToolArgumentsForkAndReimport(t *testing.T) {
+	store, dir := fixture(t)
+	var call core.Call
+	call.ID, call.Type = "call-bad", "function"
+	call.Function.Name, call.Function.Arguments = "read_file", `{"path": "a`
+	for _, r := range []struct {
+		kind string
+		data any
+	}{
+		{"message", core.Message{Role: "user", Content: "go"}},
+		{"message", core.Message{Role: "assistant", ToolCalls: []core.Call{call}}},
+		{"message", core.Message{Role: "tool", ToolCallID: call.ID, Content: `{"error":true}`}},
+		{"message", core.Message{Role: "assistant", Content: "done"}},
+	} {
+		if err := store.Append(r.kind, r.data); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := store.ID
+	store.Close()
+	forked, err := Fork(dir, id)
+	if err != nil {
+		t.Fatal("fork:", err)
+	}
+	forked.Close()
+	var out bytes.Buffer
+	if err := Export(dir, id, &out); err != nil {
+		t.Fatal(err)
+	}
+	imported, err := Import(dir, bytes.NewReader(out.Bytes()), "")
+	if err != nil {
+		t.Fatal("reimport:", err)
+	}
+	imported.Close()
+	// An archive exported before the repair imports too.
+	var archive Portable
+	json.Unmarshal(out.Bytes(), &archive)
+	restored := false
+	for i, r := range archive.Records {
+		var m core.Message
+		if json.Unmarshal(r.Data, &m) == nil && len(m.ToolCalls) == 1 && m.ToolCalls[0].ID == "call-bad" {
+			if m.ToolCalls[0].Function.Arguments != "{}" {
+				t.Fatalf("export kept malformed arguments %q", m.ToolCalls[0].Function.Arguments)
+			}
+			m.ToolCalls[0].Function.Arguments = call.Function.Arguments
+			archive.Records[i].Data, _ = json.Marshal(m)
+			restored = true
+		}
+	}
+	if !restored {
+		t.Fatal("fixture call not found in the archive")
+	}
+	old, _ := json.Marshal(archive)
+	again, err := Import(dir, bytes.NewReader(old), "")
+	if err != nil {
+		t.Fatal("old archive:", err)
+	}
+	again.Close()
+}

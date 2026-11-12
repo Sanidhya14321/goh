@@ -24,3 +24,12 @@ func TestResponsesStreamErrorShowsCode(t *testing.T) {
 		t.Fatal("message not bounded")
 	}
 }
+
+func TestResponsesStreamErrorDropsCredentialShapedCodes(t *testing.T) {
+	for _, secret := range []string{"sk-abcdefghijklmnopqrstu", "AKIAABCDEFGHIJKLMNOP", "ghp_abcdefghijklmnopqrstuvwxyz0123456789", "abcdefghijklmnopqrstuvwxyz0123", "tok:Zm9vYmFy"} {
+		raw := `{"type":"error","code":"` + secret + `","message":"m"}`
+		if got := responsesStreamError(raw).Error(); strings.Contains(got, secret) {
+			t.Fatalf("code %q kept: %s", secret, got)
+		}
+	}
+}

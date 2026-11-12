@@ -227,3 +227,17 @@ func TestLSPDiagnosticsDescribeTheCurrentText(t *testing.T) {
 		t.Fatalf("diagnostics after the change describe the old text: %s", r.Content)
 	}
 }
+
+func TestLSPUnversionedStaleDiagnosticsAreNotTaken(t *testing.T) {
+	m, path, _ := setup(t, "stale-diagnostics")
+	ctx := context.Background()
+	if r := m.Execute(ctx, "lsp", argumentsFor("diagnostics")); r.Error || strings.Contains(r.Content, "BROKEN") {
+		t.Fatalf("first read: %s", r.Content)
+	}
+	os.WriteFile(path, []byte("abcdef\n    BROKEN\n"), 0600)
+	// The server first republishes the old text's diagnostics, unversioned.
+	r := m.Execute(ctx, "lsp", argumentsFor("diagnostics"))
+	if r.Error || !strings.Contains(r.Content, "Fixture error: BROKEN") {
+		t.Fatalf("stale diagnostics taken for the new text: %s", r.Content)
+	}
+}

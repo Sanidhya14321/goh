@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC177 second review, runtime findings
+
+Regression tests reproduce each reviewed scenario:
+- `TestFingerprintSeesRewritesWithRestoredTimes`: same size, mode and modification time, different content.
+- `TestAnthropicUntaggedThinkingIsNeverReplayed`: legacy thinking reaches neither the same route nor another endpoint, and a fresh prompt can think again.
+- `TestResponsesStreamErrorDropsCredentialShapedCodes`.
+- `TestShownTextMatchesTheFinalReply` (suffix, divergent, identical and unstreamed replies after a retry) and `TestRetryRemovesPartialReplyFollowedByReasoning`.
+- `TestLegacyMalformedToolArgumentsForkAndReimport`: fork, export and reimport, plus an archive exported before the repair.
+- `TestLSPUnversionedStaleDiagnosticsAreNotTaken`: a new fixture mode republishes the previous text's diagnostics unversioned, then the current ones. The test fails with the settle window removed.
+
+Gates passed on macOS with Go 1.27.4:
+- gofmt, `go vet` (also with `GOOS=windows` and `GOOS=linux`) and `go test -race ./...`;
+- `make acceptance`;
+- the TUI, setup, ACP and attach PTY suites.
+
 ## RC176 second review, P1 and attach findings
 
 Each finding has a regression test that reproduces the reviewed scenario:

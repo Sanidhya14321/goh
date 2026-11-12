@@ -531,6 +531,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				}
 			case "stream_retry":
 				fmt.Fprintln(os.Stderr, "\nStream broke; the partial reply was discarded and the request re-sent")
+			case "assistant_reset":
+				fmt.Fprintln(os.Stderr, "\nThe final reply differs from the streamed text above; it follows in full")
 			case "provider_retry":
 				if n, ok := e.Data.(core.RetryNotice); ok {
 					fmt.Fprintf(os.Stderr, "Provider busy (%s); retrying in %.1fs (attempt %d of %d)\n", tui.Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)

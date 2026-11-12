@@ -154,3 +154,25 @@ func TestFingerprintIgnoresStateAndCaches(t *testing.T) {
 		t.Fatal("project change not noticed")
 	}
 }
+
+func TestFingerprintSeesRewritesWithRestoredTimes(t *testing.T) {
+	root := testutil.TempDir(t)
+	e, err := New(root, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(root, "main.go")
+	os.WriteFile(path, []byte("package a\n"), 0o644)
+	info, _ := os.Stat(path)
+	before, ok := e.Fingerprint()
+	if !ok {
+		t.Fatal("no fingerprint")
+	}
+	time.Sleep(20 * time.Millisecond)
+	// Same size, mode and modification time; different content.
+	os.WriteFile(path, []byte("package b\n"), 0o644)
+	os.Chtimes(path, info.ModTime(), info.ModTime())
+	if after, _ := e.Fingerprint(); after == before {
+		t.Fatal("a rewrite with restored size, mode and time went unnoticed")
+	}
+}

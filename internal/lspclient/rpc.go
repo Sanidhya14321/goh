@@ -44,13 +44,15 @@ type rpcClient struct {
 	// diagVersion is the document version a server attached to the
 	// diagnostics it published (0 when it attached none).
 	diagVersion map[string]int
+	// diagAt is when each uri's diagnostics arrived.
+	diagAt      map[string]time.Time
 	changed     chan struct{}
 	serverSlots chan struct{}
 	settings    map[string]any
 }
 
 func newRPC(reader io.ReadCloser, writer io.WriteCloser, settings map[string]any) *rpcClient {
-	c := &rpcClient{serverSlots: make(chan struct{}, 8), reader: reader, writer: writer, pending: map[uint64]chan rpcMessage{}, done: make(chan struct{}), diagnostics: map[string]json.RawMessage{}, diagVersion: map[string]int{}, changed: make(chan struct{}, 1), settings: settings}
+	c := &rpcClient{serverSlots: make(chan struct{}, 8), reader: reader, writer: writer, pending: map[uint64]chan rpcMessage{}, done: make(chan struct{}), diagnostics: map[string]json.RawMessage{}, diagVersion: map[string]int{}, diagAt: map[string]time.Time{}, changed: make(chan struct{}, 1), settings: settings}
 	go c.readLoop()
 	return c
 }
@@ -123,7 +125,7 @@ func (c *rpcClient) readLoop() {
 				case c.serverSlots <- struct{}{}:
 					go func() { defer func() { <-c.serverSlots }(); c.serverRequest(message) }()
 				default:
-					c.fail(errors.New("LSP server exceeded8 concurrent client requests"))
+					c.fail(errors.New("LSP server exceeded 8 concurrent client requests"))
 					return
 				}
 				continue
@@ -143,6 +145,7 @@ func (c *rpcClient) readLoop() {
 					if len(c.diagnostics) < 64 || c.diagnostics[params.URI] != nil {
 						c.diagnostics[params.URI] = params.Diagnostics
 						c.diagVersion[params.URI] = params.Version
+						c.diagAt[params.URI] = time.Now()
 					}
 					c.mu.Unlock()
 					select {
@@ -328,15 +331,21 @@ func (c *rpcClient) failure() error {
 }
 
 // cachedDiagnostics returns diagnostics published for uri, skipping ones a
-// server marked as being for a version older than version.
-func (c *rpcClient) cachedDiagnostics(uri string, version int) (json.RawMessage, bool) {
+// server marked as being for a version older than version. quiet is how long
+// ago unversioned diagnostics arrived (zero for versioned ones): those may
+// describe the previous text, so the caller lets them settle.
+func (c *rpcClient) cachedDiagnostics(uri string, version int) (data json.RawMessage, ok bool, unversioned bool, quiet time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	data, ok := c.diagnostics[uri]
-	if v := c.diagVersion[uri]; ok && v != 0 && v < version {
-		return nil, false
+	data, ok = c.diagnostics[uri]
+	v := c.diagVersion[uri]
+	if ok && v != 0 && v < version {
+		return nil, false, false, 0
 	}
-	return append(json.RawMessage(nil), data...), ok
+	if ok && v == 0 {
+		unversioned, quiet = true, time.Since(c.diagAt[uri])
+	}
+	return append(json.RawMessage(nil), data...), ok, unversioned, quiet
 }
 
 // forgetDiagnostics drops published diagnostics for uri once new text has
@@ -345,6 +354,7 @@ func (c *rpcClient) forgetDiagnostics(uri string) {
 	c.mu.Lock()
 	delete(c.diagnostics, uri)
 	delete(c.diagVersion, uri)
+	delete(c.diagAt, uri)
 	c.mu.Unlock()
 }
 

@@ -32,9 +32,10 @@ func TestAnthropicThinkingRoundTrip(t *testing.T) {
 	if !strings.Contains(string(reply.Message.AnthropicThinking[0]), `"thinking":"Need to read the file."`) || !strings.Contains(string(reply.Message.AnthropicThinking[0]), `"signature":"sig-abc"`) {
 		t.Fatal(string(reply.Message.AnthropicThinking[0]))
 	}
-	history := []core.Message{{Role: "user", Content: "go"}, reply.Message, {Role: "tool", ToolCallID: "toolu_1", Content: "{}"}}
 	cfg := anthroConfig()
 	cfg.OutputBudget, cfg.ThinkingBudget = 4096, 2048
+	reply.Message.ResponsesRoute = responsesRoute(cfg) // as the client tags it
+	history := []core.Message{{Role: "user", Content: "go"}, reply.Message, {Role: "tool", ToolCallID: "toolu_1", Content: "{}"}}
 	b, err := EncodeAnthropic(cfg, history, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -105,5 +106,35 @@ func TestAnthropicThinkingStaysOnItsRoute(t *testing.T) {
 	other.BaseURL = "https://other.example/v1"
 	if b, _ := EncodeAnthropic(other, history, nil); strings.Contains(string(b), "sig-route") {
 		t.Fatal("thinking replayed to another endpoint")
+	}
+}
+
+func TestAnthropicUntaggedThinkingIsNeverReplayed(t *testing.T) {
+	cfg := anthroConfig()
+	cfg.OutputBudget, cfg.ThinkingBudget = 4096, 2048
+	thinking := json.RawMessage(`{"type":"thinking","thinking":"legacy","signature":"sig-legacy"}`)
+	call := core.Call{ID: "toolu_1", Type: "function"}
+	call.Function.Name, call.Function.Arguments = "read_file", `{"path":"a"}`
+	// Saved before route tagging: no ResponsesRoute.
+	assistant := core.Message{Role: "assistant", AnthropicThinking: []json.RawMessage{thinking}, ToolCalls: []core.Call{call}}
+	history := []core.Message{{Role: "user", Content: "go"}, assistant, {Role: "tool", ToolCallID: "toolu_1", Content: "{}"}}
+	for _, c := range []core.Config{cfg, func() core.Config { o := cfg; o.BaseURL, o.ThinkingBudget = "https://other.example/v1", 0; return o }()} {
+		b, err := EncodeAnthropic(c, history, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), "sig-legacy") || strings.Contains(string(b), "legacy") {
+			t.Fatal("untagged thinking replayed:", string(b))
+		}
+		// Without the thinking behind the pending tool calls, the request
+		// continues the loop without thinking rather than being rejected.
+		if strings.Contains(string(b), `"thinking":{`) {
+			t.Fatal("thinking enabled for a tool loop with no replayable thinking:", string(b))
+		}
+	}
+	// A new user prompt after the loop may think again.
+	next := append(append([]core.Message{}, history...), core.Message{Role: "assistant", Content: "done"}, core.Message{Role: "user", Content: "more"})
+	if b, _ := EncodeAnthropic(cfg, next, nil); !strings.Contains(string(b), `"budget_tokens":2048`) {
+		t.Fatal("thinking disabled for a fresh prompt:", string(b))
 	}
 }

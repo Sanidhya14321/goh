@@ -3,9 +3,11 @@ package runtime
 import (
 	"context"
 	"errors"
+	"strings"
+	"time"
+
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/provider"
-	"time"
 )
 
 func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
@@ -39,16 +41,37 @@ func (a *Agent) modelForRole(role string) (Model, core.Config, error) {
 // profile in order. A stream that produced text, a parse failure, an
 // authentication failure or cancellation is never retried on another route.
 func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
-	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, delta)
+	// streamed is the text this attempt has shown, so the final reply can be
+	// reconciled with it below.
+	var streamed strings.Builder
+	shown := delta
+	if delta != nil {
+		shown = func(s string) { streamed.WriteString(s); delta(s) }
+	}
+	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
 	for retry := 1; err != nil && errors.Is(err, provider.ErrInterrupted) && ctx.Err() == nil && retry <= a.Config.RetryInterruptedStreams; retry++ {
 		// Nothing from the broken reply was committed or executed, so this
 		// is a fresh request on the same history. The event tells interfaces
 		// to drop the partial text already shown.
 		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error()})
-		reply, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, delta)
+		streamed.Reset()
+		reply, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
 	}
 	if err != nil {
 		return reply, err
+	}
+	if delta != nil && reply.Message.Content != streamed.String() {
+		// Interfaces show what streamed; the journal keeps the final reply.
+		// Send what the stream left out, or replace the text when the final
+		// reply does not continue it.
+		if rest, ok := strings.CutPrefix(reply.Message.Content, streamed.String()); ok {
+			delta(rest)
+		} else {
+			a.event("assistant_reset", map[string]any{"reason": "the final reply differs from the streamed text"})
+			if reply.Message.Content != "" {
+				delta(reply.Message.Content)
+			}
+		}
 	}
 	if reply.Model == "" {
 		reply.Model = primaryConfig.Model

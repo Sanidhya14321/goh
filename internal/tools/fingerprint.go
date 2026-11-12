@@ -19,8 +19,10 @@ var cacheDirs = map[string]bool{".git": true, "node_modules": true, "__pycache__
 	".mypy_cache": true, ".ruff_cache": true, ".tox": true, ".venv": true, ".gradle": true, ".next": true, ".harness": true}
 
 // Fingerprint summarises the project's files that are not ignored (path, size,
-// mode and modification time), so a caller can tell whether a command changed
-// them. ok is false when the project is too large or cannot be read.
+// mode, modification time and a change stamp), so a caller can tell whether a
+// command changed them. The modification time can be set back after a
+// write; the change stamp cannot (see changeStamp). ok is false when the
+// project is too large or cannot be read.
 // Folders in e.StateDirs (GoHarness's own session storage, when it sits
 // inside the project) are skipped too.
 func (e *Engine) Fingerprint() (sum string, ok bool) {
@@ -72,6 +74,7 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 		h.Write([]byte(p))
 		h.Write([]byte{0})
 		h.Write(b[:])
+		h.Write(changeStamp(root, p, info))
 		return nil
 	})
 	if err != nil || n > fingerprintLimit {

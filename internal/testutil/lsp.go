@@ -17,6 +17,7 @@ import (
 func RunLSP() {
 	reader := bufio.NewReader(os.Stdin)
 	mode := os.Getenv("LSP_FIXTURE_MODE")
+	lastText := map[string]string{}
 	var writeMu sync.Mutex
 	write := func(v any) {
 		writeMu.Lock()
@@ -82,6 +83,15 @@ func RunLSP() {
 					text, _ = c["text"].(string)
 				}
 			}
+			diagnose := func(text string) []any {
+				d := []any{map[string]any{"range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}, "severity": 2, "message": "Fixture diagnostic"}}
+				if strings.Contains(text, "BROKEN") {
+					d = append(d, map[string]any{"range": map[string]any{"start": map[string]int{"line": 1, "character": 4}, "end": map[string]int{"line": 1, "character": 5}}, "severity": 1, "message": "Fixture error: BROKEN"})
+				}
+				return d
+			}
+			previous := lastText[fmt.Sprint(doc["uri"])]
+			lastText[fmt.Sprint(doc["uri"])] = text
 			diagnostics := []any{map[string]any{"range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": map[string]int{"line": 0, "character": 1}}, "severity": 2, "message": "Fixture diagnostic"}}
 			// Documents containing BROKEN also get an error, for edit-feedback tests.
 			if strings.Contains(text, "BROKEN") {
@@ -92,6 +102,13 @@ func RunLSP() {
 			case "silent-diagnostics":
 			case "delayed-diagnostics": // like a server that analyses in the background
 				go func() { time.Sleep(300 * time.Millisecond); write(publish) }()
+			case "stale-diagnostics": // an unversioned late publish for the previous text, then the current one
+				if q.Method == "textDocument/didChange" {
+					write(map[string]any{"jsonrpc": "2.0", "method": "textDocument/publishDiagnostics", "params": map[string]any{"uri": doc["uri"], "diagnostics": diagnose(previous)}})
+					go func() { time.Sleep(150 * time.Millisecond); write(publish) }()
+				} else {
+					write(publish)
+				}
 			default:
 				write(publish)
 			}

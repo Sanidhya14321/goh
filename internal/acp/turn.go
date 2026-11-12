@@ -116,6 +116,11 @@ func (t *turn) event(event core.Event) {
 			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock("\n\n[The connection dropped; the partial reply above was discarded. Retrying.]\n\n")})
 		}
 		t.streamed.Reset()
+	case "assistant_reset":
+		if t.streamed.Len() > 0 {
+			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock("\n\n[The final reply differs from the text above; it follows in full.]\n\n")})
+		}
+		t.streamed.Reset()
 	case "assistant_completed":
 		// Send any final text the stream did not deliver as deltas.
 		if m, ok := data["message"].(core.Message); ok {

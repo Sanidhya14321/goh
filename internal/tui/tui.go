@@ -56,6 +56,7 @@ type model struct {
 	// partialReply is the assistant text streamed since the last other
 	// event, removed from the transcript if the stream is retried.
 	partialReply         string
+	partialStart         int // offset in log where partialReply begins
 	a                    *agent.Agent
 	events               chan tea.Msg
 	input                string
@@ -240,7 +241,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				}
 			}
 		}
-		if v.Type != "assistant_updated" && v.Type != "stream_retry" {
+		if v.Type != "assistant_updated" && v.Type != "stream_retry" && v.Type != "assistant_reset" {
 			m.partialReply = "" // the reply text so far is final
 		}
 		switch v.Type {
@@ -263,17 +264,20 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		case "stream_retry":
 			// Remove the abandoned partial reply; the retry streams it anew.
-			if m.partialReply != "" && strings.HasSuffix(m.log, m.partialReply) {
-				m.log = m.log[:len(m.log)-len(m.partialReply)]
-			}
-			m.partialReply = ""
+			m.dropPartialReply()
 			m.log += "\n[stream broke; the partial reply was discarded and the request re-sent]\n"
+		case "assistant_reset":
+			// The final reply differs from what streamed: show the final one.
+			m.dropPartialReply()
 		case "assistant_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
 				Text string `json:"text"`
 			}
 			json.Unmarshal(b, &d)
+			if m.partialReply == "" {
+				m.partialStart = len(m.log)
+			}
 			m.log += Safe(d.Text)
 			m.partialReply += Safe(d.Text)
 		case "tool_started":
@@ -1159,6 +1163,19 @@ func (m *model) requestRewind(action string) tea.Cmd {
 	}
 	m.navigation = action
 	return tea.Quit
+}
+
+// dropPartialReply removes the streamed text of an abandoned reply, with any
+// reasoning shown after it, from the transcript.
+func (m *model) dropPartialReply() {
+	switch {
+	case m.partialReply == "":
+	case m.partialStart <= len(m.log) && strings.HasPrefix(m.log[m.partialStart:], m.partialReply):
+		m.log = m.log[:m.partialStart]
+	case strings.HasSuffix(m.log, m.partialReply): // the log was trimmed since
+		m.log = m.log[:len(m.log)-len(m.partialReply)]
+	}
+	m.partialReply = ""
 }
 
 // runKeyAction performs a configurable chat action.
