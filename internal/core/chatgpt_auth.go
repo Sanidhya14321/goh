@@ -290,7 +290,26 @@ func LogoutChatGPT(ctx context.Context) error {
 
 // LoginChatGPT runs the documented public-client loopback flow. open receives
 // only the authorization URL. The callback and tokens stay inside the process.
+// With a saved sign-in it reauthorizes the same account through the same
+// registration, which OpenAI scopes to the workspace it was made in.
 func LoginChatGPT(ctx context.Context, open func(string) error) (string, error) {
+	return loginChatGPT(ctx, open, false)
+}
+
+// SwitchChatGPTAccount signs in to any ChatGPT account or workspace with a
+// new registration. The saved sign-in is replaced, and its renewal token
+// revoked, only after the new one succeeds.
+func SwitchChatGPTAccount(ctx context.Context, open func(string) error) (string, error) {
+	return loginChatGPT(ctx, open, true)
+}
+
+// ChatGPTSignedIn reports whether a usable ChatGPT sign-in is saved.
+func ChatGPTSignedIn() bool {
+	_, err := readChatGPTAccount()
+	return err == nil
+}
+
+func loginChatGPT(ctx context.Context, open func(string) error, fresh bool) (string, error) {
 	unlock, err := chatGPTLock()
 	if err != nil {
 		return "", err
@@ -302,20 +321,30 @@ func LoginChatGPT(ctx context.Context, open func(string) error) (string, error) 
 	} else if err != nil && !errors.Is(err, ErrChatGPTLogin) {
 		return "", err
 	}
+	replaced := chatGPTAccount{}
+	if fresh {
+		// A new registration, under a new host identity, so OpenAI cannot
+		// tie it to the previous workspace's registration.
+		replaced, previous = previous, chatGPTAccount{Model: previous.Model}
+	}
 	hostPath, err := chatGPTPath("chatgpt-host")
 	if err != nil {
 		return "", err
 	}
 	host, err := readConfig(hostPath)
-	if os.IsNotExist(err) {
+	newHost := false
+	if fresh || os.IsNotExist(err) {
+		newHost = true
 		b := make([]byte, 16)
 		if _, err := rand.Read(b); err != nil {
 			return "", err
 		}
 		b[6], b[8] = b[6]&15|64, b[8]&63|128
 		h := hex.EncodeToString(b)
-		host = []byte("urn:uuid:" + h[:8] + "-" + h[8:12] + "-" + h[12:16] + "-" + h[16:20] + "-" + h[20:])
-		err = writePrivate(hostPath, string(host))
+		host, err = []byte("urn:uuid:"+h[:8]+"-"+h[8:12]+"-"+h[12:16]+"-"+h[16:20]+"-"+h[20:]), nil
+		if !fresh {
+			err = writePrivate(hostPath, string(host))
+		}
 	}
 	if err != nil {
 		return "", err
@@ -418,6 +447,17 @@ func LoginChatGPT(ctx context.Context, open func(string) error) (string, error) 
 	}
 	if err := saveChatGPTAccount(a); err != nil {
 		return "", err
+	}
+	if newHost && fresh {
+		if err := writePrivate(hostPath, string(host)); err != nil {
+			return "", err
+		}
+	}
+	if replaced.Tokens.Refresh != "" && replaced.Tokens.Refresh != a.Tokens.Refresh {
+		// Best effort: the new sign-in is saved either way.
+		_ = chatGPTRequest(ctx, http.MethodPost, chatGPTIssuer+"/api/accounts/oauth/revoke", url.Values{
+			"token": {replaced.Tokens.Refresh}, "token_type_hint": {"refresh_token"}, "client_id": {replaced.ClientID},
+		}, "", nil)
 	}
 	return a.Model, nil
 }

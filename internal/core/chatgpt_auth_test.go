@@ -217,3 +217,104 @@ func TestDamagedCredentialsDoNotBlockLoginOrLogout(t *testing.T) {
 		t.Fatal("damaged file not removed")
 	}
 }
+
+// Switching accounts registers afresh (new client and host identity, so a
+// workspace-scoped registration does not block another workspace), accepts
+// a different account, and replaces and revokes the old sign-in only after
+// the new one succeeds.
+func TestSwitchChatGPTAccount(t *testing.T) {
+	isolateConfig(t)
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encode := base64.RawURLEncoding.EncodeToString
+	old := chatGPTAccount{ClientID: "oaiapp_old", Subject: "old-user", Model: "m",
+		Tokens:  chatGPTTokens{Access: "old-access", Refresh: "old-refresh", Type: "Bearer", Scope: chatGPTScope, Lifetime: 3600},
+		Expires: time.Now().Add(time.Hour)}
+	if err := saveChatGPTAccount(old); err != nil {
+		t.Fatal(err)
+	}
+	hostPath, _ := chatGPTPath("chatgpt-host")
+	if err := writePrivate(hostPath, "urn:uuid:old-host"); err != nil {
+		t.Fatal(err)
+	}
+	var nonce string
+	revoked := url.Values{}
+	oldTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+	http.DefaultTransport = chatGPTTestTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Hostname() == "127.0.0.1" {
+			return oldTransport.RoundTrip(r)
+		}
+		var result any = map[string]any{}
+		switch r.URL.String() {
+		case chatGPTIssuer + "/.well-known/jwks.json":
+			result = map[string]any{"keys": []any{map[string]string{"kid": "k", "kty": "RSA", "n": encode(private.N.Bytes()), "e": "AQAB"}}}
+		case chatGPTIssuer + "/api/accounts/oauth/token":
+			_ = r.ParseForm()
+			if r.Form.Get("client_id") != "oaiapp_new" {
+				t.Error("exchange used the old registration")
+			}
+			claims, _ := json.Marshal(map[string]any{"iss": chatGPTIssuer, "sub": "new-user", "aud": []string{"oaiapp_new"},
+				"nonce": nonce, "iat": time.Now().Unix(), "exp": time.Now().Add(time.Hour).Unix()})
+			token := encode([]byte(`{"alg":"RS256","kid":"k"}`)) + "." + encode(claims)
+			hash := sha256.Sum256([]byte(token))
+			signature, _ := rsa.SignPKCS1v15(rand.Reader, private, crypto.SHA256, hash[:])
+			result = chatGPTTokens{Access: "new-access", Refresh: "new-refresh", Identity: token + "." + encode(signature),
+				Type: "Bearer", Scope: chatGPTScope, Lifetime: 3600}
+		case chatGPTIssuer + "/api/accounts/oauth/revoke":
+			_ = r.ParseForm()
+			revoked = r.Form
+		case chatGPTResource + "/models":
+			result = map[string]any{"models": []ChatGPTModelInfo{{Slug: "m"}}}
+		default:
+			t.Error("unexpected destination", r.URL.String())
+		}
+		data, _ := json.Marshal(result)
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(string(data))), Header: http.Header{}}, nil
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// An abandoned switch (OpenAI showed an error page) keeps the old sign-in.
+	abandoned := errors.New("abandoned")
+	if _, err := SwitchChatGPTAccount(ctx, func(string) error { return abandoned }); !errors.Is(err, abandoned) {
+		t.Fatal(err)
+	}
+	if a, err := readChatGPTAccount(); err != nil || a.Subject != "old-user" {
+		t.Fatal("old sign-in lost", err)
+	}
+	if b, _ := os.ReadFile(hostPath); string(b) != "urn:uuid:old-host" {
+		t.Fatal("host identity changed by a failed switch")
+	}
+
+	var sentHost string
+	_, err = SwitchChatGPTAccount(ctx, func(address string) error {
+		u, _ := url.Parse(address)
+		q := u.Query()
+		nonce, sentHost = q.Get("nonce"), q.Get("ext_agent_host_id")
+		if q.Get("client_id") != "dynamic_agent_client" || q.Get("agent_name_hint") != "GoHarness" || sentHost == "urn:uuid:old-host" {
+			t.Error("switch reused the old registration:", q.Get("client_id"), sentHost)
+		}
+		cb := url.Values{"state": {q.Get("state")}, "code": {"c"}, "client_id": {"oaiapp_new"}}
+		resp, err := http.Get(q.Get("redirect_uri") + "?" + cb.Encode())
+		if err == nil {
+			resp.Body.Close()
+		}
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, err := readChatGPTAccount()
+	if err != nil || a.Subject != "new-user" || a.ClientID != "oaiapp_new" {
+		t.Fatal("new account not saved", a.Subject, a.ClientID, err)
+	}
+	if b, _ := os.ReadFile(hostPath); string(b) != sentHost {
+		t.Fatal("new host identity not kept")
+	}
+	if revoked.Get("token") != "old-refresh" || revoked.Get("client_id") != "oaiapp_old" {
+		t.Fatal("old sign-in not revoked", revoked)
+	}
+}

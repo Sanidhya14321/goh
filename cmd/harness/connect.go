@@ -44,7 +44,9 @@ func openBrowser(ctx context.Context, address string) bool {
 func connectOptions(signedIn bool) []tui.Option {
 	options := []tui.Option{{Value: "chatgpt", Label: "Continue with ChatGPT", Description: "Sign in with your ChatGPT Plus, Pro or Team plan in the browser"}}
 	if signedIn {
-		options = append(options, tui.Option{Value: "reauthorize", Label: "Reauthorize ChatGPT", Description: "Refresh browser authorization"})
+		options = append(options,
+			tui.Option{Value: "reauthorize", Label: "Reauthorize ChatGPT", Description: "Refresh sign-in for the same account and workspace"},
+			tui.Option{Value: "switch", Label: "Use a different ChatGPT account", Description: "Sign in to another account or workspace; replaces the saved one"})
 	}
 	for _, p := range core.ProviderCatalog {
 		options = append(options, tui.Option{Value: "preset:" + p.ID, Label: p.Name, Description: p.Description})

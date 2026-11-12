@@ -287,7 +287,15 @@ goh chat --protocol openai_chatgpt
 
 Use `goh auth logout` to revoke the saved authorization and clear the local
 credentials. GoHarness keeps one ChatGPT authorization on this host. Reopen
-`/connect` and select **Reauthorize ChatGPT** if renewal fails. The
+`/connect` and select **Reauthorize ChatGPT** if renewal fails; that signs in
+the same account and workspace again. To use another ChatGPT account or
+workspace, choose **Use a different ChatGPT account** (or run
+`goh auth switch`). OpenAI scopes each sign-in's registration to the workspace
+it was made in, so reauthorizing while the browser is signed in elsewhere
+fails with "This app is only available to members of its workspace"
+(`3p_login_workspace_scope_denied`). The switch registers afresh and replaces
+the saved sign-in only once the new one succeeds. If OpenAI shows an error
+page, press Ctrl+C in the terminal. The
 `openai_chatgpt` protocol is bound to OpenAI's official Responses endpoint
 and uses GoHarness's private OAuth store. For a Responses API key, select
 `openai_responses` instead and configure the URL and key as usual.

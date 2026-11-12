@@ -289,7 +289,11 @@ func chatFirst(args []string) error {
 				}
 				break
 			}
-			if authErr != nil || connection == "reauthorize" {
+			if connection == "switch" {
+				if actionErr = chatGPTAuth([]string{"switch"}); actionErr != nil {
+					break
+				}
+			} else if authErr != nil || connection == "reauthorize" {
 				if actionErr = chatGPTAuth([]string{"login"}); actionErr != nil {
 					break
 				}

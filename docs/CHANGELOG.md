@@ -6,6 +6,8 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+- **Use a different ChatGPT account** (`/connect`, or `goh auth switch`): signs in to another ChatGPT account or workspace with a new registration and host identity. Before this, reauthorizing reused the first registration, which OpenAI limits to the workspace it was made in, so another account failed with `3p_login_workspace_scope_denied`. The old sign-in is replaced, and its renewal token revoked, only after the new sign-in succeeds.
+- ChatGPT sign-in says which account a reauthorization needs, tells you to press Ctrl+C if OpenAI shows an error page, and when cancelled names `goh auth switch` as the way out.
 - **`/connect` provider catalog:** Anthropic (Claude API), OpenAI API, OpenRouter, Google Gemini, Groq and Ollama join Continue with ChatGPT. Choosing one opens its API key page, takes the key, and checks it with the provider before saving. Models are then listed for that key, without non-chat models, and context windows are taken from the list when reported. The manual form remains for other URLs.
 - **Key checks:** 401 and 403 responses, Google's 400 "Please pass a valid API key", and OpenRouter's `/key` endpoint (its model list is public) all report "did not accept this key" instead of a raw HTTP status. A key is sent only to its provider's own host, with no redirects.
 - `GOH_NO_BROWSER=1`, or an SSH session, shows sign-in and key links instead of opening a browser. On Windows the browser is now opened too.

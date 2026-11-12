@@ -16,8 +16,8 @@ func TestConnectOptionsListTheCatalog(t *testing.T) {
 	if opts[0].Value != "chatgpt" || opts[len(opts)-1].Value != "api" || len(opts) != len(core.ProviderCatalog)+2 {
 		t.Fatal(opts)
 	}
-	if len(connectOptions(true)) != len(opts)+1 {
-		t.Fatal("reauthorize missing when signed in")
+	if len(connectOptions(true)) != len(opts)+2 {
+		t.Fatal("reauthorize and switch missing when signed in")
 	}
 }
 
