@@ -325,7 +325,7 @@ Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tra
 | Area | Status |
 | --- | --- |
 | **Release** | Tags `v*` publish through `.github/workflows/release.yml`; installers and `goh upgrade` verify `SHA256SUMS`. Binaries are not code-signed or notarized. |
-| **Credentials** | Multiple ChatGPT accounts are not done. The Linux Secret Service path depends on `secret-tool` being installed. |
+| **Credentials** | Multiple ChatGPT accounts are not done. Claude Pro/Max subscription sign-in is not offered (Anthropic does not permit it for third-party tools); Claude uses Console API keys. The Linux Secret Service path depends on `secret-tool` being installed. |
 | **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
 | **Sharing** | Session share/upload: not done (it would upload conversations). |
 | **MCP OAuth** | Not done; needs a real OAuth MCP server to test against. |

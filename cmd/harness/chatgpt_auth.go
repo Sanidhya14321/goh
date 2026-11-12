@@ -5,9 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
-	"runtime"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -30,18 +28,11 @@ func chatGPTAuth(args []string) error {
 	switch args[0] {
 	case "login":
 		model, err := core.LoginChatGPT(ctx, func(address string) error {
-			var browser string
-			switch runtime.GOOS {
-			case "darwin":
-				browser = "open"
-			case "linux":
-				browser = "xdg-open"
-			}
 			// Always show the link, so another browser or a private window can
 			// be used to sign in to a different account.
 			fmt.Println("Open this OpenAI authorization URL in your browser:")
 			fmt.Println(address)
-			if browser != "" && exec.CommandContext(ctx, browser, address).Run() == nil {
+			if openBrowser(ctx, address) {
 				fmt.Println("(Also opened in your default browser.)")
 			}
 			fmt.Println("Waiting for authorization…")

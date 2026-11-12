@@ -70,7 +70,8 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
     project.mkdir()
     (project / "docs").mkdir()
     (project / "docs/query fixture.md").write_text("FILE_BODY_MUST_STAY_LOCAL")
-    env = {k: v for k, v in os.environ.items() if not k.startswith("HARNESS_") and k != "OPENAI_API_KEY"}
+    env = {k: v for k, v in os.environ.items() if not k.startswith("HARNESS_") and k not in ("OPENAI_API_KEY", "ANTHROPIC_API_KEY")}
+    env["GOH_NO_BROWSER"] = "1"
     env.update(HOME=str(root), XDG_CONFIG_HOME=str(root / ".config"), TERM="xterm-256color")
     config_dir = root / ("Library/Application Support" if sys.platform == "darwin" else ".config") / "independent-harness"
     config_dir.mkdir(parents=True)
@@ -320,6 +321,25 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"q")
         wait_for(b"Agent: build", pos)
         time.sleep(.1)
+        # /connect offers the provider catalog; a preset shows its key page
+        # and saves nothing until a key is checked.
+        settings_before = (config_dir / "config.json").read_bytes()
+        count = len(requests)
+        pos = len(output)
+        os.write(master, b"/connect\r")
+        wait_for(b"Connect a provider", pos)
+        wait_for(b"Anthropic (Claude API)", pos)
+        os.write(master, b"anthropic")
+        time.sleep(.1)
+        os.write(master, b"\r")
+        wait_for(b"platform.claude.com/settings/keys", pos)
+        os.write(master, b"\x13")
+        wait_for(b"paste an API key first", pos)
+        pos = len(output)
+        os.write(master, b"\x1b")
+        wait_for(b"Agent: build", pos)
+        time.sleep(.1)
+        assert (config_dir / "config.json").read_bytes() == settings_before and len(requests) == count
         count = len(requests)
         before_export = journal_before.read_bytes()
         pos = len(output)

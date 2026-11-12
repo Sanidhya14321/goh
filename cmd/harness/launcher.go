@@ -76,32 +76,7 @@ func configureProvider() (bool, error) {
 		if err := next.Validate(); err != nil {
 			return err
 		}
-		// Edit only these fields, retaining other settings as written.
-		if core.HasJSONCSyntax(raw) {
-			// Rewriting would silently drop the user's comments.
-			return fmt.Errorf("%s has comments or trailing commas, which provider setup would erase; edit it in Advanced configuration (or by hand) instead", path)
-		}
-		var document map[string]json.RawMessage
-		if err := json.Unmarshal([]byte(raw), &document); err != nil {
-			return err
-		}
-		if document == nil {
-			document = map[string]json.RawMessage{}
-		}
-		delete(document, "endpoint")
-		delete(document, "base_url")
-		if next.APIKeyEnv != cfg.APIKeyEnv {
-			delete(document, "api_key_env")
-		}
-		for name, value := range map[string]any{"model": next.Model, "context_window": next.ContextWindow, "protocol": next.Protocol} {
-			document[name], _ = json.Marshal(value)
-		}
-		addressField := "base_url"
-		if next.Endpoint != "" {
-			addressField = "endpoint"
-		}
-		document[addressField], _ = json.Marshal(address)
-		data, err := json.MarshalIndent(document, "", "  ")
+		data, err := providerDocument(path, raw, cfg, next, address)
 		if err != nil {
 			return err
 		}
@@ -113,8 +88,43 @@ func configureProvider() (bool, error) {
 				return err
 			}
 		}
-		return core.WriteUserConfig(path, string(data)+"\n")
+		return core.WriteUserConfig(path, data)
 	})
+}
+
+// providerDocument rewrites only the provider fields of the user settings
+// (address, model, context window, protocol), keeping everything else as
+// written. address is next's base_url or endpoint, whichever it uses.
+func providerDocument(path, raw string, cfg, next core.Config, address string) (string, error) {
+	if core.HasJSONCSyntax(raw) {
+		// Rewriting would silently drop the user's comments.
+		return "", fmt.Errorf("%s has comments or trailing commas, which provider setup would erase; edit it in Advanced configuration (or by hand) instead", path)
+	}
+	var document map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &document); err != nil {
+		return "", err
+	}
+	if document == nil {
+		document = map[string]json.RawMessage{}
+	}
+	delete(document, "endpoint")
+	delete(document, "base_url")
+	if next.APIKeyEnv != cfg.APIKeyEnv {
+		delete(document, "api_key_env")
+	}
+	for name, value := range map[string]any{"model": next.Model, "context_window": next.ContextWindow, "protocol": next.Protocol} {
+		document[name], _ = json.Marshal(value)
+	}
+	addressField := "base_url"
+	if next.Endpoint != "" {
+		addressField = "endpoint"
+	}
+	document[addressField], _ = json.Marshal(address)
+	data, err := json.MarshalIndent(document, "", "  ")
+	if err != nil {
+		return "", err
+	}
+	return string(data) + "\n", nil
 }
 
 func editConfiguration() error {
@@ -257,17 +267,18 @@ func chatFirst(args []string) error {
 		switch nav.Action {
 		case "connect":
 			draft = nav.Draft
-			connections := []tui.Option{
-				{Value: "chatgpt", Label: "Continue with ChatGPT", Description: "Use your eligible ChatGPT plan"},
-				{Value: "api", Label: "API key or compatible gateway", Description: "Edit the provider URL and model"},
-			}
 			_, authErr := core.ChatGPTModel()
-			if authErr == nil {
-				connections = append(connections, tui.Option{Value: "reauthorize", Label: "Reauthorize ChatGPT", Description: "Refresh browser authorization"})
-			}
-			connection, chosen, err := tui.SelectOption("Connect a provider", "", connections, nav.Backdrop)
+			connection, chosen, err := tui.SelectOption("Connect a provider", "", connectOptions(authErr == nil), nav.Backdrop)
 			actionErr = err
 			if err != nil || !chosen {
+				break
+			}
+			if id, ok := strings.CutPrefix(connection, "preset:"); ok {
+				var saved bool
+				saved, actionErr = connectPreset(id, nav.Backdrop)
+				if saved {
+					chatGPTModel, providerModel = "", ""
+				}
 				break
 			}
 			if connection == "api" {

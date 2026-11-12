@@ -23,6 +23,12 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## Unreleased: /connect provider catalog
+
+- `TestProviderCatalogRoutesValidate`, `TestPresetChatModels`, `TestKeyCheckURLsStayOnTheProviderHost`, `TestListModelInfoChecksAnUnsavedKey` (Bearer vs `x-api-key`, rejected key, reported windows), `TestKeyRefusalsAndKeyCheck` (Google's 400, OpenRouter-style key endpoint, key never sent off-host), `TestVerifyKey` and `TestSavePresetKeepsOtherSettings` (verified key saved under the preset's scope, other settings kept, old `api_key_env` dropped).
+- `scripts/test_setup.py` (PTY): `/connect` lists the catalog, the Anthropic form shows its key page, saving with no key is refused, and Esc leaves settings and the request count unchanged.
+- Live, with an invalid key and no quota used: Anthropic, OpenAI, OpenRouter, Gemini and Groq all report "did not accept this key". This found that OpenRouter's model list answers 200 to any key and that Gemini refuses keys with 400, both now handled. The key pages resolve; the Anthropic Console link now points at `platform.claude.com`, where the old address redirects.
+
 ## RC180 goh upgrade and first release
 
 - `TestUpgradeReplacesTheExecutable` and `TestUpgradeRefusals` (tampered binary, missing or duplicated checksum, binary that does not run). Each refusal leaves the executable unchanged and no temporary files. Also `TestUpgradeCommand` (up to date, `--check`, remote plain HTTP refused) and `TestReplaceExecutableKeepsOldOnWindowsOnly`.

@@ -252,8 +252,25 @@ outside active context. Tool arguments and results are optional and off by
 default. Exported content can include sensitive text. The journal and provider
 settings stay outside the export flow.
 
-Use `/connect` to choose **Continue with ChatGPT** or API key setup. The
-ChatGPT option opens the official OpenAI authorization page and then loads the
+Use `/connect` to add a provider:
+
+- **Continue with ChatGPT** signs in with a ChatGPT Plus, Pro or Team plan in
+  the browser (details below).
+- **Anthropic (Claude API)**, **OpenAI API**, **OpenRouter**, **Google Gemini**
+  and **Groq** open the provider's API key page in your browser. Paste the key
+  and press Ctrl+S. GoHarness checks the key with the provider before saving
+  anything, then lists the models that key can use (type to search). The
+  model's context window is taken from the provider when it reports one.
+- **Ollama (local)** lists the models of a local Ollama server; no key is
+  needed.
+- **API key or compatible gateway** is the manual form for any other URL.
+
+The key page is not opened over SSH or when `GOH_NO_BROWSER=1` is set; the
+link is shown instead. Claude Pro and Max subscriptions cannot be connected:
+Anthropic does not offer subscription sign-in to third-party tools, so Claude
+models are used through a Console API key.
+
+The ChatGPT option opens the official OpenAI authorization page and then loads the
 account's available models. `/models` uses that catalog while connected to
 ChatGPT. A saved model can open chat when the catalog is temporarily unavailable.
 On an unconfigured install, an authorized account with a saved model becomes
