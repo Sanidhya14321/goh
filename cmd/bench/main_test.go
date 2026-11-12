@@ -33,6 +33,11 @@ func TestRunnerGradesCleanlyAndFlagsFalseCompletion(t *testing.T) {
 	}
 	sol, _ := filepath.Abs("../../bench/tasks/py-median/solution/stats.py")
 	work := t.TempDir()
+	if r := runTask(tasks[0], fakeGoh(t, "true"), "base", nil, 1, work); r.Error == "" || r.Status != "" {
+		t.Fatalf("a task without an image ran without -host-grading: %+v", r)
+	}
+	hostGrading = true
+	defer func() { hostGrading = false }()
 	good := runTask(tasks[0], fakeGoh(t, "cp "+sol+" stats.py"), "base", nil, 1, work)
 	if !good.Resolved || good.FalseComplete || good.ToolCalls != 1 || good.PromptTokens != 100 || good.CacheRead != 40 || good.Status != "completed" {
 		t.Fatalf("solved run: %+v", good)

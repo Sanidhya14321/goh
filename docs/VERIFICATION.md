@@ -23,6 +23,21 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC176 second review, P1 and attach findings
+
+Each finding has a regression test that reproduces the reviewed scenario:
+- `TestAttachAcknowledgmentStaysWithItsSession`: an acknowledgment for session A does not apply to B and covers only A's first prompt. `TestAttachAcceptsFlagsAfterTheAddress` checks flags after the address.
+- `TestCancelBeforeResponseHeaders`: a fixture holds the run's response headers. Cancelling returns `cancelled` at once, and the server sees the request end.
+- `TestRelativizePreviewLeavesHeaderLookalikesInBodies`: a heredoc `Directory:` line, a diff body `--- ` line and a patch excerpt `File 2:` line are left unchanged.
+- `TestDenyCoversNewFilesAndUnicodeSpellingsOnFoldingFilesystems` (macOS APFS, case-insensitive): denies `PRIVATE/new.txt` under `private/*`, both by `denied` and by `CheckWritable`, and denies a decomposed spelling of a file denied in composed form. `TestCanonicalRelResolvesExistingPrefix` covers a symlinked prefix with a missing tail, and a symlink out of the project.
+- `TestStripFileBlocksCountsInsteadOfSearching` and `TestAttachmentClosingTagCannotSmuggleMentions`: a `</file>` line in an attachment exposes no mentions, and forged blocks in the user's own text hide nothing.
+- `TestRunnerGradesCleanlyAndFlagsFalseCompletion`: a task without an image is refused unless `-host-grading` is set. `TestAgentContainerCannotReachGradeTree` (Docker Desktop, alpine) has an agent container write to `../grade` and to the grade tree's absolute path. Neither reaches the host's grade tree, and the container is gone after it is stopped. The test fails when the container mounts the whole attempt folder, as before this change. It skips where Docker or the image is unavailable.
+
+Gates passed on macOS with Go 1.27.4:
+- gofmt, `go vet` (also with `GOOS=windows`) and `go test -race ./...`;
+- `make acceptance`;
+- the TUI, setup, ACP and attach PTY suites.
+
 ## RC175 goh attach
 
 - `internal/remote` tests run a real local API server over a scripted model, under the race detector:

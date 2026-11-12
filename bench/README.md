@@ -21,6 +21,9 @@ bin/goh-bench --goh bin/goh --attempts 3 \
   --arm "nocheck=--completion-check=false"
 ```
 
+Add `-host-grading` to include the tasks that have no image (see **Isolation** below); without it they are
+reported as errors and not run.
+
 Each arm is a name plus extra `goh run` flags, so any switch can be A/B tested (for example
 `--reasoning-effort xhigh` or `--verify "go test ./..."`). Results go to `bench/results/<time>/`:
 - `results.jsonl`: one line per attempt;
@@ -38,6 +41,13 @@ bench/tasks/<id>/
 
 Real-project tasks replace `repo/` with a `git` source (`{"url", "commit"}`) and usually an `image`, so the
 starting tree is cloned at a pinned commit and graded in a container.
+
+**Isolation.** With an `image`, setup, the agent and grading each get their own container, and each mounts only
+its own tree. The agent's container (no network, read-only dependency cache) mounts only `agent/` and is stopped
+when the run ends. The grader is a fresh container that mounts only `grade/`, the agent's final files copied
+with the hidden tests on top. Tasks without an image run the agent's shell through GoHarness's own sandbox, but
+grading runs the model-edited code directly on this machine. Those tasks are refused unless you pass
+`-host-grading`.
 
 The suite has 22 tasks in Go and Python (11 each), covering:
 - single-function bugs (off-by-one, median, Unicode reversal, interval merging, wrapping, pagination);

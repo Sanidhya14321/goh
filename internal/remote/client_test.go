@@ -179,3 +179,34 @@ func TestWrongTokenIsReported(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestCancelBeforeResponseHeaders(t *testing.T) {
+	release := make(chan struct{})
+	gone := make(chan struct{})
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body) // as the real server decodes the prompt
+		select {                    // then hold the headers until the client goes away
+		case <-r.Context().Done():
+			close(gone)
+		case <-release:
+		}
+	}))
+	defer srv.Close()
+	defer close(release)
+	client, err := New(srv.URL, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	start := time.Now()
+	status, err := client.Run(ctx, "s", "hi", false, Handlers{})
+	if status != "cancelled" || err != nil || time.Since(start) > 5*time.Second {
+		t.Fatalf("%q %v after %s", status, err, time.Since(start))
+	}
+	select {
+	case <-gone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the server never saw the request end")
+	}
+}

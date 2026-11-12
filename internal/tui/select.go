@@ -33,6 +33,7 @@ type chooser struct {
 	// Session management, as in OpenCode's session list (Ctrl+R / Ctrl+D).
 	renaming      bool
 	renameText    string
+	readOnly      bool // attached to a server: no local rename or trash
 	confirmDelete string
 	notice        string
 }
@@ -137,6 +138,13 @@ func (m *chooser) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if v.String() != "ctrl+d" {
 			m.confirmDelete = ""
+		}
+		switch v.String() {
+		case "ctrl+r", "ctrl+d":
+			if m.readOnly {
+				m.notice = "Sessions are managed on the server while attached"
+				return m, nil
+			}
 		}
 		switch v.String() {
 		case "ctrl+r":
@@ -281,6 +289,9 @@ func (m *chooser) View() tea.View {
 		}
 	}
 	status := "↑/↓ select  Enter open  Ctrl+R rename  Ctrl+D delete  Esc back"
+	if m.readOnly {
+		status = "↑/↓ select  Enter open  Esc back"
+	}
 	if m.previewOnly {
 		status = "Tab list  PgUp/PgDn scroll  Enter open  Esc back"
 	} else if previewWidth == 0 {
@@ -299,9 +310,19 @@ func (m *chooser) View() tea.View {
 }
 
 func SelectSession(infos []session.Info, dir, current, project string) (string, bool, error) {
+	return selectSession(infos, dir, current, project, false)
+}
+
+// SelectSessionReadOnly is SelectSession without rename or trash, for a UI
+// attached to a server that owns the sessions.
+func SelectSessionReadOnly(infos []session.Info, dir, current, project string) (string, bool, error) {
+	return selectSession(infos, dir, current, project, true)
+}
+
+func selectSession(infos []session.Info, dir, current, project string, readOnly bool) (string, bool, error) {
 	items := append([]session.Info(nil), infos...)
 	sort.Slice(items, func(i, j int) bool { return items[i].ID > items[j].ID })
-	m := &chooser{sessions: items, dir: dir, current: current, project: project, loading: dir != "" && len(items) > 0}
+	m := &chooser{sessions: items, dir: dir, current: current, project: project, loading: dir != "" && len(items) > 0, readOnly: readOnly}
 	for i, info := range m.matches() {
 		if info.ID == current && current != "" {
 			m.index = i

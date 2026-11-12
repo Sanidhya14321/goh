@@ -2,28 +2,23 @@ package runtime
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
 )
 
-// attachedFileBlock matches the <file> blocks GoHarness inlines for
-// attachments. Mentions inside them are file content, not the user's request,
-// so they never attach further files.
-var attachedFileBlock = regexp.MustCompile(`(?s)<file path="[^"\n]*">\n.*?\n</file>`)
-
 // mentionText is the part of a prompt the user wrote, without attached file
-// contents.
+// contents (core.FileBlock): mentions inside an attachment are file content,
+// not the user's request, so they never attach further files.
 func mentionText(prompt string) string {
-	return attachedFileBlock.ReplaceAllString(prompt, " ")
+	return core.StripFileBlocks(prompt)
 }
 
 // mentions returns the @paths in the user's own text, in order. A path with
@@ -63,9 +58,9 @@ func mentions(prompt string) []string {
 // and as it exists on disk (symlinked folders resolved, stored case), so a
 // different spelling of a denied file is denied too.
 func (a *Agent) pathDenied(rel string) bool {
-	rel = filepath.ToSlash(rel)
-	return a.Config.FileDecision([]string{rel}) == "deny" ||
-		a.Config.FileDecision([]string{tools.CanonicalRel(a.Store.Project, rel)}) == "deny"
+	return tools.DeniedPath(a.Store.Project, rel, func(p string, fold bool) bool {
+		return a.Config.FileDecisionFold([]string{p}, fold) == "deny"
+	})
 }
 
 const (
@@ -117,7 +112,7 @@ func (a *Agent) withFileMentions(prompt string) (string, []string) {
 		total += len(data)
 		name := filepath.ToSlash(clean)
 		attached = append(attached, name)
-		fmt.Fprintf(&b, "\n\n<file path=%q>\n%s\n</file>", name, strings.TrimRight(string(data), "\n"))
+		b.WriteString("\n\n" + core.FileBlock(name, strings.TrimRight(string(data), "\n")))
 	}
 	return prompt + b.String(), attached
 }

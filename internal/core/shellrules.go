@@ -3,6 +3,8 @@ package core
 import (
 	"fmt"
 	"strings"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // ShellRule decides a shell command by glob pattern, where * matches any
@@ -118,15 +120,26 @@ func globMatch(pattern, s string) bool {
 // "deny" if any path is denied, "allow" only if every path is allowed, "ask"
 // if any path must be asked about, and "" when no rule decides.
 func (c Config) FileDecision(paths []string) string {
+	return c.FileDecisionFold(paths, false)
+}
+
+// FileDecisionFold is FileDecision for a filesystem that folds names: with
+// fold set, rules and paths compare with case folded and Unicode
+// normalized, as the filesystem compares them.
+func (c Config) FileDecisionFold(paths []string, fold bool) string {
 	if len(c.FileRules) == 0 || len(paths) == 0 {
 		return ""
 	}
+	key := func(s string) string { return s }
+	if fold {
+		key = func(s string) string { return strings.ToLower(norm.NFC.String(s)) }
+	}
 	allowed, ask := 0, false
 	for _, p := range paths {
-		p = strings.TrimPrefix(strings.ReplaceAll(p, "\\", "/"), "./")
+		p = key(strings.TrimPrefix(strings.ReplaceAll(p, "\\", "/"), "./"))
 		decision := ""
 		for _, r := range c.FileRules {
-			if globMatch(r.Match, p) {
+			if globMatch(key(r.Match), p) {
 				decision = r.Action
 			}
 		}

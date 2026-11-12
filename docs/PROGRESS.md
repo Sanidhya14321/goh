@@ -1382,3 +1382,5 @@ rc.173: fixed an intermittent Linux sandbox bypass (Landlock applied to one thre
 rc.174: moved to Go 1.27.4 for GO-2026-6859 and removed an accidentally committed build output.
 
 rc.175: `goh attach` opens the terminal UI against a running `goh serve` (prompts, approvals, questions and cancellation on the server; read-only local view of its journal).
+
+rc.176: fixed the second review's P1 findings (attach acknowledgment scope, approval preview headers, file-rule aliases for new files and Unicode spellings, length-framed attachments, benchmark container isolation) and its `goh attach` findings.

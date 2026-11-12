@@ -18,7 +18,7 @@ func TestAttachFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(got, "<file path=\"a.go\">\npackage a\n</file>") || !strings.Contains(got, " @shot.png") {
+	if !strings.Contains(got, "<file path=\"a.go\" bytes=9>\npackage a\n</file>") || !strings.Contains(got, " @shot.png") {
 		t.Fatalf("got %q", got)
 	}
 	for _, bad := range []string{"../x", "bin", "missing.txt"} {
@@ -46,7 +46,7 @@ func TestAttachFilesRefusesDeniedAndSpecialFiles(t *testing.T) {
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "deny.txt"), []byte("secret\n"), 0o600)
 	os.Symlink(".", filepath.Join(dir, "loop"))
-	denied := func(rel string) bool { return rel == "deny.txt" }
+	denied := func(rel string, _ bool) bool { return rel == "deny.txt" }
 	bad := []string{"deny.txt", "loop/deny.txt"}
 	if _, err := os.Stat(filepath.Join(dir, "DENY.TXT")); err == nil {
 		bad = append(bad, "DENY.TXT")

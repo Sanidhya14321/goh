@@ -14,6 +14,10 @@ func (m *model) renameSession(arg string) {
 		m.log += "\n[notice] No open session to rename.\n"
 		return
 	}
+	if m.a.Remote != nil {
+		m.log += "\n[notice] /rename is not available while attached; rename the session on the server.\n"
+		return
+	}
 	title := session.CleanTitle(strings.TrimSpace(arg))
 	if err := session.SetTitle(m.a.Config.SessionDir, m.a.Store.ID, title); err != nil {
 		m.log += "\n[notice] Rename failed: " + Safe(err.Error()) + "\n"

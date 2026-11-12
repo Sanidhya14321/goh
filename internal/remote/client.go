@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -181,22 +182,36 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 	// The stream outlives ctx so a cancelled run can still report its end.
 	stream, stop := context.WithCancel(context.Background())
 	defer stop()
-	resp, err := c.do(stream, http.MethodPost, "/v1/sessions/"+url.PathEscape(sessionID)+"/run", body)
-	if err != nil {
-		return "failed", fmt.Errorf("server unreachable: %w", err)
+	var (
+		mu    sync.Mutex
+		runID string
+	)
+	setRunID := func(id string) {
+		mu.Lock()
+		if runID == "" {
+			runID = id
+		}
+		mu.Unlock()
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "failed", serverError(resp)
+	currentRunID := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return runID
 	}
-	runID := resp.Header.Get("X-Harness-Run-ID")
+	// Watch for cancellation from the start: the server may hold the
+	// response headers. Before the run is known, dropping the connection
+	// cancels it (the server's run ends with its request).
 	cancelled := make(chan struct{})
+	defer close(cancelled)
 	go func() {
 		select {
 		case <-ctx.Done():
-			if runID != "" {
-				_ = c.call(context.Background(), http.MethodPost, "/v1/runs/"+url.PathEscape(runID)+"/cancel", nil, nil, http.StatusAccepted)
+			id := currentRunID()
+			if id == "" {
+				stop()
+				return
 			}
+			_ = c.call(context.Background(), http.MethodPost, "/v1/runs/"+url.PathEscape(id)+"/cancel", nil, nil, http.StatusAccepted)
 			// Stop reading if the server does not end the stream soon.
 			select {
 			case <-time.After(30 * time.Second):
@@ -206,7 +221,18 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 		case <-cancelled:
 		}
 	}()
-	defer close(cancelled)
+	resp, err := c.do(stream, http.MethodPost, "/v1/sessions/"+url.PathEscape(sessionID)+"/run", body)
+	if err != nil {
+		if ctx.Err() != nil {
+			return "cancelled", nil
+		}
+		return "failed", fmt.Errorf("server unreachable: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "failed", serverError(resp)
+	}
+	setRunID(resp.Header.Get("X-Harness-Run-ID"))
 
 	status, finalErr := "failed", errors.New("the server ended the run without a result")
 	scanner := bufio.NewScanner(resp.Body)
@@ -256,6 +282,9 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 		}
 	}
 	if err := scanner.Err(); err != nil && finalErr != nil {
+		if ctx.Err() != nil {
+			return "cancelled", nil // the stream was dropped to cancel
+		}
 		return "failed", fmt.Errorf("lost the server stream: %w", err)
 	}
 	if status == "" {

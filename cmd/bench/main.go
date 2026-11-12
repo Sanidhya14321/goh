@@ -108,6 +108,7 @@ func main() {
 	out := flag.String("out", "bench/results", "results folder (one run per timestamped subfolder)")
 	only := flag.String("only", "", "comma-separated task IDs")
 	attempts := flag.Int("attempts", 1, "attempts per task and arm")
+	flag.BoolVar(&hostGrading, "host-grading", false, "run tasks that have no image: the agent's shell and grading then run model-edited code on this machine, unsandboxed during grading")
 	dry := flag.Bool("dry-run", false, "check that each task's fail-to-pass fails on repo/ and passes with hidden/ reference, without a model")
 	var arms []string
 	flag.Func("arm", `name=extra goh run flags, repeatable (e.g. "base=" or "nocheck=--completion-check=false")`, func(v string) error {
@@ -197,9 +198,20 @@ func loadTasks(dir, only string) ([]task, error) {
 	return tasks, nil
 }
 
+// hostGrading allows tasks without an image (see the -host-grading flag).
+var hostGrading bool
+
 // runTask: fresh copy -> setup -> goh run -> clean regrade with hidden tests.
+// With an image, each stage has its own container that mounts only its own
+// tree: the agent's container sees agent/ and is stopped before grading, and
+// the grader's sees only grade/, so nothing the agent leaves running or
+// writes can reach the grade.
 func runTask(t task, goh, arm string, extra []string, attempt int, workRoot string) Result {
 	r := Result{Task: t.ID, Arm: arm, Attempt: attempt}
+	if t.Image == "" && !hostGrading {
+		r.Error = "task has no image, so grading would run model-edited code on this machine; pass -host-grading to accept that"
+		return r
+	}
 	base, err := filepath.Abs(filepath.Join(workRoot, fmt.Sprintf("%s-%s-%d", arm, t.ID, attempt)))
 	if err != nil {
 		r.Error = err.Error()
@@ -217,7 +229,7 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	}
 	var agentBox string
 	if t.Image != "" {
-		setupBox, err := startContainer(t.Image, base, true)
+		setupBox, err := startContainer(t.Image, work, true)
 		if err != nil {
 			r.Error = err.Error()
 			return r
@@ -230,7 +242,7 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 			}
 		}
 		stopContainer(setupBox)
-		if agentBox, err = startContainer(t.Image, base, false); err != nil {
+		if agentBox, err = startContainer(t.Image, work, false); err != nil {
 			r.Error = err.Error()
 			return r
 		}
@@ -272,6 +284,8 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	readEvents(stdout, &r)
 	err = cmd.Wait()
 	r.Seconds = time.Since(start).Seconds()
+	// Nothing the agent started may outlive its run into grading.
+	stopContainer(agentBox)
 	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		r.ExitCode = ee.ExitCode()
 	}
@@ -295,8 +309,8 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	}
 	var gradeBox string
 	if t.Image != "" {
-		// A fresh container: nothing the agent left running can interfere.
-		if gradeBox, err = startContainer(t.Image, base, false); err != nil {
+		// A fresh container that mounts only the regrade tree.
+		if gradeBox, err = startContainer(t.Image, grade, false); err != nil {
 			r.Error = err.Error()
 			return r
 		}

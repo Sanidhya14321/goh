@@ -291,7 +291,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		return e
 	}
 	if len(files) > 0 {
-		attached, err := attachFiles(*project, files, func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" })
+		attached, err := attachFiles(*project, files, func(rel string, fold bool) bool { return c.FileDecisionFold([]string{rel}, fold) == "deny" })
 		if err != nil {
 			return err
 		}

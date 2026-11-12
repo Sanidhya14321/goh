@@ -29,6 +29,10 @@ func (m *model) setEffort(arg string) {
 		m.log += "\n[notice] Reasoning effort can change after this run finishes.\n"
 		return
 	}
+	if m.a.Remote != nil {
+		m.log += "\n[notice] /effort is not available while attached; the server's configuration applies.\n"
+		return
+	}
 	if arg == "off" {
 		arg = ""
 	}

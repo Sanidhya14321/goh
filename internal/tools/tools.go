@@ -47,8 +47,10 @@ type Engine struct {
 	LineEdits bool
 	// DenyPath reports project-relative paths (slash-separated) that the
 	// user's file_rules deny. Denied files are not read, searched, listed or
-	// mapped, as well as not edited.
-	DenyPath func(rel string) bool
+	// mapped, as well as not edited. fold asks for a comparison that ignores
+	// case and Unicode normalization, set when the project's filesystem
+	// treats such spellings as one file.
+	DenyPath func(rel string, fold bool) bool
 	// StateDirs are absolute folders holding GoHarness's own state (session
 	// storage); Fingerprint ignores them when they sit inside the project.
 	StateDirs []string
@@ -826,10 +828,10 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 
 // denied reports whether a project-relative path is denied by file_rules.
 func (e *Engine) denied(rel string) bool {
-	if e == nil || e.DenyPath == nil || rel == "" || rel == "." {
+	if e == nil {
 		return false
 	}
-	return e.DenyPath(filepath.ToSlash(rel)) || e.DenyPath(CanonicalRel(e.root, rel))
+	return DeniedPath(e.root, rel, e.DenyPath)
 }
 
 // errDenied is returned for direct access to a denied path.

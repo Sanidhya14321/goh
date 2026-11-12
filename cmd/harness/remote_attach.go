@@ -26,17 +26,26 @@ func runAttach(args []string) error {
 	continueLast := f.Bool("continue", false, "open the server project's most recent session")
 	ack := f.Bool("acknowledge-uncertain", false, "let the first prompt continue past interrupted effects, after inspecting the project")
 	tokenEnv := f.String("token-env", "HARNESS_SERVER_TOKEN", "environment variable holding the server token")
-	if err := f.Parse(args); err != nil {
-		if errors.Is(err, flag.ErrHelp) {
-			return nil
+	// Flags may come before or after the address.
+	var positional []string
+	for {
+		if err := f.Parse(args); err != nil {
+			if errors.Is(err, flag.ErrHelp) {
+				return nil
+			}
+			return err
 		}
-		return err
+		if f.NArg() == 0 {
+			break
+		}
+		positional = append(positional, f.Arg(0))
+		args = f.Args()[1:]
 	}
 	address := "http://127.0.0.1:4096"
-	switch f.NArg() {
+	switch len(positional) {
 	case 0:
 	case 1:
-		address = f.Arg(0)
+		address = positional[0]
 	default:
 		return errors.New("usage: goh attach [ADDRESS] [--session ID | --continue] [--token-env NAME]")
 	}
@@ -70,7 +79,12 @@ func runAttach(args []string) error {
 			return err
 		}
 	}
-	acknowledge := *ack
+	// The acknowledgment covers the session it was given for, and only its
+	// first prompt: switching sessions never carries it to another journal.
+	var acknowledged ackGate
+	if *ack {
+		acknowledged.session = id
+	}
 	notice, draft := fmt.Sprintf("Attached to %s (project %s).", address, info.Project), ""
 	for {
 		a, err := attachedAgent(info, id)
@@ -79,11 +93,10 @@ func runAttach(args []string) error {
 		}
 		a.Remote = func(ctx context.Context, prompt string) (string, error) {
 			// Handlers are read at call time: the UI installs its own.
-			status, err := client.Run(ctx, id, prompt, acknowledge, remote.Handlers{Emit: a.Emit, Approve: a.Approve, Ask: a.Ask})
+			status, err := client.Run(ctx, id, prompt, acknowledged.take(id), remote.Handlers{Emit: a.Emit, Approve: a.Approve, Ask: a.Ask})
 			if errors.Is(err, remote.ErrUncertain) {
 				return status, err
 			}
-			acknowledge = false // applies to the first prompt only
 			reloadAttached(a, info, id)
 			return status, err
 		}
@@ -105,7 +118,7 @@ func runAttach(args []string) error {
 				notice = err.Error()
 				break
 			}
-			selected, chosen, err := tui.SelectSession(list, info.SessionDir, id, info.Project)
+			selected, chosen, err := tui.SelectSessionReadOnly(list, info.SessionDir, id, info.Project)
 			if err != nil {
 				notice = err.Error()
 			} else if chosen && selected != "" {
@@ -115,6 +128,18 @@ func runAttach(args []string) error {
 			notice = fmt.Sprintf("/%s is not available while attached; the server's configuration and history are managed on the server.", nav.Action)
 		}
 	}
+}
+
+// ackGate holds an --acknowledge-uncertain for one session's first prompt.
+type ackGate struct{ session string }
+
+// take reports whether a prompt to id carries the acknowledgment, spending it.
+func (g *ackGate) take(id string) bool {
+	if g.session == "" || g.session != id {
+		return false
+	}
+	g.session = ""
+	return true
 }
 
 // attachedAgent builds an agent over a read-only view of the server's

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
 )
 
@@ -26,7 +27,7 @@ var attachImageExt = map[string]bool{".png": true, ".jpg": true, ".jpeg": true, 
 // A path denied by file_rules (in any spelling) is refused, and anything but
 // a regular file is refused before it is opened, so a named pipe cannot hang
 // the CLI.
-func attachFiles(project string, paths []string, denied func(rel string) bool) (string, error) {
+func attachFiles(project string, paths []string, denied func(rel string, fold bool) bool) (string, error) {
 	root, err := os.OpenRoot(project)
 	if err != nil {
 		return "", err
@@ -45,7 +46,7 @@ func attachFiles(project string, paths []string, denied func(rel string) bool) (
 			return "", fmt.Errorf("--file %s: must be inside the project", p)
 		}
 		name := filepath.ToSlash(clean)
-		if denied != nil && (denied(name) || denied(tools.CanonicalRel(root.Name(), name))) {
+		if tools.DeniedPath(root.Name(), name, denied) {
 			return "", fmt.Errorf("--file %s: access to this path is denied by the user's file_rules", p)
 		}
 		if attachImageExt[strings.ToLower(filepath.Ext(clean))] {
@@ -85,7 +86,7 @@ func attachFiles(project string, paths []string, denied func(rel string) bool) (
 		if total += len(b); total > maxAttachTotalBytes {
 			return "", errors.New("--file attachments exceed 1 MiB in total")
 		}
-		fmt.Fprintf(&out, "\n\n<file path=%q>\n%s\n</file>", name, strings.TrimRight(string(b), "\n"))
+		out.WriteString("\n\n" + core.FileBlock(name, strings.TrimRight(string(b), "\n")))
 	}
 	return out.String(), nil
 }

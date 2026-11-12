@@ -143,7 +143,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 		}
 	}
 	if len(c.FileRules) > 0 {
-		t.DenyPath = func(rel string) bool { return c.FileDecision([]string{rel}) == "deny" }
+		t.DenyPath = func(rel string, fold bool) bool { return c.FileDecisionFold([]string{rel}, fold) == "deny" }
 	}
 	web := webfetch.New()
 	if c.WebfetchAllowPrivate {
@@ -1424,5 +1424,21 @@ func (a *Agent) fileRuleFor(p core.Permission) string {
 	if err != nil {
 		return ""
 	}
-	return a.Config.FileDecision(paths)
+	// Decide on the spelling the filesystem stores as well as the typed one:
+	// a rule must not be dodged by case, Unicode form or a symlinked folder.
+	fold := tools.FoldsNames(a.Store.Project)
+	canonical := make([]string, len(paths))
+	for i, p := range paths {
+		canonical[i] = tools.CanonicalRel(a.Store.Project, p)
+	}
+	typed, stored := a.Config.FileDecisionFold(paths, fold), a.Config.FileDecisionFold(canonical, fold)
+	for _, d := range []string{"deny", "ask"} {
+		if typed == d || stored == d {
+			return d
+		}
+	}
+	if typed == "allow" && stored == "allow" {
+		return "allow"
+	}
+	return ""
 }

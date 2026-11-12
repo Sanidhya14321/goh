@@ -15,7 +15,7 @@ import (
 func TestFileRulesDenyCoversReadsSearchAndMentions(t *testing.T) {
 	a, root := testAgent(t)
 	a.Config.FileRules = []core.ShellRule{{Match: ".env", Action: "deny"}, {Match: "secrets/**", Action: "deny"}}
-	a.Tools.DenyPath = func(rel string) bool { return a.Config.FileDecision([]string{rel}) == "deny" }
+	a.Tools.DenyPath = func(rel string, fold bool) bool { return a.Config.FileDecisionFold([]string{rel}, fold) == "deny" }
 	os.WriteFile(filepath.Join(root, ".env"), []byte("API_TOKEN=synthetic-secret-1\n"), 0o600)
 	os.MkdirAll(filepath.Join(root, "secrets"), 0o755)
 	os.WriteFile(filepath.Join(root, "secrets", "key.txt"), []byte("synthetic-secret-2\n"), 0o600)

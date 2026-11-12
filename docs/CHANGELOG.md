@@ -6,6 +6,26 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.176 — 2026-11-12
+
+Second external review: the P1 findings and the `goh attach` findings.
+
+- **`goh attach`:**
+  - `--acknowledge-uncertain` applies only to the session it was given for. Switching sessions before the first prompt no longer acknowledges another session's pending effects.
+  - The attached UI no longer changes local session state: `/rename`, `/effort`, and the session picker's rename and trash are refused while attached.
+  - Esc or Ctrl+C cancels a run even before the server sends response headers. Dropping the request ends the server's run.
+  - Flags may follow the address (`goh attach 127.0.0.1:4096 --session ID`).
+- **Approval previews:** only the header lines the tools write are shortened: a diff's first two lines, a patch's file list, and the last `Directory:` line. A heredoc or diff body line that looks like a header is shown exactly as it will run.
+- **`file_rules` deny:**
+  - Paths are resolved through their longest existing prefix, so a file about to be created under a case-variant or symlinked folder (`PRIVATE/new.txt` under `private/*`) is denied.
+  - On filesystems that fold names (detected per project; APFS and NTFS by default), rules and paths are compared with case folded and Unicode normalized (NFC). A file denied in its composed spelling is also denied in its decomposed spelling.
+  - The same check covers tools, `@` mentions, `--file` and edit approvals. `golang.org/x/text` is now a direct dependency; its license was already bundled.
+- **Attachments:** file blocks record their content length (`<file path="…" bytes=N>`). The end of an attachment is found by counting, so a `</file>` line inside a file can no longer turn the rest of the file into the user's own mentions.
+- **Benchmarks (`goh-bench`):**
+  - With an image, the setup, agent and grading containers each mount only their own tree.
+  - The agent's container is stopped when its run ends.
+  - Tasks without an image are refused unless `-host-grading` accepts that grading runs model-edited code on this machine.
+
 ## 1.0.0-rc.175 — 2026-11-11
 
 - **`goh attach [ADDRESS]`:** the terminal UI for a running `goh serve` on the same machine.

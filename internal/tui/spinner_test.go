@@ -34,8 +34,8 @@ func TestStatusLineStates(t *testing.T) {
 }
 
 func TestRelativizePreview(t *testing.T) {
-	got := relativizePreview("--- /p/x/a.go\nDirectory: /p/x\nTimeout: 5s", "/p/x")
-	if got != "--- a.go\nDirectory: . (project root)\nTimeout: 5s" {
+	got := relativizePreview("Command: ls\nDirectory: /p/x\nTimeout: 5s", "/p/x")
+	if got != "Command: ls\nDirectory: . (project root)\nTimeout: 5s" {
 		t.Fatalf("%q", got)
 	}
 }
@@ -51,6 +51,22 @@ func TestRelativizePreviewLeavesCommandsAndContentExact(t *testing.T) {
 	}
 	patch := "File 1: MOVE /repo/a.go -> /repo/b.go\nFile 1 before (-):\n-/repo/x"
 	if got := relativizePreview(patch, "/repo"); got != "File 1: MOVE a.go -> b.go\nFile 1 before (-):\n-/repo/x" {
+		t.Fatalf("%q", got)
+	}
+}
+
+func TestRelativizePreviewLeavesHeaderLookalikesInBodies(t *testing.T) {
+	heredoc := "Command: cat <<EOF\nDirectory: /repo/x\n--- /repo/y\nFile 1: ADD /repo/z\nEOF\nDirectory: /repo\nTimeout: 5s"
+	want := "Command: cat <<EOF\nDirectory: /repo/x\n--- /repo/y\nFile 1: ADD /repo/z\nEOF\nDirectory: . (project root)\nTimeout: 5s"
+	if got := relativizePreview(heredoc, "/repo"); got != want {
+		t.Fatalf("%q", got)
+	}
+	diff := "--- /repo/a\n+++ /repo/a\n--- /repo/b\n+++ /repo/c\n-Directory: /repo/d"
+	if got := relativizePreview(diff, "/repo"); got != "--- a\n+++ a\n--- /repo/b\n+++ /repo/c\n-Directory: /repo/d" {
+		t.Fatalf("%q", got)
+	}
+	patch := "Apply patch (all files):\nFile 1: UPDATE /repo/a\n\nFile 1 before (-):\n--- /repo/q\nFile 2: ADD /repo/r"
+	if got := relativizePreview(patch, "/repo"); got != "Apply patch (all files):\nFile 1: UPDATE a\n\nFile 1 before (-):\n--- /repo/q\nFile 2: ADD /repo/r" {
 		t.Fatalf("%q", got)
 	}
 }
