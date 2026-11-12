@@ -11,6 +11,55 @@ type SettingsField struct {
 	Label  string
 	Value  string
 	Secret bool
+	// Choices, when set, makes the field a selector: ←/→ (or Space) cycle
+	// through them and typing is ignored.
+	Choices []string
+	// Help is shown under the field while it is focused.
+	Help string
+	// ChoiceHelp, for a choice field, explains the selected choice.
+	ChoiceHelp map[string]string
+}
+
+// help is the text shown under a focused field.
+func (f SettingsField) help() string {
+	if h := f.ChoiceHelp[f.Value]; h != "" {
+		return h
+	}
+	return f.Help
+}
+
+// wordWrap breaks text at spaces so no line exceeds width, where possible.
+func wordWrap(text string, width int) []string {
+	var lines []string
+	for _, para := range strings.Split(text, "\n") {
+		line := ""
+		for _, word := range strings.Fields(para) {
+			if line != "" && len([]rune(line))+1+len([]rune(word)) > width {
+				lines = append(lines, line)
+				line = ""
+			}
+			if line != "" {
+				line += " "
+			}
+			line += word
+		}
+		lines = append(lines, line)
+	}
+	return lines
+}
+
+// cycle moves a choice field by step.
+func (f *SettingsField) cycle(step int) {
+	if len(f.Choices) == 0 {
+		return
+	}
+	i := 0
+	for j, c := range f.Choices {
+		if c == f.Value {
+			i = j
+		}
+	}
+	f.Value = f.Choices[(i+step+len(f.Choices))%len(f.Choices)]
 }
 
 type settingsForm struct {
@@ -26,6 +75,9 @@ func (m *settingsForm) Init() tea.Cmd { return nil }
 
 func (m *settingsForm) insert(text string) {
 	f := &m.fields[m.index]
+	if len(f.Choices) > 0 {
+		return
+	}
 	if !m.multiline {
 		// Keys copied from a browser often carry surrounding whitespace or a
 		// trailing newline; a value with an inner line break is refused
@@ -116,17 +168,36 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.index = (m.index + 1) % len(m.fields)
 				m.cursor = len([]rune(m.fields[m.index].Value))
 			}
-		case "left":
-			m.cursor = max(0, m.cursor-1)
-		case "right":
-			m.cursor = min(len([]rune(f.Value)), m.cursor+1)
+		case "left", "right", "space":
+			if len(f.Choices) > 0 {
+				step := 1
+				if k.String() == "left" {
+					step = -1
+				}
+				f.cycle(step)
+				m.dirty = true
+				return m, nil
+			}
+			if k.String() == "space" {
+				m.insert(" ")
+			} else if k.String() == "left" {
+				m.cursor = max(0, m.cursor-1)
+			} else {
+				m.cursor = min(len([]rune(f.Value)), m.cursor+1)
+			}
 		case "home":
 			m.cursor = 0
 		case "end":
 			m.cursor = len([]rune(f.Value))
 		case "ctrl+u":
+			if len(f.Choices) > 0 {
+				return m, nil
+			}
 			f.Value, m.cursor, m.dirty = "", 0, true
 		case "backspace", "delete":
+			if len(f.Choices) > 0 {
+				return m, nil
+			}
 			m.dirty = true
 			value := []rune(f.Value)
 			if k.String() == "backspace" && m.cursor > 0 {
@@ -148,7 +219,7 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *settingsForm) View() tea.View {
 	var b strings.Builder
-	fmt.Fprintf(&b, "GoHarness • %s\n%s\n\n", m.title, m.hint)
+	fmt.Fprintf(&b, "GoHarness • %s\n%s\n\n", m.title, strings.Join(wordWrap(m.hint, m.textWidth()), "\n"))
 	for i, f := range m.fields {
 		value := []rune(f.Value)
 		if f.Secret {
@@ -156,6 +227,19 @@ func (m *settingsForm) View() tea.View {
 		}
 		shown := string(value)
 		mark := "  "
+		if len(f.Choices) > 0 {
+			shown = "‹ " + f.Value + " ›"
+			if i == m.index {
+				shown += "   ←/→ change"
+			}
+			fmt.Fprintf(&b, "%s%s\n%s\n", map[bool]string{true: "> ", false: "  "}[i == m.index], f.Label, Safe(shown))
+			if i == m.index && f.help() != "" {
+				for _, line := range wordWrap(Safe(f.help()), m.textWidth()-2) {
+					fmt.Fprintf(&b, "  %s\n", line)
+				}
+			}
+			continue
+		}
 		if i == m.index {
 			mark = "> "
 			shown = string(value[:m.cursor]) + "▏" + string(value[m.cursor:])
@@ -168,6 +252,11 @@ func (m *settingsForm) View() tea.View {
 			}
 		}
 		fmt.Fprintf(&b, "%s%s\n%s\n", mark, f.Label, Safe(shown))
+		if i == m.index && f.help() != "" {
+			for _, line := range wordWrap(Safe(f.help()), m.textWidth()-2) {
+				fmt.Fprintf(&b, "  %s\n", line)
+			}
+		}
 	}
 	var tail strings.Builder
 	if m.problem != "" {
@@ -229,7 +318,7 @@ var launchItems = []struct {
 	action, label, shortcut string
 }{
 	{"chat", "Open chat or resume a session", "c"},
-	{"provider", "Set up API URL, model and key", "p"},
+	{"provider", "Providers: add, switch, test, keys and models", "p"},
 	{"config", "Edit advanced settings", "s"},
 	{"project", "Choose a workspace", "w"},
 	{"command", "Run a GoHarness command", "r"},
@@ -299,4 +388,9 @@ func LaunchMenu(status string) (string, error) {
 	m := &launcher{status: status}
 	_, err := tea.NewProgram(m).Run()
 	return m.action, err
+}
+
+// textWidth is the usable text width inside the form box.
+func (m *settingsForm) textWidth() int {
+	return max(20, min(82, max(1, m.width-4))-4)
 }

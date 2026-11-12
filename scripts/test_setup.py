@@ -26,7 +26,20 @@ prompts = []
 models = []
 toolsets = []
 
+listings = []
+
 class Provider(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Provider setup checks a key against the model list before saving.
+        listings.append(self.headers.get("Authorization"))
+        if self.path != "/proxy/v1/models" or self.headers.get("Authorization") != "Bearer " + key:
+            self.send_error(401)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"data": [{"id": "setup-fixture"}, {"id": "fixture-fast"}]}).encode())
+
     def do_POST(self):
         requests.append(self.path)
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -105,6 +118,17 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
                 output.extend(os.read(master, 65536))
         assert found(), (text, bytes(output[-900:]))
 
+    def wait_gone(text):
+        # Overlays draw the chat behind them, so chat text is visible before
+        # an overlay closes; wait for the overlay itself to disappear.
+        needle = text.decode("utf-8", "replace")
+        deadline = time.monotonic() + 8
+        while needle in screen.text() and time.monotonic() < deadline:
+            if select.select([master], [], [], .1)[0]:
+                output.extend(os.read(master, 65536))
+        assert needle not in screen.text(), (text, screen.text())
+        time.sleep(.1)
+
     def wait_finished(journal, offset):
         # Fast turns can finish without repainting an already visible status.
         deadline = time.monotonic() + 8
@@ -131,12 +155,31 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"GoHarness  /  Status")
         assert not requests
         os.write(master, b"p")
-        wait_for(b"Provider setup")
-        os.write(master, f"http://127.0.0.1:{server.server_port}/proxy/v1".encode() + b"\t\tsetup-fixture\t\t\t" + b"incorrect-test-key")
+        wait_for(b"GoHarness  /  Providers")
+        wait_for(b"No provider yet")
+        os.write(master, b"\r")
+        wait_for(b"GoHarness  /  Add a provider")
+        os.write(master, b"custom")
+        time.sleep(.1)
+        os.write(master, b"\r")
+        wait_for(b"Add a custom provider")
+        # Name keeps its suggestion; URL; protocol stays chat_completions.
+        os.write(master, b"\t" + f"http://127.0.0.1:{server.server_port}/proxy/v1".encode() + b"\t\t" + b"incorrect-test-key" + b"\tsetup-fixture")
         wait_for("••••".encode())
         os.write(master, b"\x13")
-        wait_for(b"Agent: build")
-        wait_for(b"Ctrl+P commands")
+        # The key is checked before anything is saved.
+        wait_for(b"did not accept this key")
+        assert not requests and listings == ["Bearer incorrect-test-key"], listings
+        assert "base_url" not in (config_dir / "config.json").read_text()
+        pos = len(output)
+        os.write(master, b"\x1b[Z\x15" + key.encode() + b"\x13")
+        wait_for(b"Added custom (setup-fixture)", pos)
+        wait_for(b"Ctrl+P commands", pos)
+        saved = json.loads((config_dir / "config.json").read_text())
+        assert saved["profiles"]["custom"]["model"] == "setup-fixture" and saved["model"] == "setup-fixture", saved
+        assert saved["profiles"]["fast"] == {"model": "fixture-fast"}, saved
+        # The provider then revokes that key, so the first chat fails.
+        key = "goh-rotated-provider-key"
         time.sleep(.1)
         pos = len(output)
         os.write(master, b"\x0c")
@@ -151,9 +194,14 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert len(requests) == count
         pos = len(output)
         os.write(master, b"\x10\r")
-        wait_for(b"Provider setup", pos)
-        os.write(master, b"\t\t\t\t\t" + key.encode() + b"\x13")
-        wait_for(b"Agent: build", pos)
+        wait_for(b"GoHarness  /  Providers", pos)
+        wait_for(b"custom", pos)
+        os.write(master, b"k")
+        wait_for(b"API key for custom", pos)
+        os.write(master, key.encode() + b"\x13")
+        wait_for(b"Saved the new key for custom", pos)
+        os.write(master, b"\x1b")
+        wait_gone(b"GoHarness  /  Providers")
         os.write(master, b"\x15Retry after fixing key\r")
         wait_for(b"Setup authenticated")
         assert list(root.rglob("*.jsonl")) == [journal_before]
@@ -303,9 +351,10 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert len(requests) == count
         pos = len(output)
         os.write(master, b"p")
-        wait_for(b"Provider setup", pos)
+        wait_for(b"GoHarness  /  Providers", pos)
         pos = len(output)
         os.write(master, b"\x1b")
+        wait_gone(b"GoHarness  /  Providers")
         wait_for(b"Agent: build", pos)
         time.sleep(.1)
         assert journal_before.read_bytes() == before_status
@@ -327,7 +376,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         count = len(requests)
         pos = len(output)
         os.write(master, b"/connect\r")
-        wait_for(b"Connect a provider", pos)
+        wait_for(b"GoHarness  /  Add a provider", pos)
         wait_for(b"Anthropic (Claude API)", pos)
         os.write(master, b"anthropic")
         time.sleep(.1)
@@ -340,6 +389,31 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"Agent: build", pos)
         time.sleep(.1)
         assert (config_dir / "config.json").read_bytes() == settings_before and len(requests) == count
+        # A second provider: added from the manager, it becomes the one new
+        # chats use; Enter on the first switches back. Both keep their keys.
+        pos = len(output)
+        os.write(master, b"/providers\r")
+        wait_for(b"GoHarness  /  Providers", pos)
+        os.write(master, b"a")
+        wait_for(b"GoHarness  /  Add a provider", pos)
+        os.write(master, b"custom")
+        time.sleep(.1)
+        os.write(master, b"\r")
+        wait_for(b"Add a custom provider", pos)
+        os.write(master, b"\x15second\t" + f"http://127.0.0.1:{server.server_port}/proxy/v1".encode() + b"\t\t" + key.encode() + b"\tfixture-fast\x13")
+        wait_for(b"Added second (fixture-fast)", pos)
+        saved = json.loads((config_dir / "config.json").read_text())
+        assert saved["model"] == "fixture-fast" and set(saved["profiles"]) == {"custom", "second", "fast"}, saved
+        pos = len(output)
+        os.write(master, b"/providers\r")
+        wait_for(b"GoHarness  /  Providers", pos)
+        wait_for(b"fixture-fast", pos)
+        os.write(master, b"\x1b[A\r")
+        wait_for(b"New chats use custom", pos)
+        wait_gone(b"GoHarness  /  Providers")
+        saved = json.loads((config_dir / "config.json").read_text())
+        assert saved["model"] == "setup-fixture" and "second" in saved["profiles"], saved
+        settings_before = (config_dir / "config.json").read_bytes()
         count = len(requests)
         before_export = journal_before.read_bytes()
         pos = len(output)
@@ -449,7 +523,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
         assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
-        print(json.dumps({"setup": "passed", "compatibility_fallback_verified": True, "provider_draft_recovery_verified": True, "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
+        print(json.dumps({"setup": "passed", "multi_provider_verified": True, "compatibility_fallback_verified": True, "provider_draft_recovery_verified": True, "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:
             app.kill()

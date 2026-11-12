@@ -419,15 +419,15 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			} else if errors.As(v.err, &httpErr) {
 				switch httpErr.Kind {
 				case "authentication":
-					m.blocked = "Provider rejected the API key. Open /provider to check the key and URL."
+					m.blocked = "Provider rejected the API key. Open /providers and press k to replace it, or t to test the connection."
 					if m.a != nil && m.a.Config.EffectiveProtocol() == core.ChatGPTProtocol {
-						m.blocked = "ChatGPT authorization was rejected. Run goh auth login to reauthorize, or choose another provider with /connect."
+						m.blocked = "ChatGPT authorization was rejected. Open /providers and press k on ChatGPT to sign in again, or switch to another provider."
 					}
 					m.status = "Provider authentication failed"
 				case "request":
-					m.log += "Check the API URL, protocol, and model ID with /provider.\n"
+					m.log += "Check the URL, protocol and model in /providers (t tests the connection, e edits a custom provider).\n"
 				case "rate_limit":
-					m.log += "Provider rate limit reached. Wait and retry, or change the model with /provider.\n"
+					m.log += "Provider rate limit reached. Wait and retry, or switch model or provider with /models or /providers.\n"
 				}
 			}
 		}
@@ -750,8 +750,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			switch strings.TrimSpace(prompt) {
-			case "/connect", "/provider", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
+			case "/connect", "/provider", "/providers", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
 				m.navigation = strings.TrimSpace(prompt)[1:]
+				if m.navigation == "providers" {
+					m.navigation = "provider"
+				}
 				m.input, m.inputCursor = "", 0
 				return m, tea.Quit
 			}
@@ -761,7 +764,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
-				m.log += "\nCommands: /provider, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
+				m.log += "\nCommands: /providers, /connect, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
 				// The same set the palette shows: configured and project commands.
 				set := m.a.CommandSet()
 				names := make([]string, 0, len(set))
@@ -980,7 +983,7 @@ func (m *model) compactView() tea.View {
 	}
 	draft := m.input
 	if draft == "" && m.blocked != "" {
-		draft = "/provider or /settings"
+		draft = "/providers or /connect"
 	}
 	if len(draft) > 4096 {
 		draft = "… " + strings.ToValidUTF8(draft[len(draft)-4096:], "�")

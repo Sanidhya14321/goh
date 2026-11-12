@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -25,108 +24,6 @@ func settingsText(path string) (string, error) {
 	return raw, err
 }
 
-func configureProvider() (bool, error) {
-	path, err := core.UserConfigPath()
-	if err != nil {
-		return false, err
-	}
-	raw, err := settingsText(path)
-	if err != nil {
-		return false, err
-	}
-	cfg, err := core.DecodeConfig(raw)
-	if err != nil {
-		return false, err
-	}
-	address := cfg.BaseURL
-	kind := "base"
-	if cfg.Endpoint != "" {
-		address, kind = cfg.Endpoint, "endpoint"
-	}
-	window := cfg.ContextWindow
-	if window == 0 {
-		window = 32768
-	}
-	fields := []tui.SettingsField{
-		{Label: "API URL (include the API version path)", Value: address},
-		{Label: "URL type (base or endpoint)", Value: kind},
-		{Label: "Model ID", Value: cfg.Model},
-		{Label: "Context window", Value: strconv.Itoa(window)},
-		{Label: "Protocol", Value: cfg.EffectiveProtocol()},
-		{Label: "API key (blank keeps saved key, REMOVE deletes it)", Secret: true},
-	}
-	return tui.EditSettings("Provider setup", "Enter the details from your model provider. Keys are saved separately with private file permissions.", fields, false, func(fields []tui.SettingsField) error {
-		next := cfg
-		endpoint, baseURL := "", ""
-		address := strings.TrimSpace(fields[0].Value)
-		switch strings.TrimSpace(fields[1].Value) {
-		case "base":
-			baseURL = address
-		case "endpoint":
-			endpoint = address
-		default:
-			return errors.New("URL type must be base or endpoint")
-		}
-		next.Model = strings.TrimSpace(fields[2].Value)
-		next.ContextWindow, err = strconv.Atoi(strings.TrimSpace(fields[3].Value))
-		if err != nil {
-			return errors.New("Context window must be a whole number")
-		}
-		next.SetProviderRoute(strings.TrimSpace(fields[4].Value), endpoint, baseURL)
-		if err := next.Validate(); err != nil {
-			return err
-		}
-		data, err := providerDocument(path, raw, cfg, next, address)
-		if err != nil {
-			return err
-		}
-		if key := strings.TrimSpace(fields[5].Value); key != "" {
-			if key == "REMOVE" {
-				key = ""
-			}
-			if err := next.SaveProviderKey(key); err != nil {
-				return err
-			}
-		}
-		return core.WriteUserConfig(path, data)
-	})
-}
-
-// providerDocument rewrites only the provider fields of the user settings
-// (address, model, context window, protocol), keeping everything else as
-// written. address is next's base_url or endpoint, whichever it uses.
-func providerDocument(path, raw string, cfg, next core.Config, address string) (string, error) {
-	if core.HasJSONCSyntax(raw) {
-		// Rewriting would silently drop the user's comments.
-		return "", fmt.Errorf("%s has comments or trailing commas, which provider setup would erase; edit it in Advanced configuration (or by hand) instead", path)
-	}
-	var document map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(raw), &document); err != nil {
-		return "", err
-	}
-	if document == nil {
-		document = map[string]json.RawMessage{}
-	}
-	delete(document, "endpoint")
-	delete(document, "base_url")
-	if next.APIKeyEnv != cfg.APIKeyEnv {
-		delete(document, "api_key_env")
-	}
-	for name, value := range map[string]any{"model": next.Model, "context_window": next.ContextWindow, "protocol": next.Protocol} {
-		document[name], _ = json.Marshal(value)
-	}
-	addressField := "base_url"
-	if next.Endpoint != "" {
-		addressField = "endpoint"
-	}
-	document[addressField], _ = json.Marshal(address)
-	data, err := json.MarshalIndent(document, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(data) + "\n", nil
-}
-
 func editConfiguration() error {
 	path, err := core.UserConfigPath()
 	if err != nil {
@@ -136,7 +33,7 @@ func editConfiguration() error {
 	if err != nil {
 		return err
 	}
-	_, err = tui.EditSettings("Advanced configuration", "Edit GoHarness JSON settings. Use Provider setup to store API keys.", []tui.SettingsField{{Label: path, Value: raw}}, true, func(fields []tui.SettingsField) error {
+	_, err = tui.EditSettings("Advanced configuration", "Edit GoHarness JSON settings. Providers and their keys are easier to manage in /providers.", []tui.SettingsField{{Label: path, Value: raw}}, true, func(fields []tui.SettingsField) error {
 		return core.WriteUserConfig(path, fields[0].Value)
 	})
 	return err
@@ -240,7 +137,7 @@ func chatFirst(args []string) error {
 		}
 		opened := errors.As(err, &nav) // chat ran, so its session was opened
 		if !opened {
-			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nType /connect to use ChatGPT or configure an API key. Ctrl+P opens commands.\nUse /workspace to select your project, or /settings for other options."
+			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nType /connect to add a provider (ChatGPT sign-in, Claude API, OpenAI, OpenRouter, Gemini, Groq, Ollama or a custom URL), or /providers to manage them. Ctrl+P opens commands.\nUse /workspace to select your project, or /settings for other options."
 			if actionErr != nil {
 				reason = actionErr.Error() + "\n" + reason
 			}
@@ -266,48 +163,12 @@ func chatFirst(args []string) error {
 		draft = ""
 		switch nav.Action {
 		case "connect":
+			// Add a provider; it becomes the one new chats use.
 			draft = nav.Draft
-			_, authErr := core.ChatGPTModel()
-			connection, chosen, err := tui.SelectOption("Connect a provider", "", connectOptions(authErr == nil), nav.Backdrop)
-			actionErr = err
-			if err != nil || !chosen {
-				break
-			}
-			if id, ok := strings.CutPrefix(connection, "preset:"); ok {
-				var saved bool
-				saved, actionErr = connectPreset(id, nav.Backdrop)
-				if saved {
-					chatGPTModel, providerModel = "", ""
-				}
-				break
-			}
-			if connection == "api" {
-				var saved bool
-				saved, actionErr = configureProvider()
-				if saved {
-					chatGPTModel, providerModel = "", ""
-				}
-				break
-			}
-			if connection == "switch" {
-				if actionErr = chatGPTAuth([]string{"switch"}); actionErr != nil {
-					break
-				}
-			} else if authErr != nil || connection == "reauthorize" {
-				if actionErr = chatGPTAuth([]string{"login"}); actionErr != nil {
-					break
-				}
-			}
-			current, _ := core.ChatGPTModel()
-			selected, chosen, err := selectChatGPTModel(current, nav.Backdrop)
-			if err != nil && current != "" {
-				chatGPTModel = current
-				actionErr = fmt.Errorf("could not refresh the model catalog; using the saved model: %w", err)
-			} else {
-				actionErr = err
-				if chosen {
-					chatGPTModel = selected
-				}
+			var added string
+			added, info, actionErr = addProvider(nav.Backdrop)
+			if added != "" {
+				chatGPTModel, providerModel, profile = "", "", nil
 			}
 		case "plan_exit":
 			// The plan was approved in chat: same session, build agent.
@@ -317,11 +178,11 @@ func chatFirst(args []string) error {
 			info = "Switched to Build to carry out the approved plan. Press Enter to start."
 		case "provider":
 			draft = nav.Draft
-			var saved bool
-			saved, actionErr = configureProvider()
-			if saved {
-				// The saved route replaces any model chosen in chat.
-				chatGPTModel, providerModel = "", ""
+			var changed bool
+			changed, info, actionErr = manageProviders(nav.Backdrop)
+			if changed {
+				// The provider new chats use replaces any model chosen in chat.
+				chatGPTModel, providerModel, profile = "", "", nil
 			}
 		case "settings":
 			draft = nav.Draft
@@ -449,8 +310,11 @@ func chatFirst(args []string) error {
 				case nav.Action == "agents":
 					agent = &selected
 				case selected == "@provider":
-					_, actionErr = configureProvider()
-					providerModel = ""
+					var changed bool
+					changed, info, actionErr = manageProviders(nav.Backdrop)
+					if changed {
+						chatGPTModel, providerModel, profile = "", "", nil
+					}
 				case strings.HasPrefix(selected, "@model:"):
 					providerModel = strings.TrimPrefix(selected, "@model:")
 					info = "Model for this chat: " + providerModel + " (set \"model\" in config to keep it)"
@@ -495,11 +359,7 @@ func launch(project *string) error {
 		case "":
 			return nil
 		case "provider":
-			var saved bool
-			saved, err = configureProvider()
-			if saved {
-				status = "Provider settings saved."
-			}
+			_, status, err = manageProviders("")
 		case "config":
 			err = editConfiguration()
 		case "project":

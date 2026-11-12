@@ -27,7 +27,7 @@ func modelOptions(cfg core.Config) []tui.Option {
 		}
 		options = append(options, tui.Option{Value: name, Label: name, Description: description})
 	}
-	return append(options, tui.Option{Value: "@provider", Label: "Connect a provider", Description: "Configure API URL, model and key"})
+	return append(options, tui.Option{Value: "@provider", Label: "Manage providers…", Description: "Add, switch, test or change keys"})
 }
 
 func agentOptions(cfg core.Config) []tui.Option {

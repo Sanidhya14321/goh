@@ -12,6 +12,16 @@ prompts = []
 
 
 class Provider(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Provider setup checks the key against the model list first.
+        if not self.path.endswith("/models") or self.headers.get("Authorization") != "Bearer " + key:
+            self.send_error(401)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(b'{"data":[{"id":"fixture"}]}')
+
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if self.headers.get("Authorization") != "Bearer " + key:
@@ -68,8 +78,14 @@ with tempfile.TemporaryDirectory(prefix="goh-resume-setup-") as temporary, http.
         os.write(master, b"\x07")
         wait_for("Status")
         os.write(master, b"p")
-        wait_for("Provider setup")
-        os.write(master, url.encode() + b"\t\tfixture\t\t\t" + key.encode())
+        wait_for("GoHarness  /  Providers")
+        os.write(master, b"\r")
+        wait_for("GoHarness  /  Add a provider")
+        os.write(master, b"custom")
+        time.sleep(.1)
+        os.write(master, b"\r")
+        wait_for("Add a custom provider")
+        os.write(master, b"\t" + url.encode() + b"\t\t" + key.encode() + b"\tfixture")
         time.sleep(.2)
         os.write(master, b"\x13")
         wait_for("Agent: build")

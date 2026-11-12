@@ -37,7 +37,7 @@ Tests are deterministic: use `cmd/scripted-model` (a scripted local model endpoi
 - `internal/core` — config, provider profiles/routing, user settings, ChatGPT OAuth (PKCE, private credential store; `credential_store.go` seals secrets with a key from `internal/secretstore`, the OS keychain/Secret Service/DPAPI), shared types.
 - `internal/session` — durable conversation journal (the source of truth for resume, fork, export), portable JSON export, Markdown transcripts, compaction records.
 - `internal/tools` — exact file tools, patch grammar, glob/grep, shell execution with approval, change tracking, repo map.
-- `internal/tui` — Bubble Tea UI: composer, command palette, `/provider` `/connect` `/models` `/fork` `/export` `/timeline` `/status` dialogs.
+- `internal/tui` — Bubble Tea UI: composer, command palette, `/providers` manager, `/connect` `/models` `/fork` `/export` `/timeline` `/status` dialogs. Providers are named profiles with their own route; the active one is mirrored into the top-level settings (`internal/core/providers.go`, flows in `cmd/harness/connect.go`).
 - `cmd/bench` — `goh-bench` benchmark runner (hidden tests, clean regrading, tamper detection, A/B arms); tasks in `bench/`, reports in `docs/bench/`. `cmd/acceptance` — CLI fixture scenarios.
 - Enforcement packages: `sandbox` (sandbox-exec on macOS, Landlock on Linux), `rewind`/`snapshots`/`projectsnap` (undo, rewind, whole-project snapshots), `ignore`, `platform`.
 - Other: `remote` (client for `goh serve`, used by `goh attach`), `memory`, `websearch`, `mcpclient` (stdio MCP), `acp`, `lspclient`, `localapi` (serve), `commands` (custom command expansion), `skills`, `snapshots`, `structured`, `formatters`, `webfetch`.

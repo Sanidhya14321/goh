@@ -263,7 +263,39 @@ Use `/connect` to add a provider:
   model's context window is taken from the provider when it reports one.
 - **Ollama (local)** lists the models of a local Ollama server; no key is
   needed.
-- **API key or compatible gateway** is the manual form for any other URL.
+- **Custom provider** is one form for any other URL: name, API URL, protocol
+  (←/→ chooses between `chat_completions`, `openai_responses` and
+  `anthropic_messages`, each explained as you select it), key, model, context
+  window and an optional key environment variable. Ctrl+S checks the URL and
+  key against the provider's model list before saving; leave the model blank
+  to pick from that list. A provider without a model list can still be saved
+  with a typed model ID.
+
+You can connect as many providers as you like. Each is saved under a name with
+its own key, and the one you added or picked last is used by new chats.
+`/providers` (also `p` on the status screen, `goh providers` or `goh setup`)
+manages them:
+
+```
+  › ● anthropic  ·  Anthropic (Claude API)
+        claude-… · api.anthropic.com · saved key
+      chatgpt  ·  ChatGPT
+        gpt-… · api.openai.com · signed in
+      openrouter  ·  OpenRouter
+        deepseek/deepseek-chat · openrouter.ai · saved key
+    + Add a provider
+
+    Enter use  ·  m model  ·  k key  ·  t test
+    a add  ·  e edit  ·  d remove  ·  Esc close
+```
+
+**Enter** switches new chats to that provider. **m** picks another model from
+the provider's list, **k** replaces the key (checked first; for ChatGPT it
+reauthorizes or switches account), **t** tests the connection, **e** edits a
+custom provider, and **d** twice removes a provider together with its saved
+key. Without a terminal UI: `goh providers list`, `goh providers use NAME` and
+`goh providers remove NAME`. `/models` also lists every provider, for a single
+chat.
 
 The key page is not opened over SSH or when `GOH_NO_BROWSER=1` is set; the
 link is shown instead. Claude Pro and Max subscriptions cannot be connected:
@@ -383,12 +415,13 @@ JavaScript/JSX, and TypeScript/TSX code fences receive lexical highlighting.
 Other languages retain plain code panels. Code text and approval previews retain
 their literal contents. Links remain plain text.
 
-The key field is masked. Saved keys live in separate user configuration files
-with mode `0600`, scoped to the exact request URL and protocol. HTTPS and local
-loopback URLs support saved keys. Choose a workspace folder inside your home
-directory so the agent's project scope stays separate from the credentials.
-An environment key, if set, takes precedence.
-Leave the key field blank to keep a saved key or enter `REMOVE` to delete it.
+Key fields are masked. Saved keys live in separate user configuration files
+with mode `0600` (or sealed, see `goh auth store`), scoped to the exact request
+URL and protocol, so every provider keeps its own. HTTPS and local loopback
+URLs support saved keys. Choose a workspace folder inside your home directory
+so the agent's project scope stays separate from the credentials. An official
+environment key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`), if set, takes
+precedence for its own provider. Leave a key field blank to keep the saved key.
 
 To keep saved keys and the ChatGPT authorization out of plain files, run
 `goh auth store keychain`. Each secret is then sealed (AES-256-GCM) with a key

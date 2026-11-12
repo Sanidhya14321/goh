@@ -192,7 +192,7 @@ func (m *model) View() tea.View {
 		controls = m.runControls()
 	}
 	if m.blocked != "" {
-		controls = "Ctrl+P provider commands  /provider setup  Ctrl+D exit"
+		controls = "Ctrl+P commands  /connect add a provider  /providers  Ctrl+D exit"
 	}
 	if m.scrollOffset > 0 && m.pending == nil && m.question == nil {
 		// Without this a reader cannot tell that newer output is below.
@@ -257,7 +257,7 @@ func (m *model) View() tea.View {
 	} else if home {
 		body = ""
 		if m.blocked != "" {
-			body = "Chat setup required. /provider configures the URL, model and key."
+			body = "Chat setup required. /connect adds a provider; /providers manages them."
 			reason := strings.Split(m.blocked, "\n")
 			if len(reason) > 1 {
 				body += "\n" + reason[1]

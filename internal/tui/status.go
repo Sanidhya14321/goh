@@ -197,7 +197,7 @@ func (m *model) statusView(width, height int) tea.View {
 	m.infoPanel.offset = offset
 	top := max(0, (height-visible-5)/2)
 	rows := make([]string, top)
-	title, hint := "Status", "  r refresh · p provider · m models · a agents · s settings · Esc back"
+	title, hint := "Status", "  r refresh · p providers · m models · a agents · s settings · Esc back"
 	if m.infoPanel.title != "" {
 		title, hint = m.infoPanel.title, "  Snapshot · Esc back"
 	}
@@ -207,7 +207,7 @@ func (m *model) statusView(width, height int) tea.View {
 		rows = append(rows, padding+cell("  "+row.text, boxWidth, row.fg, panel))
 	}
 	rows = append(rows, padding+cell("  ↑/↓ scroll · PgUp/PgDn · Home/End", boxWidth, muted, panel),
-		padding+cell("  p provider · m models · a agents · s settings", boxWidth, accent, panel))
+		padding+cell("  p providers · m models · a agents · s settings", boxWidth, accent, panel))
 	return overlayView(m.infoPanel.backdrop, rows, left, top, width, height)
 }
 

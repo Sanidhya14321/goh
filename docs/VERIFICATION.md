@@ -25,6 +25,16 @@ jobs.
 
 ## Unreleased: /connect provider catalog
 
+- Provider manager: `TestProviderRegistry` and `TestProviderRegistryRefusals` cover listing a hand-configured provider, saving and switching three providers including ChatGPT, removing the active one, refusing a provider an agent uses, refusing commented settings, and keeping unrelated settings. `TestProvidersEndToEnd` covers two providers keeping their own keys through `goh providers list/use/remove`, where removing a provider deletes its key. Also `TestChatGPTSavesAsAProvider`, `TestProviderManagerKeys` (two-press remove, Add row), `TestSettingsChoiceField` and `TestWordWrap`.
+- `scripts/test_setup.py` (PTY) now runs setup through the manager:
+  - status `p` → empty manager → Add → Custom provider;
+  - a wrong key is refused before anything is written;
+  - the right key saves the provider;
+  - the fixture then revokes it, chat fails with 401, and `k` in `/providers` takes the new key after checking it;
+  - the retry succeeds in the same session;
+  - a second provider added with `a` becomes active, and Enter on the first switches back.
+  
+  `scripts/test_resume_setup.py` uses the same path. The suite passed three runs in a row after its wait was scoped to post-save output.
 - `TestSwitchChatGPTAccount` covers the user-reported `3p_login_workspace_scope_denied`. The switch sends `dynamic_agent_client` with a new `ext_agent_host_id`, accepts a different account, saves the new registration and host identity, and revokes the old renewal token. An abandoned switch leaves the old sign-in and host identity untouched.
 - `TestProviderCatalogRoutesValidate`, `TestPresetChatModels`, `TestKeyCheckURLsStayOnTheProviderHost`, `TestListModelInfoChecksAnUnsavedKey` (Bearer vs `x-api-key`, rejected key, reported windows), `TestKeyRefusalsAndKeyCheck` (Google's 400, OpenRouter-style key endpoint, key never sent off-host), `TestVerifyKey` and `TestSavePresetKeepsOtherSettings` (verified key saved under the preset's scope, other settings kept, old `api_key_env` dropped).
 - `scripts/test_setup.py` (PTY): `/connect` lists the catalog, the Anthropic form shows its key page, saving with no key is refused, and Esc leaves settings and the request count unchanged.

@@ -56,6 +56,7 @@ var commandHelp = [][2]string{
 	{"config", "print the effective configuration, secrets removed"},
 	{"doctor", "check configuration and integrations"},
 	{"version", "print the version"},
+	{"providers", "list, use or remove connected providers (no arguments: open the manager)"},
 	{"upgrade", "install the latest release over this goh (--check to only look)"},
 	{"uninstall", "remove goh and its data (lists first; --yes to remove)"},
 	{"completion", "print a shell completion script: bash, zsh or fish"},
@@ -117,7 +118,10 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if (args[0] == "setup" || args[0] == "settings") && len(args) == 1 {
 		if args[0] == "setup" {
-			_, err := configureProvider()
+			_, notice, err := manageProviders("")
+			if notice != "" {
+				fmt.Println(notice)
+			}
 			return err
 		}
 		project := "."
@@ -125,6 +129,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "auth" {
 		return chatGPTAuth(args[1:])
+	}
+	if args[0] == "providers" {
+		return runProviders(args[1:], os.Stdout)
 	}
 	if args[0] == "acp" {
 		return runACP(args[1:])

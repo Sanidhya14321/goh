@@ -10,6 +10,7 @@ import (
 // subcommands are completed after their top-level command.
 var subcommands = map[string][]string{
 	"sessions":   {"list", "preview", "show", "export", "import", "fork", "salvage", "rename", "delete", "restore", "prune"},
+	"providers":  {"list", "use", "remove"},
 	"auth":       {"login", "switch", "status", "models", "logout", "list", "store"},
 	"mcp":        {"list"},
 	"memory":     {"add", "list", "recall", "delete"},
