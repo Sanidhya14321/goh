@@ -83,3 +83,50 @@ func TestMCPPromptConnectsBeforeExpanding(t *testing.T) {
 		t.Fatalf("connected %d times, want once per run", ext.connected)
 	}
 }
+
+// closingPromptExternal fails once closed, like a real manager after a run.
+type closingPromptExternal struct {
+	lazyPromptExternal
+	closed bool
+}
+
+func (c *closingPromptExternal) Close() error { c.closed = true; return nil }
+func (c *closingPromptExternal) Prompts(ctx context.Context) ([]core.MCPPrompt, error) {
+	if c.closed || c.connected == 0 {
+		return nil, errorString("connection closed")
+	}
+	return c.promptExternal.Prompts(ctx)
+}
+
+// /mcp lists prompts between runs, before the first run and after one,
+// with a fresh manager that is stopped afterwards.
+func TestListMCPPromptsBetweenRuns(t *testing.T) {
+	a, _ := testAgent(t)
+	a.Config.MCP = map[string]core.MCPConfig{"s": {Command: "unused"}}
+	var made []*closingPromptExternal
+	a.ExternalFactory = func() External {
+		e := &closingPromptExternal{}
+		made = append(made, e)
+		return e
+	}
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		return core.Reply{Message: core.Message{Role: "assistant", Content: "ok"}, Finish: "stop"}, nil
+	})
+	for _, when := range []string{"before a run", "after a run"} {
+		list, err := a.ListMCPPrompts(context.Background())
+		if err != nil || len(list) != 1 || list[0].Name != "review" {
+			t.Fatalf("%s: %v %v", when, list, err)
+		}
+		if last := made[len(made)-1]; !last.closed {
+			t.Fatalf("%s: the listing manager was left running", when)
+		}
+		if when == "before a run" {
+			if status, err := a.Run(context.Background(), "hello"); status != "completed" {
+				t.Fatal(status, err)
+			}
+			if a.External != nil {
+				t.Fatal("the run's closed manager was kept")
+			}
+		}
+	}
+}

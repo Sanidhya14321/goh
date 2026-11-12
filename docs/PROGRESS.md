@@ -1386,3 +1386,5 @@ rc.175: `goh attach` opens the terminal UI against a running `goh serve` (prompt
 rc.176: fixed the second review's P1 findings (attach acknowledgment scope, approval preview headers, file-rule aliases for new files and Unicode spellings, length-framed attachments, benchmark container isolation) and its `goh attach` findings.
 
 rc.177: fixed the second review's runtime and protocol findings (restored-time rewrites, legacy Anthropic thinking, credential-shaped error codes, streamed-versus-journaled text, legacy malformed sessions, unversioned LSP diagnostics).
+
+rc.178: fixed the second review's terminal UI and CLI findings (approvals and answers on small terminals, `--session`/`--project`, resume through provider setup, palette drafts, `/mcp` listing, worktree branch).

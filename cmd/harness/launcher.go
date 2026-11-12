@@ -181,6 +181,13 @@ func withoutStartupFlags(args []string) []string {
 	return out
 }
 
+// keepsStartupFlags reports whether the startup session flags still apply
+// after a navigation: only when no session has opened yet and the user is
+// setting up a provider, after which the requested session should open.
+func keepsStartupFlags(opened bool, action string) bool {
+	return !opened && (action == "connect" || action == "provider")
+}
+
 func chatFirst(args []string) error {
 	defer stopParkedJobs()
 	project, sessionID, draft := "", "", ""
@@ -217,15 +224,12 @@ func chatFirst(args []string) error {
 		}
 		info = ""
 		err := runCommand(command, skipChooser, notice, draft)
-		// Flags that pick, copy, name or acknowledge the starting session
-		// apply once. After any navigation the launcher passes the session
-		// itself, so they must not reach the next session too.
-		args = withoutStartupFlags(args)
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
 		}
-		if !errors.As(err, &nav) {
+		opened := errors.As(err, &nav) // chat ran, so its session was opened
+		if !opened {
 			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nType /connect to use ChatGPT or configure an API key. Ctrl+P opens commands.\nUse /workspace to select your project, or /settings for other options."
 			if actionErr != nil {
 				reason = actionErr.Error() + "\n" + reason
@@ -235,10 +239,18 @@ func chatFirst(args []string) error {
 				return err
 			}
 		}
-		if nav.Config != nil || nav.Session != "" {
-			sessionID = nav.Session
+		// Flags that pick, copy, name or acknowledge the starting session
+		// apply once. After navigation the launcher passes the session
+		// itself, so they must not reach the next session too. Setup that
+		// ran before any session opened (connecting a provider) keeps them,
+		// so the requested session still opens afterwards.
+		if !keepsStartupFlags(opened, nav.Action) {
+			args = withoutStartupFlags(args)
+			if nav.Config != nil || nav.Session != "" {
+				sessionID = nav.Session
+			}
+			sessionOverride = true
 		}
-		sessionOverride = true
 		skipChooser = true
 		actionErr = nil
 		draft = ""
@@ -304,6 +316,7 @@ func chatFirst(args []string) error {
 				project, sessionID = workspace, ""
 			}
 		case "workspace":
+			draft = nav.Draft
 			next := project
 			if next == "" {
 				next = "."

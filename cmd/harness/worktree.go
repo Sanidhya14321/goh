@@ -53,7 +53,16 @@ func runWorktree(args []string, open func() error) error {
 			return fmt.Errorf("git worktree add failed: %w", err)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "Worktree %s (branch %s)\n", path, branch)
+	// A reused worktree may have moved to another branch: report what it
+	// is on, not what it was created with.
+	switch current := currentBranch(git, path); current {
+	case branch:
+		fmt.Fprintf(os.Stderr, "Worktree %s (branch %s)\n", path, branch)
+	case "":
+		fmt.Fprintf(os.Stderr, "Worktree %s (detached HEAD, not branch %s)\n", path, branch)
+	default:
+		fmt.Fprintf(os.Stderr, "Worktree %s (branch %s, not %s)\n", path, current, branch)
+	}
 	if err := os.Chdir(path); err != nil {
 		return err
 	}
@@ -73,6 +82,18 @@ func isWorktreeOf(git, dir string) bool {
 		}
 	}
 	return false
+}
+
+// currentBranch is the branch checked out in dir, or "" when HEAD is
+// detached or unreadable.
+func currentBranch(git, dir string) string {
+	cmd := exec.Command(git, "symbolic-ref", "--quiet", "--short", "HEAD")
+	cmd.Dir = dir
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 func gitTop(git, dir string) (string, error) {

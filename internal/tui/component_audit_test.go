@@ -279,3 +279,35 @@ func TestSettingsFormKeepsFocusAndErrorVisible(t *testing.T) {
 		t.Fatalf("focus, error or controls hidden:\n%s", content)
 	}
 }
+
+// At 45x4 only the first line of a multi-line command fits: it cannot be
+// approved until every line has been on screen.
+func TestPartlyVisibleCommandNeedsScrolling(t *testing.T) {
+	m := fuzzModel(t)
+	m.width, m.height = 45, 4
+	response := make(chan core.Decision, 1)
+	m.pending = &permissionMsg{request: core.Permission{Tool: "shell", Preview: "Command: cat <<EOF > x\nline one\nline two\nrm -rf important\nEOF\nDirectory: /p\nTimeout: 5s"}, response: response}
+	m.View()
+	m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	select {
+	case d := <-response:
+		t.Fatalf("approved a partly hidden command: %+v", d)
+	default:
+	}
+	if !strings.Contains(m.status, "PgDn") {
+		t.Fatalf("status %q", m.status)
+	}
+	for range 20 {
+		m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+		m.View()
+	}
+	m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+	select {
+	case d := <-response:
+		if !d.Allow {
+			t.Fatal("denied")
+		}
+	default:
+		t.Fatalf("approval refused after scrolling through (seen %d of %d, status %q)", m.reviewSeen, m.reviewTotal, m.status)
+	}
+}

@@ -40,6 +40,13 @@ type permissionMsg struct {
 	request  core.Permission
 	response chan core.Decision
 }
+
+// mcpPromptsMsg carries the result of /mcp.
+type mcpPromptsMsg struct {
+	list []core.MCPPrompt
+	err  error
+}
+
 type doneMsg struct {
 	status string
 	err    error
@@ -50,6 +57,9 @@ type model struct {
 	reviewHidden bool
 	// reviewHeight is how many rows the last render gave a review body.
 	reviewHeight int
+	// reviewSeen is how many rows of the review body, from the top, have
+	// been on screen; reviewTotal is how many it has.
+	reviewSeen, reviewTotal int
 	// stashedDraft is a draft set aside while a palette command uses the
 	// composer; it returns when that command has run.
 	stashedDraft string
@@ -388,11 +398,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.question = &questionState{message: v, selected: map[int]bool{}}
-		m.reviewOffset = 0
+		m.reviewOffset, m.reviewSeen = 0, 0
 		return m, m.wait()
 	case permissionMsg:
 		m.pending = &v
-		m.reviewOffset = 0
+		m.reviewOffset, m.reviewSeen = 0, 0
 		return m, m.wait()
 	case queuedSubmitMsg:
 		return m.submitQueued()
@@ -422,6 +432,20 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		}
 		return m, m.afterRun(v)
+	case mcpPromptsMsg:
+		m.log += "\nMCP prompts (run as /mcp:<server>:<prompt> [name=value ...]):\n"
+		for _, p := range v.list {
+			m.log += "/mcp:" + Safe(p.Server) + ":" + Safe(p.Name) + " " + Safe(strings.Join(p.Arguments, " ")) + " — " + Safe(p.Description) + "\n"
+		}
+		if v.err != nil {
+			m.log += "error: " + Safe(v.err.Error()) + "\n"
+		} else if len(v.list) == 0 {
+			m.log += "(the configured servers offer no prompts)\n"
+		}
+		if len(m.log) > 128<<10 {
+			m.log = m.log[len(m.log)-(128<<10):]
+		}
+		return m, m.wait()
 	case jobStoppedMsg:
 		m.status = v.id + " " + v.status
 		return m, nil
@@ -529,18 +553,26 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, nil
 		}
 		if m.pending != nil {
+			page := max(1, m.reviewHeight)
 			switch strings.ToLower(key) {
-			case "pgdown", "down":
-				m.reviewOffset += 5
-			case "pgup", "up":
-				m.reviewOffset -= 5
-				if m.reviewOffset < 0 {
-					m.reviewOffset = 0
-				}
+			case "pgdown":
+				m.reviewOffset += page
+			case "down":
+				m.reviewOffset += min(5, page)
+			case "pgup":
+				m.reviewOffset = max(0, m.reviewOffset-page)
+			case "up":
+				m.reviewOffset = max(0, m.reviewOffset-min(5, page))
 			case "y", "s":
 				if m.reviewHidden {
 					// Approving needs the operation on screen.
 					m.status = "Enlarge the terminal to see the operation before approving (n denies)"
+					return m, nil
+				}
+				if commandPreview(m.pending.request.Preview) && m.reviewSeen < m.reviewTotal {
+					// A command runs as written: every line of it must have
+					// been on screen.
+					m.status = "Scroll with PgDn through the whole command before approving (n denies)"
 					return m, nil
 				}
 				m.pending.response <- core.Decision{Allow: true, Session: strings.ToLower(key) == "s"}
@@ -593,6 +625,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		if key == "esc" {
 			m.palette = false
 			m.scrollOffset = 0 // back to the latest output
+			if m.stashedDraft != "" && strings.HasPrefix(strings.TrimSpace(m.input), "/") {
+				// Cancel a command the palette started: the draft comes back.
+				m.input = ""
+				m.restoreStashedDraft()
+			}
 			return m, nil
 		}
 		if key == "f2" {
@@ -605,9 +642,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			prompt := m.input
-			if m.stashedDraft != "" && strings.HasPrefix(strings.TrimSpace(prompt), "/") {
+			if m.stashedDraft != "" {
 				// A command opened from the palette over a draft: put the
-				// draft back once the command has used the composer.
+				// draft back once the composer is free again.
 				defer m.restoreStashedDraft()
 			}
 			if strings.TrimSpace(prompt) == "/export" {
@@ -741,28 +778,30 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/mcp" {
-				m.input = ""
-				list, err := m.a.MCPPrompts(context.Background())
-				m.log += "\nMCP prompts (run as /mcp:<server>:<prompt> [name=value ...]):\n"
-				for _, p := range list {
-					m.log += "/mcp:" + Safe(p.Server) + ":" + Safe(p.Name) + " " + Safe(strings.Join(p.Arguments, " ")) + " — " + Safe(p.Description) + "\n"
+				// Listing starts the configured servers (with approval, as a
+				// run would), so it runs in the background like a prompt.
+				m.input, m.inputCursor = "", 0
+				if len(m.a.Config.MCP) == 0 {
+					m.log += "\nMCP prompts: none (no MCP servers are configured)\n"
+					return m, nil
 				}
-				if err != nil {
-					m.log += "error: " + Safe(err.Error()) + "\n"
-				} else if len(list) == 0 && len(m.a.Config.MCP) > 0 {
-					names := make([]string, 0, len(m.a.Config.MCP))
-					for name := range m.a.Config.MCP {
-						names = append(names, Safe(name))
+				m.active, m.status = true, "Listing MCP prompts"
+				ctx, cancel := context.WithCancel(context.Background())
+				m.cancel = cancel
+				runDone := make(chan struct{})
+				m.runDone = runDone
+				go func(done chan struct{}) {
+					defer close(done)
+					list, err := m.a.ListMCPPrompts(ctx)
+					for _, msg := range []tea.Msg{mcpPromptsMsg{list, err}, doneMsg{"completed", nil}} {
+						select {
+						case m.events <- msg:
+						case <-m.closed:
+							return
+						}
 					}
-					sort.Strings(names)
-					m.log += "(servers run only during a request, so their prompts are listed while one runs. Configured: " + strings.Join(names, ", ") + ". /mcp:<server>:<prompt> starts the server and runs the prompt.)\n"
-				} else if len(list) == 0 {
-					m.log += "(none: no MCP servers are configured)\n"
-				}
-				if len(m.log) > 128<<10 {
-					m.log = m.log[len(m.log)-(128<<10):]
-				}
-				return m, nil
+				}(runDone)
+				return m, m.wait()
 			}
 			if strings.TrimSpace(prompt) == "/skills" {
 				m.input = ""
@@ -921,6 +960,7 @@ func (m *model) compactView() tea.View {
 		}
 		// Nothing of a pending operation fits: it cannot be approved unseen.
 		m.reviewHidden = review != ""
+		m.reviewHeight = 0
 		view := tea.NewView(strings.Join(rows, "\n"))
 		view.AltScreen = true
 		view.MouseMode = mouseMode()
@@ -1176,6 +1216,17 @@ func (m *model) dropPartialReply() {
 		m.log = m.log[:len(m.log)-len(m.partialReply)]
 	}
 	m.partialReply = ""
+}
+
+// commandPreview reports whether an approval preview is for a command
+// (shell, background job or formatter), which runs exactly as written.
+func commandPreview(preview string) bool {
+	for _, prefix := range []string{"Command: ", "Background command: ", "Formatter "} {
+		if strings.HasPrefix(preview, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // runKeyAction performs a configurable chat action.

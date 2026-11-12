@@ -54,6 +54,14 @@ func TestRunWorktree(t *testing.T) {
 	if err := runWorktree([]string{"exp"}, open); err != nil || !sameDir(opened, want) {
 		t.Fatal("reuse failed", err, opened)
 	}
+	if got := currentBranch("git", want); got != "goh/exp" {
+		t.Fatalf("new worktree on %q", got)
+	}
+	// Reused after switching branches: the actual branch is what is checked out.
+	run(want, "checkout", "-q", "-b", "other-branch")
+	if got := currentBranch("git", want); got != "other-branch" {
+		t.Fatalf("reported %q after switching to other-branch", got)
+	}
 	os.Mkdir(filepath.Join(base, "repo-plain"), 0o755)
 	os.Chdir(repo)
 	if err := runWorktree([]string{"plain"}, open); err == nil || !strings.Contains(err.Error(), "not a worktree") {

@@ -23,6 +23,32 @@ func (a *Agent) MCPPrompts(ctx context.Context) ([]core.MCPPrompt, error) {
 	return src.Prompts(ctx)
 }
 
+// ListMCPPrompts lists the configured MCP servers' prompts between runs:
+// it starts the servers through the same approval as a run, lists their
+// prompts and stops them again.
+func (a *Agent) ListMCPPrompts(ctx context.Context) ([]core.MCPPrompt, error) {
+	if a.Remote != nil {
+		return nil, ErrAttached
+	}
+	if a.ExternalFactory == nil || a.isPlan() || len(a.Config.MCP) == 0 {
+		return nil, nil
+	}
+	ext := a.ExternalFactory()
+	if c, ok := ext.(interface{ Close() error }); ok {
+		defer c.Close()
+	}
+	if c, ok := ext.(interface{ Connect(context.Context) error }); ok {
+		if err := c.Connect(ctx); err != nil {
+			return nil, err
+		}
+	}
+	src, ok := ext.(PromptSource)
+	if !ok {
+		return nil, nil
+	}
+	return src.Prompts(ctx)
+}
+
 // expandMCPPrompt turns "/mcp:<server>:<prompt> [k=v ...| free text]" into
 // the server's rendered prompt. Free text without k=v goes to the first
 // argument. The text is labelled as server-provided: it is the user's chosen

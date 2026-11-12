@@ -88,3 +88,19 @@ func TestSessionCommandsUseConfiguredSessionDir(t *testing.T) {
 		t.Fatalf("got %q want %q", got, want)
 	}
 }
+
+func TestStartupSessionSurvivesProviderSetup(t *testing.T) {
+	for _, action := range []string{"connect", "provider"} {
+		if !keepsStartupFlags(false, action) {
+			t.Errorf("--session dropped by %s before any session opened", action)
+		}
+		if keepsStartupFlags(true, action) {
+			t.Errorf("--session reapplied after chat opened (%s)", action)
+		}
+	}
+	for _, action := range []string{"workspace", "sessions", "new", "settings"} {
+		if keepsStartupFlags(false, action) {
+			t.Errorf("--session kept across %s", action)
+		}
+	}
+}

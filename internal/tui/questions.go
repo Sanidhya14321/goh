@@ -42,8 +42,9 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		return
 	}
 	current := q.message.request.Questions[q.index]
-	if key == "enter" && m.reviewHidden {
-		m.status = "Enlarge the terminal to see the question before answering (Esc dismisses)"
+	if key == "enter" && (m.reviewHidden || !m.questionCursorVisible()) {
+		// Enter answers what is highlighted, so it must be on screen.
+		m.status = "Enlarge the terminal or scroll to see the answer before submitting (Esc dismisses)"
 		return
 	}
 	defer m.followQuestionCursor()
@@ -126,22 +127,45 @@ func (m *model) followQuestionCursor() {
 	if q == nil || q.custom || m.reviewHeight <= 0 {
 		return
 	}
-	text := q.view()
-	i := strings.Index(text, "\n> ")
-	if i < 0 {
+	row, ok := m.questionCursorRow()
+	if !ok {
 		return
 	}
-	width := m.wrappedWidth
-	if width <= 0 {
-		width = max(1, m.width-4)
-	}
-	row := len(terminalRows(text[:i+1], width)) // rows before the cursor line
 	switch {
 	case row < m.reviewOffset:
 		m.reviewOffset = row
 	case row >= m.reviewOffset+m.reviewHeight:
 		m.reviewOffset = row - m.reviewHeight + 1
 	}
+}
+
+// questionCursorRow is the row of the highlighted option (or the custom
+// answer line) in the question as the review pane wraps it.
+func (m *model) questionCursorRow() (int, bool) {
+	q := m.question
+	if q == nil {
+		return 0, false
+	}
+	text, line := q.render()
+	lines := strings.Split(text, "\n")
+	if line < 0 || line >= len(lines) {
+		return 0, false
+	}
+	width := m.wrappedWidth
+	if width <= 0 {
+		width = max(1, m.width-4)
+	}
+	if line == 0 {
+		return 0, true
+	}
+	return len(transcriptRows(strings.Join(lines[:line], "\n"), width, "", true)), true
+}
+
+// questionCursorVisible reports whether the last render showed the row
+// Enter would answer with.
+func (m *model) questionCursorVisible() bool {
+	row, ok := m.questionCursorRow()
+	return ok && m.reviewHeight > 0 && row >= m.reviewOffset && row < m.reviewOffset+m.reviewHeight
 }
 
 func (q *questionState) finish(m *model, answer []string) {
@@ -159,21 +183,32 @@ func (q *questionState) finish(m *model, answer []string) {
 	m.reviewOffset = 0
 }
 func (q *questionState) view() string {
+	text, _ := q.render()
+	return text
+}
+
+// render returns the question text and the line index of the highlighted
+// option, or of the custom answer while one is typed.
+func (q *questionState) render() (string, int) {
 	current := q.message.request.Questions[q.index]
 	var b strings.Builder
 	fmt.Fprintf(&b, "Question %d/%d: %s\n\n%s\n\n", q.index+1, len(q.message.request.Questions), Safe(current.Header), Safe(current.Question))
+	lineOf := func() int { return strings.Count(b.String(), "\n") }
 	if q.custom {
 		back := "Esc dismiss"
 		if len(current.Options) > 0 {
 			back = "Esc back to options"
 		}
+		line := lineOf()
 		b.WriteString("Custom answer: " + Safe(q.text) + "▏\nEnter submit • " + back + "\n")
-		return b.String()
+		return b.String(), line
 	}
+	cursorLine := -1
 	for i, o := range current.Options {
 		cursor := "  "
 		if i == q.cursor {
 			cursor = "> "
+			cursorLine = lineOf()
 		}
 		check := ""
 		if current.Multiple {
@@ -193,5 +228,5 @@ func (q *questionState) view() string {
 	} else {
 		b.WriteString("\n↑/↓ choose • Enter submit • c custom • Esc dismiss\n")
 	}
-	return b.String()
+	return b.String(), cursorLine
 }

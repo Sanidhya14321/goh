@@ -6,6 +6,21 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+## 1.0.0-rc.178 — 2026-11-12
+
+Second external review: terminal UI and CLI findings.
+
+- **Approvals on small terminals:**
+  - A shell, background-job or formatter command can be approved only after every line of it has been on screen. PgDn and PgUp now move by a page.
+  - Enter answers a question only when the highlighted option (or the custom answer) is on screen, not just the heading.
+  - The highlighted option's row is computed with the review pane's own wrapping, so a Markdown quote (`> …`) in a question no longer throws off scrolling.
+- **`--session` with `--project`:** a resumed session runs in its own project. Project agents and `--file` attachments come from there, and a different `--project` is refused instead of mixing two projects in one run.
+- **Provider setup:** `goh chat --session ID` started before a provider is configured opens that session once setup completes, instead of a new one.
+- **Drafts:** cancelling a palette command (`/find`, `/rename`, `/effort`) with Esc restores the draft. `/workspace` keeps it. A stashed draft also comes back after a prompt is sent.
+- **`/mcp`:** lists prompts between runs. It starts the configured servers in the background, with the usual approval, then stops them. A run's closed MCP manager is no longer reused afterwards (`connection closed`).
+- **`goh worktree`:** a reused worktree reports the branch it is actually on, and says so when that is not `goh/NAME`.
+- **Tests:** a new PTY suite, `scripts/test_resume_setup.py`, runs in the CI terminal job.
+
 ## 1.0.0-rc.177 — 2026-11-12
 
 Second external review: runtime and protocol findings.

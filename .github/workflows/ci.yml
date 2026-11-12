@@ -54,6 +54,7 @@ jobs:
       - run: python3 scripts/test_setup.py
       - run: python3 scripts/test_acp.py
       - run: python3 scripts/test_attach.py
+      - run: python3 scripts/test_resume_setup.py
   install:
     # One-command installers against a local release-layout server, natively.
     strategy:

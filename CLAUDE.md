@@ -25,7 +25,7 @@ make bench-check  # builds bin/goh-bench (cmd/bench) and dry-runs bench/tasks
 go test ./internal/runtime -run TestName     # single test
 ```
 
-Python integration scripts in `scripts/` drive the compiled binary: `test_tui.py` (PTY scenarios), `test_setup.py`, `test_acp.py`, `test_attach.py` (serve + attach), and `test_openai_live.py --binary bin/goh` (live — makes real inference requests with the saved ChatGPT auth; don't run without the user's approval). `scripts/capture_*.py` and `research/compare_*.py` produce comparison evidence against reference products.
+Python integration scripts in `scripts/` drive the compiled binary: `test_tui.py` (PTY scenarios), `test_setup.py`, `test_acp.py`, `test_attach.py` (serve + attach), `test_resume_setup.py` (`chat --session` through provider setup), and `test_openai_live.py --binary bin/goh` (live — makes real inference requests with the saved ChatGPT auth; don't run without the user's approval). `scripts/capture_*.py` and `research/compare_*.py` produce comparison evidence against reference products.
 
 Tests are deterministic: use `cmd/scripted-model` (a scripted local model endpoint) rather than live credentials.
 

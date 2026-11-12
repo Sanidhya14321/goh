@@ -290,6 +290,23 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
+	if *selectedSession != "" {
+		// A resumed session runs in its own project: project agents and
+		// --file attachments come from there, and a different --project is
+		// refused rather than mixed in.
+		dir := c.SessionDir
+		if *sessionDir != "" {
+			dir = *sessionDir
+		}
+		if sessionProject, err := session.ProjectOf(dir, *selectedSession); err == nil {
+			projectSet := false
+			f.Visit(func(v *flag.Flag) { projectSet = projectSet || v.Name == "project" })
+			if projectSet && !sameDir(*project, sessionProject) {
+				return fmt.Errorf("session %s belongs to project %s, not --project %s", *selectedSession, sessionProject, *project)
+			}
+			*project = sessionProject
+		}
+	}
 	if len(files) > 0 {
 		attached, err := attachFiles(*project, files, func(rel string, fold bool) bool { return c.FileDecisionFold([]string{rel}, fold) == "deny" })
 		if err != nil {

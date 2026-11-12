@@ -54,6 +54,21 @@ func ListAll(dir string) ([]Info, []Damaged, error) {
 	return infos, damaged, nil
 }
 
+// ProjectOf returns the project a session belongs to, from its header.
+func ProjectOf(dir, id string) (string, error) {
+	if !validID.MatchString(id) {
+		return "", errors.New("invalid session identity")
+	}
+	info, ok, err := readHeader(dir, id)
+	if err != nil {
+		return "", err
+	}
+	if !ok {
+		return "", errors.New("session has no header yet")
+	}
+	return info.Project, nil
+}
+
 // readHeader validates the first record. ok is false for a journal still
 // being created (no committed header yet).
 func readHeader(dir, id string) (Info, bool, error) {

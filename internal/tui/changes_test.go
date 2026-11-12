@@ -96,4 +96,17 @@ func TestPaletteCommandsKeepTheDraft(t *testing.T) {
 	if m.input != "half-written prompt" {
 		t.Fatalf("after /find the draft is %q", m.input)
 	}
+	// Cancelling a palette command with Esc brings the draft back.
+	m.palette, m.paletteQuery, m.paletteIndex = true, "/find", 0
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if m.input != "half-written prompt" || m.stashedDraft != "" {
+		t.Fatalf("after cancelling /find: input %q, stashed %q", m.input, m.stashedDraft)
+	}
+	// /workspace leaves chat with the draft for the launcher to carry.
+	m.palette, m.paletteQuery, m.paletteIndex = true, "/workspace", 0
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.navigation != "workspace" || m.input != "half-written prompt" {
+		t.Fatalf("/workspace: navigation %q, input %q", m.navigation, m.input)
+	}
 }

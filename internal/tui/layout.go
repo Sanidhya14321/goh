@@ -361,6 +361,10 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 		start = min(m.reviewOffset, max(0, len(lines)-height))
 		m.reviewOffset = start // overshooting PgDn must not make PgUp feel dead
 		end = min(len(lines), start+height)
+		if start <= m.reviewSeen && height > 0 {
+			m.reviewSeen = max(m.reviewSeen, end)
+		}
+		m.reviewTotal = len(lines)
 	}
 	return lines[start:end]
 }

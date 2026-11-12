@@ -1246,6 +1246,9 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 			status = "cleanup_incomplete"
 			err = e
 		}
+		if a.ExternalFactory != nil {
+			a.External = nil // closed: the next run starts a new manager
+		}
 	}
 	if ctx.Err() != nil && status != "cleanup_incomplete" {
 		status = "cancelled"

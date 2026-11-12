@@ -23,6 +23,20 @@ Commit `29bf905` keeps the lock held through the move on Unix and closes the
 handle just before the journal moves on Windows. CI on `29bf905` passed all six
 jobs.
 
+## RC178 second review, terminal UI and CLI findings
+
+Tests for each reviewed scenario:
+- `TestPartlyVisibleCommandNeedsScrolling` (45×4): a multi-line command is refused until PgDn has shown every line, then approved.
+- `TestQuestionAnswerMustBeVisible`: Enter is refused at 64×4 with only the heading visible. At 64×18, a question with Markdown quotes keeps the highlighted option on screen. The question tests now render before each key, as a terminal does.
+- `TestResumedSessionKeepsItsProject`: a different `--project` is refused, and `--file` reads from the session's project.
+- `scripts/test_resume_setup.py` (PTY, 80×24) covers `chat --session ID` → blocked screen → provider setup. It checks that the same journal holds the new turn and no other journal exists. It fails with the fix removed.
+- `TestStartupSessionSurvivesProviderSetup`, `TestPaletteCommandsKeepTheDraft` (Esc after palette `/find`, `/workspace`), `TestListMCPPromptsBetweenRuns` (before and after a run, with the listing manager stopped) and `TestRunWorktree` (branch after checkout).
+
+Gates passed on macOS with Go 1.27.4:
+- gofmt, `go vet` (also with `GOOS=windows`) and `go test -race ./...`;
+- `make acceptance`;
+- the TUI, setup, ACP, attach and resume-setup PTY suites.
+
 ## RC177 second review, runtime findings
 
 Regression tests reproduce each reviewed scenario:
