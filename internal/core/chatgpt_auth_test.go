@@ -25,8 +25,7 @@ type chatGPTTestTransport func(*http.Request) (*http.Response, error)
 func (f chatGPTTestTransport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestChatGPTAuthorizationStateIdentityAndRenewal(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	private, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		t.Fatal(err)
@@ -164,8 +163,7 @@ func TestChatGPTEndpointRejectsCustomDestinations(t *testing.T) {
 }
 
 func TestCorruptCredentialsAreReplacedBySignIn(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	path, err := chatGPTPath("chatgpt-account.json")
 	if err != nil {
 		t.Fatal(err)
@@ -201,8 +199,7 @@ func TestCorruptCredentialsAreReplacedBySignIn(t *testing.T) {
 // The CLI paths, not only the save helper: sign-in gets past a damaged file
 // (it is replaced on success) and sign-out removes it.
 func TestDamagedCredentialsDoNotBlockLoginOrLogout(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	path, err := chatGPTPath("chatgpt-account.json")
 	if err != nil {
 		t.Fatal(err)

@@ -3,8 +3,7 @@ package core
 import "testing"
 
 func TestSavedProviderKeyScope(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	t.Setenv("GOH_TEST_KEY", "")
 	cfg := Config{BaseURL: "https://gateway.example/v1", APIKeyEnv: "GOH_TEST_KEY"}
 	check := func(config Config, want string) {

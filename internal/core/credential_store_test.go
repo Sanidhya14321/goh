@@ -33,10 +33,19 @@ func (f fakeStore) Delete(name string) error {
 	return nil
 }
 
+// isolateConfig gives the test its own user config folder on every OS
+// (Windows reads %AppData%, not HOME).
+func isolateConfig(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("APPDATA", home)
+}
+
 func useFakeStore(t *testing.T) fakeStore {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	store := fakeStore{}
 	old := openSecretStore
 	openSecretStore = func(string) (secretstore.Store, error) { return store, nil }
@@ -179,8 +188,7 @@ func TestUnopenableSealedSecretIsDamaged(t *testing.T) {
 
 // When no OS store exists the choice is refused and nothing moves.
 func TestKeychainUnavailable(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
-	t.Setenv("XDG_CONFIG_HOME", "")
+	isolateConfig(t)
 	old := openSecretStore
 	openSecretStore = func(string) (secretstore.Store, error) { return nil, secretstore.ErrUnavailable }
 	t.Cleanup(func() { openSecretStore = old })

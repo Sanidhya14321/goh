@@ -29,6 +29,8 @@ jobs.
 - `TestUnopenableSealedSecretIsDamaged` (key gone, garbage file), `TestKeychainUnavailable` (choice refused and unchanged) and `TestInterruptedMovePrefersTheOSCopy`, which fails when the plain file is read first; `TestForgetCredentialKey` (uninstall).
 - `TestOSStoreRoundTrip` passed against the real macOS login keychain with `GOH_OS_STORE_TEST=1`, using a separate test service name, and left no entry. It runs on Windows CI against DPAPI. `security -i` was measured to cut lines at about 4 KiB and run the remainder as a command, so the store keeps only the key and the macOS helper refuses values over 2 KiB.
 
+The first Windows CI run failed because Windows reads the config folder from `%AppData%`, not `HOME`, so the tests shared the runner's real folder and one test's store choice leaked into the next. The core credential tests now isolate `APPDATA` as well.
+
 Gates passed on macOS with Go 1.27.4:
 - gofmt, `go vet` (also with `GOOS=windows` and `GOOS=linux`) and `go test -race ./...`;
 - `make acceptance`;
