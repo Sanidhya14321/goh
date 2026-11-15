@@ -1,50 +1,6 @@
-# Verification record — 7 November 2026
+# Verification log: rc.1 – rc.179
 
-This is a working development alpha. Full release acceptance in the supplied plan
-is not complete. The observed host is macOS 26.5.1, ARM64, Apple M5 Pro, Go 1.27.3.
-Live inference was tested on loopback. Source milestones are published to Sanidhya14321/goharness.
-
-## RC23 editor and Windows filesystem
-
-Native CI at RC22 (run 42386722466): `go vet` and `go test ./...` passed on
-`ubuntu-latest` and `macos-latest`. On `windows-latest` the build and vet
-passed and tests failed, mostly from directory fsync ("Access is denied") and
-permission-bit privacy checks; a formatter test also depends on Unix scripts.
-RC23 addresses the first two. Locally `1.0.0-rc.23` passed `go vet`, the race
-suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
-`editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
-and checks the journal records the rewritten prompt.
-
-## Windows session delete (after RC33)
-
-Native CI for RC32 and RC33 failed on Windows only: renaming a journal while
-holding its lock handle is not allowed there, so trashing a session failed.
-Commit `29bf905` keeps the lock held through the move on Unix and closes the
-handle just before the journal moves on Windows. CI on `29bf905` passed all six
-jobs.
-
-## Unreleased: /connect provider catalog
-
-- Provider manager: `TestProviderRegistry` and `TestProviderRegistryRefusals` cover listing a hand-configured provider, saving and switching three providers including ChatGPT, removing the active one, refusing a provider an agent uses, refusing commented settings, and keeping unrelated settings. `TestProvidersEndToEnd` covers two providers keeping their own keys through `goh providers list/use/remove`, where removing a provider deletes its key. Also `TestChatGPTSavesAsAProvider`, `TestProviderManagerKeys` (two-press remove, Add row), `TestSettingsChoiceField` and `TestWordWrap`.
-- `scripts/test_setup.py` (PTY) now runs setup through the manager:
-  - status `p` → empty manager → Add → Custom provider;
-  - a wrong key is refused before anything is written;
-  - the right key saves the provider;
-  - the fixture then revokes it, chat fails with 401, and `k` in `/providers` takes the new key after checking it;
-  - the retry succeeds in the same session;
-  - a second provider added with `a` becomes active, and Enter on the first switches back.
-  
-  `scripts/test_resume_setup.py` uses the same path. The suite passed three runs in a row after its wait was scoped to post-save output.
-- `TestSwitchChatGPTAccount` covers the user-reported `3p_login_workspace_scope_denied`. The switch sends `dynamic_agent_client` with a new `ext_agent_host_id`, accepts a different account, saves the new registration and host identity, and revokes the old renewal token. An abandoned switch leaves the old sign-in and host identity untouched.
-- `TestProviderCatalogRoutesValidate`, `TestPresetChatModels`, `TestKeyCheckURLsStayOnTheProviderHost`, `TestListModelInfoChecksAnUnsavedKey` (Bearer vs `x-api-key`, rejected key, reported windows), `TestKeyRefusalsAndKeyCheck` (Google's 400, OpenRouter-style key endpoint, key never sent off-host), `TestVerifyKey` and `TestSavePresetKeepsOtherSettings` (verified key saved under the preset's scope, other settings kept, old `api_key_env` dropped).
-- `scripts/test_setup.py` (PTY): `/connect` lists the catalog, the Anthropic form shows its key page, saving with no key is refused, and Esc leaves settings and the request count unchanged.
-- Live, with an invalid key and no quota used: Anthropic, OpenAI, OpenRouter, Gemini and Groq all report "did not accept this key". This found that OpenRouter's model list answers 200 to any key and that Gemini refuses keys with 400, both now handled. The key pages resolve; the Anthropic Console link now points at `platform.claude.com`, where the old address redirects.
-
-## RC180 goh upgrade and first release
-
-- `TestUpgradeReplacesTheExecutable` and `TestUpgradeRefusals` (tampered binary, missing or duplicated checksum, binary that does not run). Each refusal leaves the executable unchanged and no temporary files. Also `TestUpgradeCommand` (up to date, `--check`, remote plain HTTP refused) and `TestReplaceExecutableKeepsOldOnWindowsOnly`.
-- End to end on macOS: `make release VERSION=9.9.9-e2e` was served on loopback. A `1.0.0-old` build upgraded itself to `9.9.9-e2e`. Running again reported "up to date". After the served binary was tampered with, a fresh old build refused it and still reported `1.0.0-old`.
-- History rewrite: `git filter-branch --index-filter` removed `harness` from the 16 commits from rc.170 on. The final tree hash `cbe24da` is unchanged, no blob over 2 MB remains, and the local pack went from 47.6 MiB of loose objects to 6.4 MiB. A bundle of the old history was kept locally before the force-push.
+Evidence recorded for the release candidates built before the first published release, newest first, as written at the time. Current entries are in the [verification log](../VERIFICATION.md).
 
 ## RC179 OS credential store
 
@@ -1223,6 +1179,14 @@ cover slash-command and queue-limit refusals that keep the draft, blocked
 dialog shortcuts during a run, the return of queued prompts after a cancelled
 run, and scheduling after a completed one.
 
+## Windows session delete (after RC33)
+
+Native CI for RC32 and RC33 failed on Windows only: renaming a journal while
+holding its lock handle is not allowed there, so trashing a session failed.
+Commit `29bf905` keeps the lock held through the move on Unix and closes the
+handle just before the journal moves on Windows. CI on `29bf905` passed all six
+jobs.
+
 ## RC32 session management
 
 `1.0.0-rc.32` passed vet (macOS and Windows), the race suite, seven CLI and
@@ -1320,6 +1284,17 @@ and tools. The directory-sync errors are gone; remaining causes include path
 separators in glob/skill matching, Unix shell test fixtures, and file mode
 assertions. Windows is not yet a supported platform.
 
+## RC23 editor and Windows filesystem
+
+Native CI at RC22 (run 42386722466): `go vet` and `go test ./...` passed on
+`ubuntu-latest` and `macos-latest`. On `windows-latest` the build and vet
+passed and tests failed, mostly from directory fsync ("Access is denied") and
+permission-bit privacy checks; a formatter test also depends on Unix scripts.
+RC23 addresses the first two. Locally `1.0.0-rc.23` passed `go vet`, the race
+suite, seven CLI scenarios and seventeen PTY scenarios twice. The new
+`editor_handoff` PTY scenario sets `$VISUAL` to a script, opens it with Ctrl+X E,
+and checks the journal records the rewritten prompt.
+
 ## RC22 Windows build
 
 `1.0.0-rc.22` passed `go vet`, the race suite, seven CLI fixture scenarios,
@@ -1393,7 +1368,7 @@ cover provider draft recovery and the gateway fallback. The shell cancellation
 terminal test uses Esc. Unit checks cover credential routing, JSON reply bounds
 and malformed replies. The native OpenAI probe reached HTTP 401 without a key.
 A separate signed-in Codex CLI probe completed. The
-[end-to-end audit](END_TO_END_AUDIT.md) records the remaining account,
+end-to-end audit (since folded into [STATUS.md](../STATUS.md)) records the remaining account,
 integration, UI and platform checks.
 
 RC15 evidence is under `research/evidence/v1-ui-export-*`. The terminal setup

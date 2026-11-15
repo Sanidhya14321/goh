@@ -1,183 +1,58 @@
-# GoHarness — Architecture and Status Overview
+# Architecture
 
-*Snapshot: 11 November 2026 · version `1.0.0-rc.168`*
+GoHarness (`goh`) is one statically linked Go binary (CGO disabled) for macOS, Linux and Windows.
+All of its interfaces drive the same agent runtime, and every conversation is an append-only
+journal that is the single source of truth for resume, fork, export and recovery.
 
-GoHarness (`goh`) is an original coding assistant written in Go. Its behaviour was compared against
-OpenCode v1.19.5 during development, but it is independently written and Apache‑2.0 licensed: the
-reference sources under `research/` were used only to observe behaviour, never copied (see
-`ORIGIN_LEDGER.md`).
+For what each feature does, see the [user guide](USER_GUIDE.md). For why it was built this way,
+see [design decisions](development/DESIGN_DECISIONS.md).
 
-It ships as a **single static binary** (CGO disabled) for macOS, Linux and Windows. It has a terminal UI, a
-headless CLI, a local HTTP API, an editor protocol (ACP), and durable, recoverable sessions.
+## Repository layout
 
----
-
-## 1. At a glance
-
-| Metric | Value |
+| Path | Contents |
 | --- | --- |
-| Release candidates landed | 168 (RC1 → RC168), every one gated |
-| Commits | 208 on `main` (Sanidhya14321/goh) |
-| Code | 31,989 lines of product Go + 17,489 lines of tests, in 24 internal packages + 4 commands |
-| CI | Ubuntu, macOS and Windows, native (`.github/workflows/ci.yml`) |
-| Gates per milestone | gofmt · `go vet` (macOS + Windows) · `go test -race ./...` · CLI acceptance scenarios · PTY TUI suite · setup suite · ACP suite |
-| Dependencies | Pinned; Bubble Tea stack for the TUI, MCP Go SDK, standard library for everything else |
-| Releases published | **None yet**, by design (features first, then release) |
+| `cmd/harness` | The `goh` binary: CLI subcommands, launcher, provider setup flows |
+| `cmd/scripted-model` | Local model endpoint that replays scripted replies; used by every test |
+| `cmd/acceptance` | CLI acceptance scenarios against the compiled binary |
+| `cmd/bench` | `goh-bench`, the benchmark runner (tasks in `bench/`) |
+| `internal/` | All product packages (below) |
+| `scripts/` | Installers, release script, and `e2e/` terminal test suites |
+| `docs/` | User guide, architecture, benchmarks, development records; `plan/` holds the original plan and behaviour specs |
+| `licenses/`, `THIRD_PARTY_NOTICES` | Exact third-party license texts |
+| `research/` | Local reference material, mostly not tracked; never copied into product code ([origin ledger](ORIGIN_LEDGER.md)) |
 
-### Size by package (lines of Go: product / tests)
+## Packages
 
-| Package | Product | Tests | Role |
-| --- | ---: | ---: | --- |
-| `internal/tui` | 5,923 | 2,546 | Bubble Tea terminal UI |
-| `internal/runtime` | 4,308 | 5,306 | Agent loop, tool dispatch, approval policy, hooks, compaction, subagents, verification |
-| `internal/tools` | 3,534 | 1,847 | File, patch, line-edit, search, repo map, shell, job and artifact tools |
-| `cmd/harness` | 3,238 | 1,127 | `goh` entry point and all CLI subcommands |
-| `internal/core` | 2,361 | 966 | Config, profiles, routing, ChatGPT OAuth, credential store |
-| `internal/session` | 1,836 | 1,128 | Durable journal, export/import, salvage, stats |
-| `internal/provider` | 1,776 | 1,130 | Anthropic, OpenAI Chat Completions, OpenAI Responses adapters |
-| `internal/lspclient` | 1,109 | 393 | Language-server client (diagnostics, definitions) |
-| `internal/mcpclient` | 1,025 | 645 | MCP over stdio and Streamable HTTP (tools, resources, prompts) |
-| `internal/snapshots` | 914 | 375 | Per-file checkpoints with undo/redo |
-| `internal/acp` | 702 | 60 | Agent Client Protocol for editors |
-| `internal/webfetch` | 589 | 352 | Bounded, safe URL fetching |
-| `cmd/bench` | 580 | 53 | `goh-bench` benchmark runner |
-| `internal/sandbox` | 404 | 131 | Shell sandbox (sandbox-exec, Landlock, optional container) |
-| `internal/projectsnap` | 218 | 119 | Whole-project Git snapshots |
-| others | ~3,700 | ~1,300 | `skills`, `commands`, `localapi`, `memory`, `platform`, `rewind`, `structured`, `formatters`, `websearch`, `ignore`, `testutil`, `scripted-model`, `acceptance` |
-| **Total** | **31,989** | **17,489** | |
-
----
-
-## 2. What has been built
-
-### 2.1 Surfaces (how you use it)
-
-```mermaid
-flowchart LR
-    U((User)) --> TUI["goh / goh chat<br/>Terminal UI"]
-    U --> RUN["goh run …<br/>headless text / JSON"]
-    U --> CLI["goh sessions · stats · export ·<br/>changes · auth · config · pr · worktree …"]
-    ED((Editor)) --> ACP["goh acp<br/>Agent Client Protocol"]
-    APP((Script / app)) --> API["goh serve<br/>local HTTP API"]
-    TUI & RUN & ACP & API --> RT[["internal/runtime<br/>Agent loop"]]
-    CLI --> SES[("Session journals")]
-    RT --> SES
-```
-
-| Surface | Highlights |
-| --- | --- |
-| **Terminal UI** | Opens before setup. Command palette (Ctrl+P). `@file` fuzzy search, which honours `.gitignore`. Over 40 slash commands, including `/connect`, `/models`, `/sessions`, `/timeline`, `/fork`, `/undo`, `/redo`, `/changes`, `/jobs`, `/todos`, `/status`, `/find`, `/copy`, `/export`, `/theme`, `/editor` and `/effort`. Also a queued-prompt composer, context meter, configurable keybinds, themes, Ctrl+Z suspend, and wide and compact layouts. |
-| **Headless CLI** | `goh run` gives text or JSON events. Piped stdin works (`cat log \| goh run explain`). Uses the same journal and approvals as the TUI. |
-| **Session CLI** | `list` (json/table/ids, `--project`), `preview`, `show`, `export` (JSON/Markdown/HTML), `import`, `fork --before-turn`, `salvage`, `rename`, `delete`/`restore` (trash), `prune --days`. |
-| **Workflow helpers** | `goh pr N` runs `gh pr checkout` and opens the UI. `goh worktree NAME` opens the UI in an isolated git worktree. `goh changes` shows file checkpoints. `goh stats` shows tokens, cost estimates and per-tool calls and failures. |
-| **Server UI** | `goh attach [ADDRESS]` opens the terminal UI against a running `goh serve` (prompts, approvals, questions, cancellation, `/new`, `/sessions`). |
-| **Admin** | `goh auth login/status/models/logout/list/store`, `goh config` (secrets redacted), `goh doctor`, `goh completion bash/zsh/fish`, `goh providers` (list/use/remove; no arguments opens the manager), `goh upgrade` (checksum-verified; `--check`), `goh uninstall` (lists first; `--yes` to act). |
-| **Integrations** | ACP for editors (Zed and similar). `goh serve` local API. MCP servers over stdio and remote Streamable HTTP. LSP language servers (auto-detected when enabled). Formatters (auto-detected when enabled). |
-
-### 2.2 Model providers
-
-| Protocol | Use |
-| --- | --- |
-| `openai_chatgpt` | **Continue with ChatGPT**: official OAuth sign-in (PKCE, ID-token checks, renewal), bound to the official Responses endpoint |
-| `openai_responses` | OpenAI Responses API with an API key |
-| `openai_chat` | Any OpenAI-compatible Chat Completions gateway (Ollama, OpenRouter, vLLM and others), with JSON-reply and `stream_options` fallbacks |
-| `anthropic_messages` | Anthropic SSE streaming, with extended thinking (`thinking_budget`) |
-
-Multiple named **profiles**, **model roles** (a separate model for summaries and titles), ordered
-**fallback profiles** with per-provider cooldowns, `reasoning_effort` and context-window settings.
-
-### 2.3 Tools available to the model
-
-| Group | Tools |
-| --- | --- |
-| Files | `list_files`, `read_file` (line numbers + SHA-256), `write_file`, `edit_file`, `apply_patch` (multi-file Add/Update/Delete/Move) |
-| Search | `glob`, `grep`, `repo_map` (declaration map), `lsp` (diagnostics, definitions) |
-| Shell | `shell` (approved, timeouts, process-group kill), `job_start` / `job_output` / `job_stop` (background jobs) |
-| Agent | `task` (subagents), `todowrite`, `question` (ask the user), `skill`, `memory_recall` |
-| Web | `webfetch`, `websearch` |
-| Recovery | `snapshot_list` / `_diff` / `_undo` / `_redo`, `read_artifact` (retained large outputs), `formatter_status` |
-| External | Any tool from configured MCP servers (namespaced, approval-gated) |
-
----
-
-## 3. What makes it different (USPs)
-
-1. **Write-ahead safety: every edit is guarded by a hash.** `edit_file`, `write_file` and `apply_patch`
-   require the file's current SHA-256. A stale view of a file can never overwrite someone else's change.
-2. **Never replays an uncertain effect.** If a run is interrupted mid-tool, the journal records an
-   *uncertain effect*. GoHarness refuses to re-run it automatically and asks the user to inspect and
-   acknowledge it. Partial model streams are never silently retried.
-3. **Durable, salvageable sessions.** The append-only JSONL journal is the single source of truth. A torn
-   or damaged journal can be **salvaged** into a new session. Sessions can be forked before any turn, exported
-   (JSON, Markdown or HTML), imported on another machine with project relocation, trashed and restored.
-4. **Credential discipline.** `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are sent only to official HTTPS hosts. Gateways
-   use their own key variable. Failover to another provider happens **only** through an explicit
-   `fallback_profiles` list. Credentials sit in private (0600) files, or are sealed with a key held by the OS credential store (`goh auth store keychain`). `goh config` and `goh auth list` never
-   print a secret.
-5. **Approvals that cannot be widened by accident.** `shell_rules` and `file_rules` allow, deny or ask.
-   "Allow" never covers a compound shell command. Repository files cannot pick the agent or model. A third
-   identical tool call needs fresh approval (loop guard).
-6. **Three layers of undo.** Per-file checkpoints (content-addressed, no Git required, binary-safe),
-   whole-project Git snapshots that also cover shell changes, **plus** turn-level rewind/redo of the
-   conversation.
-7. **One binary with no runtime.** No Node and no Bun. It is pure Go with CGO off, cross-compiled for six
-   OS/architecture targets, and starts instantly.
-8. **Recovery-first UX.** Chat opens even when setup is broken. A 401 sends the user to provider setup with
-   the draft kept. A failing MCP or LSP server is stopped and the run continues. Orphaned background jobs are
-   found and stopped on the next start.
-9. **Deterministic test harness.** `cmd/scripted-model` is a local scripted model endpoint. Every gate runs
-   without live keys, including real PTY tests of the TUI and real `clangd` LSP runs.
-
----
-
-## 4. Architecture
-
-### 4.1 Package map
+| Group | Package | Role |
+| --- | --- | --- |
+| Front ends | `tui` | Bubble Tea terminal UI; renders the runtime's event stream and owns no agent state |
+| | `acp` | Agent Client Protocol v1 over stdio, for editors |
+| | `localapi`, `remote` | `goh serve` loopback HTTP API, and the client `goh attach` uses |
+| Engine | `runtime` | The agent loop: prompts, tool dispatch, permissions, hooks, compaction, subagents, verification |
+| | `provider` | Chat Completions, Responses (including the ChatGPT sign-in) and Anthropic Messages adapters |
+| | `core` | Configuration, providers and routing, ChatGPT OAuth, credential storage, shared types |
+| | `session` | Crash-recoverable JSONL journal, export and import, salvage, statistics |
+| Tools | `tools` | File reads and exact edits, patches, glob and grep, shell, background jobs, repository map |
+| | `snapshots`, `projectsnap`, `rewind` | Per-file checkpoints, whole-project Git snapshots, turn-level undo and redo |
+| | `sandbox` | Shell confinement: sandbox-exec on macOS, Landlock on Linux |
+| | `mcpclient`, `lspclient` | MCP servers (stdio and Streamable HTTP), language servers |
+| | `webfetch`, `websearch` | Bounded URL fetching with private-address refusal; SearXNG-compatible search |
+| | `skills`, `commands`, `memory`, `formatters` | Markdown skills, custom slash commands, project notes, formatters |
+| Support | `ignore`, `structured`, `platform`, `secretstore`, `testutil` | `.gitignore` matching, child-result validation, OS differences, OS keychain, test fixtures |
 
 ```mermaid
 flowchart TB
-    subgraph cmd["cmd/"]
-        H["harness<br/>(goh entry, CLI)"]
-        SM["scripted-model<br/>(test endpoint)"]
-        AC["acceptance<br/>(CLI scenarios)"]
-        BN["bench<br/>(goh-bench runner)"]
-    end
-    subgraph front["Front ends"]
-        TUI[tui]
-        ACP[acp]
-        API[localapi]
-    end
-    subgraph engine["Engine"]
-        RT[runtime]
-        PR[provider]
-        CORE[core]
-    end
-    subgraph capabilities["Capabilities"]
-        TL[tools]
-        SN[snapshots]
-        RW[rewind]
-        LSP[lspclient]
-        MCP[mcpclient]
-        WF[webfetch / websearch]
-        SK[skills]
-        CM[commands]
-        MEM[memory]
-        FMT[formatters]
-        IG[ignore]
-        ST[structured]
-        SB[sandbox]
-        PS[projectsnap]
-    end
-    SES[(session)]
-    H --> TUI & ACP & API & RT
-    TUI & ACP & API --> RT
-    RT --> PR & CORE & SES
-    RT --> TL & SN & PS & SB & RW & LSP & MCP & WF & SK & CM & MEM & FMT & ST
-    TL --> IG
-    PR --> CORE
+    H["cmd/harness"] --> TUI[tui] & ACP[acp] & API[localapi]
+    TUI & ACP & API --> RT[runtime]
+    RT --> PR[provider] --> CORE[core]
+    RT --> CORE
+    RT --> SES[(session)]
+    RT --> TL[tools] & SB[sandbox] & SN["snapshots · projectsnap · rewind"]
+    RT --> INT["mcpclient · lspclient · webfetch · websearch"]
+    RT --> EXT["skills · commands · memory · formatters"]
 ```
 
-### 4.2 Lifecycle of one prompt
+## One prompt, end to end
 
 ```mermaid
 sequenceDiagram
@@ -211,27 +86,13 @@ sequenceDiagram
     end
 ```
 
-### 4.3 Provider routing and failover
+Large tool output is kept as an artifact and only a bounded preview enters the context; the model
+can page through the rest with `read_artifact`.
 
-```mermaid
-flowchart TD
-    A[Request] --> B{Active profile protocol}
-    B -->|openai_chatgpt| C[Responses @ official endpoint<br/>OAuth token, auto-renew]
-    B -->|openai_responses| D[Responses API]
-    B -->|openai_chat| E[Chat Completions gateway]
-    B -->|anthropic_messages| F[Anthropic SSE]
-    C & D & E & F --> G{Result}
-    G -->|success| OK[Stream to runtime]
-    G -->|429 / 5xx / timeout,<br/>before any body| H[Bounded retry]
-    H -->|still failing| I{fallback_profiles<br/>configured?}
-    I -->|yes| J[Next profile, journaled and shown<br/>provider cooled down]
-    I -->|no| ERR[Clear error, session kept]
-    G -->|partial stream failed| ERR2[Stop: never auto-replay<br/>user retries explicitly]
-    G -->|401| AUTH[Send user to provider setup<br/>draft and journal intact]
-    J --> B
-```
+## Tool calls and safety
 
-### 4.4 Approval and safety pipeline for a tool call
+Enforcement happens outside the model. Every tool call passes the same pipeline whether it came
+from the TUI, the CLI, the API or an editor.
 
 ```mermaid
 flowchart TD
@@ -255,7 +116,41 @@ flowchart TD
     RUN --> FMT[Formatter, optional] --> LSPD[LSP diagnostics, optional] --> RES[Result to journal]
 ```
 
-### 4.5 Session journal and recovery
+- **Hash-guarded edits.** `edit_file`, `write_file` and `apply_patch` need the file's current
+  SHA-256, so a stale view never overwrites a newer change.
+- **Scoped approvals.** "Allow for this session" covers a command prefix, a web origin or a tool,
+  never a compound shell command or one that runs code given as an argument.
+- **Filtered environment.** Shell commands get a scrubbed environment without provider secrets.
+- **Sandbox (opt-in, `sandbox.enabled`).** Shell commands may write only inside the project and
+  temporary folders, never `.git/hooks` or `.git/config`, and have no network unless allowed.
+- **Loop guard.** A third identical call needs fresh approval.
+- **Repository files** (custom commands, skills, agents) cannot choose the provider, model or agent.
+
+## Providers
+
+```mermaid
+flowchart TD
+    A[Request] --> B{Active profile protocol}
+    B -->|openai_chatgpt| C[Responses @ official endpoint<br/>OAuth token, auto-renew]
+    B -->|openai_responses| D[Responses API]
+    B -->|chat_completions| E[Chat Completions gateway]
+    B -->|anthropic_messages| F[Anthropic SSE]
+    C & D & E & F --> G{Result}
+    G -->|success| OK[Stream to runtime]
+    G -->|429 / 5xx / timeout,<br/>before any body| H[Bounded retry]
+    H -->|still failing| I{fallback_profiles<br/>configured?}
+    I -->|yes| J[Next profile, journaled and shown<br/>provider cooled down]
+    I -->|no| ERR[Clear error, session kept]
+    G -->|partial stream failed| ERR2[Stop: never auto-replay<br/>user retries explicitly]
+    G -->|401| AUTH[Send user to provider setup<br/>draft and journal intact]
+    J --> B
+```
+
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` are sent only to the official HTTPS hosts. Failover to
+another provider happens only through an explicit `fallback_profiles` list, and a partially
+streamed reply is never replayed automatically.
+
+## Sessions and recovery
 
 ```mermaid
 flowchart LR
@@ -272,7 +167,10 @@ flowchart LR
     Journal --> TRASH[delete → trash → restore / prune]
 ```
 
-### 4.6 Context management
+Every record is fsynced before the runtime continues. A tool call that started but has no result
+is an *uncertain effect*: it is shown to the user and never re-run automatically.
+
+## Context management
 
 ```mermaid
 flowchart TD
@@ -286,7 +184,7 @@ flowchart TD
     E -->|fails| G[Keep full history, report error]
 ```
 
-### 4.7 Configuration and credentials
+## Configuration and credentials
 
 ```mermaid
 flowchart LR
@@ -299,36 +197,13 @@ flowchart LR
     CFG --> SHOW["goh config / goh auth list<br/>(redacted)"]
 ```
 
----
+## Terminal UI structure
 
-## 5. Engineering process
-
-```mermaid
-flowchart LR
-    P[Pick a gap from the backlog<br/>or compatibility matrix] --> I[Implement + tests]
-    I --> G1[gofmt + vet<br/>macOS & Windows]
-    G1 --> G2[race test suite]
-    G2 --> G3[acceptance + PTY + setup + ACP]
-    G3 --> D[CHANGELOG · VERIFICATION · PROGRESS]
-    D --> C[Commit + push]
-    C --> CI[Native CI: Linux / macOS / Windows]
-    C --> INS[Install bin/goh locally]
-```
-
-Evidence for each RC is in `docs/VERIFICATION.md`. Recovery gaps by area are tracked in
-`docs/END_TO_END_AUDIT.md`.
-
----
-
-## 6. Known gaps and open decisions
-
-| Area | Status |
-| --- | --- |
-| **Release** | Tags `v*` publish through `.github/workflows/release.yml`; installers and `goh upgrade` verify `SHA256SUMS`. Binaries are not code-signed or notarized. |
-| **Credentials** | Multiple ChatGPT accounts are not done. Claude Pro/Max subscription sign-in is not offered (Anthropic does not permit it for third-party tools); Claude uses Console API keys. The Linux Secret Service path depends on `secret-tool` being installed. |
-| **Plugins** | Custom tool plugins that run repository code: not done (security decision). |
-| **Sharing** | Session share/upload: not done (it would upload conversations). |
-| **MCP OAuth** | Not done; needs a real OAuth MCP server to test against. |
-| **TUI ↔ server** | `goh attach` (RC175) runs prompts on a local `goh serve`; operations that write the session locally are refused while attached. Remote (non-loopback) servers are out of scope. |
-| **Live-only checks** | The ChatGPT path is exercised by live benchmark runs (`docs/bench/`). Anthropic extended thinking and real multi-provider failover have fixture tests only. |
-| **Sandbox** | Linux Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can); documented limit. |
+The chat view is one Bubble Tea program. The command palette, theme, changes, copy, jobs,
+timeline and approval views are overlays inside it. The provider manager, connect, model,
+settings and session-picker dialogs currently run as separate full-screen programs between chat
+sessions, drawn over
+a snapshot of the chat; moving them into the chat program is the next planned UI change
+(see [status](development/STATUS.md)). Every program runs through `runProgram`
+(`internal/tui/program.go`), which closes a screen only once typing pauses and replays keys
+typed meanwhile into the next screen, so fast typing survives a change of screen.

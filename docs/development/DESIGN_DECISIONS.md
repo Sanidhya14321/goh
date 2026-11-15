@@ -1,29 +1,13 @@
-# Component-by-Component Completion Plan
+# Design decisions
 
-The goal is a harness that is complete and ready to benchmark with `gpt-6.1-sol` over the ChatGPT sign-in.
-Each component is reviewed against research papers, open-source harnesses and articles. Findings become
-tested changes, one release at a time. Status: ⬜ not started · 🔄 in progress · ✅ done.
+Why GoHarness works the way it does, component by component. Each section lists the sources that
+were weighed (papers, open-source harnesses, articles), what was chosen, and the release that
+delivered it. Vendor figures are marked as such and should be treated with caution.
 
-| # | Component | Code | Status |
-| --- | --- | --- | --- |
-| C1 | Tool calling and file editing (edit format, matching, errors) | `internal/tools` | ✅ RC146 |
-| C2 | Agent loop and control (planning, stopping, error recovery, verification) | `internal/runtime` | ✅ RC140–147 |
-| C3 | Context and memory (compaction, masking, pinned state, project memory) | `internal/runtime`, `internal/memory` | ✅ RC138–148 |
-| C4 | Repository understanding (repo map, search, LSP) | `internal/tools/repomap.go`, `internal/lspclient` | ✅ RC149 |
-| C5 | Providers and model routing (Responses/ChatGPT, retries, caching) | `internal/provider`, `internal/core` | ✅ RC139–150 (ChatGPT path exercised live by the RC155–162 benchmark runs) |
-| C6 | Safety and permissions (approvals, sandbox, hooks, injection) | `internal/runtime`, `internal/sandbox` | ✅ RC130–144 |
-| C7 | Sessions and durability (journal, resume, snapshots) | `internal/session`, `internal/projectsnap` | ✅ (TUI restore moved to C10) |
-| C8 | Subagents and orchestration | `internal/runtime/subagents.go` | ✅ RC145 (decision recorded) |
-| C9 | Integrations (MCP, web, formatters) | `internal/mcpclient`, `internal/webfetch` | ✅ RC135–151 |
-| C10 | Interfaces (CLI headless mode, TUI, ACP, API) | `cmd/harness`, `internal/tui` | ✅ RC152–155 |
-| C11 | Benchmark runner (pinned tasks, clean regrading, metrics) | `cmd/bench` (new) | ✅ RC153; live runs RC155–162 (`docs/bench/`) |
+For the code layout see [ARCHITECTURE.md](../ARCHITECTURE.md); for measured results see
+[benchmarks](../benchmarks/README.md).
 
-## Findings log
-
-Each component section records the sources consulted, the improvements chosen, and the release that
-delivered them.
-
-### C1 Tool calling and file editing (RC146)
+## Tool calling and file editing (RC146)
 
 Sources:
 - [Pre-action verification for LLM agents (arXiv:2609.11957)](https://arxiv.org/pdf/2609.11957): fuzzy search/replace applies 97.7% of stressed edits against 17.6% for exact matching, but silently misapplies about 2.3% unless ambiguity is refused.
@@ -34,7 +18,7 @@ Sources:
 
 Chosen: keep exact matching and hash guards; add a whitespace-tolerant fallback that requires a unique match, plus precise error locations. Line-anchored edits were built as an opt-in (RC159) and A/B tested: gpt-6.1-sol used them once in 13 edits with no change in results, so they stay off.
 
-### C2 Agent loop and control (RC140–RC147)
+## Agent loop and control (RC140–RC147)
 
 Sources:
 - [ECLoop: evidence-conditioned execution (arXiv:2607.28815)](https://arxiv.org/pdf/2607.28815): gating commitment on task evidence adds 4.8–11.8 points of Pass@1 on SWE-bench Verified and saves tokens.
@@ -46,11 +30,11 @@ Chosen:
 - run outcomes (RC140);
 - the user-configured verify/repair cycle (RC144);
 - shared budgets (RC145);
-- a one-time evidence reminder when changes are unchecked (RC147), switchable for A/B tests in C11.
+- a one-time evidence reminder when changes are unchecked (RC147), switchable for benchmark A/B tests.
 
 Found and fixed along the way: automatic messages were counted as user turns.
 
-### C3 Context and memory (RC138–RC148)
+## Context and memory (RC138–RC148)
 
 Sources:
 - [The Complexity Trap (arXiv:2508.21433)](https://arxiv.org/abs/2508.21433): observation masking matches summarization's solve rate at about half the cost; the best masking window kept the last 10 observations; a hybrid saves a further 7–11%.
@@ -66,7 +50,7 @@ Chosen:
 
 Memory writes stay user-initiated only, by design.
 
-### C4 Repository understanding (RC149)
+## Repository understanding (RC149)
 
 Sources:
 - [Repository map pattern](https://www.agentpatterns.ai/context-engineering/repository-map-pattern/): Aider's tree-sitter and PageRank map; Claude Code chose agentic search instead.
@@ -76,9 +60,9 @@ Sources:
 
 The evidence is thin and largely vendor-run. Gains concentrate in multi-file changes; small repositories do fine with grep.
 
-Chosen: keep agentic search (grep, glob, read and LSP) as the primary path, and extend the cheap declaration map to the common benchmark languages. Not chosen: a persistent graph index or PageRank ranking without evidence. Revisit after C11 measures time-to-right-file.
+Chosen: keep agentic search (grep, glob, read and LSP) as the primary path, and extend the cheap declaration map to the common benchmark languages. Not chosen: a persistent graph index or PageRank ranking without evidence. Revisit if benchmarks show time spent finding the right file.
 
-### C5 Providers and routing (RC131, RC139, RC143, RC150)
+## Providers and routing (RC131, RC139, RC143, RC150)
 
 Sources:
 - [Responses API reference](https://developers.openai.com/api/reference/python/resources/responses/methods/create): `prompt_cache_key` groups requests for cache hits; `include: reasoning.encrypted_content` keeps stateless reasoning.
@@ -89,7 +73,7 @@ Sources:
 
 Already in place: stateless Responses with encrypted reasoning passed back. Added: Anthropic breakpoints (RC131), correct usage attribution (RC139), current effort levels and adaptive thinking (RC143), and a per-session `prompt_cache_key` with a safe fallback (RC150).
 
-### C6 Safety and permissions (RC130–RC144)
+## Safety and permissions (RC130–RC144)
 
 Sources:
 - [Spotlighting (arXiv:2403.14720)](https://arxiv.org/pdf/2403.14720): datamarking beats delimiting against simple attacks, and randomized markers are needed.
@@ -99,23 +83,23 @@ Sources:
 
 Decision: enforcement independent of the model is the primary defence. That means the environment filter, sandbox, deny rules on every path, no `.git` writes, private-address refusal, scoped grants and fail-closed hooks, all exercised by the adversarial canary (RC144). Datamarking is **not** applied to file content, because it rewrites whitespace in code the model must edit exactly. External web and MCP results already carry explicit untrusted labels.
 
-### C7 Sessions and durability
+## Sessions and durability
 
-Reviewed: every journal record is `fsync`ed before returning, damaged journals can be salvaged, and recovery is journal-derived (RC138). No change needed. The remaining item, restoring whole-project snapshots from the TUI, is tracked under C10.
+Reviewed: every journal record is `fsync`ed before returning, damaged journals can be salvaged, and recovery is journal-derived (RC138). No change needed. `/snapshots` in the TUI (RC155) lists project snapshots with exact restore commands.
 
-### C8 Subagents
+## Subagents
 
-Decision: keep children sequential and in the foreground, with shared tool-call and time budgets (RC145) and no nested delegation. The public evidence on multi-agent systems shows breadth-first research gains at a large token cost, and parallel editing agents conflict on shared files. Parallel read-only exploration is a candidate for a C11 A/B test, not a default.
+Decision: keep children sequential and in the foreground, with shared tool-call and time budgets (RC145) and no nested delegation. The public evidence on multi-agent systems shows breadth-first research gains at a large token cost, and parallel editing agents conflict on shared files. Parallel read-only exploration is a candidate for a benchmark A/B test, not a default.
 
-### C9 Integrations (RC135, RC137, RC151)
+## Integrations (RC135, RC137, RC151)
 
 MCP has reconnect (RC135), duplicate-key and validated-object safety (RC137), completed-but-oversized results (RC140) and resources (RC151). MCP prompts as `/mcp:<server>:<prompt>` (RC160). Still open: OAuth, which needs a real OAuth server.
 
-### C10 Interfaces (RC152)
+## Interfaces (RC152)
 
-Headless `goh run` is benchmark-ready: per-run verify and budget flags, `--allow all`, and distinct exit codes. RC155 adds `/snapshots` in the TUI (listing plus exact restore commands).
+Headless `goh run` is benchmark-ready: per-run verify and budget flags, `--allow all`, and distinct exit codes.
 
-### C11 Benchmark runner (RC153)
+## Benchmark runner (RC153)
 
 Sources:
 - [SWE-bench harness reference](https://swebench.com/SWE-bench/reference/harness): isolated environments, hidden tests, resolved means FAIL_TO_PASS plus PASS_TO_PASS.
@@ -123,12 +107,4 @@ Sources:
 - [Position: coding benchmarks are misaligned (arXiv:2606.17799)](https://arxiv.org/html/2606.17799): a single pass rate hides process quality.
 - From the review: DeepSWE, Terminal-Bench 2.1 and SWE-Bench Pro on verifier fixes and time budgets.
 
-Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The starter suite is small (8 tasks); add 20–30 harder tasks before drawing conclusions.
-
-## Ready to benchmark
-
-Every component is reviewed and improved. Next: `bin/goh-bench --goh bin/goh --attempts 3 --arm "base=" --arm "nocheck=--completion-check=false"` with the ChatGPT sign-in (`gpt-6.1-sol`). Candidate A/B arms, each a single change:
-- the completion check on or off;
-- `--reasoning-effort` levels;
-- `--verify` against no `--verify`;
-- a hashline edit tool (C1, not built).
+Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The suite has since grown to 22 basic, 14 hard and 19 real-project tasks; results are in [benchmarks](../benchmarks/README.md).

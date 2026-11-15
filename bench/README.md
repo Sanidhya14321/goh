@@ -82,7 +82,7 @@ Each task plants one realistic bug and describes only its **symptom**, like a bu
 
 Mined with `bench/tools/mine_go.py` from real bug-fix commits in eight Go libraries (`spf13/cast`,
 `tidwall/gjson`, `tidwall/sjson`, `pelletier/go-toml`, `BurntSushi/toml`, `dustin/go-humanize`,
-`gorilla/mux`, `Masterminds/semver`). Results: [`docs/bench/real-rc162.md`](../docs/bench/real-rc162.md).
+`gorilla/mux`, `Masterminds/semver`). Results: [`docs/benchmarks/real-rc162.md`](../docs/benchmarks/real-rc162.md).
 The miner and these tasks run third-party test code, so run them only inside a container or VM.
 
 Their `hidden/` and `solution/` files are copied from the upstream projects and stay under the upstream

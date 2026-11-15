@@ -1,6 +1,6 @@
 # Dependency inventory
 
-The six direct dependencies (`bubbletea/v2`, `x/ansi`, the MCP Go SDK, `jsonschema/v6`, `x/net`, `x/sys`) and the complete selected module graph are pinned in `go.mod` and verified through `go.sum`. The table includes test-only and graph-only modules; “host CLI” means the module appears in `go list -deps ./cmd/harness` on macOS ARM64. It does not assert that every file or symbol ships in a binary.
+The seven direct dependencies (`bubbletea/v2`, `x/ansi`, the MCP Go SDK, `jsonschema/v6`, `x/net`, `x/sys`, `x/text`) and the complete selected module graph are pinned in `go.mod` and verified through `go.sum`. The table includes test-only and graph-only modules; “host CLI” means the module appears in `go list -deps ./cmd/harness` on macOS ARM64. It does not assert that every file or symbol ships in a binary.
 
 Exact upstream license, attribution and patent files are preserved under `licenses/`. `licenses/inventory.json` records paths and SHA-256 hashes. Original project material uses Apache-2.0 in `LICENSE`; third-party notices retain their original terms.
 

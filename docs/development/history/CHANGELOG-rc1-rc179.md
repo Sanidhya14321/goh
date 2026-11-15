@@ -1,29 +1,6 @@
-# Changelog
+# Changelog: rc.1 – rc.179
 
-GoHarness release candidates in chronological order. Dates are commit dates.
-Each entry lists user-visible changes; evidence for each is in
-[VERIFICATION.md](VERIFICATION.md). No stable release has been published yet.
-
-## Unreleased
-
-- **Multiple providers, and a provider manager:** every connected provider, ChatGPT included, is saved under a name with its own key. Before, each setup replaced the last, and a ChatGPT choice lasted only for that chat. `/providers` (also `p` on the status screen, `goh setup` and `goh providers`) lists them with model, host and key state. Enter switches new chats to a provider; `m` changes its model from the provider's list, `k` replaces the key after checking it (or reauthorizes or switches ChatGPT), `t` tests the connection, `e` edits a custom provider, and `d` twice removes one with its saved key. `goh providers list|use|remove` does the same without the UI. A provider configured by hand at the top level of the settings appears as `current` and gets a name the first time it is changed.
-- **Custom providers:** one form with name, URL, protocol (a ←/→ selector with an explanation of the selected protocol), key, model, context window and key variable. The old "URL type" field is gone: a URL ending in `/chat/completions`, `/responses` or `/messages` is used exactly. Ctrl+S checks the URL and key against the model list before saving. A blank model is picked from that list, and a provider without one can still be saved with a typed model.
-- **`/connect`** goes straight to adding a provider; `/providers` manages them. Error hints now point to `/providers` (k to replace a rejected key, t to test).
-- Settings forms gained choice fields and per-field help, wrapped at word boundaries.
-- **Use a different ChatGPT account** (`/connect`, or `goh auth switch`): signs in to another ChatGPT account or workspace with a new registration and host identity. Before this, reauthorizing reused the first registration, which OpenAI limits to the workspace it was made in, so another account failed with `3p_login_workspace_scope_denied`. The old sign-in is replaced, and its renewal token revoked, only after the new sign-in succeeds.
-- ChatGPT sign-in says which account a reauthorization needs, tells you to press Ctrl+C if OpenAI shows an error page, and when cancelled names `goh auth switch` as the way out.
-- **`/connect` provider catalog:** Anthropic (Claude API), OpenAI API, OpenRouter, Google Gemini, Groq and Ollama join Continue with ChatGPT. Choosing one opens its API key page, takes the key, and checks it with the provider before saving. Models are then listed for that key, without non-chat models, and context windows are taken from the list when reported. The manual form remains for other URLs.
-- **Key checks:** 401 and 403 responses, Google's 400 "Please pass a valid API key", and OpenRouter's `/key` endpoint (its model list is public) all report "did not accept this key" instead of a raw HTTP status. A key is sent only to its provider's own host, with no redirects.
-- `GOH_NO_BROWSER=1`, or an SSH session, shows sign-in and key links instead of opening a browser. On Windows the browser is now opened too.
-- Claude Pro and Max subscriptions are not offered: Anthropic does not permit subscription sign-in in third-party tools.
-
-## 1.0.0-rc.180 — 2026-11-12
-
-First published release.
-
-- **`goh upgrade`:** installs the latest release over the running `goh`. It checks the binary's single entry in `SHA256SUMS` and runs the new binary before replacing anything; any failure leaves the installation unchanged. `--check` only looks, and `--version TAG` picks a release. Downloads use HTTPS, or plain HTTP only to a loopback address. On Windows the previous executable is kept as `goh.exe.old`.
-- **Release workflow:** pushing a `v*` tag runs vet and the tests, builds all six platforms with `make release`, and publishes the release. The binaries, `SHA256SUMS`, both installers, the notices and `licenses.tar.gz` are attached. The notes come from this changelog.
-- The repository history no longer contains the 19 MB `harness` build output committed in rc.170 and removed in rc.174.
+Release candidates built before the first published release, newest first. Current entries are in the [changelog](../../../CHANGELOG.md).
 
 ## 1.0.0-rc.179 — 2026-11-12
 
