@@ -132,6 +132,15 @@ func restrict(p Policy) error {
 				return err
 			}
 		}
+		// The folders on the way to a protected one (/, /home, $HOME) stay
+		// listable, so `ls ~` and tools that scan home work. Landlock rules
+		// apply to a whole hierarchy, so names inside the protected folders
+		// become listable too; their contents stay unreadable.
+		for _, d := range listableAncestors(p.Protected) {
+			if err := add(d, unix.LANDLOCK_ACCESS_FS_READ_DIR); err != nil {
+				return err
+			}
+		}
 	}
 	if err := unix.Prctl(unix.PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0); err != nil {
 		return err
@@ -173,6 +182,25 @@ func readableAround(protected []string) []string {
 	}
 	sort.Strings(grant)
 	return grant
+}
+
+// listableAncestors returns the folders that contain a protected folder.
+func listableAncestors(protected []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, p := range protected {
+		for d := filepath.Dir(filepath.Clean(p)); ; d = filepath.Dir(d) {
+			if !seen[d] && !isProtected(d, protected) {
+				seen[d] = true
+				out = append(out, d)
+			}
+			if d == "/" {
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 func isProtected(dir string, protected []string) bool {

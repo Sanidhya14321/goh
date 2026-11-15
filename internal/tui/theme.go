@@ -8,30 +8,41 @@ import (
 
 // palette holds trusted RGB triples ("r;g;b"). Only these values reach the
 // terminal as color sequences; theme names select from this fixed table.
+// An empty background, panel or foreground keeps the terminal's own color.
 type palette struct {
 	background, panel, foreground, muted, accent, blue, green, red string
 }
 
 var themes = map[string]palette{
+	// The default draws on the terminal's own background and text color, so
+	// the screen always matches the window (margins included) in light and
+	// dark terminals; accents are mid-tones readable on both.
+	"terminal":      {"", "", "", "128;128;128", "214;120;60", "60;130;230", "40;160;80", "210;70;80"},
 	"dark":          {"10;10;10", "24;24;24", "230;230;230", "132;132;132", "250;178;131", "92;156;245", "127;216;143", "224;108;117"},
 	"light":         {"250;250;250", "235;235;235", "28;28;28", "110;110;110", "176;88;24", "28;94;196", "26;127;55", "190;40;50"},
 	"high-contrast": {"0;0;0", "28;28;28", "255;255;255", "200;200;200", "255;200;0", "110;180;255", "90;255;120", "255;90;90"},
 }
 
 var themeDescriptions = map[string]string{
+	"terminal":      "Your terminal's own colors (default)",
 	"dark":          "Default dark palette",
 	"light":         "Dark text on a light background",
 	"high-contrast": "Maximum contrast on black",
 }
 
 // currentTheme is the applied theme name.
-var currentTheme = "dark"
+var currentTheme = defaultTheme
+
+const defaultTheme = "terminal"
+
+// onAccent is the text color on accent-highlighted rows (the selection).
+var onAccent = "16;16;16"
 
 // applyTheme sets the palette. Unknown names keep the current palette and
 // report false; configuration validation rejects them earlier.
 func applyTheme(name string) bool {
 	if name == "" {
-		name = "dark"
+		name = defaultTheme
 	}
 	p, ok := themes[name]
 	if !ok {
@@ -39,6 +50,10 @@ func applyTheme(name string) bool {
 	}
 	background, panel, foreground, muted = p.background, p.panel, p.foreground, p.muted
 	accent, blue, green, red = p.accent, p.blue, p.green, p.red
+	onAccent = p.background
+	if onAccent == "" {
+		onAccent = "16;16;16"
+	}
 	currentTheme = name
 	return true
 }
@@ -57,7 +72,7 @@ func init() {
 // selection previews nothing until Enter, so Esc always restores the view.
 func (m *model) openThemePicker() {
 	options := []Option{}
-	for _, name := range []string{"dark", "light", "high-contrast"} {
+	for _, name := range []string{"terminal", "dark", "light", "high-contrast"} {
 		options = append(options, Option{Value: name, Label: name, Description: themeDescriptions[name]})
 	}
 	m.themePicker = &optionPicker{title: "Theme", current: currentTheme, options: options, footer: "  Enter apply for this session  Esc back · set \"theme\" in config to keep it"}

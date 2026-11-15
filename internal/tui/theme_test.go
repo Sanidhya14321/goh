@@ -10,7 +10,7 @@ import (
 )
 
 func TestThemePickerAppliesTrustedPalette(t *testing.T) {
-	t.Cleanup(func() { applyTheme("dark") })
+	t.Cleanup(func() { applyTheme(defaultTheme) })
 	m := &model{width: 60, height: 12, status: "ready", log: "\nYou: hi\n"}
 	before := m.View().Content
 	leader(m, 't')
@@ -18,7 +18,7 @@ func TestThemePickerAppliesTrustedPalette(t *testing.T) {
 		t.Fatal("leader t did not open the theme picker")
 	}
 	m.Update(tea.KeyPressMsg{Code: tea.KeyEsc})
-	if m.themePicker != nil || currentTheme != "dark" {
+	if m.themePicker != nil || currentTheme != defaultTheme {
 		t.Fatal("Esc must close without changing the theme")
 	}
 	m.openThemePicker()
@@ -50,7 +50,7 @@ func TestThemeConfigValidation(t *testing.T) {
 	if err := c.Validate(); err == nil || !strings.Contains(err.Error(), "unknown theme") {
 		t.Fatal("unknown theme accepted:", err)
 	}
-	if applyTheme("neon") || currentTheme != "dark" {
+	if applyTheme("neon") || currentTheme != defaultTheme {
 		t.Fatal("unknown theme must not change the palette")
 	}
 }

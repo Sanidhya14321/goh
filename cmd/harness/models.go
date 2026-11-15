@@ -45,7 +45,10 @@ func listModels(args []string) error {
 	}
 	endpoint, err := c.ProviderEndpoint()
 	if err != nil {
-		return fmt.Errorf("no provider configured (%w); run goh setup", err)
+		if errors.Is(err, core.ErrNoProvider) {
+			return err
+		}
+		return fmt.Errorf("provider configuration: %w", err)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -53,8 +56,17 @@ func listModels(args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "%d models from %s (current: %s)\n", len(ids), originOf(endpoint), c.Model)
+	// Known providers also list models that cannot chat (speech, safety
+	// classifiers, embeddings): show only the ones chat can use.
+	p, _ := core.PresetForRoute(c.EffectiveProtocol(), c.BaseURL)
+	var chat []string
 	for _, id := range ids {
+		if name, ok := p.ChatModel(id); ok {
+			chat = append(chat, name)
+		}
+	}
+	fmt.Fprintf(os.Stderr, "%d chat models from %s (current: %s)\n", len(chat), originOf(endpoint), c.Model)
+	for _, id := range chat {
 		fmt.Println(id)
 	}
 	return nil

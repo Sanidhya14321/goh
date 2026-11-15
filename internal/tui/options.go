@@ -19,6 +19,7 @@ type optionPicker struct {
 	chosen                bool
 	backdrop              string
 	footer                string
+	notice                string // shown above the footer, e.g. why the last step failed
 }
 
 func (m *optionPicker) matches() []Option {
@@ -94,10 +95,19 @@ func (m *optionPicker) View() tea.View {
 	if width < 1 || height < 1 {
 		return blankView()
 	}
-	boxWidth := min(68, max(1, width-4))
+	options := m.matches()
+	// Wide enough for the longest option with its description (so they
+	// are not cut mid-word), within the terminal and a readable maximum.
+	labelWidth, want := 0, 68
+	for _, o := range m.options {
+		labelWidth = max(labelWidth, ansi.StringWidth(o.Label))
+	}
+	for _, o := range m.options {
+		want = max(want, labelWidth+ansi.StringWidth(o.Description)+16)
+	}
+	boxWidth := min(min(want, 100), max(1, width-4))
 	left := max(0, (width-boxWidth)/2)
 	padding := strings.Repeat(" ", left)
-	options := m.matches()
 	visible := max(1, height-6)
 	top := max(0, (height-min(len(options), visible)-5)/2)
 	rows := make([]string, top)
@@ -111,14 +121,15 @@ func (m *optionPicker) View() tea.View {
 		option := options[i]
 		mark, color, bg := "  ", muted, panel
 		if i == m.index {
-			mark, color, bg = "› ", background, accent
+			mark, color, bg = "› ", onAccent, accent
 		}
 		label := option.Label
+		if option.Description != "" {
+			// Descriptions line up in one column after the labels.
+			label += strings.Repeat(" ", max(0, labelWidth-ansi.StringWidth(option.Label))) + "  " + option.Description
+		}
 		if option.Value == m.current {
 			label += "  ● current"
-		}
-		if option.Description != "" {
-			label += "  " + option.Description
 		}
 		rows = append(rows, padding+cell(mark+label, boxWidth, color, bg))
 	}
@@ -129,8 +140,13 @@ func (m *optionPicker) View() tea.View {
 	if footer == "" {
 		footer = "  ↑/↓ select  Enter apply  Esc back to chat"
 	}
-	rows = append(rows, padding+cell("", boxWidth, foreground, panel),
-		padding+cell(footer, boxWidth, muted, panel))
+	rows = append(rows, padding+cell("", boxWidth, foreground, panel))
+	if m.notice != "" {
+		for _, line := range wordWrap(m.notice, boxWidth-4) {
+			rows = append(rows, padding+cell("  "+line, boxWidth, red, panel))
+		}
+	}
+	rows = append(rows, padding+cell("  "+fitHints(strings.TrimLeft(footer, " "), boxWidth-2), boxWidth, muted, panel))
 	return overlayView(m.backdrop, rows, left, top, width, height)
 }
 
@@ -157,14 +173,29 @@ func overlayView(backdrop string, rows []string, left, top, width, height int) t
 }
 
 func SelectOption(title, current string, options []Option, backdrop string) (string, bool, error) {
-	m := &optionPicker{title: title, current: current, options: options, backdrop: backdrop, width: 80, height: 24}
+	return SelectOptionWith(title, current, options, backdrop, "", "")
+}
+
+// SelectOptionWith is SelectOption with a notice (shown in red above the
+// footer) and a custom footer; empty values use the defaults.
+func SelectOptionWith(title, current string, options []Option, backdrop, notice, footer string) (string, bool, error) {
+	return selectOption(title, current, current, options, backdrop, notice, footer)
+}
+
+// SelectOptionFrom opens the picker on start without marking it current.
+func SelectOptionFrom(title, start string, options []Option, backdrop, notice, footer string) (string, bool, error) {
+	return selectOption(title, "", start, options, backdrop, notice, footer)
+}
+
+func selectOption(title, current, start string, options []Option, backdrop, notice, footer string) (string, bool, error) {
+	m := &optionPicker{title: title, current: current, options: options, backdrop: backdrop, width: 80, height: 24, notice: notice, footer: footer}
 	for i, option := range options {
-		if option.Value == current {
+		if option.Value == start {
 			m.index = i
 			break
 		}
 	}
-	_, err := tea.NewProgram(m).Run()
+	err := runProgram(m)
 	return m.selected, m.chosen, err
 }
 

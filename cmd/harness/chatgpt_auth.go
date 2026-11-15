@@ -92,7 +92,9 @@ func chatGPTAuth(args []string) error {
 		}
 		return nil
 	case "logout":
-		if err := core.LogoutChatGPT(ctx); err != nil {
+		if err := core.LogoutChatGPT(ctx); errors.Is(err, core.ErrChatGPTRevoke) {
+			fmt.Fprintln(os.Stderr, "Warning:", err)
+		} else if err != nil {
 			return err
 		}
 		fmt.Println("ChatGPT authorization cleared.")

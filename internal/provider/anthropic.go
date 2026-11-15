@@ -86,6 +86,10 @@ func anthropicString(s string, max int, nonempty bool) bool {
 	}
 	return true
 }
+
+// anthropicWireID is the tool_use id form the Messages API accepts.
+var anthropicWireID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
 func anthropicID(s string) bool {
 	if !anthropicString(s, 512, true) {
 		return false
@@ -277,6 +281,11 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 	}
 	pending := map[string]bool{}
 	ids := map[string]bool{}
+	// wire maps a call's stored id to the id sent. History from other
+	// providers can repeat ids across turns ("call_0") or use characters the
+	// Messages API refuses ("functions.read_file:0"); those calls get a
+	// stable generated id so switching or failing over keeps working.
+	wire := map[string]string{}
 	started := false
 	for _, m := range messages {
 		if !anthropicString(m.Content, anthropicMaxText, false) {
@@ -344,15 +353,23 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 				blocks = append(blocks, anthropicText{Type: "text", Text: m.Content})
 			}
 			for _, c := range m.ToolCalls {
-				if c.Type != "function" || !anthropicID(c.ID) || ids[c.ID] || !anthropicToolName.MatchString(c.Function.Name) || !anthropicObject([]byte(c.Function.Arguments)) {
+				if c.Type != "function" || !anthropicID(c.ID) || pending[c.ID] || !anthropicToolName.MatchString(c.Function.Name) || !anthropicObject([]byte(c.Function.Arguments)) {
 					return invalid()
 				}
-				if !account(c.ID) || !account(c.Function.Name) || !account(c.Function.Arguments) {
+				id := c.ID
+				if !anthropicWireID.MatchString(id) || ids[id] {
+					id = fmt.Sprintf("toolu_goh_%d", len(ids))
+					for ids[id] {
+						id += "_"
+					}
+				}
+				if !account(id) || !account(c.Function.Name) || !account(c.Function.Arguments) {
 					return invalid()
 				}
-				ids[c.ID] = true
+				ids[id] = true
+				wire[c.ID] = id
 				pending[c.ID] = true
-				blocks = append(blocks, anthropicToolUse{Type: "tool_use", ID: c.ID, Name: c.Function.Name, Input: json.RawMessage(c.Function.Arguments)})
+				blocks = append(blocks, anthropicToolUse{Type: "tool_use", ID: id, Name: c.Function.Name, Input: json.RawMessage(c.Function.Arguments)})
 			}
 			if len(blocks) == 0 {
 				return invalid()
@@ -368,7 +385,7 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 				Error bool `json:"error"`
 			}
 			isError := json.Unmarshal([]byte(m.Content), &envelope) == nil && envelope.Error
-			appendMessage("user", []any{anthropicToolResult{Type: "tool_result", ID: m.ToolCallID, Content: m.Content, IsError: isError}})
+			appendMessage("user", []any{anthropicToolResult{Type: "tool_result", ID: wire[m.ToolCallID], Content: m.Content, IsError: isError}})
 		default:
 			return invalid()
 		}

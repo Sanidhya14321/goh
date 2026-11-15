@@ -31,6 +31,12 @@ type Policy struct {
 	// writable folder. Enforced on macOS; Landlock can only add access, so
 	// Linux cannot hide a file inside a writable folder.
 	DenyFiles []string `json:"deny_files,omitempty"`
+	// ReadOnly are paths that may be read but not written even inside a
+	// writable folder, such as the project's .git/hooks and .git/config,
+	// which run code on the user's next git command outside the sandbox.
+	// Enforced on macOS; Landlock cannot remove access inside a writable
+	// folder, so Linux does not.
+	ReadOnly []string `json:"read_only,omitempty"`
 	// Container, when set, runs the command in this running Docker
 	// container instead (see core.SandboxConfig.Container).
 	Container string `json:"container,omitempty"`
@@ -60,6 +66,11 @@ func Wrap(cmd *exec.Cmd, p *Policy) error {
 	for _, d := range p.Protected {
 		if r := resolve(d); r != "" {
 			clean.Protected = append(clean.Protected, r)
+		}
+	}
+	for _, d := range p.ReadOnly {
+		if r := resolve(d); r != "" {
+			clean.ReadOnly = append(clean.ReadOnly, r)
 		}
 	}
 	return wrap(cmd, clean)

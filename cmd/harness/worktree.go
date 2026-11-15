@@ -25,14 +25,14 @@ func runWorktree(args []string, open func() error) error {
 	if err != nil {
 		return errors.New("goh worktree needs git on PATH")
 	}
+	out, err := exec.Command(git, "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		return errors.New("goh worktree must run inside a Git repository")
+	}
 	if args[0] == "list" {
 		cmd := exec.Command(git, "worktree", "list")
 		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
 		return cmd.Run()
-	}
-	out, err := exec.Command(git, "rev-parse", "--show-toplevel").Output()
-	if err != nil {
-		return errors.New("goh worktree must run inside a Git repository")
 	}
 	root := filepath.Clean(strings.TrimSpace(string(out)))
 	name := args[0]

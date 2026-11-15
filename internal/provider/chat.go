@@ -1,4 +1,6 @@
-// Package provider implements the deliberately bounded Chat Completions subset.
+// Package provider adapts model APIs to one streaming interface: OpenAI Chat
+// Completions, OpenAI Responses (including the ChatGPT sign-in) and Anthropic
+// Messages. Each adapter implements only the subset the runtime needs.
 package provider
 
 import (
@@ -310,8 +312,10 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 				if part.Type != "" && part.Type != "function" {
 					return errors.New("unsupported tool type")
 				}
-				call.ID += part.ID
-				call.Function.Name += part.Function.Name
+				// Some compatible servers repeat the whole id and name in every
+				// chunk instead of sending them once; a repeat is not a new part.
+				call.ID = joinPart(call.ID, part.ID)
+				call.Function.Name = joinPart(call.Function.Name, part.Function.Name)
 				call.Function.Arguments += part.Function.Arguments
 				if len(call.Function.Arguments) > 1<<20 || len(call.ID) > 512 || len(call.Function.Name) > 256 {
 					return errors.New("tool payload limit")
@@ -402,4 +406,13 @@ type chatUsage struct {
 	Details *struct {
 		Cached int `json:"cached_tokens"`
 	} `json:"prompt_tokens_details"`
+}
+
+// joinPart adds a streamed id or name fragment, ignoring a chunk that repeats
+// the value already received.
+func joinPart(have, part string) string {
+	if part == "" || part == have {
+		return have
+	}
+	return have + part
 }

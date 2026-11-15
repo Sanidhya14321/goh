@@ -41,7 +41,7 @@ var ProviderCatalog = []ProviderPreset{
 		ModelPrefix: "models/", Skip: []string{"embedding", "aqa", "imagen", "veo", "tts", "image", "audio"}},
 	{ID: "groq", Name: "Groq", Description: "API key from GroqCloud",
 		Protocol: "chat_completions", BaseURL: "https://api.groq.com/openai/v1", KeyURL: "https://console.groq.com/keys", Window: 32768,
-		Skip: []string{"whisper", "tts", "guard", "playai"}},
+		Skip: []string{"whisper", "tts", "guard", "playai", "orpheus"}},
 	{ID: "ollama", Name: "Ollama (local)", Description: "Models running on this computer; no key",
 		Protocol: "chat_completions", BaseURL: "http://localhost:11434/v1", Window: 8192},
 }
@@ -54,6 +54,11 @@ func FindPreset(id string) (ProviderPreset, bool) {
 		}
 	}
 	return ProviderPreset{}, false
+}
+
+// PresetForRoute returns the catalog entry a protocol and base URL belong to.
+func PresetForRoute(protocol, address string) (ProviderPreset, bool) {
+	return FindPreset(presetFor(protocol, address))
 }
 
 // Apply routes c to the preset. Settings that belong to another provider

@@ -318,3 +318,40 @@ func TestSwitchChatGPTAccount(t *testing.T) {
 		t.Fatal("old sign-in not revoked", revoked)
 	}
 }
+
+// Signing out works offline: the local sign-in is removed even when OpenAI
+// cannot be reached to revoke it, and the caller is told so.
+func TestLogoutClearsCredentialsWhenRevokeFails(t *testing.T) {
+	isolateConfig(t)
+	var tokens chatGPTTokens
+	tokens.Scope, tokens.Access, tokens.Refresh = "openid chatgpt.tokens.use.direct", "token", "refresh"
+	if err := saveChatGPTAccount(chatGPTAccount{Tokens: tokens, ClientID: "c", Subject: "s", Model: "m", Expires: time.Now().Add(time.Hour)}); err != nil {
+		t.Fatal(err)
+	}
+	oldTransport := http.DefaultTransport
+	t.Cleanup(func() { http.DefaultTransport = oldTransport })
+	http.DefaultTransport = chatGPTTestTransport(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("offline")
+	})
+	if err := LogoutChatGPT(context.Background()); !errors.Is(err, ErrChatGPTRevoke) {
+		t.Fatalf("logout error %v, want ErrChatGPTRevoke", err)
+	}
+	if ChatGPTSignedIn() {
+		t.Fatal("sign-in kept after logout")
+	}
+}
+
+// A second updater waits for the lock instead of failing at once.
+func TestChatGPTLockWaitsForAnotherUpdater(t *testing.T) {
+	isolateConfig(t)
+	unlock, err := chatGPTLock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	go func() { time.Sleep(300 * time.Millisecond); unlock() }()
+	second, err := chatGPTLock()
+	if err != nil {
+		t.Fatalf("second updater failed instead of waiting: %v", err)
+	}
+	second()
+}

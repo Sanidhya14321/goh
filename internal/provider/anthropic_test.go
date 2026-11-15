@@ -371,3 +371,53 @@ func TestAnthropicEarlyEOFIsInterrupted(t *testing.T) {
 		t.Fatalf("err = %v, want ErrInterrupted", err)
 	}
 }
+
+// History from another provider can repeat tool-call ids across turns or use
+// characters the Messages API refuses; the request must still encode, with
+// each result paired to its own call.
+func TestEncodeAnthropicRemapsForeignToolIDs(t *testing.T) {
+	tools := []core.Tool{core.NewTool("read_file", "Read", map[string]any{"type": "object"})}
+	messages := []core.Message{
+		{Role: "user", Content: "go"},
+		{Role: "assistant", ToolCalls: []core.Call{anthroCall("call_0", "read_file", `{"path":"a"}`)}},
+		{Role: "tool", ToolCallID: "call_0", Content: "first"},
+		{Role: "assistant", ToolCalls: []core.Call{anthroCall("call_0", "read_file", `{"path":"b"}`)}},
+		{Role: "tool", ToolCallID: "call_0", Content: "second"},
+		{Role: "assistant", ToolCalls: []core.Call{anthroCall("functions.read_file:0", "read_file", `{"path":"c"}`)}},
+		{Role: "tool", ToolCallID: "functions.read_file:0", Content: "third"},
+	}
+	b, err := EncodeAnthropic(anthroConfig(), messages, tools)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var req struct {
+		Messages []struct {
+			Content []map[string]any `json:"content"`
+		} `json:"messages"`
+	}
+	if err := json.Unmarshal(b, &req); err != nil {
+		t.Fatal(err)
+	}
+	uses, results := map[string]bool{}, map[string]string{}
+	var lastUse string
+	for _, m := range req.Messages {
+		for _, block := range m.Content {
+			switch block["type"] {
+			case "tool_use":
+				id := block["id"].(string)
+				if uses[id] || !anthropicWireID.MatchString(id) {
+					t.Fatalf("bad or repeated tool_use id %q", id)
+				}
+				uses[id], lastUse = true, id
+			case "tool_result":
+				if block["tool_use_id"] != lastUse {
+					t.Fatalf("result %v not paired with %s", block, lastUse)
+				}
+				results[lastUse] = block["content"].(string)
+			}
+		}
+	}
+	if len(uses) != 3 || len(results) != 3 {
+		t.Fatalf("uses %v results %v", uses, results)
+	}
+}

@@ -50,11 +50,11 @@ jobs:
           python-version: '3.12'
       - run: make build GO=go
       - run: make acceptance GO=go
-      - run: python3 scripts/test_tui.py
-      - run: python3 scripts/test_setup.py
-      - run: python3 scripts/test_acp.py
-      - run: python3 scripts/test_attach.py
-      - run: python3 scripts/test_resume_setup.py
+      - run: python3 scripts/e2e/test_tui.py
+      - run: python3 scripts/e2e/test_setup.py
+      - run: python3 scripts/e2e/test_acp.py
+      - run: python3 scripts/e2e/test_attach.py
+      - run: python3 scripts/e2e/test_resume_setup.py
   install:
     # One-command installers against a local release-layout server, natively.
     strategy:

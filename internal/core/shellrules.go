@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -45,13 +46,13 @@ func (c Config) ValidateShellRules() error {
 // normal approval flow (including session grants) decides.
 func (c Config) ShellDecision(command string) string {
 	command = strings.TrimSpace(command)
-	for _, s := range append([]string{command}, splitShellSegments(command)...) {
+	for _, s := range denyCandidates(command, 0) {
 		if c.lastShellRule(s) == "deny" {
 			return "deny"
 		}
 	}
 	decision := c.lastShellRule(command)
-	if decision == "allow" && hasShellOperator(command) {
+	if decision == "allow" && HasShellOperator(command) {
 		return "" // not auto-allowed; the normal approval flow decides
 	}
 	return decision
@@ -67,13 +68,77 @@ func (c Config) lastShellRule(s string) string {
 	return decision
 }
 
-func hasShellOperator(s string) bool {
+// HasShellOperator reports whether s separates or redirects commands, which
+// makes it compound: such a command is never auto-allowed by a rule or
+// covered by a session approval of another command.
+func HasShellOperator(s string) bool {
 	for _, op := range shellOperators {
 		if strings.Contains(s, op) {
 			return true
 		}
 	}
 	return false
+}
+
+// commandWrappers run the command that follows them.
+var commandWrappers = map[string]bool{"command": true, "builtin": true, "exec": true, "nohup": true, "time": true,
+	"nice": true, "sudo": true, "doas": true, "env": true, "xargs": true, "timeout": true}
+
+// shells run the script given with -c.
+var shells = map[string]bool{"sh": true, "bash": true, "zsh": true, "dash": true, "ksh": true, "fish": true}
+
+// denyCandidates lists the texts a deny rule is checked against: the whole
+// command, each segment between operators, and each segment rewritten the
+// way it actually runs, so trivial re-spellings do not slip past a rule
+// such as "rm *": "/bin/rm -rf x", "command rm -rf x", "FOO=1 rm -rf x" and
+// "sh -c 'rm -rf x'" all also check as "rm -rf x". Deny rules remain a
+// guardrail on text, not a sandbox.
+func denyCandidates(command string, depth int) []string {
+	out := []string{command}
+	for _, seg := range splitShellSegments(command) {
+		out = append(out, seg)
+		words := strings.Fields(seg)
+		for len(words) > 0 && (commandWrappers[words[0]] || isAssignment(words[0])) {
+			words = words[1:]
+		}
+		if len(words) == 0 {
+			continue
+		}
+		words[0] = baseName(words[0])
+		canonical := strings.Join(words, " ")
+		out = append(out, canonical)
+		if shells[words[0]] && depth < 2 {
+			for i := 1; i+1 < len(words); i++ {
+				if words[i] == "-c" {
+					script := strings.Trim(strings.Join(words[i+1:], " "), `'"`)
+					out = append(out, denyCandidates(script, depth+1)...)
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
+// isAssignment reports a VAR=value prefix such as FOO=1 in "FOO=1 rm x".
+func isAssignment(w string) bool {
+	name, _, ok := strings.Cut(w, "=")
+	if !ok || name == "" {
+		return false
+	}
+	for i, r := range name {
+		if r != '_' && !unicode.IsLetter(r) && (i == 0 || !unicode.IsDigit(r)) {
+			return false
+		}
+	}
+	return true
+}
+
+func baseName(w string) string {
+	if i := strings.LastIndexAny(w, `/\`); i >= 0 && i+1 < len(w) {
+		return w[i+1:]
+	}
+	return w
 }
 
 func splitShellSegments(s string) []string {

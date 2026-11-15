@@ -54,6 +54,7 @@ func TestSandboxConfinesWritesReadsAndNetwork(t *testing.T) {
 echo x > ` + outside + `/escape.txt 2>/dev/null && echo ESCAPED || echo BLOCKED_WRITE
 cat ` + secret + `/token 2>/dev/null && echo LEAKED || echo BLOCKED_READ
 cat ` + outside + `/readme && echo
+ls ` + base + ` >/dev/null && echo LISTED_PARENT
 curl -s -m 5 ` + srv.URL + ` 2>/dev/null || echo BLOCKED_NET`
 	out, err := sh(t, p, project, script)
 	if err != nil && strings.Contains(err.Error(), "Landlock") {
@@ -62,7 +63,7 @@ curl -s -m 5 ` + srv.URL + ` 2>/dev/null || echo BLOCKED_NET`
 		}
 		t.Skip("kernel lacks Landlock support:", err)
 	}
-	for _, want := range []string{"WROTE_PROJECT", "BLOCKED_WRITE", "BLOCKED_READ", "public", "BLOCKED_NET"} {
+	for _, want := range []string{"WROTE_PROJECT", "BLOCKED_WRITE", "BLOCKED_READ", "public", "LISTED_PARENT", "BLOCKED_NET"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %s in sandboxed output:\n%s (err %v)", want, out, err)
 		}
@@ -79,5 +80,27 @@ curl -s -m 5 ` + srv.URL + ` 2>/dev/null || echo BLOCKED_NET`
 	p.Network = true
 	if out, _ := sh(t, p, project, "curl -s -m 5 "+srv.URL); !strings.Contains(out, "net-ok") {
 		t.Fatalf("network allowed but blocked: %s", out)
+	}
+}
+
+// Git runs hooks outside the sandbox, so a sandboxed command must not be
+// able to plant one, while the rest of .git stays writable for git itself.
+func TestSandboxReadOnlyPathsInsideProject(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("ReadOnly is enforced by Seatbelt only")
+	}
+	project := t.TempDir()
+	os.MkdirAll(filepath.Join(project, ".git", "hooks"), 0o755)
+	os.WriteFile(filepath.Join(project, ".git", "config"), []byte("[core]\n"), 0o644)
+	hooks, config := filepath.Join(project, ".git", "hooks"), filepath.Join(project, ".git", "config")
+	p := &Policy{Writable: []string{project}, ReadOnly: []string{hooks, config}}
+	out, _ := sh(t, p, project, `echo x > .git/hooks/pre-commit 2>/dev/null && echo HOOK_WRITTEN || echo HOOK_BLOCKED
+echo x >> .git/config 2>/dev/null && echo CONFIG_WRITTEN || echo CONFIG_BLOCKED
+echo x > .git/index && echo INDEX_OK
+cat .git/config`)
+	for _, want := range []string{"HOOK_BLOCKED", "CONFIG_BLOCKED", "INDEX_OK", "[core]"} {
+		if !strings.Contains(out, want) {
+			t.Fatalf("missing %s:\n%s", want, out)
+		}
 	}
 }

@@ -156,3 +156,17 @@ func TestRestoreRefusesToDeleteUnrecordedFiles(t *testing.T) {
 		t.Fatalf("cfg = %q", got)
 	}
 }
+
+func TestLinkedParentDetectsSymlinkedFolders(t *testing.T) {
+	project, outside := t.TempDir(), t.TempDir()
+	os.MkdirAll(filepath.Join(project, "real", "deep"), 0o755)
+	if err := os.Symlink(outside, filepath.Join(project, "sub")); err != nil {
+		t.Skip("symlinks unavailable:", err)
+	}
+	if !linkedParent(project, filepath.Join(project, "sub", "a.txt")) {
+		t.Fatal("symlinked parent not detected")
+	}
+	if linkedParent(project, filepath.Join(project, "real", "deep", "a.txt")) {
+		t.Fatal("plain folders reported as links")
+	}
+}

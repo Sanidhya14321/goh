@@ -1,6 +1,7 @@
-// Package mcpclient admits explicitly configured local stdio MCP servers.
-// Discovery and calls use the official SDK; no remote transports, sampling,
-// executable installation, or automatic call replay are supported.
+// Package mcpclient admits explicitly configured MCP servers, local over stdio
+// or remote over Streamable HTTP. Discovery and calls use the official SDK;
+// sampling, OAuth, executable installation and automatic call replay are not
+// supported.
 package mcpclient
 
 import (
@@ -435,7 +436,7 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 		// A new call to a server that dropped: restart it first. The call
 		// that failed earlier is never repeated.
 		if e := m.reconnect(ctx, b); e != nil {
-			return fail(fmt.Errorf("MCP server %s disconnected and could not be restarted: %w", b.server, e))
+			return fail(fmt.Errorf("MCP server %s %s: %w", b.server, core.MCPRestartFailed, e))
 		}
 		if b, e = m.get(name); e != nil {
 			return fail(e)
@@ -512,6 +513,10 @@ func (m *Manager) reconnect(ctx context.Context, b binding) error {
 			delete(m.bindings, n)
 		}
 	}
+	// The dead session's resources and prompts go too; a successful
+	// restart registers the new session's again.
+	delete(m.resourceServers, b.server)
+	delete(m.promptServers, b.server)
 	m.mu.Unlock()
 	m.dropProcess(b.process)
 	return m.connectServer(ctx, b.server)

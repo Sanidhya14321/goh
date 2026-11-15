@@ -56,7 +56,7 @@ func TestCheckRoute(t *testing.T) {
 	}
 	local := p
 	local.KeyURL, local.BaseURL = "", "http://127.0.0.1:1/v1"
-	if _, err := checkRoute(context.Background(), local.Apply(core.Config{}), "", local); err == nil || !strings.Contains(err.Error(), "not reachable") {
+	if _, err := checkRoute(context.Background(), local.Apply(core.Config{}), "", local); err == nil || !strings.Contains(err.Error(), "not running at") {
 		t.Fatal(err)
 	}
 }

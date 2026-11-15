@@ -18,10 +18,6 @@ const (
 	NonBlock = syscall.O_NONBLOCK
 )
 
-func openNoFollow(path string, flags int, perm os.FileMode) (*os.File, error) {
-	return os.OpenFile(path, flags|syscall.O_NOFOLLOW, perm)
-}
-
 // TryLock takes an exclusive, nonblocking advisory lock held until f closes.
 func TryLock(f *os.File) error {
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {

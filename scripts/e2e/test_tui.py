@@ -16,7 +16,7 @@ class ScreenBytes(bytearray):
         super().extend(data)
         self.screen.feed(data)
 
-base = pathlib.Path(__file__).resolve().parents[1]
+base = pathlib.Path(__file__).resolve().parents[2]
 reports = []
 def live_records(path):
     raw=path.read_bytes()
@@ -110,7 +110,11 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     time.sleep(.02)
             # The colour assertions expect 24-bit escapes, so pin truecolor
             # instead of inheriting the caller's terminal.
-            env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor')
+            # A private home: the run must never read or change the
+            # user's own settings, keys or sessions.
+            home=root/'home'; home.mkdir(exist_ok=True)
+            env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor', HOME=str(home), XDG_CONFIG_HOME='', XDG_STATE_HOME='', APPDATA=str(home))
+            env.pop('OPENAI_API_KEY', None); env.pop('ANTHROPIC_API_KEY', None)
             if case=='editor_handoff':
                 fake_editor=root/'fake-editor.sh'
                 fake_editor.write_text('#!/bin/sh\nprintf "%s" "$(cat "$1") rewritten in editor" > "$1"\n')

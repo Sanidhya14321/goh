@@ -126,7 +126,7 @@ func (m *providerManager) View() tea.View {
 	for i, r := range m.rows {
 		mark, fg, bg, detailFg := "  ", foreground, panel, muted
 		if i == m.index {
-			mark, fg, bg, detailFg = "› ", background, accent, background
+			mark, fg, bg, detailFg = "› ", onAccent, accent, onAccent
 			selectedLine = len(body)
 		}
 		dot := "  "
@@ -138,7 +138,7 @@ func (m *providerManager) View() tea.View {
 	}
 	mark, fg, bg := "  ", accent, panel
 	if m.onAdd() {
-		mark, fg, bg = "› ", background, accent
+		mark, fg, bg = "› ", onAccent, accent
 		selectedLine = len(body)
 	}
 	add(mark+"+ Add a provider", fg, bg)
@@ -184,6 +184,6 @@ func ManageProviders(rows []ProviderRow, selected, notice, backdrop string) (act
 	if len(rows) == 0 {
 		m.index = 0
 	}
-	_, err = tea.NewProgram(m).Run()
+	err = runProgram(m)
 	return m.action, m.name, err
 }

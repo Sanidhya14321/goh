@@ -13,9 +13,8 @@ for platform in darwin/arm64 darwin/amd64 linux/arm64 linux/amd64 windows/amd64 
       -ldflags "-s -w -X main.version=$VERSION" -o "dist/$artifact" ./cmd/harness
     set -- "$@" "$artifact"
 done
-cp LICENSE THIRD_PARTY_NOTICES README.md config.example.json docs/DEPENDENCIES.md docs/CHANGELOG.md docs/VERIFICATION.md docs/BENCHMARKS.md dist/
-cp docs/ORIGIN_LEDGER.md dist/
-cp docs/plan/specs/COMPATIBILITY_MATRIX.md dist/
+cp LICENSE THIRD_PARTY_NOTICES README.md CHANGELOG.md config.example.json dist/
+cp docs/USER_GUIDE.md docs/DEPENDENCIES.md docs/ORIGIN_LEDGER.md dist/
 cp -R licenses dist/
 cp scripts/install.sh scripts/install.ps1 dist/
 # shasum on macOS, sha256sum on Linux; identical output format.

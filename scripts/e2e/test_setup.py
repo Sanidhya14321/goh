@@ -18,7 +18,7 @@ import time
 import fcntl
 import struct
 
-binary = pathlib.Path(os.environ.get("GOH_TEST_BINARY", pathlib.Path(__file__).resolve().parents[1] / "bin/goh"))
+binary = pathlib.Path(os.environ.get("GOH_TEST_BINARY", pathlib.Path(__file__).resolve().parents[2] / "bin/goh"))
 key = "goh-test-provider-key"
 
 requests = []
@@ -146,19 +146,44 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
 
     try:
         wait_for(b"GoHarness")
-        wait_for(b"Chat setup required")
+        # An untrusted folder opens the project browser first: the folder
+        # goh started in is offered first, and is trusted once.
+        wait_for(b"Open a project")
+        os.write(master, b"\r")
+        wait_for(b"Trust this folder?")
+        os.write(master, b"y")
+        # First run opens the provider picker; "not now" leads to chat.
+        wait_for(b"Welcome")
+        trusted = json.loads((config_dir / "workspaces.json").read_text())
+        assert [f["path"] for f in trusted["folders"]] == [str(project.resolve())], trusted
+        os.write(master, b"\x1b")
+        wait_gone(b"Esc not now")
+        wait_for(b"Chat is waiting for setup")
         assert not requests
+        # A message typed before setup opens the picker and is not sent.
         os.write(master, b"Should stay blocked\r")
-        time.sleep(.1)
+        wait_for(b"GoHarness  /  Add a provider")
         assert not requests
+        os.write(master, b"\x1b")
+        wait_gone(b"Esc back to chat")
+        wait_for(b"Should stay blocked")  # the draft is kept
+        # The chat screen is a new program: let it start, reading its output
+        # meanwhile so it never blocks on a full terminal buffer.
+        settle = time.monotonic() + 1
+        while time.monotonic() < settle:
+            if select.select([master], [], [], .05)[0]:
+                output.extend(os.read(master, 65536))
+        os.write(master, b"\x15")  # clear it
+        wait_gone(b"Should stay blocked")
         os.write(master, b"\x07")
         wait_for(b"GoHarness  /  Status")
         assert not requests
         os.write(master, b"p")
         wait_for(b"GoHarness  /  Providers")
         wait_for(b"No provider yet")
+        pos = len(output)  # the picker was shown earlier; wait for this one
         os.write(master, b"\r")
-        wait_for(b"GoHarness  /  Add a provider")
+        wait_for(b"GoHarness  /  Add a provider", pos)
         os.write(master, b"custom")
         time.sleep(.1)
         os.write(master, b"\r")
@@ -183,18 +208,18 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         time.sleep(.1)
         pos = len(output)
         os.write(master, b"\x0c")
-        wait_for(b"Should stay blocked", pos)
+        wait_for("Ask anything".encode(), pos)  # the draft was cleared before setup
         os.write(master, b"\x15Helo from setup\x01\x1b[C\x1b[Cl\x05\r")
         wait_for(b"Provider authentication failed")
         assert prompts == ["Hello from setup"], prompts
         journal_before, = root.rglob("*.jsonl")
         count = len(requests)
-        os.write(master, b"Should stay blocked\r")
-        time.sleep(.1)
-        assert len(requests) == count
+        # With the key rejected, a message opens the provider manager
+        # instead of being sent, and the draft is kept for after the fix.
         pos = len(output)
-        os.write(master, b"\x10\r")
+        os.write(master, b"Should stay blocked\r")
         wait_for(b"GoHarness  /  Providers", pos)
+        assert len(requests) == count
         wait_for(b"custom", pos)
         os.write(master, b"k")
         wait_for(b"API key for custom", pos)
@@ -230,6 +255,9 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"completed", pos)
         assert prompts[-1] == "Verify selected model", prompts
         assert models[-1] == "fixture-fast", models
+        # /models saves the choice on the provider, so new chats keep it.
+        saved = json.loads((config_dir / "config.json").read_text())
+        assert saved["model"] == "fixture-fast" and saved["profiles"]["custom"]["model"] == "fixture-fast", saved
         assert list(root.rglob("*.jsonl")) == [journal_before]
         pos = len(output)
         os.write(master, b"/agents\r")
@@ -250,7 +278,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         pos = len(output)
         os.write(master, b"/models\r")
         wait_for(b"Select model", pos)
-        os.write(master, b"default")
+        os.write(master, b"setup-fixture")
         time.sleep(.05)
         pos = len(output)
         os.write(master, b"\r")
@@ -360,12 +388,12 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert journal_before.read_bytes() == before_status
         pos = len(output)
         os.write(master, b"/settings\r")
-        wait_for(b"Edit advanced settings", pos)
+        wait_for(b"Advanced settings", pos)
         os.write(master, b"s")
         wait_for(b"Advanced configuration", pos)
         pos = len(output)
         os.write(master, b"\x1b")
-        wait_for(b"Run a GoHarness command", pos)
+        wait_for(b"Back to chat", pos)
         pos = len(output)
         os.write(master, b"q")
         wait_for(b"Agent: build", pos)
@@ -384,8 +412,13 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         wait_for(b"platform.claude.com/settings/keys", pos)
         os.write(master, b"\x13")
         wait_for(b"paste an API key first", pos)
+        # Esc on the key form goes back to the provider list; Esc there
+        # returns to chat.
         pos = len(output)
         os.write(master, b"\x1b")
+        wait_for(b"GoHarness  /  Add a provider", pos)
+        os.write(master, b"\x1b")
+        wait_gone(b"Esc back to chat")
         wait_for(b"Agent: build", pos)
         time.sleep(.1)
         assert (config_dir / "config.json").read_bytes() == settings_before and len(requests) == count
@@ -522,7 +555,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         run = subprocess.run([binary, "run", "--prompt", "Check persisted key"], cwd=project, env=env, capture_output=True, text=True, timeout=8)
         assert run.returncode == 0 and "Setup authenticated" in run.stdout, run.stderr
         blocked = subprocess.run([binary, "run", "--prompt", "Check workspace boundary"], cwd=root, env=env, capture_output=True, text=True, timeout=8)
-        assert blocked.returncode != 0 and "credential storage scope" in blocked.stderr
+        assert blocked.returncode != 0 and "saved keys are stored inside it" in blocked.stderr
         print(json.dumps({"setup": "passed", "multi_provider_verified": True, "compatibility_fallback_verified": True, "provider_draft_recovery_verified": True, "markdown_export_verified": True, "fork_before_turn_verified": True, "file_completion_path_only_verified": True, "timeline_readonly_and_explicit_recall_verified": True, "status_readonly_verified": True, "status_provider_shortcut_verified": True, "session_browser_resume_verified": True, "session_preview_readonly": True, "model_picker_verified": True, "plan_tools_verified": True, "agent_cycle_verified": True, "new_session_verified": True, "chat_opens_before_setup": True, "unconfigured_chat_makes_no_requests": True, "key_masked": True, "cursor_editing_verified": True, "history_submission_verified": True, "authentication_error_recoverable": True, "session_preserved": True, "saved_key_used_by_cli": True, "settings_reachable_from_chat": True, "terminal_restored": True}))
     finally:
         if app.poll() is None:

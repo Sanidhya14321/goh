@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -28,53 +29,84 @@ import (
 
 var version = "0.1.0-dev"
 
-// commandHelp lists every top-level command; TestUsageListsDispatchedCommands
-// keeps it in step with runCommand.
-var commandHelp = [][2]string{
-	{"chat", "open the terminal UI (the default with no command)"},
-	{"run", "run one request headlessly: goh run fix the tests"},
-	{"resume", "continue a saved session by ID"},
-	{"compact", "compact a saved session by ID"},
-	{"sessions", "list, rename, export, import, delete or salvage sessions"},
-	{"export", "export a session (default: this project's latest) as JSON or Markdown"},
-	{"import", "import a session exported with goh export"},
-	{"changes", "show files changed in a session"},
-	{"snapshots", "whole-project snapshots per run: list, diff, restore, undo"},
-	{"models", "list models available from the configured provider"},
-	{"pr", "check out a GitHub pull request with gh, then open the UI"},
-	{"worktree", "open the UI in a separate git worktree: goh worktree NAME|list"},
-	{"mcp", "list configured MCP servers: goh mcp list"},
-	{"agents", "list built-in, configured and project agents"},
-	{"stats", "token usage and activity over recent days"},
-	{"auth", "sign in with ChatGPT: login, switch, status, models, logout; list credential sources; store file|keychain"},
-	{"setup", "configure a provider"},
-	{"settings", "open settings"},
-	{"memory", "opt-in project notes: add, list, recall, delete"},
-	{"serve", "local HTTP API"},
-	{"attach", "terminal UI for a running goh serve: goh attach [ADDRESS]"},
-	{"acp", "Agent Client Protocol over stdio for editors"},
-	{"config", "print the effective configuration, secrets removed"},
-	{"doctor", "check configuration and integrations"},
-	{"version", "print the version"},
-	{"providers", "list, use or remove connected providers (no arguments: open the manager)"},
-	{"upgrade", "install the latest release over this goh (--check to only look)"},
-	{"uninstall", "remove goh and its data (lists first; --yes to remove)"},
-	{"completion", "print a shell completion script: bash, zsh or fish"},
+// commandGroups lists every top-level command under a heading for --help;
+// TestUsageListsDispatchedCommands keeps it in step with runCommand.
+var commandGroups = []struct {
+	title    string
+	commands [][2]string
+}{
+	{"Work", [][2]string{
+		{"chat", "open the terminal UI (the default with no command)"},
+		{"run", "run one request headlessly: goh run fix the tests"},
+		{"resume", "continue a saved session by ID"},
+		{"pr", "check out a GitHub pull request with gh, then open the UI"},
+		{"worktree", "open the UI in a separate git worktree: goh worktree NAME|list"},
+	}},
+	{"Sessions and changes", [][2]string{
+		{"sessions", "list, rename, export, import, delete or salvage sessions"},
+		{"export", "export a session (default: this project's latest) as JSON or Markdown"},
+		{"import", "import a session exported with goh export"},
+		{"compact", "compact a saved session by ID"},
+		{"changes", "show files changed in a session"},
+		{"snapshots", "whole-project snapshots per run: list, diff, restore, undo"},
+		{"stats", "token usage and activity over recent days"},
+	}},
+	{"Providers and settings", [][2]string{
+		{"providers", "list, use or remove connected providers (no arguments: open the manager)"},
+		{"workspaces", "list trusted project folders, or forget one: goh workspaces forget PATH"},
+		{"setup", "connect a provider (opens the provider manager)"},
+		{"auth", "sign in with ChatGPT: login, switch, status, models, logout; list credential sources; store file|keychain"},
+		{"models", "list models available from the configured provider"},
+		{"settings", "open settings"},
+		{"config", "print the effective configuration, secrets removed"},
+		{"doctor", "check configuration and integrations"},
+	}},
+	{"Integrations", [][2]string{
+		{"agents", "list built-in, configured and project agents"},
+		{"mcp", "list configured MCP servers: goh mcp list"},
+		{"memory", "opt-in project notes: add, list, recall, delete"},
+		{"serve", "local HTTP API"},
+		{"attach", "terminal UI for a running goh serve: goh attach [ADDRESS]"},
+		{"acp", "Agent Client Protocol over stdio for editors"},
+	}},
+	{"Maintenance", [][2]string{
+		{"version", "print the version"},
+		{"upgrade", "install the latest release over this goh (--check to only look)"},
+		{"uninstall", "remove goh and its data (lists first; --yes to remove)"},
+		{"completion", "print a shell completion script: bash, zsh or fish"},
+	}},
 }
+
+// commandHelp is every command in help order.
+var commandHelp = func() [][2]string {
+	var all [][2]string
+	for _, g := range commandGroups {
+		all = append(all, g.commands...)
+	}
+	return all
+}()
 
 var usage = func() string {
 	var b strings.Builder
-	b.WriteString("usage: goh [command] [flags]\n\nCommands:\n")
-	for _, c := range commandHelp {
-		fmt.Fprintf(&b, "  %-10s %s\n", c[0], c[1])
+	b.WriteString("usage: goh [command] [flags]\n")
+	for _, g := range commandGroups {
+		fmt.Fprintf(&b, "\n%s:\n", g.title)
+		for _, c := range g.commands {
+			fmt.Fprintf(&b, "  %-11s %s\n", c[0], c[1])
+		}
 	}
-	b.WriteString("\nUse --help after a command for its flags.")
+	b.WriteString("\nRun goh COMMAND --help for its flags. Docs: https://github.com/Sanidhya14321/goh/blob/main/docs/USER_GUIDE.md")
 	return b.String()
 }()
 
 func main() {
 	sandbox.HelperMain() // never returns when started as the Linux sandbox helper
 	if e := run(os.Args[1:]); e != nil {
+		if strings.Contains(e.Error(), "error opening TTY") {
+			// Bubble Tea could not reach a terminal (cron, CI, a detached
+			// process): say what works instead of the library's error.
+			e = errors.New("this command needs an interactive terminal; use goh run for scripts and pipes")
+		}
 		fmt.Fprintln(os.Stderr, e)
 		var x *exitError
 		if errors.As(e, &x) {
@@ -105,7 +137,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		fmt.Println(usage)
 		return nil
 	}
-	if args[0] == "version" {
+	if args[0] == "version" || args[0] == "--version" || args[0] == "-v" {
 		fmt.Println(version)
 		return nil
 	}
@@ -129,6 +161,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "auth" {
 		return chatGPTAuth(args[1:])
+	}
+	if args[0] == "workspaces" {
+		return runWorkspaces(args[1:], os.Stdout)
 	}
 	if args[0] == "providers" {
 		return runProviders(args[1:], os.Stdout)
@@ -192,9 +227,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	resumeID := ""
 	if command == "resume" || command == "compact" {
 		if len(args) == 0 {
-			return fmt.Errorf("%s requires session id", command)
+			return fmt.Errorf("usage: goh %s SESSION_ID [flags] (goh sessions list shows IDs)", command)
 		}
-		if args[0] != "--help" && args[0] != "-h" {
+		// The ID usually comes first; when flags come first it is taken
+		// from the first word after them.
+		if !strings.HasPrefix(args[0], "-") {
 			resumeID = args[0]
 			args = args[1:]
 		}
@@ -257,8 +294,14 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if command == "run" && *prompt == "" && !slices.Contains(words, "-") && pipedInput(os.Stdin) {
 		words = append(words, "-") // cat log | goh run explain this
 	}
+	if (command == "resume" || command == "compact") && resumeID == "" {
+		if len(words) == 0 {
+			return fmt.Errorf("usage: goh %s SESSION_ID [flags] (goh sessions list shows IDs)", command)
+		}
+		resumeID, words = words[0], words[1:]
+	}
 	if len(words) > 0 {
-		if command != "run" {
+		if command != "run" && command != "resume" {
 			return errors.New("unexpected positional arguments")
 		}
 		if *prompt != "" {
@@ -296,6 +339,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("format must be text or json")
+	}
+	if command == "run" && strings.TrimSpace(*prompt) == "" {
+		return errors.New("usage: goh run MESSAGE (or --prompt TEXT, --command NAME, or pipe text in)")
 	}
 	c, e := core.LoadConfig(*configPath)
 	if e != nil {
@@ -425,10 +471,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		}
 		resumeID = *selectedSession
 		if *continueLast {
-			root, x := filepath.Abs(*project)
-			if x == nil {
-				root, x = filepath.EvalSymlinks(root)
-			}
+			root, x := projectRoot(*project)
 			if x != nil {
 				return x
 			}
@@ -473,11 +516,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			}
 		}
 	} else {
-		root, x := filepath.Abs(*project)
-		if x != nil {
-			return x
-		}
-		root, x = filepath.EvalSymlinks(root)
+		root, x := projectRoot(*project)
 		if x != nil {
 			return x
 		}
@@ -728,6 +767,24 @@ func withChatGPTDefault(c core.Config) core.Config {
 		}
 	}
 	return c
+}
+
+// projectRoot resolves a --project folder to its absolute, symlink-free path.
+func projectRoot(dir string) (string, error) {
+	root, err := filepath.Abs(dir)
+	if err == nil {
+		root, err = filepath.EvalSymlinks(root)
+	}
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", fmt.Errorf("project folder %s does not exist", dir)
+	}
+	if err != nil {
+		return "", err
+	}
+	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+		return "", fmt.Errorf("project %s is not a folder", dir)
+	}
+	return root, nil
 }
 
 // allLocalGrants is what --allow all grants: built-in tools that act on the

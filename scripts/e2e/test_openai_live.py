@@ -67,7 +67,7 @@ def verify_tui(binary, root, work, config):
     master, slave = pty.openpty()
     session_dir = root / "tui-sessions"
     app = subprocess.Popen(
-        [str(binary), "chat", "--config", str(config), "--session-dir", str(session_dir)],
+        [str(binary), "chat", "--project", str(work), "--config", str(config), "--session-dir", str(session_dir)],
         cwd=work, stdin=slave, stdout=slave, stderr=slave,
         env={**os.environ, "TERM": "xterm-256color"})
     output = bytearray()
@@ -80,7 +80,7 @@ def verify_tui(binary, root, work, config):
         assert marker in output[offset:], (marker, bytes(output[-700:]))
 
     try:
-        wait_for(b"Chat setup required")
+        wait_for(b"Chat is waiting for setup")
         os.write(master, b"/connect\r")
         wait_for(b"Continue with ChatGPT")
         time.sleep(.15)

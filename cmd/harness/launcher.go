@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -39,22 +37,75 @@ func editConfiguration() error {
 	return err
 }
 
-func editWorkspace(project *string) (bool, error) {
-	return tui.EditSettings("Workspace", "Select the directory for your next new chat.", []tui.SettingsField{{Label: "Project directory", Value: *project}}, false, func(fields []tui.SettingsField) error {
-		path, err := filepath.Abs(strings.TrimSpace(fields[0].Value))
-		if err != nil {
-			return err
+// currentProject is the folder the next chat opens in: the chosen
+// workspace, or the directory goh was started from.
+func currentProject(project string) string {
+	if project == "" {
+		project = "."
+	}
+	abs, err := filepath.Abs(project)
+	if err != nil {
+		return project
+	}
+	return abs
+}
+
+// displayPath writes paths under the home folder with ~.
+func displayPath(path string) string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+	if path == home {
+		return "your home folder (~)"
+	}
+	if rel, err := filepath.Rel(home, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "~" + string(filepath.Separator) + rel
+	}
+	return path
+}
+
+// chooseWorkspace opens the project folder browser at start. The chosen
+// folder is trusted and recorded as recently opened.
+func chooseWorkspace(start string) (string, bool, error) {
+	var recent []string
+	for _, w := range core.Workspaces() {
+		if len(recent) == 8 {
+			break
 		}
-		info, err := os.Stat(path)
-		if err != nil || !info.IsDir() {
-			return fmt.Errorf("project directory must exist")
-		}
-		if err := core.CheckProjectCredentialBoundary(path); err != nil {
-			return err
-		}
-		*project = path
-		return nil
+		recent = append(recent, w.Path)
+	}
+	path, ok, err := tui.ChooseWorkspace(tui.WorkspaceChooser{
+		Start:  start,
+		Recent: recent,
+		Check: func(path string) error {
+			if core.CheckProjectCredentialBoundary(path) != nil {
+				return errors.New("goh's saved keys live in this folder, so it can't be a project; open a folder inside it")
+			}
+			return nil
+		},
+		Trusted: core.IsTrustedWorkspace,
+		Kind:    core.ProjectKind,
 	})
+	if err != nil || !ok {
+		return "", false, err
+	}
+	return path, true, core.OpenWorkspace(path)
+}
+
+// picksWorkspace reports whether chat should ask for a project folder at
+// start: no folder or session was named on the command line.
+func picksWorkspace(args []string) bool {
+	for _, a := range args {
+		if a == "--" {
+			break
+		}
+		name, _, _ := strings.Cut(strings.TrimLeft(a, "-"), "=")
+		if strings.HasPrefix(a, "-") && (name == "project" || name == "session" || name == "continue" || name == "fork") {
+			return false
+		}
+	}
+	return true
 }
 
 // startupFlags are chat flags that act on the first session only; the value
@@ -98,29 +149,40 @@ func keepsStartupFlags(opened bool, action string) bool {
 func chatFirst(args []string) error {
 	defer stopParkedJobs()
 	project, sessionID, draft := "", "", ""
-	var profile, agent *string
-	chatGPTModel := ""
-	providerModel := "" // a model from the provider's list, chosen in /models
+	if picksWorkspace(args) {
+		// A trusted folder opens directly; any other shows the browser,
+		// starting where goh was run.
+		cwd, err := os.Getwd()
+		if err != nil {
+			return err
+		}
+		if core.CheckProjectCredentialBoundary(cwd) == nil && core.IsTrustedWorkspace(cwd) {
+			_ = core.OpenWorkspace(cwd) // only orders the recent list
+		} else {
+			chosen, ok, err := chooseWorkspace(cwd)
+			if err != nil || !ok {
+				return err
+			}
+			project = chosen
+		}
+	}
+	var agent *string
+	chatModel := "" // a /models choice for a chat whose route is not saved
 	sessionOverride := false
 	skipChooser := true
 	var actionErr error
-	info := "" // non-error notice for the next chat screen
+	info := ""        // non-error notice for the next chat screen
+	welcomed := false // the first-run provider picker was offered
 	for {
 		command := append([]string(nil), args...)
 		if project != "" {
 			command = append(command, "--project", project)
 		}
-		if profile != nil {
-			command = append(command, "--profile="+*profile)
-		}
 		if agent != nil {
 			command = append(command, "--agent="+*agent)
 		}
-		if chatGPTModel != "" {
-			command = append(command, "--protocol="+core.ChatGPTProtocol, "--model="+chatGPTModel,
-				"--base-url=https://api.openai.com/v1", "--endpoint=")
-		} else if providerModel != "" {
-			command = append(command, "--model="+providerModel)
+		if chatModel != "" {
+			command = append(command, "--model="+chatModel)
 		}
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
@@ -137,11 +199,34 @@ func chatFirst(args []string) error {
 		}
 		opened := errors.As(err, &nav) // chat ran, so its session was opened
 		if !opened {
-			reason := "Chat is waiting for setup.\n" + err.Error() + "\n\nType /connect to add a provider (ChatGPT sign-in, Claude API, OpenAI, OpenRouter, Gemini, Groq, Ollama or a custom URL), or /providers to manage them. Ctrl+P opens commands.\nUse /workspace to select your project, or /settings for other options."
-			if actionErr != nil {
-				reason = actionErr.Error() + "\n" + reason
+			fresh := noProviders()
+			if fresh && !welcomed && actionErr == nil {
+				// First run: go straight to connecting a provider instead of
+				// a blocked chat. "Not now" falls through to the chat screen.
+				welcomed = true
+				added, notice, err := addProviderFlow("", true)
+				if err == nil && added != "" {
+					info, chatModel = notice, ""
+					continue
+				}
+				actionErr = err
 			}
-			err = tui.RunBlocked("Chat setup required", reason, draft)
+			headline, problem, fix := "Chat is waiting for setup.", err.Error(), tui.FixConnect
+			help := "Press Enter to add a provider: ChatGPT sign-in, Claude API, OpenAI, OpenRouter, Gemini, Groq, Ollama or any compatible URL. /providers manages them, /workspace picks the project and /settings has the rest."
+			switch {
+			case errors.Is(err, core.ErrProjectHoldsKeys):
+				// A provider cannot fix this: the folder has to change.
+				headline, fix = "Chat can't open this folder.", tui.FixWorkspace
+				problem = "goh's saved keys live inside " + displayPath(currentProject(project)) + ", so it can't be the project."
+				help = "Press Enter to choose a project folder. Next time, run goh from inside a project (cd ~/code/app && goh)."
+			case fresh:
+				problem = "No model provider is connected yet."
+			}
+			if actionErr != nil {
+				// Put the failure of the last setup step ahead of the state.
+				problem = actionErr.Error() + " · " + problem
+			}
+			err = tui.RunBlocked("Chat setup required", headline+"\n"+problem+"\n\n"+help, fix, draft)
 			if !errors.As(err, &nav) {
 				return err
 			}
@@ -168,7 +253,7 @@ func chatFirst(args []string) error {
 			var added string
 			added, info, actionErr = addProvider(nav.Backdrop)
 			if added != "" {
-				chatGPTModel, providerModel, profile = "", "", nil
+				chatModel = ""
 			}
 		case "plan_exit":
 			// The plan was approved in chat: same session, build agent.
@@ -181,8 +266,7 @@ func chatFirst(args []string) error {
 			var changed bool
 			changed, info, actionErr = manageProviders(nav.Backdrop)
 			if changed {
-				// The provider new chats use replaces any model chosen in chat.
-				chatGPTModel, providerModel, profile = "", "", nil
+				chatModel = "" // the provider's own model applies again
 			}
 		case "settings":
 			draft = nav.Draft
@@ -193,14 +277,12 @@ func chatFirst(args []string) error {
 			}
 		case "workspace":
 			draft = nav.Draft
-			next := project
-			if next == "" {
-				next = "."
-			}
-			var saved bool
-			saved, actionErr = editWorkspace(&next)
-			if saved {
-				project, sessionID = next, ""
+			var chosen string
+			var ok bool
+			chosen, ok, actionErr = chooseWorkspace(currentProject(project))
+			if ok {
+				project, sessionID = chosen, ""
+				info = "Project: " + displayPath(chosen)
 			}
 		case "sessions":
 			draft = nav.Draft
@@ -267,62 +349,37 @@ func chatFirst(args []string) error {
 			if nav.Project != "" {
 				project = nav.Project
 			}
-		case "models", "agents", "cycle_agent", "previous_agent":
+		case "models":
+			// The choice is saved on the provider, so it stays for new chats.
 			draft = nav.Draft
-			if nav.Action == "models" && nav.Config != nil && nav.Config.EffectiveProtocol() == core.ChatGPTProtocol {
-				var selected string
-				var chosen bool
-				selected, chosen, actionErr = selectChatGPTModel(nav.Config.Model, nav.Backdrop)
-				if chosen {
-					chatGPTModel = selected
-				}
-				break
+			var override string
+			override, info, actionErr = chooseModel(nav.Config, nav.Backdrop)
+			if override != "" {
+				chatModel = override
+			} else if actionErr == nil && info != "" {
+				chatModel = "" // a saved choice replaces a chat-only one
 			}
+		case "agents", "cycle_agent", "previous_agent":
+			draft = nav.Draft
 			cfg := core.Defaults()
 			if nav.Config != nil {
 				cfg = *nav.Config
 			} else if loaded, err := core.LoadConfig(""); err == nil {
 				cfg = loaded
 			}
-			if nav.Action == "cycle_agent" || nav.Action == "previous_agent" {
+			if nav.Action != "agents" {
 				selected := nextAgent(cfg, nav.Action == "previous_agent")
 				agent = &selected
 				break
 			}
-			title, current, options := "Select model", cfg.Profile, modelOptions(cfg)
-			if nav.Action == "models" {
-				options = append(options, providerModelOptions(cfg)...)
-				if providerModel != "" {
-					current = "@model:" + providerModel
-				}
+			current := cfg.Agent
+			if current == "" {
+				current = "build"
 			}
-			if nav.Action == "agents" {
-				title, current, options = "Select agent", cfg.Agent, agentOptions(cfg)
-				if current == "" {
-					current = "build"
-				}
-			}
-			var selected string
-			var chosen bool
-			selected, chosen, actionErr = tui.SelectOption(title, current, options, nav.Backdrop)
+			selected, chosen, err := tui.SelectOption("Select agent", current, agentOptions(cfg), nav.Backdrop)
+			actionErr = err
 			if chosen {
-				switch {
-				case nav.Action == "agents":
-					agent = &selected
-				case selected == "@provider":
-					var changed bool
-					changed, info, actionErr = manageProviders(nav.Backdrop)
-					if changed {
-						chatGPTModel, providerModel, profile = "", "", nil
-					}
-				case strings.HasPrefix(selected, "@model:"):
-					providerModel = strings.TrimPrefix(selected, "@model:")
-					info = "Model for this chat: " + providerModel + " (set \"model\" in config to keep it)"
-				case selected == "@unavailable":
-				default:
-					profile = &selected
-					providerModel = ""
-				}
+				agent = &selected
 			}
 		}
 	}
@@ -363,35 +420,24 @@ func launch(project *string) error {
 		case "config":
 			err = editConfiguration()
 		case "project":
-			var saved bool
-			saved, err = editWorkspace(project)
-			if saved {
-				status = "Workspace: " + *project
+			var chosen string
+			var ok bool
+			chosen, ok, err = chooseWorkspace(currentProject(*project))
+			if ok {
+				*project = chosen
+				status = "Workspace: " + displayPath(chosen)
 			}
 		case "chat":
 			return nil
-		case "command":
-			var args []string
-			hint := "Enter CLI arguments as a JSON array. Use a command with --help to see its options.\n" + usage
-			saved, editErr := tui.EditSettings("Run a command", hint, []tui.SettingsField{{Label: "Arguments", Value: `["sessions", "list"]`}}, false, func(fields []tui.SettingsField) error {
-				if err := json.Unmarshal([]byte(fields[0].Value), &args); err != nil || len(args) == 0 {
-					return fmt.Errorf("enter a nonempty JSON array of argument strings")
-				}
-				if args[0] == "setup" || args[0] == "settings" {
-					return fmt.Errorf("use the provider or advanced settings menu")
-				}
-				return nil
-			})
-			if editErr != nil {
-				err = editErr
-			} else if saved {
-				// Leave the alternate screen so streaming or interactive command
-				// output remains usable and visible in the terminal.
-				return run(args)
-			}
 		}
 		if err != nil {
 			status = err.Error()
 		}
 	}
+}
+
+// noProviders reports a first run: no provider saved or configured by hand.
+func noProviders() bool {
+	_, _, cfg, err := userSettings()
+	return err == nil && len(cfg.Providers()) == 0
 }

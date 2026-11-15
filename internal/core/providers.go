@@ -236,12 +236,29 @@ func setTop(doc map[string]json.RawMessage, route map[string]json.RawMessage) {
 	}
 }
 
+// ValidProviderName reports why name cannot name a provider, or nil.
+func ValidProviderName(name string) error {
+	if !profileName.MatchString(name) || name == UnsavedProviderName {
+		return fmt.Errorf("provider name %q must start with a letter or digit and use only letters, digits, - or _ (up to 64, not %q)", name, UnsavedProviderName)
+	}
+	return nil
+}
+
+// SharesKeyWith reports whether c and o read the same saved key, which is
+// stored per protocol and resolved endpoint (so a base URL, its trailing
+// slash form and its full endpoint URL all share one).
+func (c Config) SharesKeyWith(o Config) bool {
+	a, errA := c.credentialPath()
+	b, errB := o.credentialPath()
+	return errA == nil && errB == nil && a == b
+}
+
 // SaveProvider saves s under name, replacing that provider's route but
 // keeping its other profile settings (an output budget, say). With activate
 // the top-level settings switch to it.
 func SaveProvider(raw, name string, s ProviderSettings, activate bool) (string, error) {
-	if !profileName.MatchString(name) || name == UnsavedProviderName {
-		return "", fmt.Errorf("provider name %q must be letters, digits, - or _ (not %q)", name, UnsavedProviderName)
+	if err := ValidProviderName(name); err != nil {
+		return "", err
 	}
 	return editDocument(raw, func(doc map[string]json.RawMessage, profiles map[string]map[string]json.RawMessage) error {
 		route := routeFields(s)
@@ -259,6 +276,68 @@ func SaveProvider(raw, name string, s ProviderSettings, activate bool) (string, 
 		if activate {
 			setTop(doc, route)
 			delete(doc, "profile")
+		}
+		return nil
+	})
+}
+
+// RenameProvider moves a saved provider to a new name, keeping every profile
+// setting, and renames it in the agents, model roles, fallback list and
+// selected profile that refer to it.
+func RenameProvider(raw, from, to string) (string, error) {
+	if err := ValidProviderName(to); err != nil {
+		return "", err
+	}
+	return editDocument(raw, func(doc map[string]json.RawMessage, profiles map[string]map[string]json.RawMessage) error {
+		p, ok := profiles[from]
+		if !ok {
+			return fmt.Errorf("no provider named %q", from)
+		}
+		if _, taken := profiles[to]; taken {
+			return fmt.Errorf("a profile named %q already exists; choose another name", to)
+		}
+		delete(profiles, from)
+		profiles[to] = p
+		var selected string
+		if b, ok := doc["profile"]; ok && json.Unmarshal(b, &selected) == nil && selected == from {
+			doc["profile"], _ = json.Marshal(to)
+		}
+		if b, ok := doc["agents"]; ok {
+			agents := map[string]map[string]json.RawMessage{}
+			if err := json.Unmarshal(b, &agents); err != nil {
+				return fmt.Errorf("agents: %w", err)
+			}
+			for _, a := range agents {
+				var name string
+				if v, ok := a["profile"]; ok && json.Unmarshal(v, &name) == nil && name == from {
+					a["profile"], _ = json.Marshal(to)
+				}
+			}
+			doc["agents"], _ = json.Marshal(agents)
+		}
+		if b, ok := doc["model_roles"]; ok {
+			roles := map[string]string{}
+			if err := json.Unmarshal(b, &roles); err != nil {
+				return fmt.Errorf("model_roles: %w", err)
+			}
+			for role, name := range roles {
+				if name == from {
+					roles[role] = to
+				}
+			}
+			doc["model_roles"], _ = json.Marshal(roles)
+		}
+		if b, ok := doc["fallback_profiles"]; ok {
+			var list []string
+			if err := json.Unmarshal(b, &list); err != nil {
+				return fmt.Errorf("fallback_profiles: %w", err)
+			}
+			for i, name := range list {
+				if name == from {
+					list[i] = to
+				}
+			}
+			doc["fallback_profiles"], _ = json.Marshal(list)
 		}
 		return nil
 	})

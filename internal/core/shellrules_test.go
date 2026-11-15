@@ -29,6 +29,15 @@ func TestShellDecision(t *testing.T) {
 		"  git status  ":             "allow",
 		"(cd sub && curl x.example)": "deny",
 		"git statusx; echo hi":       "",
+		// Re-spellings of a denied command are denied too.
+		"/bin/rm -rf x":              "deny",
+		"command rm -rf x":           "deny",
+		"FOO=1 rm -rf x":             "deny",
+		"sh -c 'rm -rf x'":           "deny",
+		"bash -c \"curl x.example\"": "deny",
+		"sudo /usr/bin/curl x":       "deny",
+		"env A=b curl x":             "deny",
+		"echo rm -rf x":              "",
 	} {
 		if got := c.ShellDecision(cmd); got != want {
 			t.Errorf("%q: got %q want %q", cmd, got, want)

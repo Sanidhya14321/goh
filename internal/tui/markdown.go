@@ -117,7 +117,11 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 		}
 		switch {
 		case review:
-			if strings.HasPrefix(line, "+") {
+			if strings.HasPrefix(line, "+++ ") || strings.HasPrefix(line, "--- ") {
+				row.fg = muted // file header, not a change
+			} else if strings.HasPrefix(line, "@@ ") {
+				row.fg = blue
+			} else if strings.HasPrefix(line, "+") {
 				row.fg = green
 			} else if strings.HasPrefix(line, "-") {
 				row.fg = red

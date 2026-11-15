@@ -12,6 +12,7 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/Sanidhya14321/goh/internal/commands"
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/provider"
 	agent "github.com/Sanidhya14321/goh/internal/runtime"
@@ -94,7 +95,8 @@ type model struct {
 	navigation           string
 	revertPrompt         string
 	revertOccurrence     int
-	blocked              string
+	blocked              string // why chat cannot run yet
+	fix                  string // the navigation that resolves blocked; see setupStep
 	scrollOffset         int
 	lastTranscriptHeight int
 	hideSidebar          bool
@@ -106,6 +108,9 @@ type model struct {
 	wrappedRows          []transcriptRow
 	wrappedWindow        int
 	wrappedReview        bool
+	previewText          string // approval preview or question, wrapped
+	previewWidth         int
+	previewRows          []transcriptRow
 	infoPanel            *statusPanel
 	timeline             *timelinePanel
 	fileCompletion       *fileCompletion
@@ -639,6 +644,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		switch key {
 		case "enter":
 			if strings.TrimSpace(m.input) == "" {
+				if m.blocked != "" {
+					// Nothing can run yet: Enter goes to setup.
+					m.navigation, _ = m.setupStep()
+					return m, tea.Quit
+				}
 				return m, nil
 			}
 			prompt := m.input
@@ -759,7 +769,14 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, tea.Quit
 			}
 			if m.blocked != "" {
-				m.log = m.blocked
+				if !commands.IsCommand(prompt) {
+					// A message typed before chat can run opens setup; the
+					// draft comes back in the composer once it is done.
+					m.navigation, _ = m.setupStep()
+					return m, tea.Quit
+				}
+				_, step := m.setupStep()
+				m.log = m.blocked + "\n\n" + strings.Fields(prompt)[0] + " can't run yet. Press Enter to " + step + "."
 				return m, nil
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
@@ -970,20 +987,30 @@ func (m *model) compactView() tea.View {
 		return view
 	}
 
-	controls := "Enter send · Alt+Enter newline · Ctrl+P commands · Ctrl+D exit"
+	controls := "Enter send  ·  Alt+Enter newline  ·  Ctrl+P commands  ·  Ctrl+D exit"
 	if m.active {
 		controls = m.runControls()
 	} else if m.blocked != "" {
-		controls = "Ctrl+P provider · /workspace · /settings · Ctrl+D exit"
+		_, step := m.setupStep()
+		controls = "Enter " + step + "  ·  Ctrl+P commands  ·  /settings  ·  Ctrl+D exit"
 	}
-	footer := terminalRows(controls, width)
-	if len(footer) > max(1, height/3) {
-		footer = terminalRows("^C cancel • ^D exit", width)
-		footer = footer[:min(len(footer), height-2)]
+	hints := fitHints(controls, width)
+	if hints != controls {
+		// Too narrow for every hint: keep the two that matter most.
+		short := "Ctrl+P commands  ·  Ctrl+D exit"
+		if m.active {
+			short = "Ctrl+C cancel  ·  Ctrl+D exit"
+		} else if m.blocked != "" {
+			_, step := m.setupStep()
+			short = "Enter " + step + "  ·  Ctrl+D exit"
+		}
+		hints = fitHints(short, width)
 	}
+	footer := []string{ansi.Truncate(hints, width, "…")}
 	draft := m.input
 	if draft == "" && m.blocked != "" {
-		draft = "/providers or /connect"
+		_, step := m.setupStep()
+		draft = "Press Enter to " + step
 	}
 	if len(draft) > 4096 {
 		draft = "… " + strings.ToValidUTF8(draft[len(draft)-4096:], "�")
@@ -1025,7 +1052,17 @@ func (m *model) compactView() tea.View {
 		needle = strings.ToLower(m.find.query)
 	}
 	shown := 0
-	if visible > 0 {
+	if visible > 0 && m.a == nil && m.blocked != "" && review == "" {
+		// The setup screen is prose: wrap it at word boundaries.
+		var lines []string
+		for _, line := range strings.Split(body, "\n") {
+			lines = append(lines, wordWrap(Safe(line), width)...)
+		}
+		for _, line := range lines[max(0, len(lines)-visible):] {
+			rows = append(rows, ansi.Truncate(line, width, "…"))
+			shown++
+		}
+	} else if visible > 0 {
 		for _, row := range m.visibleRows(body, width, visible, review != "") {
 			text := row.text
 			if needle != "" && strings.Contains(strings.ToLower(text), needle) {
@@ -1130,7 +1167,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 			return core.QuestionReply{}, context.Canceled
 		}
 	}
-	_, e := tea.NewProgram(m).Run()
+	e := runProgram(m)
 	close(m.closed)
 	if m.cancel != nil {
 		m.cancelRun()
@@ -1151,11 +1188,32 @@ func Run(a *agent.Agent, notice, draft string) error {
 	return e
 }
 
+// Setup steps a blocked chat can lead to.
+const (
+	FixConnect   = "connect"   // add a provider
+	FixWorkspace = "workspace" // choose a project folder
+)
+
+// setupStep is what Enter does on a blocked chat: the navigation and how
+// the hints name it.
+func (m *model) setupStep() (action, label string) {
+	switch {
+	case m.fix == FixWorkspace:
+		return FixWorkspace, "choose a project folder"
+	case m.a != nil:
+		return "provider", "fix the provider"
+	default:
+		return FixConnect, "add a provider"
+	}
+}
+
 // RunBlocked renders the chat surface before a usable agent can be created.
-func RunBlocked(status, reason, draft string) error {
-	m := &model{width: 80, height: 24, status: status, blocked: reason, log: reason, keys: keymapFor(nil)}
+// reason's first paragraph is shown on the home screen; fix is the setup
+// step Enter opens (FixConnect or FixWorkspace).
+func RunBlocked(status, reason, fix, draft string) error {
+	m := &model{width: 80, height: 24, status: status, blocked: reason, fix: fix, log: reason, keys: keymapFor(nil)}
 	m.insertInput(Safe(draft))
-	_, err := tea.NewProgram(m).Run()
+	err := runProgram(m)
 	if err == nil && m.navigation != "" {
 		return &ChatNavigation{Action: m.navigation, Backdrop: m.View().Content, Draft: m.input}
 	}

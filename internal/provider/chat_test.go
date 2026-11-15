@@ -135,3 +135,20 @@ func TestJSONCompletionKeepsCachedTokens(t *testing.T) {
 		t.Fatalf("%+v %v", r.Usage, err)
 	}
 }
+
+// Some compatible servers repeat the full id and name in every chunk.
+func TestToolAssemblyWithRepeatedIDAndName(t *testing.T) {
+	wire := ""
+	for _, args := range []string{`{"path":`, `"x.go"}`} {
+		d := map[string]any{"index": 0, "id": "call1", "type": "function", "function": map[string]any{"name": "read_file", "arguments": args}}
+		wire += frame(map[string]any{"choices": []any{map[string]any{"delta": map[string]any{"tool_calls": []any{d}}}}})
+	}
+	r, e := Parse(strings.NewReader(wire+finish("tool_calls")+"data: [DONE]\n\n"), nil)
+	if e != nil || len(r.Message.ToolCalls) != 1 {
+		t.Fatalf("%+v %v", r, e)
+	}
+	c := r.Message.ToolCalls[0]
+	if c.ID != "call1" || c.Function.Name != "read_file" || c.Function.Arguments != `{"path":"x.go"}` {
+		t.Fatalf("%+v", c)
+	}
+}

@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/platform"
 	"io"
@@ -140,7 +141,8 @@ type Config struct {
 	// short session title after the first completed run. Off by default
 	// because it is an extra request.
 	AutoTitle bool `json:"auto_title,omitempty"`
-	// Theme selects a built-in color theme (dark, light, high-contrast).
+	// Theme selects a built-in color theme: terminal (the default: the
+	// terminal's own colors), dark, light or high-contrast.
 	Theme      string                     `json:"theme,omitempty"`
 	Formatters map[string]FormatterConfig `json:"formatters,omitempty"`
 	Snapshots  bool                       `json:"snapshots,omitempty"`
@@ -400,6 +402,10 @@ func (c Config) Validate() error {
 	return nil
 }
 
+// ErrNoProvider means no model provider is set up: no saved provider, no
+// endpoint or base_url, and no ChatGPT sign-in selected.
+var ErrNoProvider = errors.New("no model provider is connected yet; run goh to connect one (or goh providers, or goh auth login for ChatGPT)")
+
 // ProviderEndpoint resolves the request URL after configuration overlays.
 func (c Config) ProviderEndpoint() (string, error) {
 	if c.EffectiveProtocol() == ChatGPTProtocol {
@@ -417,6 +423,9 @@ func (c Config) ProviderEndpoint() (string, error) {
 	raw, field := c.Endpoint, "endpoint"
 	if c.BaseURL != "" {
 		raw, field = c.BaseURL, "base_url"
+	}
+	if raw == "" {
+		return "", ErrNoProvider
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || strings.Contains(raw, "#") {

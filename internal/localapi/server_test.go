@@ -25,7 +25,9 @@ type fixture struct {
 	project string
 }
 
-func newFixture(t *testing.T) fixture {
+func newFixture(t *testing.T) fixture { return newFixtureWith(t, nil) }
+
+func newFixtureWith(t *testing.T, configure func(*http.Server)) fixture {
 	t.Helper()
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var request struct {
@@ -74,7 +76,11 @@ func newFixture(t *testing.T) fixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := httptest.NewServer(handler)
+	server := httptest.NewUnstartedServer(handler)
+	if configure != nil {
+		configure(server.Config)
+	}
+	server.Start()
 	server.Client().Timeout = 8 * time.Second
 	t.Cleanup(server.Close)
 	return fixture{t: t, server: server, config: config, project: handler.project}
@@ -304,4 +310,18 @@ func TestDamagedSessionPointsToSalvage(t *testing.T) {
 	if !strings.Contains(string(body), "salvage") {
 		t.Fatalf("%s", body)
 	}
+}
+
+// A streamed run must outlive the http.Server's ReadTimeout that goh serve
+// sets (10s): the deadline covers reading the request, not the response.
+func TestRunOutlivesServerReadTimeout(t *testing.T) {
+	f := newFixtureWith(t, func(s *http.Server) { s.ReadTimeout = 300 * time.Millisecond })
+	id := f.create()
+	res := f.request("POST", "/v1/sessions/"+id+"/run", `{"prompt":"write"}`, 200, nil)
+	defer res.Body.Close()
+	d := json.NewDecoder(res.Body)
+	input := readInput(t, d, "permission")
+	time.Sleep(900 * time.Millisecond)
+	f.request("POST", "/v1/runs/"+res.Header.Get("X-Harness-Run-ID")+"/inputs/"+input, `{"allow":true}`, 204, nil).Body.Close()
+	finish(t, d, "completed")
 }

@@ -122,3 +122,47 @@ func TestProviderRegistryRefusals(t *testing.T) {
 		t.Fatal(c.SuggestProviderName("gw"), c.SuggestProviderName("My Gateway!"))
 	}
 }
+
+// Renaming a provider keeps its other profile settings and renames it
+// wherever an agent, model role, fallback list or selection names it.
+func TestRenameProviderKeepsSettingsAndReferences(t *testing.T) {
+	raw := `{"protocol":"chat_completions","base_url":"https://gw.example/v1","model":"m","profile":"gw",
+		"profiles":{"gw":{"protocol":"chat_completions","base_url":"https://gw.example/v1","model":"m","output_budget":4000},"fast":{"model":"s"}},
+		"agents":{"review":{"description":"d","instructions":"i","mode":"subagent","profile":"gw"}},
+		"model_roles":{"small":"gw"},"fallback_profiles":["fast","gw"]}`
+	out, err := RenameProvider(raw, "gw", "gateway")
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := mustDecode(t, out)
+	if _, ok := c.Profiles["gw"]; ok {
+		t.Fatal("old name kept")
+	}
+	if p := c.Profiles["gateway"]; p.OutputBudget == nil || *p.OutputBudget != 4000 {
+		t.Fatalf("profile settings lost: %+v", p)
+	}
+	if c.Profile != "gateway" || c.Agents["review"].Profile != "gateway" || c.ModelRoles["small"] != "gateway" || c.FallbackProfiles[1] != "gateway" || c.FallbackProfiles[0] != "fast" {
+		t.Fatalf("references not renamed:\n%s", out)
+	}
+	if _, err := RenameProvider(out, "gateway", "fast"); err == nil {
+		t.Fatal("renamed onto an existing profile")
+	}
+	if _, err := RenameProvider(out, "gateway", "has space"); err == nil {
+		t.Fatal("accepted an invalid name")
+	}
+}
+
+// One saved key serves every spelling of the same endpoint.
+func TestSharesKeyWith(t *testing.T) {
+	route := func(address string, endpoint bool) Config {
+		return ProviderEntry{Protocol: "chat_completions", Address: address, IsEndpoint: endpoint}.Route(Defaults())
+	}
+	base := route("https://gw.example/v1", false)
+	if !base.SharesKeyWith(route("https://gw.example/v1/", false)) || !base.SharesKeyWith(route("https://gw.example/v1/chat/completions", true)) {
+		t.Fatal("same endpoint reported as a different key")
+	}
+	other := ProviderEntry{Protocol: "openai_responses", Address: "https://gw.example/v1"}.Route(Defaults())
+	if base.SharesKeyWith(other) || base.SharesKeyWith(route("https://other.example/v1", false)) {
+		t.Fatal("different endpoints reported as sharing a key")
+	}
+}

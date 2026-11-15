@@ -281,7 +281,7 @@ func (m *model) fileCompletionRows(width, limit int) []string {
 	start := max(0, picker.selected-visible+1)
 	for i := start; i < min(len(picker.matches), start+visible); i++ {
 		if i == picker.selected {
-			rows = append(rows, cell("› "+picker.matches[i], width, background, accent))
+			rows = append(rows, cell("› "+picker.matches[i], width, onAccent, accent))
 		} else {
 			rows = append(rows, cell("  "+picker.matches[i], width, foreground, panel))
 		}

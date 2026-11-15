@@ -13,29 +13,58 @@ import (
 
 // Only these trusted theme sequences reach the terminal. User/model content is
 // sanitized before styling, including text received inside code fences.
-// The values come from the fixed theme table in theme.go.
+// The values come from the fixed theme table in theme.go; an empty value
+// leaves the terminal's own color. Defaults are the "terminal" theme.
 var (
-	background = "10;10;10"
-	panel      = "24;24;24"
-	foreground = "230;230;230"
-	muted      = "132;132;132"
-	accent     = "250;178;131"
-	blue       = "92;156;245"
-	green      = "127;216;143"
-	red        = "224;108;117"
+	background = ""
+	panel      = ""
+	foreground = ""
+	muted      = "128;128;128"
+	accent     = "214;120;60"
+	blue       = "60;130;230"
+	green      = "40;160;80"
+	red        = "210;70;80"
 )
 
 func paint(text, fg, bg string) string {
-	if os.Getenv("NO_COLOR") != "" {
+	if os.Getenv("NO_COLOR") != "" || (fg == "" && bg == "") {
 		return text
 	}
-	return "\x1b[38;2;" + fg + "m\x1b[48;2;" + bg + "m" + text + "\x1b[0m"
+	style := ""
+	if fg != "" {
+		style += "\x1b[38;2;" + fg + "m"
+	}
+	if bg != "" {
+		style += "\x1b[48;2;" + bg + "m"
+	}
+	return style + text + "\x1b[0m"
 }
 
 func cell(text string, width int, fg, bg string) string {
 	text = strings.ReplaceAll(strings.ReplaceAll(Safe(text), "\t", "    "), "\n", " ")
-	text = ansi.Truncate(text, max(0, width), "")
+	text = ansi.Truncate(text, max(0, width), "…") // a cut shows, not a word fragment
 	return paint(text+strings.Repeat(" ", max(0, width-ansi.StringWidth(text))), fg, bg)
+}
+
+// fitHints shortens a row of key hints to width by dropping whole hints
+// from the end, so a narrow terminal never shows half a key ("Ctrl+").
+// Hints are separated by "  ·  " or, failing that, two spaces.
+func fitHints(text string, width int) string {
+	if ansi.StringWidth(text) <= width {
+		return text
+	}
+	sep := "  ·  "
+	if !strings.Contains(text, sep) {
+		sep = "  "
+	}
+	items := strings.Split(text, sep)
+	for len(items) > 1 {
+		items = items[:len(items)-1]
+		if joined := strings.Join(items, sep); ansi.StringWidth(joined) <= width {
+			return joined
+		}
+	}
+	return text // a single hint: cell truncates it with an ellipsis
 }
 
 func canvas(rows []string, width, height int) tea.View {
@@ -101,6 +130,9 @@ func (m *model) View() tea.View {
 		modelName, agentName = m.a.Config.Model, m.a.Config.Agent
 		project, sessionID = m.a.Store.Project, m.a.Store.ID
 	}
+	if m.fix == FixWorkspace {
+		modelName = "No project folder open"
+	}
 	if project == "" {
 		project, _ = os.Getwd()
 	}
@@ -142,7 +174,8 @@ func (m *model) View() tea.View {
 			draft = "Working… type to queue a follow-up"
 		}
 		if m.blocked != "" {
-			draft = "Connect a provider to start chatting"
+			_, step := m.setupStep()
+			draft = "Press Enter to " + step
 		}
 		draftRows = terminalRows("▏ "+draft, promptWidth-5)
 	}
@@ -158,7 +191,7 @@ func (m *model) View() tea.View {
 		first := max(0, min(current-1, len(matches)-3))
 		for i := first; i < min(len(matches), first+3); i++ {
 			if matches[i].command == m.input {
-				promptRows = append(promptRows, cell("› "+matches[i].command+"  "+matches[i].label, promptWidth, background, accent))
+				promptRows = append(promptRows, cell("› "+matches[i].command+"  "+matches[i].label, promptWidth, onAccent, accent))
 				continue
 			}
 			promptRows = append(promptRows, cell("  "+matches[i].command+"  "+matches[i].label, promptWidth, muted, panel))
@@ -192,7 +225,8 @@ func (m *model) View() tea.View {
 		controls = m.runControls()
 	}
 	if m.blocked != "" {
-		controls = "Ctrl+P commands  /connect add a provider  /providers  Ctrl+D exit"
+		_, step := m.setupStep()
+		controls = "Enter " + step + "  Ctrl+P commands  /providers  /settings  Ctrl+D exit"
 	}
 	if m.scrollOffset > 0 && m.pending == nil && m.question == nil {
 		// Without this a reader cannot tell that newer output is below.
@@ -204,7 +238,7 @@ func (m *model) View() tea.View {
 	if !m.lastInterrupt.IsZero() && time.Since(m.lastInterrupt) < 2*time.Second {
 		controls = "Press Ctrl+C again to exit"
 	}
-	promptRows = append(promptRows, cell("   "+controls, promptWidth, muted, background))
+	promptRows = append(promptRows, cell("   "+fitHints(controls, promptWidth-3), promptWidth, muted, background))
 
 	var rows []string
 	if home {
@@ -257,39 +291,75 @@ func (m *model) View() tea.View {
 	} else if home {
 		body = ""
 		if m.blocked != "" {
-			body = "Chat setup required. /connect adds a provider; /providers manages them."
-			reason := strings.Split(m.blocked, "\n")
-			if len(reason) > 1 {
-				body += "\n" + reason[1]
-			} else {
-				body += "\n" + m.blocked
+			// The first paragraph: what is wrong. The hints say what fixes it.
+			body, _, _ = strings.Cut(m.blocked, "\n\n")
+			var lines []string
+			for _, line := range strings.Split(body, "\n") {
+				lines = append(lines, wordWrap(line, max(1, columns-2))...)
 			}
+			body = strings.Join(lines, "\n")
 		}
 	}
 	if review != "" {
-		reviewRows := terminalRows(review, columns)
-		reviewRows = reviewRows[:min(len(reviewRows), max(1, contentHeight-1))]
-		for _, row := range reviewRows {
+		// The conversation stays visible: the approval or question docks
+		// as a panel just above the composer, where the keys are typed.
+		header := terminalRows(review, columns)
+		header = header[:min(len(header), max(1, contentHeight-1))]
+		space := max(1, contentHeight-len(header)-1) // one blank row above the composer
+		// The decision comes first: the whole preview when it fits, with the
+		// conversation in the rows left over (at least three, or none).
+		need := len(m.wrapReview(body, columns-2))
+		limit := space
+		if need <= space-4 {
+			limit = need
+		}
+		preview := m.reviewRows(body, columns-2, limit)
+		transcript := space - len(preview) - 1
+		if transcript < 3 {
+			transcript = 0
+		}
+		m.reviewHidden = len(preview) == 0
+		if transcript > 0 {
+			lines := m.visibleRows(m.displayLog(), columns-2, transcript, false)
+			for count := len(lines); count < transcript; count++ {
+				rows = append(rows, "")
+			}
+			for _, row := range lines {
+				rows = append(rows, transcriptCell(row, columns+4))
+			}
+			rows = append(rows, cell("  "+strings.Repeat("─", max(0, columns-2)), columns+4, muted, background))
+		}
+		for _, row := range header {
 			rows = append(rows, cell("  "+row, columns+4, accent, panel))
 		}
-		contentHeight = max(0, contentHeight-len(reviewRows))
-	}
-	lines := m.visibleRows(body, columns-2, contentHeight, review != "")
-	m.reviewHidden = review != "" && len(lines) == 0
-	needle := ""
-	if m.find != nil && review == "" {
-		needle = strings.ToLower(m.find.query)
-	}
-	for _, row := range lines {
-		if needle != "" && strings.Contains(strings.ToLower(row.text), needle) {
-			// The marker keeps matches visible when NO_COLOR disables colors.
-			rows = append(rows, cell("▸ "+row.text, columns+4, background, accent))
-			continue
+		for _, row := range preview {
+			rows = append(rows, transcriptCell(row, columns+4))
 		}
-		rows = append(rows, transcriptCell(row, columns+4))
-	}
-	for count := len(lines); count < contentHeight; count++ {
-		rows = append(rows, "")
+		used := len(header) + len(preview)
+		if transcript > 0 {
+			used += transcript + 1
+		}
+		for count := used; count < contentHeight; count++ {
+			rows = append(rows, "")
+		}
+	} else {
+		lines := m.visibleRows(body, columns-2, contentHeight, false)
+		m.reviewHidden = false
+		needle := ""
+		if m.find != nil {
+			needle = strings.ToLower(m.find.query)
+		}
+		for _, row := range lines {
+			if needle != "" && strings.Contains(strings.ToLower(row.text), needle) {
+				// The marker keeps matches visible when NO_COLOR disables colors.
+				rows = append(rows, cell("▸ "+row.text, columns+4, onAccent, accent))
+				continue
+			}
+			rows = append(rows, transcriptCell(row, columns+4))
+		}
+		for count := len(lines); count < contentHeight; count++ {
+			rows = append(rows, "")
+		}
 	}
 	for _, row := range promptRows {
 		rows = append(rows, paint(strings.Repeat(" ", left), foreground, background)+row)
@@ -311,6 +381,32 @@ func (m *model) View() tea.View {
 	}
 	rows = append(rows, footer)
 	return canvas(rows, width, height)
+}
+
+// wrapReview wraps an approval preview or question once per text and width.
+func (m *model) wrapReview(text string, width int) []transcriptRow {
+	if m.previewText != text || m.previewWidth != width || m.previewRows == nil {
+		m.previewText, m.previewWidth = text, width
+		m.previewRows = transcriptRows(text, width, "", true)
+	}
+	return m.previewRows
+}
+
+// reviewRows returns the visible part of an approval preview or question:
+// at most height rows, scrolled by reviewOffset, sized to its content so a
+// short preview leaves room for the conversation above it.
+func (m *model) reviewRows(text string, width, height int) []transcriptRow {
+	lines := m.wrapReview(text, width)
+	height = min(height, len(lines))
+	m.reviewHeight = height
+	start := min(m.reviewOffset, max(0, len(lines)-height))
+	m.reviewOffset = start // overshooting PgDn must not make PgUp feel dead
+	end := min(len(lines), start+height)
+	if start <= m.reviewSeen && height > 0 {
+		m.reviewSeen = max(m.reviewSeen, end)
+	}
+	m.reviewTotal = len(lines)
+	return lines[start:end]
 }
 
 // Reflow only the visible transcript tail. Cached rows are reused during typing

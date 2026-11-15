@@ -114,3 +114,7 @@ type MCPPrompt struct {
 	Server, Name, Description string
 	Arguments                 []string
 }
+
+// MCPRestartFailed marks a tool result whose dropped MCP server could not be
+// restarted; the runtime settles that restart's journaled startup as failed.
+const MCPRestartFailed = "disconnected and could not be restarted"

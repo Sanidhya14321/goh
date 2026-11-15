@@ -56,7 +56,7 @@ func stats(args []string) error {
 	}
 	fmt.Printf("Sessions: %d   Prompts: %d\n", st.Sessions, st.Prompts)
 	if len(st.Models) == 0 {
-		fmt.Println("No token usage recorded yet (recorded from 1.0.0-rc.60 when the provider reports it).")
+		fmt.Println("No token usage recorded yet.")
 	}
 	writeModelRows(os.Stdout, st.Models)
 	writeToolRows(os.Stdout, st.Tools)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/Sanidhya14321/goh/internal/platform"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,7 +32,7 @@ func Preview(dir, id string) (PreviewInfo, error) {
 	if !validID.MatchString(id) {
 		return result, errors.New("invalid session ID")
 	}
-	file, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
+	file, err := openJournal(dir, id, os.O_RDONLY)
 	if err != nil {
 		return result, err
 	}

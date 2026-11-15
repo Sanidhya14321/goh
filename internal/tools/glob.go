@@ -220,7 +220,7 @@ func globFiles(ctx context.Context, root *os.Root, a args, deny func(string) boo
 			return nil
 		}
 		if d.IsDir() {
-			if p != a.Path && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
+			if p != filepath.ToSlash(a.Path) && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
 				return fs.SkipDir
 			}
 			return nil
@@ -242,7 +242,8 @@ func globFiles(ctx context.Context, root *os.Root, a args, deny func(string) boo
 		}
 		relative := p
 		if a.Path != "." {
-			relative = strings.TrimPrefix(p, a.Path+"/")
+			// Walk paths use '/', while a cleaned Windows path uses '\\'.
+			relative = strings.TrimPrefix(p, filepath.ToSlash(a.Path)+"/")
 		}
 		if program.matches(relative) {
 			files = append(files, p)

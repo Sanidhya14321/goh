@@ -46,3 +46,32 @@ func TestSessionGrantsAreScopedToTheReviewedAction(t *testing.T) {
 		}
 	}
 }
+
+// A session approval of a command that runs code given as an argument covers
+// only that exact command, never a later script for the same interpreter.
+func TestSessionGrantsDoNotCoverInterpreterScripts(t *testing.T) {
+	for _, c := range []struct{ approved, later string }{
+		{"bash -c 'npm test'", "bash -c 'rm -rf ~/work'"},
+		{"node -e console.log(1)", "node -e process.exit(1)"},
+		{"python3 build.py", "python3 evil.py"},
+		{"find . -name x", "find . -delete"},
+		{"go test ./...", "go test -exec /tmp/evil ./..."},
+		{"git status", "git -c core.pager=evil status"},
+		{"go test ./...", `go test "./..."`},
+	} {
+		a, _ := testAgent(t)
+		asked := 0
+		a.Approve = func(context.Context, core.Permission) (core.Decision, error) {
+			asked++
+			return core.Decision{Allow: true, Session: true}, nil
+		}
+		for _, cmd := range []string{c.approved, c.later} {
+			if _, err := a.Permission(context.Background(), perm("shell", map[string]any{"command": cmd})); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if asked != 2 {
+			t.Fatalf("approving %q also covered %q", c.approved, c.later)
+		}
+	}
+}

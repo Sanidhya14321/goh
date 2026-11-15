@@ -394,3 +394,36 @@ func TestCleanupIncompleteTakesPriorityOverCancellation(t *testing.T) {
 		})
 	}
 }
+
+// A server restarted during a call journals a new mcp_start through
+// Permission. That checkpoint must be settled so the next prompt is not
+// refused for uncertain effects.
+func TestMCPRestartDuringCallIsSettled(t *testing.T) {
+	for _, failed := range []bool{false, true} {
+		a, _ := testAgent(t)
+		external := &externalFixture{result: tools.Result{Content: `{"ok":true}`}}
+		if failed {
+			external.result = tools.Result{Error: true, Content: "MCP server fixture " + core.MCPRestartFailed + ": boom"}
+		}
+		external.execute = func() {
+			if _, err := a.Permission(context.Background(), core.Permission{Tool: "mcp_start:fixture", Arguments: json.RawMessage(`{}`)}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		a.External = external
+		a.Grants["mcp__fixture__effect"] = true
+		a.Grants["mcp_start:fixture"] = true
+		turn := 0
+		a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+			turn++
+			if turn == 1 {
+				return answer(toolCall("effect", "mcp__fixture__effect", map[string]any{})), nil
+			}
+			return answer(), nil
+		})
+		status, err := a.Run(context.Background(), "invoke")
+		if status != "completed" || err != nil || len(a.Store.Pending()) != 0 {
+			t.Fatal(failed, status, err, a.Store.Pending())
+		}
+	}
+}

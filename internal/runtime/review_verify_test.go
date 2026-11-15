@@ -103,3 +103,34 @@ func TestChildTasksShareToolCallBudget(t *testing.T) {
 		t.Fatalf("parent and child used %d tool calls, budget %d", a.toolCalls, a.Config.MaxToolCalls)
 	}
 }
+
+// A failing check's long output reaches the model by its end, where the
+// failure and summary are, not by the end of the inline preview.
+func TestVerifyRepairShowsEndOfLongOutput(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, _ := testAgent(t)
+	a.Grants["create_file"] = true
+	attempts := 1
+	a.Config.Verify = &core.VerifyConfig{Command: "i=0; while [ $i -lt 4000 ]; do echo line-$i-padding-padding-padding; i=$((i+1)); done; echo FINAL_$((40+2))_MARKER; exit 1", RepairAttempts: &attempts}
+	turn := 0
+	var shown string
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		turn++
+		last := h[len(h)-1]
+		if last.Role == "user" && strings.Contains(last.Content, "verification command failed") {
+			shown = last.Content
+			return answer(), nil
+		}
+		if turn == 1 {
+			return answer(toolCall("c", "create_file", map[string]any{"path": "work.txt", "content": "x\n"})), nil
+		}
+		return answer(), nil
+	})
+	if status, err := a.Run(context.Background(), "do the work"); status != "completed" {
+		t.Fatal(status, err)
+	}
+	if !strings.Contains(shown, "FINAL_42_MARKER") {
+		t.Fatalf("repair prompt lacks the end of the output:\n%.300s", shown)
+
+	}
+}

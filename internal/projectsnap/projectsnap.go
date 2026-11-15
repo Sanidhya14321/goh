@@ -74,9 +74,6 @@ func Open(dataDir, project string) (*Store, error) {
 	return s, nil
 }
 
-// Project returns the resolved project directory.
-func (s *Store) Project() string { return s.project }
-
 func (s *Store) run(ctx context.Context, stdin []byte, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
@@ -183,6 +180,11 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 		if rel, err := filepath.Rel(s.project, p); err != nil || strings.HasPrefix(rel, "..") {
 			continue
 		}
+		if linkedParent(s.project, p) {
+			// A folder on the way became a symlink: removing through it
+			// could delete a file outside the project.
+			return before, changes, fmt.Errorf("restore refused: a parent folder of %s is a symlink", c.Path)
+		}
 		if err := os.Remove(p); err != nil && !os.IsNotExist(err) {
 			return before, changes, err
 		}
@@ -192,6 +194,16 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 		return before, nil, err
 	}
 	return before, changes, nil
+}
+
+// linkedParent reports whether any folder between project and p is a symlink.
+func linkedParent(project, p string) bool {
+	for d := filepath.Dir(p); d != project && len(d) > len(project); d = filepath.Dir(d) {
+		if fi, err := os.Lstat(d); err == nil && fi.Mode()&os.ModeSymlink != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkUnrecorded refuses a restore that would replace a directory with a

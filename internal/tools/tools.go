@@ -124,13 +124,24 @@ func (e *Engine) Definitions() []Definition {
 	}
 	if e != nil && e.Sandbox != nil {
 		for i, d := range defs {
-			if d.Name == "shell" {
+			if d.Name == "shell" || d.Name == "job_start" {
 				defs[i].Description = strings.Replace(d.Description, "This is not sandboxed.", "Runs inside the configured OS sandbox: writes outside the project and temporary folders fail, and network access may be blocked.", 1)
 			}
 		}
 	}
 	return defs
 }
+
+// widestDefinitions indexes the tool schemas once; decode runs several
+// times per tool call and the definitions never change.
+var widestDefinitions = sync.OnceValue(func() map[string]*Definition {
+	m := map[string]*Definition{}
+	for _, d := range (&Engine{LineEdits: true}).Definitions() {
+		v := d
+		m[d.Name] = &v
+	}
+	return m
+})
 
 func baseDefinitions() []Definition {
 	s := func(properties map[string]any, required ...string) map[string]any {
@@ -185,16 +196,9 @@ func decode(name string, raw json.RawMessage) (args, error) {
 	if err := json.Unmarshal(raw, &obj); err != nil || obj == nil {
 		return a, errors.New("arguments must be a JSON object")
 	}
-	var def *Definition
 	// Decode against the widest schema; edit_file rejects a line range
 	// itself when line edits are not enabled.
-	for _, d := range (&Engine{LineEdits: true}).Definitions() {
-		if d.Name == name {
-			v := d
-			def = &v
-			break
-		}
-	}
+	def := widestDefinitions()[name]
 	if def == nil {
 		return a, fmt.Errorf("unknown tool %q", name)
 	}
@@ -482,56 +486,6 @@ func (e *Engine) Prepare(name string, raw json.RawMessage) (string, bool, error)
 	}
 	return filepath.Join(e.root, a.Path), false, err
 }
-func diffPreview(path string, before, after []byte, create bool) string {
-	var out strings.Builder
-	header := "--- " + path + "\n+++ " + path + "\n"
-	if len(header) > 2048 {
-		header = header[:2048] + " [path preview truncated]\n"
-	}
-	out.WriteString(header)
-	if create {
-		out.WriteString("(new file)\n")
-	}
-	// Allocate both sides a separate budget so large old contents never hide
-	// all proposed new contents from the approval view.
-	for _, block := range []struct {
-		prefix string
-		text   []byte
-	}{{"-", before}, {"+", after}} {
-		budget := (MaxInline - 4096) / 2
-		text := string(block.text)
-		for {
-			line, rest, found := strings.Cut(text, "\n")
-			needed := len(line) + 2
-			if needed > budget {
-				n := budget - 2
-				if n < 0 {
-					n = 0
-				}
-				if n > len(line) {
-					n = len(line)
-				}
-				for n > 0 && !utf8.ValidString(line[:n]) {
-					n--
-				}
-				out.WriteString(block.prefix)
-				out.WriteString(line[:n])
-				out.WriteString("\n[preview truncated; narrow the edit for complete review]\n")
-				break
-			}
-			out.WriteString(block.prefix)
-			out.WriteString(line)
-			out.WriteByte('\n')
-			budget -= needed
-			if !found {
-				break
-			}
-			text = rest
-		}
-	}
-	return out.String()
-}
-
 func failure(err error) Result { return Result{Content: err.Error(), Error: true} }
 func result(v any) Result {
 	b, err := json.Marshal(v)
@@ -732,7 +686,7 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 			return nil
 		}
 		if d.IsDir() {
-			if p != a.Path && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
+			if p != filepath.ToSlash(a.Path) && (d.Name() == ".git" || d.Name() == "node_modules" || d.Name() == ".harness") {
 				return fs.SkipDir
 			}
 			if ignored.skip(p, d) {
@@ -793,8 +747,9 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 		if name == "grep" && a.Include != "" {
 			relative := p
 			if a.Path != "." {
-				relative = strings.TrimPrefix(p, a.Path+"/")
-				if p == a.Path {
+				base := filepath.ToSlash(a.Path) // walk paths use '/' on every system
+				relative = strings.TrimPrefix(p, base+"/")
+				if p == base {
 					relative = filepath.Base(p)
 				}
 			}

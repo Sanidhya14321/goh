@@ -6,7 +6,7 @@ import fcntl, http.server, json, os, pathlib, pty, select, struct, subprocess, s
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from vtscreen import Screen
 
-binary = pathlib.Path(os.environ.get("GOH_TEST_BINARY", pathlib.Path(__file__).resolve().parents[1] / "bin/goh"))
+binary = pathlib.Path(os.environ.get("GOH_TEST_BINARY", pathlib.Path(__file__).resolve().parents[2] / "bin/goh"))
 key = "resume-setup-key"
 prompts = []
 
@@ -74,13 +74,9 @@ with tempfile.TemporaryDirectory(prefix="goh-resume-setup-") as temporary, http.
         raise AssertionError(f"missing {needle!r} on screen:\n{screen.text()}")
 
     try:
-        wait_for("Chat setup required")
-        os.write(master, b"\x07")
-        wait_for("Status")
-        os.write(master, b"p")
-        wait_for("GoHarness  /  Providers")
-        os.write(master, b"\r")
-        wait_for("GoHarness  /  Add a provider")
+        # First run opens the provider picker; connecting from it must
+        # still open the session named with --session.
+        wait_for("Welcome")
         os.write(master, b"custom")
         time.sleep(.1)
         os.write(master, b"\r")

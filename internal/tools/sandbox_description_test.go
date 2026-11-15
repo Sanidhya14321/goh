@@ -8,19 +8,21 @@ import (
 )
 
 func TestShellDescriptionReflectsSandbox(t *testing.T) {
-	shell := func(e *Engine) string {
-		for _, d := range e.Definitions() {
-			if d.Name == "shell" {
-				return d.Description
+	for _, tool := range []string{"shell", "job_start"} {
+		describe := func(e *Engine) string {
+			for _, d := range e.Definitions() {
+				if d.Name == tool {
+					return d.Description
+				}
 			}
+			t.Fatal("no definition for", tool)
+			return ""
 		}
-		t.Fatal("no shell definition")
-		return ""
-	}
-	if d := shell(&Engine{}); !strings.Contains(d, "not sandboxed") {
-		t.Fatalf("unsandboxed description = %q", d)
-	}
-	if d := shell(&Engine{Sandbox: &sandbox.Policy{}}); strings.Contains(d, "not sandboxed") || !strings.Contains(d, "OS sandbox") {
-		t.Fatalf("sandboxed description = %q", d)
+		if d := describe(&Engine{}); !strings.Contains(d, "not sandboxed") {
+			t.Fatalf("%s unsandboxed description = %q", tool, d)
+		}
+		if d := describe(&Engine{Sandbox: &sandbox.Policy{}}); strings.Contains(d, "not sandboxed") || !strings.Contains(d, "OS sandbox") {
+			t.Fatalf("%s sandboxed description = %q", tool, d)
+		}
 	}
 }

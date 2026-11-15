@@ -10,7 +10,7 @@ import fcntl, json, os, pathlib, pty, select, signal, socket, struct, subprocess
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from vtscreen import Screen
 
-base = pathlib.Path(__file__).resolve().parents[1]
+base = pathlib.Path(__file__).resolve().parents[2]
 goh, model_bin = base / 'bin/goh', base / 'bin/scripted-model'
 
 

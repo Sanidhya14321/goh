@@ -153,7 +153,7 @@ func TestSnapshotPrevalidationConflictsAndModes(t *testing.T) {
 			t.Fatalf("expected mode conflict: %v", e)
 		}
 	}
-	r, _ := m.Read(id)
+	r, _ := m.load(id)
 	if r.Status != "recorded" {
 		t.Fatalf("prevalidation changed status: %s", r.Status)
 	}
@@ -219,7 +219,7 @@ func TestSnapshotPartialApplicationNeverReplayed(t *testing.T) {
 	if err = m.Acknowledge(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
-	r, _ = m.Read(id)
+	r, _ = m.load(id)
 	if r.Status != "acknowledged" || len(r.Applied) != 1 {
 		t.Fatalf("lost uncertainty evidence: %+v", r)
 	}
@@ -231,7 +231,7 @@ func TestSnapshotPartialApplicationNeverReplayed(t *testing.T) {
 	}
 }
 
-func TestSnapshotCapturedRecoveryAndAbort(t *testing.T) {
+func TestSnapshotCapturedRecoveryAndAcknowledge(t *testing.T) {
 	m, p, d := setup(t)
 	put(t, p, "a", "A")
 	id := capture(t, m, "a")
@@ -246,12 +246,10 @@ func TestSnapshotCapturedRecoveryAndAbort(t *testing.T) {
 	if err != nil || len(pending) != 1 || pending[0].ID != id {
 		t.Fatalf("pending: %+v %v", pending, err)
 	}
-	put(t, p, "a", "different")
-	if err = m.Abort(context.Background(), id); !errors.Is(err, ErrConflict) {
-		t.Fatalf("abort lost mutation: %v", err)
+	if _, err = m.Capture(context.Background(), []string{"a"}); !errors.Is(err, ErrPending) {
+		t.Fatalf("capture with a pending snapshot: %v", err)
 	}
-	put(t, p, "a", "A")
-	if err = m.Abort(context.Background(), id); err != nil {
+	if err = m.Acknowledge(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = m.Capture(context.Background(), []string{"a"}); err != nil {
@@ -326,7 +324,7 @@ func TestSnapshotIntegrityAndBounds(t *testing.T) {
 		t.Fatal("oversized paths")
 	}
 	for _, id := range []string{"../outside", "", "ffffffffffffffffffffffff.json"} {
-		if _, err := m.Read(id); err == nil {
+		if _, err := m.load(id); err == nil {
 			t.Fatalf("invalid ID %q", id)
 		}
 	}

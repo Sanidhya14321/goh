@@ -42,6 +42,8 @@ func TestGlobPatternsAndDirectoryScope(t *testing.T) {
 		{"src/?[!b-z].go", "", []string{}},
 		{"src/[a-c].go", "", []string{"src/a.go"}},
 		{"./**/*.go", "src", []string{"src/a.go"}},
+		// A nested base is cleaned to "src\\nested" on Windows.
+		{"*.ts", "src/nested", []string{"src/nested/z.ts"}},
 		{"missing.*", "", []string{}},
 		{`literal\{brace\}.txt`, "", []string{"literal{brace}.txt"}},
 		{`literal\[bang.txt`, "", []string{"literal[bang.txt"}},

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Sanidhya14321/goh/internal/commands"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -23,7 +25,7 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		prompt := strings.TrimSpace(m.input)
 		switch {
 		case prompt == "":
-		case strings.HasPrefix(prompt, "/"):
+		case commands.IsCommand(prompt):
 			m.status = "Commands run after this run finishes; the draft is kept"
 		case len(m.queue) >= maxQueued:
 			m.status = fmt.Sprintf("Queue full (%d prompts); the draft is kept", maxQueued)

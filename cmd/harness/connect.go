@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -79,6 +80,13 @@ func userSettings() (path, raw string, cfg core.Config, err error) {
 	return
 }
 
+// keyRejection is a readable refusal that still matches
+// provider.ErrKeyRejected, so callers test the kind, not the wording.
+type keyRejection string
+
+func (k keyRejection) Error() string { return string(k) }
+func (keyRejection) Unwrap() error   { return provider.ErrKeyRejected }
+
 // checkRoute lists route's models with key to prove the key and URL work.
 // p, when it has a name, supplies a key-check endpoint and the filter for
 // non-chat models. It is a variable so tests can stand in for the network.
@@ -100,9 +108,16 @@ var checkRoute = func(ctx context.Context, route core.Config, key string, p core
 		infos, err = provider.ListModelInfo(ctx, route, key, &http.Client{})
 	}
 	if errors.Is(err, provider.ErrKeyRejected) {
-		return nil, fmt.Errorf("%s did not accept this key; check that it was copied whole and is active", name)
+		if key == "" {
+			return nil, keyRejection(name + " did not accept the request without a key; it needs an API key")
+		}
+		return nil, keyRejection(name + " did not accept this key; check that it was copied whole and is active")
 	}
 	if err != nil && p.ID != "" && !p.NeedsKey() {
+		if errors.Is(err, syscall.ECONNREFUSED) {
+			// Nothing is listening: the server is simply not running.
+			return nil, fmt.Errorf("%s is not running at %s; start it and try again", name, p.BaseURL)
+		}
 		return nil, fmt.Errorf("%s is not reachable at %s; start it and try again (%v)", name, p.BaseURL, err)
 	}
 	if err != nil {
@@ -143,9 +158,20 @@ func pickModel(title, current string, models []provider.ModelInfo, backdrop stri
 // saveProvider checks and writes a provider (and its key, when one was
 // entered), optionally making it the one new chats use.
 func saveProvider(name string, s core.ProviderSettings, key string, activate bool) error {
+	return saveProviderAs("", name, s, key, activate)
+}
+
+// saveProviderAs is saveProvider for an edit that may rename the provider
+// from its old name, keeping its other settings and the references to it.
+func saveProviderAs(from, name string, s core.ProviderSettings, key string, activate bool) error {
 	path, raw, _, err := userSettings()
 	if err != nil {
 		return err
+	}
+	if from != "" && from != name {
+		if raw, err = core.RenameProvider(raw, from, name); err != nil {
+			return err
+		}
 	}
 	next, err := core.SaveProvider(raw, name, s, activate)
 	if err != nil {
@@ -159,12 +185,17 @@ func saveProvider(name string, s core.ProviderSettings, key string, activate boo
 	if err := check.Validate(); err != nil {
 		return err
 	}
+	// Settings first: if they cannot be written, no key is left behind
+	// that no provider uses.
+	if err := core.WriteUserConfig(path, next); err != nil {
+		return err
+	}
 	if key != "" {
 		if err := route.SaveProviderKey(key); err != nil {
-			return err
+			return fmt.Errorf("%s was saved, but its key could not be stored (%w); open /providers and press k to set it", name, err)
 		}
 	}
-	return core.WriteUserConfig(path, next)
+	return nil
 }
 
 // keyState describes where a provider's key comes from, without the key.
@@ -198,7 +229,7 @@ func providerRows(cfg core.Config) []tui.ProviderRow {
 		}
 		title := e.Title()
 		if e.Unsaved {
-			title += " (from settings, not saved under a name yet)"
+			title += " (from config.json)"
 		}
 		rows = append(rows, tui.ProviderRow{Name: e.Name, Title: title, Detail: model + " · " + host + " · " + keyState(e, cfg), Active: e.Active})
 	}
@@ -243,9 +274,15 @@ func manageProviders(backdrop string) (changed bool, notice string, err error) {
 			notice = testProvider(name)
 		case tui.ProviderEdit:
 			var renamed string
+			wasActive := false
+			if e, ok := cfg.FindProvider(name); ok {
+				wasActive = e.Active
+			}
 			renamed, notice, actionErr = editProvider(name, backdrop)
 			if renamed != "" {
-				selected, changed = renamed, true
+				// Only a change to the provider new chats use, or a rename,
+				// resets the chat's own model choice.
+				selected, changed = renamed, changed || wasActive || renamed != name
 			}
 		case tui.ProviderRemove:
 			var active bool
@@ -310,17 +347,42 @@ func useProvider(name string) (bool, string, error) {
 // addProvider asks which kind of provider to add and connects it. It
 // returns the new provider's name ("" when cancelled).
 func addProvider(backdrop string) (string, string, error) {
-	choice, chosen, err := tui.SelectOption("Add a provider", "", connectOptions(core.ChatGPTSignedIn()), backdrop)
-	if err != nil || !chosen {
-		return "", "", err
+	return addProviderFlow(backdrop, false)
+}
+
+// addProviderFlow runs the provider picker until a provider is connected or
+// the picker itself is closed. Leaving a later step (the key form, the model
+// list) returns to the picker, and a failed step is explained there so it
+// can be retried or another provider chosen. welcome is the first-run form.
+func addProviderFlow(backdrop string, welcome bool) (string, string, error) {
+	title, footer := "Add a provider", ""
+	if welcome {
+		title = "Welcome · connect a model provider to start"
+		footer = "  ↑/↓ select  Enter connect  Esc not now"
 	}
-	switch {
-	case choice == "chatgpt" || choice == "reauthorize" || choice == "switch":
-		return connectChatGPT(choice, backdrop)
-	case strings.HasPrefix(choice, "preset:"):
-		return connectPreset(strings.TrimPrefix(choice, "preset:"), backdrop)
-	default:
-		return customProvider(nil, backdrop)
+	notice, last := "", ""
+	for {
+		choice, chosen, err := tui.SelectOptionFrom(title, last, connectOptions(core.ChatGPTSignedIn()), backdrop, notice, footer)
+		if err != nil || !chosen {
+			return "", "", err
+		}
+		last, notice = choice, ""
+		var name, done string
+		switch {
+		case choice == "chatgpt" || choice == "reauthorize" || choice == "switch":
+			name, done, err = connectChatGPT(choice, backdrop)
+		case strings.HasPrefix(choice, "preset:"):
+			name, done, err = connectPreset(strings.TrimPrefix(choice, "preset:"), backdrop)
+		default:
+			name, done, err = customProvider(nil, backdrop)
+		}
+		if err != nil {
+			notice = err.Error()
+			continue
+		}
+		if name != "" {
+			return name, done, nil
+		}
 	}
 }
 
@@ -496,56 +558,22 @@ func customProvider(existing *core.ProviderEntry, backdrop string) (string, stri
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	var s core.ProviderSettings
-	var key, newName, warning string
-	var models []provider.ModelInfo
+	var form customForm
+	var oldRoute *core.Config
+	if existing != nil && !existing.Unsaved {
+		r := existing.Route(cfg)
+		oldRoute = &r
+	}
 	ok, err := tui.EditSettings(title, "Tab moves between fields, ←/→ changes the protocol, Ctrl+S checks the connection and saves.", fields, false, func(f []tui.SettingsField) error {
-		newName = strings.TrimSpace(f[0].Value)
-		if newName == "" || newName == core.UnsavedProviderName {
-			return errors.New("give the provider a name")
+		values := make([]string, len(f))
+		for i := range f {
+			values[i] = f[i].Value
 		}
-		if _, taken := cfg.Profiles[newName]; taken && (existing == nil || existing.Name != newName) {
-			return fmt.Errorf("a profile named %q already exists; choose another name", newName)
-		}
-		address := strings.TrimSpace(f[1].Value)
-		if address == "" {
-			return errors.New("enter the API URL")
-		}
-		s = core.ProviderSettings{Protocol: f[2].Value, Address: address, Model: strings.TrimSpace(f[4].Value), KeyEnv: strings.TrimSpace(f[6].Value)}
-		for _, suffix := range []string{"/chat/completions", "/responses", "/messages"} {
-			if strings.HasSuffix(strings.TrimRight(address, "/"), suffix) {
-				s.IsEndpoint = true
-			}
-		}
-		if text := strings.TrimSpace(f[5].Value); text != "" {
-			n, err := strconv.Atoi(text)
-			if err != nil || n < 2048 {
-				return errors.New("context window must be a whole number of at least 2048, or blank")
-			}
-			s.Window = n
-		}
-		route := core.ProviderEntry{Protocol: s.Protocol, Address: s.Address, IsEndpoint: s.IsEndpoint, Model: s.Model, KeyEnv: s.KeyEnv}.Route(core.Defaults())
-		if _, err := route.ProviderEndpoint(); err != nil {
-			return err
-		}
-		key = strings.TrimSpace(f[3].Value)
-		use := key
-		if use == "" {
-			use, _ = route.ProviderKey()
-		}
-		found, err := checkRoute(ctx, route, use, core.ProviderPreset{})
-		switch {
-		case err == nil:
-			models, warning = found, ""
-		case strings.Contains(err.Error(), "did not accept"):
-			return err
-		case s.Model == "":
-			return fmt.Errorf("could not list models (%v). Check the URL and protocol, or type a model ID to save without checking", err)
-		default:
-			models, warning = nil, "Saved without checking: the model list was unavailable ("+err.Error()+")."
-		}
-		return nil
+		var e error
+		form, e = checkCustomForm(ctx, values, existing, oldRoute, cfg)
+		return e
 	})
+	s, key, newName, warning, models, moved := form.settings, form.key, form.name, form.warning, form.models, form.moved
 	if err != nil || !ok {
 		return "", "", err
 	}
@@ -577,21 +605,109 @@ func customProvider(existing *core.ProviderEntry, backdrop string) (string, stri
 			warning = "Note: " + s.Model + " is not in the provider's model list. "
 		}
 	}
-	if err := saveProvider(newName, s, key, activate); err != nil {
+	from := ""
+	if existing != nil && !existing.Unsaved {
+		from = existing.Name
+	}
+	if err := saveProviderAs(from, newName, s, key, activate); err != nil {
 		return "", "", err
 	}
-	if existing != nil && !existing.Unsaved && existing.Name != newName {
-		if path, raw, _, err := userSettings(); err == nil {
-			if next, err := core.RemoveProvider(raw, existing.Name, false, ""); err == nil {
-				_ = core.WriteUserConfig(path, next)
-			}
-		}
+	if moved != nil && !keyInUse(*moved) {
+		_ = moved.SaveProviderKey("") // the key moved with the provider
+	}
+	if from != "" && from != newName && os.Getenv("HARNESS_PROFILE") == from {
+		warning += "HARNESS_PROFILE still names " + from + "; update it to " + newName + ". "
 	}
 	verb := "Added"
 	if existing != nil {
 		verb = "Saved"
 	}
 	return newName, warning + verb + " " + newName + " (" + s.Model + ").", nil
+}
+
+// customForm is a checked custom-provider form, ready to save.
+type customForm struct {
+	settings core.ProviderSettings
+	key      string // to save; may be a saved key carried from oldRoute
+	name     string
+	warning  string
+	models   []provider.ModelInfo
+	moved    *core.Config // the old address whose saved key moved, if any
+}
+
+// checkCustomForm validates the custom-provider form (name, URL, protocol,
+// key, model, window, key variable) and checks the URL and key with the
+// provider. oldRoute is the provider's current route when editing a saved
+// one: a blank key keeps its saved key even when the address changed.
+func checkCustomForm(ctx context.Context, f []string, existing *core.ProviderEntry, oldRoute *core.Config, cfg core.Config) (customForm, error) {
+	var c customForm
+	newName := strings.TrimSpace(f[0])
+	if newName == "" {
+		return c, errors.New("give the provider a name")
+	}
+	if err := core.ValidProviderName(newName); err != nil {
+		return c, err
+	}
+	if _, taken := cfg.Profiles[newName]; taken && (existing == nil || existing.Name != newName) {
+		return c, fmt.Errorf("a profile named %q already exists; choose another name", newName)
+	}
+	address := strings.TrimSpace(f[1])
+	if address == "" {
+		return c, errors.New("enter the API URL")
+	}
+	s := core.ProviderSettings{Protocol: f[2], Address: address, Model: strings.TrimSpace(f[4]), KeyEnv: strings.TrimSpace(f[6])}
+	for _, suffix := range []string{"/chat/completions", "/responses", "/messages"} {
+		if strings.HasSuffix(strings.TrimRight(address, "/"), suffix) {
+			s.IsEndpoint = true
+		}
+	}
+	if text := strings.TrimSpace(f[5]); text != "" {
+		n, err := strconv.Atoi(text)
+		if err != nil || n < 2048 {
+			return c, errors.New("context window must be a whole number of at least 2048, or blank")
+		}
+		s.Window = n
+	}
+	route := core.ProviderEntry{Protocol: s.Protocol, Address: s.Address, IsEndpoint: s.IsEndpoint, Model: s.Model, KeyEnv: s.KeyEnv}.Route(core.Defaults())
+	if _, err := route.ProviderEndpoint(); err != nil {
+		return c, err
+	}
+	key := strings.TrimSpace(f[3])
+	var moved *core.Config
+	use := key
+	if use == "" {
+		var err error
+		if use, err = route.ProviderKey(); err != nil {
+			return c, fmt.Errorf("could not read the saved key: %w", err)
+		}
+		// Blank keeps the saved key even when the URL or protocol
+		// changed: it moves to the new address.
+		if old := oldRoute; use == "" && old != nil && !old.SharesKeyWith(route) && strings.HasPrefix(old.CredentialSource(), "saved key") {
+			if k, err := old.ProviderKey(); err == nil && k != "" {
+				use, key, moved = k, k, old
+			}
+		}
+	}
+	envUnset := key == "" && s.KeyEnv != "" && os.Getenv(s.KeyEnv) == ""
+	c = customForm{settings: s, key: key, name: newName, moved: moved}
+	found, err := checkRoute(ctx, route, use, core.ProviderPreset{})
+	switch {
+	case err == nil:
+		c.models = found
+	case envUnset && errors.Is(err, provider.ErrKeyRejected):
+		// The key lives in a variable this process does not have.
+		if s.Model == "" {
+			return c, fmt.Errorf("%s is not set here, so the connection could not be checked; set it and reopen goh, or type a model ID to save without checking", s.KeyEnv)
+		}
+		c.warning = "Saved without checking: " + s.KeyEnv + " is not set in this process. "
+	case errors.Is(err, provider.ErrKeyRejected):
+		return c, err
+	case s.Model == "":
+		return c, fmt.Errorf("could not list models (%v). Check the URL and protocol, or type a model ID to save without checking", err)
+	default:
+		c.warning = "Saved without checking: the model list was unavailable (" + err.Error() + ")."
+	}
+	return c, nil
 }
 
 // adoptName suggests a name for a hand-configured provider: its catalog
@@ -628,7 +744,7 @@ func editProvider(name, backdrop string) (string, string, error) {
 	if err != nil {
 		return "", "", err
 	}
-	if e.Preset != "" && !e.Unsaved {
+	if e.Protocol == core.ChatGPTProtocol || (e.Preset != "" && !e.Unsaved) {
 		return "", e.Title() + " has a fixed URL: use m to change its model or k to change its key.", nil
 	}
 	return customProvider(&e, backdrop)
@@ -640,28 +756,60 @@ func changeProviderModel(name, backdrop string) (bool, string, error) {
 	if err != nil {
 		return false, "", err
 	}
-	if e, err = adopt(e, cfg); err != nil {
+	options, windows, err := modelChoices(e, cfg)
+	if err != nil {
 		return false, "", err
 	}
-	var model string
-	var window int
-	var chosen bool
-	if e.Protocol == core.ChatGPTProtocol {
-		model, chosen, err = selectChatGPTModel(e.Model, backdrop)
-	} else {
-		p, _ := core.FindPreset(e.Preset)
-		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
-		route := e.Route(cfg)
-		key, _ := route.ProviderKey()
-		var models []provider.ModelInfo
-		if models, err = checkRoute(ctx, route, key, p); err != nil {
-			return false, "", fmt.Errorf("could not list %s models: %w", e.Name, err)
-		}
-		model, window, chosen, err = pickModel("Select "+e.Name+" model", e.Model, models, backdrop)
-	}
+	model, chosen, err := tui.SelectOption("Select "+e.Name+" model (type to search)", e.Model, options, backdrop)
 	if err != nil || !chosen {
 		return false, "", err
+	}
+	notice, err := setProviderModel(e, cfg, model, windows[model])
+	return err == nil && e.Active, notice, err
+}
+
+// modelChoices lists e's chat models as picker options, with the context
+// windows the provider reports (0 when unknown).
+func modelChoices(e core.ProviderEntry, cfg core.Config) ([]tui.Option, map[string]int, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	windows := map[string]int{}
+	var options []tui.Option
+	if e.Protocol == core.ChatGPTProtocol {
+		models, err := core.ListChatGPTModels(ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, m := range models {
+			options = append(options, tui.Option{Value: m.Slug, Label: m.Slug, Description: m.Name})
+		}
+		return options, windows, nil
+	}
+	key, err := e.Route(cfg).ProviderKey()
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not read %s's saved key: %w", e.Name, err)
+	}
+	p, _ := core.FindPreset(e.Preset)
+	models, err := checkRoute(ctx, e.Route(cfg), key, p)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not list %s models: %w", e.Name, err)
+	}
+	for _, m := range models {
+		description := ""
+		if m.Window > 0 {
+			description = fmt.Sprintf("%dK context", m.Window/1000)
+		}
+		options = append(options, tui.Option{Value: m.ID, Label: m.ID, Description: description})
+		windows[m.ID] = m.Window
+	}
+	return options, windows, nil
+}
+
+// setProviderModel saves model on e, with its context window when known.
+func setProviderModel(e core.ProviderEntry, cfg core.Config, model string, window int) (string, error) {
+	e, err := adopt(e, cfg)
+	if err != nil {
+		return "", err
 	}
 	s := settingsOf(e)
 	s.Model = model
@@ -669,9 +817,97 @@ func changeProviderModel(name, backdrop string) (bool, string, error) {
 		s.Window = window
 	}
 	if err := saveProvider(e.Name, s, "", e.Active); err != nil {
-		return false, "", err
+		return "", err
 	}
-	return e.Active, e.Name + " now uses " + model + ".", nil
+	return e.Name + " now uses " + model + ".", nil
+}
+
+// chooseModel is /models: the models of the provider new chats use, then
+// the other saved providers to switch to. Every choice is saved, so it
+// holds for this chat and the next ones. A chat whose route came from
+// flags or --config is not a saved provider: its choice applies to it
+// alone and comes back as override.
+func chooseModel(chat *core.Config, backdrop string) (override, notice string, err error) {
+	_, _, cfg, err := userSettings()
+	if err != nil {
+		return "", "", err
+	}
+	if chat != nil && !sameRoute(*chat, cfg) {
+		return chooseChatModel(*chat, backdrop)
+	}
+	notice, err = chooseSavedModel(cfg, backdrop)
+	return "", notice, err
+}
+
+// sameRoute reports whether the chat talks to the provider new chats use.
+func sameRoute(chat, saved core.Config) bool {
+	return chat.EffectiveProtocol() == saved.EffectiveProtocol() &&
+		strings.TrimRight(chat.BaseURL, "/") == strings.TrimRight(saved.BaseURL, "/") && chat.Endpoint == saved.Endpoint
+}
+
+// chooseChatModel picks a model for a chat whose route is not saved.
+func chooseChatModel(chat core.Config, backdrop string) (string, string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ids, err := provider.ListModels(ctx, chat, &http.Client{})
+	if err != nil {
+		return "", "", fmt.Errorf("could not list this chat's models: %w", err)
+	}
+	p, _ := core.PresetForRoute(chat.EffectiveProtocol(), chat.BaseURL)
+	var options []tui.Option
+	for _, id := range ids {
+		if name, ok := p.ChatModel(id); ok {
+			options = append(options, tui.Option{Value: name, Label: name})
+		}
+	}
+	selected, chosen, err := tui.SelectOption("Select model for this chat", chat.Model, options, backdrop)
+	if err != nil || !chosen {
+		return "", "", err
+	}
+	return selected, "Model for this chat: " + selected + " (this chat's provider comes from command-line flags or --config, so the choice is not saved)", nil
+}
+
+func chooseSavedModel(cfg core.Config, backdrop string) (string, error) {
+	var active core.ProviderEntry
+	found := false
+	var switches []tui.Option
+	for _, e := range cfg.Providers() {
+		if e.Active {
+			active, found = e, true
+			continue
+		}
+		model := e.Model
+		if model == "" {
+			model = "no model chosen"
+		}
+		switches = append(switches, tui.Option{Value: "@use:" + e.Name, Label: "Switch to " + e.Title(), Description: model})
+	}
+	if !found {
+		// Nothing to choose from yet: add a provider first.
+		_, notice, err := addProvider(backdrop)
+		return notice, err
+	}
+	options, windows, listErr := modelChoices(active, cfg)
+	manage := tui.Option{Value: "@manage", Label: "Manage providers…", Description: "Add, switch, test or change keys"}
+	if listErr != nil {
+		// Still offer the other providers and the manager, which can fix it.
+		options = []tui.Option{{Value: "@manage", Label: "Models unavailable: open providers", Description: listErr.Error()}}
+	} else {
+		switches = append(switches, manage)
+	}
+	selected, chosen, err := tui.SelectOption("Select model · "+active.Title(), active.Model, append(options, switches...), backdrop)
+	if err != nil || !chosen {
+		return "", err
+	}
+	switch {
+	case selected == "@manage":
+		_, notice, err := manageProviders(backdrop)
+		return notice, err
+	case strings.HasPrefix(selected, "@use:"):
+		_, notice, err := useProvider(strings.TrimPrefix(selected, "@use:"))
+		return notice, err
+	}
+	return setProviderModel(active, cfg, selected, windows[selected])
 }
 
 // changeProviderKey replaces a provider's key after checking it, or for
@@ -766,6 +1002,7 @@ func removeProvider(name string) (bool, string, error) {
 	}
 	next := ""
 	shared := false
+	route := e.Route(cfg)
 	for _, other := range cfg.Providers() {
 		if other.Name == name {
 			continue
@@ -773,7 +1010,7 @@ func removeProvider(name string) (bool, string, error) {
 		if next == "" && !other.Unsaved {
 			next = other.Name
 		}
-		shared = shared || other.Protocol == e.Protocol && other.Address == e.Address
+		shared = shared || route.SharesKeyWith(other.Route(cfg))
 	}
 	path, raw, _, err := userSettings()
 	if err != nil {
@@ -790,7 +1027,7 @@ func removeProvider(name string) (bool, string, error) {
 	if e.Protocol == core.ChatGPTProtocol {
 		notice += " The ChatGPT sign-in is kept; `goh auth logout` signs out."
 	} else if !shared {
-		if err := e.Route(cfg).SaveProviderKey(""); err == nil {
+		if err := route.SaveProviderKey(""); err == nil {
 			notice += " Its saved key was deleted."
 		}
 	}
@@ -847,4 +1084,18 @@ func runProviders(args []string, w io.Writer) error {
 		return err
 	}
 	return usage
+}
+
+// keyInUse reports whether any saved provider still reads route's saved key.
+func keyInUse(route core.Config) bool {
+	_, _, cfg, err := userSettings()
+	if err != nil {
+		return true // unknown: keep the key
+	}
+	for _, e := range cfg.Providers() {
+		if e.Protocol != core.ChatGPTProtocol && route.SharesKeyWith(e.Route(cfg)) {
+			return true
+		}
+	}
+	return false
 }

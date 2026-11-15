@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/platform"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -69,7 +70,7 @@ func OpenReadOnly(dir, id, project string) (*Store, error) {
 	if !validID.MatchString(id) {
 		return nil, errors.New("invalid session ID")
 	}
-	f, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), os.O_RDONLY|platform.NoFollow|platform.NonBlock, 0)
+	f, err := openJournal(dir, id, os.O_RDONLY)
 	if err != nil {
 		return nil, err
 	}
@@ -151,6 +152,19 @@ var ErrProjectMismatch = errors.New("session belongs to another project")
 // Salvage can recover the readable conversation into a new session.
 var ErrDamaged = errors.New("session journal is damaged")
 
+// ErrNotFound is returned when no journal exists for a session ID.
+var ErrNotFound = errors.New("no saved session with this ID (goh sessions list shows them)")
+
+// openJournal opens a journal file without following a final symlink and
+// reports a missing journal as ErrNotFound, naming the ID.
+func openJournal(dir, id string, flags int) (*os.File, error) {
+	f, err := os.OpenFile(filepath.Join(dir, id+".jsonl"), flags|platform.NoFollow|platform.NonBlock, 0600)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%s: %w", id, ErrNotFound)
+	}
+	return f, err
+}
+
 func lock(f *os.File) error {
 	if err := platform.TryLock(f); err != nil {
 		return fmt.Errorf("%w: %w", ErrBusy, err)
@@ -175,9 +189,8 @@ func open(dir, id, project string) (*Store, error) {
 	if !validID.MatchString(id) {
 		return nil, errors.New("invalid session ID")
 	}
-	path := filepath.Join(dir, id+".jsonl")
 	// O_NOFOLLOW prevents replacing the journal with a symlink into another path.
-	f, err := os.OpenFile(path, os.O_RDWR|platform.NoFollow|platform.NonBlock, 0600)
+	f, err := openJournal(dir, id, os.O_RDWR)
 	if err != nil {
 		return nil, err
 	}

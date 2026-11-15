@@ -76,6 +76,11 @@ func TestRunOutcomes(t *testing.T) {
 	if status, _ := a.Run(context.Background(), "fix it"); status == "completed" {
 		t.Fatal("empty reply counted as success")
 	}
+	for _, m := range a.History {
+		if m.Role == "assistant" && strings.TrimSpace(m.Content) == "" && len(m.ToolCalls) == 0 {
+			t.Fatal("empty assistant reply was committed to history")
+		}
+	}
 	if _, err := os.Stat(filepath.Join(root, "new.txt")); err == nil {
 		t.Fatal("unexpected file")
 	}

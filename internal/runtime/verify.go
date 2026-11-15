@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 )
@@ -58,13 +59,37 @@ func (a *Agent) verifyAndMaybeRepair(ctx context.Context) (retry bool, err error
 		return false, nil
 	}
 	a.repairsUsed++
-	tail := out.Output
-	if tail == "" {
-		tail = res.Content
-	}
-	if len(tail) > 6000 {
-		tail = "…" + tail[len(tail)-6000:]
-	}
+	tail := a.outputTail(ctx, out.ArtifactID, out.Output, res.Content)
 	msg := fmt.Sprintf("[Automatic check, not a new request] The configured verification command failed after your changes (repair attempt %d of %d).\nCommand: %s\nOutput (end):\n%s\nFix the cause, then finish.", a.repairsUsed, allowed, v.Command, tail)
 	return true, a.commit(core.Message{Role: "user", Content: msg, Automatic: true})
+}
+
+// outputTail returns the last 6000 bytes of a check's output. The shell
+// result inlines only the start of long output; the retained artifact holds
+// the rest, and failures and summaries are usually at the end.
+func (a *Agent) outputTail(ctx context.Context, artifact, inline, raw string) string {
+	const max = 6000
+	if artifact != "" {
+		args, _ := json.Marshal(map[string]any{"id": artifact, "tail": true, "limit": max})
+		if r := a.Tools.Execute(ctx, "read_artifact", args); !r.Error {
+			var page struct {
+				Content string `json:"content"`
+				Offset  int64  `json:"offset"`
+			}
+			if json.Unmarshal([]byte(r.Content), &page) == nil && page.Content != "" {
+				if page.Offset > 0 {
+					return "…" + page.Content
+				}
+				return page.Content
+			}
+		}
+	}
+	tail := inline
+	if tail == "" {
+		tail = raw
+	}
+	if len(tail) > max {
+		tail = "…" + strings.ToValidUTF8(tail[len(tail)-max:], "")
+	}
+	return tail
 }

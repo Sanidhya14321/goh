@@ -1,7 +1,7 @@
 name: release
 # Pushing a tag vX.Y.Z[-pre] builds every platform from that commit, checks
 # it, and publishes a GitHub release whose notes are the matching
-# docs/CHANGELOG.md section. The installers and `goh upgrade` read the
+# CHANGELOG.md section. The installers and `goh upgrade` read the
 # release marked latest.
 on:
   push:
@@ -28,8 +28,8 @@ jobs:
       - name: Release notes from the changelog
         run: |
           version="${GITHUB_REF_NAME#v}"
-          awk -v head="## $version " 'index($0, head) == 1 {on = 1; next} on && /^## / {exit} on {print}' docs/CHANGELOG.md > notes.md
-          test -s notes.md || { echo "docs/CHANGELOG.md has no section for $version"; exit 1; }
+          awk -v head="## $version " 'index($0, head) == 1 {on = 1; next} on && /^## / {exit} on {print}' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}

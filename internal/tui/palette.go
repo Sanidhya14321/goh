@@ -230,7 +230,7 @@ func (m *model) paletteView(width, height int) tea.View {
 		name := ansi.Truncate(entry.command, nameWidth, "…")
 		name += strings.Repeat(" ", max(0, nameWidth-ansi.StringWidth(name)))
 		if i == m.paletteIndex {
-			rows = append(rows, padding+cell("› "+name+"  "+entry.label, boxWidth, background, accent))
+			rows = append(rows, padding+cell("› "+name+"  "+entry.label, boxWidth, onAccent, accent))
 			continue
 		}
 		rows = append(rows, padding+cell("  ", 2, muted, panel)+cell(name, nameWidth, foreground, panel)+cell("  "+entry.label, boxWidth-nameWidth-2, muted, panel))

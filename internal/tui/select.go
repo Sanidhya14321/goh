@@ -240,7 +240,7 @@ func (m *chooser) View() tea.View {
 		}
 		fg, bg, mark := muted, background, "  "
 		if i == m.index {
-			fg, bg, mark = background, accent, "› "
+			fg, bg, mark = onAccent, accent, "› "
 		}
 		rows = append(rows, cell(mark+title, listWidth, fg, bg))
 	}
@@ -260,12 +260,17 @@ func (m *chooser) View() tea.View {
 			info := matches[min(m.index, len(matches)-1)]
 			if info.ID != "" {
 				summary, ok := m.summaries[info.ID]
-				preview = []string{"PREVIEW", "", info.ID, info.Project}
+				preview = []string{"PREVIEW", "", info.ID, shortPath(info.Project, max(8, detailWidth-3))}
 				if ok {
 					if summary.Limited {
 						preview = append(preview, "Limited preview · first 64 KiB")
 					}
-					preview = append(preview, summary.Modified.Local().Format("02 Jan 15:04"), summary.Status, "", "YOU", summary.User, "", "ASSISTANT", summary.Assistant)
+					preview = append(preview, summary.Modified.Local().Format("02 Jan 15:04"), summary.Status)
+					if strings.TrimSpace(summary.User) == "" && strings.TrimSpace(summary.Assistant) == "" {
+						preview = append(preview, "", "No messages yet.")
+					} else {
+						preview = append(preview, "", "YOU", summary.User, "", "ASSISTANT", summary.Assistant)
+					}
 				} else if problem := m.problems[info.ID]; problem != "" {
 					preview = append(preview, "", "Preview unavailable", problem)
 				} else {
@@ -273,7 +278,7 @@ func (m *chooser) View() tea.View {
 				}
 			}
 		}
-		lines := terminalRows(strings.Join(preview, "\n"), max(1, detailWidth-3))
+		lines := wordWrap(strings.Join(preview, "\n"), max(1, detailWidth-3))
 		start := min(m.previewOffset, max(0, len(lines)-(height-6)))
 		m.previewOffset = start // PgDn past the end must not pile up offset
 		for y := 4; y < len(rows); y++ {
@@ -329,7 +334,7 @@ func selectSession(infos []session.Info, dir, current, project string, readOnly 
 			break
 		}
 	}
-	_, err := tea.NewProgram(m).Run()
+	err := runProgram(m)
 	return m.selected, m.chosen, err
 }
 

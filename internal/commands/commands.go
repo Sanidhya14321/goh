@@ -22,6 +22,17 @@ var reserved = map[string]bool{"compact": true, "todos": true, "tasks": true, "c
 
 // Expand returns the substituted prompt and selected command name. Non-command
 // text and reserved runtime commands pass through with an empty command name.
+// IsCommand reports whether prompt names a slash command, as opposed to text
+// that happens to start with a path such as /var/log/app.log.
+func IsCommand(prompt string) bool {
+	trimmed := strings.TrimSpace(prompt)
+	if !strings.HasPrefix(trimmed, "/") {
+		return false
+	}
+	name, _ := splitCommand(trimmed[1:])
+	return name != "" && !strings.Contains(name, "/")
+}
+
 // Arguments are data; their placeholder-looking text is not expanded again.
 func Expand(prompt string, definitions map[string]core.CommandConfig) (string, string, error) {
 	if len(prompt) > MaxPrompt {
@@ -35,7 +46,9 @@ func Expand(prompt string, definitions map[string]core.CommandConfig) (string, s
 		return prompt, "", nil
 	}
 	command, raw := splitCommand(trimmed[1:])
-	if reserved[command] {
+	if reserved[command] || !IsCommand(trimmed) {
+		// A path ("/var/log/app.log shows a panic") or a lone slash is
+		// ordinary text, not a command name.
 		return prompt, "", nil
 	}
 	if !namePattern.MatchString(command) {

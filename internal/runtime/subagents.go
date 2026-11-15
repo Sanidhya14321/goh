@@ -97,8 +97,6 @@ func (a *Agent) childConfiguration(kind string) (core.Config, error) {
 			return c, err
 		}
 	}
-	c.MCP = nil
-	c.LSP = nil
 	if _, custom := c.Agents[kind]; custom {
 		profile := c.Agents[kind].Profile
 		selected, e := c.Resolve(profile, kind)
@@ -124,7 +122,7 @@ func (a *Agent) childConfiguration(kind string) (core.Config, error) {
 	if a.isPlan() || kind == "explore" {
 		c.AgentMode = "plan"
 	}
-	c.MCP = nil
+	c.MCP = nil // children get no executable integrations
 	c.LSP = nil
 	c.SessionDir = a.Config.SessionDir
 	if c.MaxTurns > maxChildTurns {

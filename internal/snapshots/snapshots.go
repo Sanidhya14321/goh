@@ -519,14 +519,6 @@ func (m *Manager) noPending(except string) error {
 	return nil
 }
 func (m *Manager) List() ([]Record, error) { m.mu.Lock(); defer m.mu.Unlock(); return m.list() }
-func (m *Manager) Read(id string) (Record, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if err := m.ready(); err != nil {
-		return Record{}, err
-	}
-	return m.load(id)
-}
 func (m *Manager) Pending() ([]Record, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -646,36 +638,6 @@ func (m *Manager) Seal(ctx context.Context, id string) (Record, error) {
 	r.Status = "recorded"
 	err = m.writeRecord(r)
 	return r, err
-}
-
-// Abort succeeds only when every current file still matches its before state.
-func (m *Manager) Abort(ctx context.Context, id string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if err := m.ready(); err != nil {
-		return err
-	}
-	r, err := m.load(id)
-	if err != nil {
-		return err
-	}
-	if r.Status != "captured" {
-		return errors.New("only a captured snapshot can be aborted")
-	}
-	for _, e := range r.Before {
-		if err = ctx.Err(); err != nil {
-			return err
-		}
-		current, _, e2 := m.readCurrent(e.Path)
-		if e2 != nil {
-			return e2
-		}
-		if current != e {
-			return fmt.Errorf("%w: %s", ErrConflict, e.Path)
-		}
-	}
-	r.Status = "aborted"
-	return m.writeRecord(r)
 }
 
 // Acknowledge preserves the checkpoint and progress but makes it ineligible for

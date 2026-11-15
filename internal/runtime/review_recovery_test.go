@@ -178,3 +178,38 @@ func TestMalformedToolCallKeepsSessionPortable(t *testing.T) {
 	}
 	imported.Close()
 }
+
+// A malformed call batched behind a valid read-only call is still refused,
+// not run with its sanitized "{}" arguments.
+func TestMalformedSiblingInReadBatchIsNotExecuted(t *testing.T) {
+	a, root := testAgent(t)
+	os.WriteFile(filepath.Join(root, "a.go"), []byte("package a\n"), 0o644)
+	good := toolCall("good_1", "read_file", map[string]any{"path": "a.go"})
+	bad := core.Call{ID: "bad_1", Type: "function"}
+	bad.Function.Name, bad.Function.Arguments = "list_files", `not json`
+	turn := 0
+	var results []core.Message
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		turn++
+		if turn == 1 {
+			return answer(good, bad), nil
+		}
+		results = h
+		return answer(), nil
+	})
+	if status, err := a.Run(context.Background(), "read"); status != "completed" {
+		t.Fatal(status, err)
+	}
+	found := false
+	for _, m := range results {
+		if m.ToolCallID == "bad_1" {
+			found = true
+			if !strings.Contains(m.Content, "not a JSON object") {
+				t.Fatalf("malformed sibling ran: %q", m.Content)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("no result for the malformed call")
+	}
+}

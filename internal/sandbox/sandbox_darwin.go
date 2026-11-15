@@ -38,6 +38,13 @@ func profile(p Policy) string {
 		}
 		b.WriteString(")\n")
 	}
+	if len(p.ReadOnly) > 0 {
+		b.WriteString("(deny file-write*")
+		for _, d := range p.ReadOnly {
+			b.WriteString(" (subpath " + quote(d) + ")")
+		}
+		b.WriteString(")\n")
+	}
 	if len(p.DenyFiles) > 0 {
 		b.WriteString("(deny file-read* file-write*")
 		for _, f := range p.DenyFiles {

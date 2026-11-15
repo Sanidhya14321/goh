@@ -2,12 +2,14 @@ package core
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/platform"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
+	goruntime "runtime"
 	"strings"
 )
 
@@ -79,9 +81,15 @@ func (c Config) ProviderKey() (string, error) {
 		}
 		u, _ := url.Parse(endpoint)
 		host := strings.ToLower(u.Hostname())
-		trusted := u.Scheme == "https" && (u.Port() == "" || u.Port() == "443") && ((env == "OPENAI_API_KEY" && host == "api.openai.com") ||
-			(env == "ANTHROPIC_API_KEY" && host == "api.anthropic.com"))
-		if trusted || (c.APIKeyEnv != "" && env != "OPENAI_API_KEY" && env != "ANTHROPIC_API_KEY") {
+		// Windows environment names ignore case, so "openai_api_key" reads
+		// the official key there and must be held to the same rule.
+		name := env
+		if goruntime.GOOS == "windows" {
+			name = strings.ToUpper(env)
+		}
+		trusted := u.Scheme == "https" && (u.Port() == "" || u.Port() == "443") && ((name == "OPENAI_API_KEY" && host == "api.openai.com") ||
+			(name == "ANTHROPIC_API_KEY" && host == "api.anthropic.com"))
+		if trusted || (c.APIKeyEnv != "" && name != "OPENAI_API_KEY" && name != "ANTHROPIC_API_KEY") {
 			if u.Scheme != "https" && host != "localhost" && !net.ParseIP(host).IsLoopback() {
 				return "", fmt.Errorf("environment keys require HTTPS or a loopback URL")
 			}
@@ -127,6 +135,10 @@ func (c Config) SaveProviderKey(key string) error {
 	return saveSecret(path, []byte(key))
 }
 
+// ErrProjectHoldsKeys means the chosen project folder contains goh's saved
+// keys (the home folder does, on every platform), so tools could read them.
+var ErrProjectHoldsKeys = errors.New("goh can't work in this folder because goh's saved keys are stored inside it (your home folder holds them); open a project folder instead: cd into it and run goh, or pass --project PATH")
+
 // CheckProjectCredentialBoundary keeps saved keys outside the project tools'
 // readable root. The project may be anywhere else, including under the home dir.
 func CheckProjectCredentialBoundary(project string) error {
@@ -139,14 +151,21 @@ func CheckProjectCredentialBoundary(project string) error {
 		rel, err := filepath.Rel(base, target)
 		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	}
+	// Compare both the paths as given and with symlinks resolved: either
+	// may not exist yet, and temp and home folders are often symlinked.
+	projects, dirs := []string{project}, []string{dir}
 	if resolved, err := filepath.EvalSymlinks(project); err == nil {
-		project = resolved
+		projects = append(projects, resolved)
 	}
-	if within(project, dir) || within(dir, project) {
-		return fmt.Errorf("choose a project directory outside the GoHarness credential storage scope")
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dirs = append(dirs, resolved)
 	}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil && (within(project, resolved) || within(resolved, project)) {
-		return fmt.Errorf("choose a project directory outside the GoHarness credential storage scope")
+	for _, p := range projects {
+		for _, d := range dirs {
+			if within(p, d) || within(d, p) {
+				return ErrProjectHoldsKeys
+			}
+		}
 	}
 	return nil
 }

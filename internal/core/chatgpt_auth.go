@@ -117,6 +117,9 @@ func ChatGPTModel() (string, error) {
 	return a.Model, err
 }
 
+// chatGPTLockWait bounds how long a sign-in update waits for another.
+var chatGPTLockWait = 20 * time.Second
+
 func chatGPTLock() (func(), error) {
 	path, err := chatGPTPath("chatgpt.lock")
 	if err != nil {
@@ -129,9 +132,24 @@ func chatGPTLock() (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := platform.TryLock(f); err != nil {
-		f.Close()
-		return nil, errors.New("another GoHarness process is updating ChatGPT sign-in; try again shortly")
+	// Another process (or a model-list fetch in this one) may be renewing
+	// the token; wait for it rather than failing the request. A renewal
+	// request is bounded at 15 seconds, so this outlasts one.
+	deadline := time.Now().Add(chatGPTLockWait)
+	for {
+		err := platform.TryLock(f)
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, platform.ErrLocked) {
+			f.Close()
+			return nil, err
+		}
+		if time.Now().After(deadline) {
+			f.Close()
+			return nil, errors.New("another GoHarness process is updating ChatGPT sign-in; try again shortly")
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 	return func() { _ = f.Close() }, nil
 }
@@ -274,19 +292,30 @@ func LogoutChatGPT(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// Local credentials are removed even when revocation fails (offline, or
+	// the service errors), so signing out always works on this machine.
+	var revokeErr error
 	if a.Tokens.Refresh != "" {
-		if err := chatGPTRequest(ctx, http.MethodPost, chatGPTIssuer+"/api/accounts/oauth/revoke", url.Values{
+		revokeErr = chatGPTRequest(ctx, http.MethodPost, chatGPTIssuer+"/api/accounts/oauth/revoke", url.Values{
 			"token": {a.Tokens.Refresh}, "token_type_hint": {"refresh_token"}, "client_id": {a.ClientID},
-		}, "", nil); err != nil {
-			return err
-		}
+		}, "", nil)
 	}
 	path, err := chatGPTPath(chatGPTAccountFile)
 	if err != nil {
 		return err
 	}
-	return removeSecret(path)
+	if err := removeSecret(path); err != nil {
+		return err
+	}
+	if revokeErr != nil {
+		return fmt.Errorf("%w: %w", ErrChatGPTRevoke, revokeErr)
+	}
+	return nil
 }
+
+// ErrChatGPTRevoke reports a sign-out that cleared the local credentials but
+// could not revoke the renewal token with OpenAI.
+var ErrChatGPTRevoke = errors.New("signed out on this machine, but OpenAI could not be reached to revoke the sign-in")
 
 // LoginChatGPT runs the documented public-client loopback flow. open receives
 // only the authorization URL. The callback and tokens stay inside the process.

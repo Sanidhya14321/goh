@@ -20,6 +20,12 @@ func sandboxPolicy(c core.Config, project string) *sandbox.Policy {
 		return &sandbox.Policy{Container: c.Sandbox.Container}
 	}
 	p := &sandbox.Policy{Network: c.Sandbox.Network, Writable: append([]string{project}, sandbox.TempDirs()...)}
+	// Git runs hooks and config-defined commands outside the sandbox, so a
+	// sandboxed command must not be able to plant them. The rest of .git stays
+	// writable so commands such as git add and git commit still work.
+	if info, err := os.Stat(filepath.Join(project, ".git")); err == nil && info.IsDir() {
+		p.ReadOnly = []string{filepath.Join(project, ".git", "hooks"), filepath.Join(project, ".git", "config")}
+	}
 	home, _ := os.UserHomeDir()
 	for _, w := range c.Sandbox.Writable {
 		if home != "" && (w == "~" || strings.HasPrefix(w, "~/")) {

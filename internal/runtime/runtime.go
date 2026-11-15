@@ -618,14 +618,17 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			return "failed", e
 		}
 		badArgs := sanitizeToolArguments(&reply.Message)
+		if len(reply.Message.ToolCalls) == 0 && strings.TrimSpace(reply.Message.Content) == "" {
+			// Not committed: an empty assistant message is invalid history
+			// for some providers (Anthropic) and would break the session.
+			a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
+			return "failed", errors.New("the model returned an empty reply; nothing was done")
+		}
 		if e = a.commit(reply.Message); e != nil {
 			return "failed", e
 		}
 		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
 		if len(reply.Message.ToolCalls) == 0 {
-			if strings.TrimSpace(reply.Message.Content) == "" {
-				return "failed", errors.New("the model returned an empty reply; nothing was done")
-			}
 			a.noticeUntrackedChanges() // background jobs, for example
 			if a.needsCompletionCheck() {
 				a.completionChecked = true
@@ -820,6 +823,12 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			// Only adjacent validated read-only operations are concurrent, bounded at four.
 			end := i + 1
 			for end < len(calls) && end-i < 4 {
+				// A sibling whose arguments were not a JSON object leaves the
+				// batch, so the loop above refuses it and counts it.
+				if _, bad := badArgs[calls[end].ID]; bad {
+					break
+				}
+
 				_, s, e := a.prepare(calls[end].Function.Name, json.RawMessage(calls[end].Function.Arguments))
 				if e != nil || s {
 					break
@@ -990,7 +999,11 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 		return a.executePlanExit(json.RawMessage(c.Function.Arguments))
 	}
 	if a.External != nil && a.External.Has(c.Function.Name) {
-		return a.External.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
+		res := a.External.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
+		if e := a.settleRestarts(res); e != nil {
+			return tools.Result{Error: true, Content: e.Error()}
+		}
+		return res
 	}
 	paths, err := a.Tools.MutationPaths(c.Function.Name, json.RawMessage(c.Function.Arguments))
 	if err != nil {
@@ -1281,6 +1294,28 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 	a.event("run_finished", d)
 	a.runFinishedHooks(status, err)
 	return status, err
+}
+
+// settleRestarts resolves startup checkpoints journaled while an MCP call
+// restarted its dropped server. The initial connection settles its own starts;
+// any start still open after a call belongs to a restart, which has either
+// initialized or failed and stopped by the time Execute returns.
+func (a *Agent) settleRestarts(res tools.Result) error {
+	failed := res.Error && strings.Contains(res.Content, core.MCPRestartFailed)
+	for _, call := range a.mcpStarts {
+		if a.readyIntegrations[call.ID] || !strings.HasPrefix(call.Function.Name, "mcp_start:") {
+			continue
+		}
+		result := tools.Result{Content: `{"status":"initialized"}`}
+		if failed {
+			b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": res.Content})
+			result = tools.Result{Content: string(b), Error: true}
+		}
+		if e := a.integrationSettled(call.Function.Name, result); e != nil {
+			return e
+		}
+	}
+	return nil
 }
 
 func (a *Agent) integrationReady(tool string) error {

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 type SettingsField struct {
@@ -143,6 +144,18 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.index = (m.index + step) % len(m.fields)
 				m.cursor = len([]rune(m.fields[m.index].Value))
 			}
+		case "enter":
+			if m.multiline {
+				m.insert("\n")
+				return m, nil
+			}
+			if m.index < len(m.fields)-1 {
+				m.index++
+				m.cursor = len([]rune(m.fields[m.index].Value))
+				return m, nil
+			}
+			// Enter on the last field saves, as in any form.
+			fallthrough
 		case "ctrl+s":
 			if err := m.save(m.fields); err != nil {
 				m.problem = err.Error()
@@ -159,13 +172,6 @@ func (m *settingsForm) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					step = len(m.fields) - 1
 				}
 				m.index = (m.index + step) % len(m.fields)
-				m.cursor = len([]rune(m.fields[m.index].Value))
-			}
-		case "enter":
-			if m.multiline {
-				m.insert("\n")
-			} else {
-				m.index = (m.index + 1) % len(m.fields)
 				m.cursor = len([]rune(m.fields[m.index].Value))
 			}
 		case "left", "right", "space":
@@ -262,9 +268,13 @@ func (m *settingsForm) View() tea.View {
 	if m.problem != "" {
 		fmt.Fprintln(&tail, "\n"+Safe(m.problem))
 	}
-	fmt.Fprint(&tail, "\nCtrl+S save • Esc back • Ctrl+U clear field")
-	if !m.multiline {
-		fmt.Fprint(&tail, " • Tab next field")
+	switch {
+	case m.multiline:
+		fmt.Fprint(&tail, "\nCtrl+S save • Esc back • Ctrl+U clear field")
+	case len(m.fields) == 1:
+		fmt.Fprint(&tail, "\nEnter save • Esc back • Ctrl+U clear field")
+	default:
+		fmt.Fprint(&tail, "\nEnter next field (saves on the last) • Ctrl+S save • Esc back • Ctrl+U clear field")
 	}
 	width, height := m.width, m.height
 	if width < 1 || height < 1 {
@@ -304,7 +314,7 @@ func EditSettings(title, hint string, fields []SettingsField, multiline bool, sa
 		return false, nil
 	}
 	m := &settingsForm{title: title, hint: hint, fields: fields, cursor: len([]rune(fields[0].Value)), height: 24, width: 80, multiline: multiline, save: save}
-	_, err := tea.NewProgram(m).Run()
+	err := runProgram(m)
 	return m.saved, err
 }
 
@@ -315,13 +325,12 @@ type launcher struct {
 }
 
 var launchItems = []struct {
-	action, label, shortcut string
+	action, label, description, shortcut string
 }{
-	{"chat", "Open chat or resume a session", "c"},
-	{"provider", "Providers: add, switch, test, keys and models", "p"},
-	{"config", "Edit advanced settings", "s"},
-	{"project", "Choose a workspace", "w"},
-	{"command", "Run a GoHarness command", "r"},
+	{"provider", "Providers", "add, switch, test, keys and models", "p"},
+	{"config", "Advanced settings", "rules, sandbox, verify, MCP and more", "s"},
+	{"project", "Workspace", "the project folder chat works in", "w"},
+	{"chat", "Back to chat", "", "c"},
 }
 
 func (m *launcher) Init() tea.Cmd { return nil }
@@ -364,29 +373,39 @@ func (m *launcher) View() tea.View {
 	if width < 1 || height < 1 {
 		return blankView()
 	}
+	labelWidth := 0
+	for _, item := range launchItems {
+		labelWidth = max(labelWidth, len(item.label))
+	}
 	boxWidth := min(76, max(1, width-4))
 	padding := strings.Repeat(" ", max(0, (width-boxWidth)/2))
 	rows := []string{"", padding + cell("  GoHarness  /  Settings", boxWidth, foreground, panel),
 		padding + cell("", boxWidth, foreground, panel)}
 	for i, item := range launchItems {
-		mark := "  "
-		fg := muted
+		mark, fg := "  ", foreground
 		if i == m.index {
 			mark, fg = "› ", accent
 		}
-		rows = append(rows, padding+cell(mark+item.label+"  ["+item.shortcut+"]", boxWidth, fg, panel))
+		label := mark + item.label + strings.Repeat(" ", labelWidth-len(item.label)+2)
+		key := "  " + item.shortcut + "  "
+		rest := max(0, boxWidth-ansi.StringWidth(label)-len(key))
+		desc := ansi.Truncate(item.description, rest, "…")
+		gap := strings.Repeat(" ", max(0, rest-ansi.StringWidth(desc)))
+		rows = append(rows, padding+cell(label, ansi.StringWidth(label), fg, panel)+cell(desc+gap, rest, muted, panel)+cell(key, len(key), muted, panel))
 	}
-	rows = append(rows, padding+cell("", boxWidth, foreground, panel),
-		padding+cell("  ↑/↓ select · Enter open · Esc back to chat", boxWidth, muted, panel))
+	rows = append(rows, padding+cell("", boxWidth, foreground, panel))
 	if m.status != "" {
-		rows = append(rows, padding+cell("  "+m.status, boxWidth, accent, panel))
+		for _, line := range wordWrap(m.status, boxWidth-4) {
+			rows = append(rows, padding+cell("  "+line, boxWidth, accent, panel))
+		}
 	}
+	rows = append(rows, padding+cell("  "+fitHints("↑/↓ select  ·  Enter or key open  ·  Esc back to chat", boxWidth-2), boxWidth, muted, panel))
 	return canvas(rows, width, height)
 }
 
 func LaunchMenu(status string) (string, error) {
 	m := &launcher{status: status}
-	_, err := tea.NewProgram(m).Run()
+	err := runProgram(m)
 	return m.action, err
 }
 

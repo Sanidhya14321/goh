@@ -64,7 +64,7 @@ func TestRejectMalformedAndOversized(t *testing.T) {
 		input       string
 		definitions map[string]core.CommandConfig
 	}{
-		{"/unknown", nil}, {"/test 'unfinished", map[string]core.CommandConfig{"test": {Template: "$1"}}}, {"/test trailing\\", map[string]core.CommandConfig{"test": {Template: "$1"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "$0"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "$99999999999999999999999"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: strings.Repeat("x", MaxTemplate+1)}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "ok"}, "compact": {Template: "override"}}}, {"/../test", nil},
+		{"/unknown", nil}, {"/test 'unfinished", map[string]core.CommandConfig{"test": {Template: "$1"}}}, {"/test trailing\\", map[string]core.CommandConfig{"test": {Template: "$1"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "$0"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "$99999999999999999999999"}}}, {"/test", map[string]core.CommandConfig{"test": {Template: strings.Repeat("x", MaxTemplate+1)}}}, {"/test", map[string]core.CommandConfig{"test": {Template: "ok"}, "compact": {Template: "override"}}},
 	} {
 		if _, _, err := Expand(test.input, test.definitions); err == nil {
 			t.Fatalf("accepted %q %+v", test.input, test.definitions)
@@ -90,4 +90,17 @@ func FuzzExpansion(f *testing.F) {
 			t.Fatal("output bound violated")
 		}
 	})
+}
+
+// A prompt that starts with an absolute path is text, not a command.
+func TestPromptStartingWithPathIsNotACommand(t *testing.T) {
+	for _, p := range []string{"/var/log/app.log shows a panic, fix it", "/ alone", "/usr/bin/env is missing", "/../test"} {
+		got, name, err := Expand(p, nil)
+		if err != nil || got != p || name != "" {
+			t.Fatalf("%q: got %q %q %v", p, got, name, err)
+		}
+	}
+	if _, _, err := Expand("/nosuch arg", nil); err == nil {
+		t.Fatal("unknown command accepted")
+	}
 }

@@ -14,23 +14,11 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// Windows has no O_NOFOLLOW or O_NONBLOCK; OpenNoFollow checks reparse points.
+// Windows has no O_NOFOLLOW or O_NONBLOCK.
 const (
 	NoFollow = 0
 	NonBlock = 0
 )
-
-func openNoFollow(path string, flags int, perm os.FileMode) (*os.File, error) {
-	// Refuse a final reparse point (symlink or junction). This check-then-open
-	// is weaker than O_NOFOLLOW against a concurrent swap; callers also confine
-	// paths with os.Root.
-	if info, err := os.Lstat(path); err == nil {
-		if info.Mode()&os.ModeSymlink != 0 || info.Mode()&os.ModeIrregular != 0 {
-			return nil, &os.PathError{Op: "open", Path: path, Err: errors.New("refusing to follow a link or reparse point")}
-		}
-	}
-	return os.OpenFile(path, flags, perm)
-}
 
 // TryLock takes an exclusive, nonblocking lock on the whole file.
 func TryLock(f *os.File) error {
