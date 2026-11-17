@@ -87,7 +87,8 @@ chat-model list.
 
 ```sh
 goh auth login        # browser sign-in
-goh auth status
+goh auth status       # account, default model and when the access token expires
+goh auth refresh      # renew the sign-in now (shows at once if it was revoked)
 goh auth models
 goh auth switch       # use a different account or workspace
 goh auth logout       # revoke and clear local credentials

@@ -12,7 +12,7 @@ import (
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
 
-const authUsage = "usage: goh auth login|switch|status|models|logout|list|store [file|keychain]"
+const authUsage = "usage: goh auth login|switch|status|refresh|models|logout|list|store [file|keychain]"
 
 func chatGPTAuth(args []string) error {
 	if len(args) == 2 && args[0] == "store" || len(args) == 1 && args[0] == "store" {
@@ -75,6 +75,20 @@ func chatGPTAuth(args []string) error {
 		if model != "" {
 			fmt.Println("Default model:", tui.Safe(model))
 		}
+		if expires, err := core.ChatGPTExpiry(); err == nil && !expires.IsZero() {
+			if time.Until(expires) > 0 {
+				fmt.Printf("Access token valid until %s; it renews automatically.\n", expires.Local().Format("2 Jan 15:04"))
+			} else {
+				fmt.Printf("Access token expired %s; it renews on the next request. Check the sign-in with: goh auth refresh\n", expires.Local().Format("2 Jan 15:04"))
+			}
+		}
+		return nil
+	case "refresh":
+		expires, err := core.RefreshChatGPT(ctx)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("ChatGPT sign-in renewed; access token valid until %s.\n", expires.Local().Format("2 Jan 15:04"))
 		return nil
 	case "list":
 		c, err := core.LoadConfig("")

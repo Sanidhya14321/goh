@@ -117,6 +117,34 @@ func ChatGPTModel() (string, error) {
 	return a.Model, err
 }
 
+// ChatGPTExpiry is when the saved access token expires. It is renewed
+// automatically from the saved refresh token; this only reads the record.
+func ChatGPTExpiry() (time.Time, error) {
+	a, err := readChatGPTAccount()
+	return a.Expires, err
+}
+
+// RefreshChatGPT renews the access token now with the saved refresh token,
+// as goh does by itself when the token expires or a request is refused. It
+// returns the new expiry; an expired or revoked sign-in fails with the
+// same message as a failed automatic renewal.
+func RefreshChatGPT(ctx context.Context) (time.Time, error) {
+	unlock, err := chatGPTLock()
+	if err != nil {
+		return time.Time{}, err
+	}
+	defer unlock()
+	a, err := readChatGPTAccount()
+	if err != nil {
+		return time.Time{}, err
+	}
+	if _, err := renewChatGPTLocked(ctx, a); err != nil {
+		return time.Time{}, err
+	}
+	a, err = readChatGPTAccount()
+	return a.Expires, err
+}
+
 // chatGPTLockWait bounds how long a sign-in update waits for another.
 var chatGPTLockWait = 20 * time.Second
 
