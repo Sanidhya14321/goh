@@ -36,6 +36,7 @@ A change is ready when all of these pass locally:
 gofmt -l cmd internal          # prints nothing
 make vet race acceptance e2e
 GOOS=linux go vet ./... && GOOS=windows go vet ./...
+make vulncheck                 # govulncheck; also a CI job
 ```
 
 CI (`.github/workflows/ci.yml`) repeats the unit tests natively on Linux, macOS and Windows with

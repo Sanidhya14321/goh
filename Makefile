@@ -2,7 +2,7 @@ GO ?= go
 VERSION ?= 0.1.0-dev
 PREFIX ?= $(HOME)/.local
 
-.PHONY: build install test race vet fmt fuzz acceptance e2e release demo bench-check clean
+.PHONY: build install test race vet vulncheck fmt fuzz acceptance e2e release demo bench-check clean
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags '-s -w -X main.version=$(VERSION)' -o bin/goh ./cmd/harness
 	ln -sf goh bin/harness
@@ -21,6 +21,8 @@ race:
 	$(GO) test -race ./...
 vet:
 	$(GO) vet ./...
+vulncheck:
+	$(GO) run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
 fmt:
 	gofmt -l -w cmd internal
 fuzz:

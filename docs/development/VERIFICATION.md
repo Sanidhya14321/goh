@@ -8,6 +8,14 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: CI back to green, credential boundary through symlinks
+
+Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all five terminal suites; `govulncheck ./...` (v1.1.4): no vulnerabilities. Linux ARM64 in a `python:3.12-bookworm` container (Colima): all five terminal suites passed with the cross-built binary.
+
+- CI run 43748015459 (15 Nov) failed three ways. Linux `test_tui.py` `text` showed the first-run provider picker: the suite's private home lived inside the test project, which goh refuses because its saved keys would be inside the project. Reproduced in the container with the old script (fails) and the new layout (passes).
+- The same layout passed on macOS, which exposed a real gap: `CheckProjectCredentialBoundary` compared the symlink-resolved project (`/private/var/…`) with the unresolved, not-yet-created key folder (`/var/…`), so the check was skipped. `TestCredentialBoundaryResolvesSymlinkedHome` fails without the fix.
+- Windows: `TestCheckRoute` expected "not running at"; `errors.Is(err, syscall.ECONNREFUSED)` does not match Winsock's `WSAECONNREFUSED`, now `platform.ConnectionRefused`. `TestHomeFolderIsRefusedWithAFolderFix` read the runner's real profile because `USERPROFILE` was not isolated.
+
 ## Unreleased: small per-request caps (Groq free tier)
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; `test_tui.py`, `test_setup.py`, `test_acp.py`, `test_attach.py` and `test_resume_setup.py` all passed.

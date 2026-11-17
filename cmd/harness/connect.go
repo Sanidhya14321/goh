@@ -12,10 +12,10 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/Sanidhya14321/goh/internal/platform"
 	"github.com/Sanidhya14321/goh/internal/provider"
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
@@ -114,7 +114,7 @@ var checkRoute = func(ctx context.Context, route core.Config, key string, p core
 		return nil, keyRejection(name + " did not accept this key; check that it was copied whole and is active")
 	}
 	if err != nil && p.ID != "" && !p.NeedsKey() {
-		if errors.Is(err, syscall.ECONNREFUSED) {
+		if platform.ConnectionRefused(err) {
 			// Nothing is listening: the server is simply not running.
 			return nil, fmt.Errorf("%s is not running at %s; start it and try again", name, p.BaseURL)
 		}

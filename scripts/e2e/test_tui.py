@@ -24,8 +24,9 @@ def live_records(path):
     # inspect only complete lines, without repairing/modifying the journal.
     raw=raw[:raw.rfind(b'\n')+1]
     return [json.loads(line) for line in raw.splitlines()]
-with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
+with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.TemporaryDirectory(prefix='harness-tui-home-') as home_temporary:
     root = pathlib.Path(temporary)
+    home_root = pathlib.Path(home_temporary)
     (root / 'note.txt').write_text('alpha\n')
     script = root / 'script.json'
     script.write_text(json.dumps([{'calls': [{'id': 'tui-shell', 'type': 'function', 'function': {'name': 'shell', 'arguments': json.dumps({'command': 'sleep 30', 'timeout_seconds': 40})}}]}]))
@@ -112,7 +113,9 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
             # instead of inheriting the caller's terminal.
             # A private home: the run must never read or change the
             # user's own settings, keys or sessions.
-            home=root/'home'; home.mkdir(exist_ok=True)
+            # It sits beside the project, not inside it: goh refuses a
+            # project folder that holds its saved keys.
+            home=home_root/'home'; home.mkdir(exist_ok=True)
             env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor', HOME=str(home), XDG_CONFIG_HOME='', XDG_STATE_HOME='', APPDATA=str(home))
             env.pop('OPENAI_API_KEY', None); env.pop('ANTHROPIC_API_KEY', None)
             if case=='editor_handoff':

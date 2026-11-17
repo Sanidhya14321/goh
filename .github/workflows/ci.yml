@@ -31,6 +31,17 @@ jobs:
         run: |
           go build -o goh${{ runner.os == 'Windows' && '.exe' || '' }} ./cmd/harness
           ./goh${{ runner.os == 'Windows' && '.exe' || '' }} version
+  vulncheck:
+    # Known vulnerabilities in reachable code of the pinned module graph and
+    # the Go standard library.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
   terminal:
     # The compiled binary in real pseudo-terminals, plus CLI, setup and ACP
     # scenarios, against the scripted local model (no credentials).

@@ -152,12 +152,15 @@ func CheckProjectCredentialBoundary(project string) error {
 		return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 	}
 	// Compare both the paths as given and with symlinks resolved: either
-	// may not exist yet, and temp and home folders are often symlinked.
+	// may not exist yet, and temp and home folders are often symlinked
+	// (/var is /private/var on macOS). The credentials folder usually does
+	// not exist before the first saved key, so resolve its nearest existing
+	// parent; otherwise a resolved project never matches the unresolved one.
 	projects, dirs := []string{project}, []string{dir}
-	if resolved, err := filepath.EvalSymlinks(project); err == nil {
+	if resolved, ok := resolveExisting(project); ok {
 		projects = append(projects, resolved)
 	}
-	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+	if resolved, ok := resolveExisting(dir); ok {
 		dirs = append(dirs, resolved)
 	}
 	for _, p := range projects {
@@ -168,4 +171,22 @@ func CheckProjectCredentialBoundary(project string) error {
 		}
 	}
 	return nil
+}
+
+// resolveExisting resolves symlinks in path, or in its nearest existing
+// parent when path does not exist yet, and appends the missing remainder.
+func resolveExisting(path string) (string, bool) {
+	path = filepath.Clean(path)
+	rest := ""
+	for {
+		if resolved, err := filepath.EvalSymlinks(path); err == nil {
+			return filepath.Join(resolved, rest), true
+		}
+		parent := filepath.Dir(path)
+		if parent == path {
+			return "", false
+		}
+		rest = filepath.Join(filepath.Base(path), rest)
+		path = parent
+	}
 }

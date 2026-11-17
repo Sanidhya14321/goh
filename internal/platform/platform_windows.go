@@ -117,3 +117,10 @@ func ProcessAlive(pid int) bool {
 func ProcessCommand(int) (string, error) {
 	return "", errors.New("verifying a process command line is not supported on Windows")
 }
+
+// ConnectionRefused reports whether err means nothing was listening at the
+// address dialled. Winsock reports WSAECONNREFUSED, which syscall's
+// ECONNREFUSED constant does not match.
+func ConnectionRefused(err error) bool {
+	return errors.Is(err, windows.WSAECONNREFUSED) || errors.Is(err, syscall.ECONNREFUSED)
+}

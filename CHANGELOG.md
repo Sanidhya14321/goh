@@ -6,6 +6,9 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+- **Saved keys stay outside the project, also through symlinks:** the check that refuses a project folder holding goh's saved keys compared a symlink-resolved project with an unresolved key folder, so it was skipped when the key folder did not exist yet or the home path ran through a symlink (macOS `/var` → `/private/var`). It now resolves the nearest existing parent.
+- **Windows:** "Ollama is not running at …" (and other local providers) is shown when nothing is listening; Winsock's refused-connection error was not recognised and a raw `connectex` error appeared instead.
+- **CI:** a `vulncheck` job runs `govulncheck` (also `make vulncheck`); the Linux terminal suite keeps its private home outside the test project; a Windows test isolates `USERPROFILE`.
 - **End-to-end audit fixes** (real-world prompts against live Groq, real websites, clangd and an MCP server):
   - **Rate limits no longer end long runs:** a 429 now waits as long as `Retry-After` asks (decimals accepted, up to 30 s), or 2 s then 4 s without one. It used to wait at most 5 s (100 ms without the header), so a Groq run failed partway through once its per-minute token budget ran out.
   - **`webfetch` reads JSON APIs:** its Accept header now allows JSON and any other type, so `api.github.com` and similar APIs no longer answer 415. Errors name the status (`HTTP 404 Not Found`), and a refused cross-origin redirect names its destination (query stripped) so the model can fetch it as a separately approved request.

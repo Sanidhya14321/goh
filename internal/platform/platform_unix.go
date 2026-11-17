@@ -95,3 +95,9 @@ func ProcessCommand(pid int) (string, error) {
 	}
 	return strings.TrimSpace(string(out)), nil
 }
+
+// ConnectionRefused reports whether err means nothing was listening at the
+// address dialled.
+func ConnectionRefused(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED)
+}
