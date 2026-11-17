@@ -20,6 +20,13 @@ func TestLSPFixtureHelper(t *testing.T) {
 	if os.Getenv("LSP_FIXTURE_HELPER") != "1" {
 		return
 	}
+	if os.Getenv("LSP_FIXTURE_MODE") == "stderr-exit" {
+		// Like a toolchain proxy whose component is missing.
+		fmt.Fprintln(os.Stderr, "warming up")
+		fmt.Fprintln(os.Stderr, "error: Unknown binary 'fixture-ls' in toolchain\x1b[31m")
+		fmt.Fprintln(os.Stderr, "help: install it with fixture-up")
+		os.Exit(1)
+	}
 	testutil.RunLSP()
 	os.Exit(0)
 }
@@ -251,5 +258,18 @@ func TestLSPUnversionedStaleDiagnosticsAreNotTaken(t *testing.T) {
 	r := m.Execute(ctx, "lsp", argumentsFor("diagnostics"))
 	if r.Error || !strings.Contains(r.Content, "Fixture error: BROKEN") {
 		t.Fatalf("stale diagnostics taken for the new text: %s", r.Content)
+	}
+}
+
+// A server that exits before answering initialize: the error names what it
+// printed, not only that the connection closed.
+func TestLSPStartFailureIncludesServerError(t *testing.T) {
+	m, _, _ := setup(t, "stderr-exit")
+	r := m.Execute(context.Background(), "lsp", argumentsFor("hover"))
+	if !r.Error || !strings.Contains(r.Content, "the server said: error: Unknown binary 'fixture-ls' in toolchain / help: install it with fixture-up") {
+		t.Fatal(r.Content)
+	}
+	if strings.Contains(r.Content, "\x1b") || strings.Contains(r.Content, "\\u001b") || strings.Contains(r.Content, "warming up") {
+		t.Fatal("controls or earlier lines leaked:", r.Content)
 	}
 }

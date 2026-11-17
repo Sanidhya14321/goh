@@ -8,6 +8,20 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: live language servers (gopls, pyright, typescript-language-server)
+
+The compiled `goh run` driven by the scripted model through all six `lsp` operations (`documentSymbol`, `hover`, `goToDefinition`, `findReferences`, `workspaceSymbol`, `diagnostics`) on a small project per language, with `--allow lsp,lsp_start:NAME`:
+
+| Server | Version | Result |
+| --- | --- | --- |
+| gopls | v0.20.0 | all six; diagnostics reported the real `cannot use "oops"` type error (severity 1) |
+| pyright-langserver | 1.1.406 | all six; diagnostics reported the `str` to `int` assignment |
+| typescript-language-server | 5.0.1 (TypeScript 5.9.3) | all six; diagnostics reported `Type 'string' is not assignable to type 'number'` |
+| rust-analyzer | rustup stub without the component | start failed, as expected |
+
+- gopls first answered `no views` to every position query: the `go` command was not on the test's `PATH` (a shell function on this Mac), so gopls could not load the module. With the toolchain on `PATH` everything passed. Users see the same symptom without `go`; gopls's own `No active builds contain …` diagnostic is passed through.
+- The rust-analyzer stub exited before `initialize`, and goh said only `LSP connection closed: EOF`. A start failure now ends with the server's last two error lines (escape sequences removed, at most 300 bytes): `…; the server said: help: run 'rustup default stable' …`. `TestLSPStartFailureIncludesServerError` covers it.
+
 ## Unreleased: one terminal program per interactive session
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all six terminal suites. Linux ARM64 container: all six terminal suites.

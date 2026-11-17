@@ -342,7 +342,7 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 	result, err := p.rpc.call(ctx, "initialize", params)
 	if err != nil {
 		s.broken = true
-		status, failure := m.settleFailedStart(name, p, fmt.Errorf("LSP initialize: %w", err))
+		status, failure := m.settleFailedStart(name, p, p.startError(fmt.Errorf("LSP initialize: %w", err)))
 		return nil, status, failure
 	}
 	var initialized struct {

@@ -12,7 +12,7 @@ lists only what is **not** done or **not** verified, so it stays short.
 Over the ChatGPT sign-in (`gpt-6.1-sol`): streaming, tool calls, resume, image input, reasoning
 effort, plan handoff and end-of-request task state, plus 113 benchmark attempts that exercised the
 full tool loop ([benchmarks](../benchmarks/README.md)). LSP diagnostics and server restart were
-verified against a real `clangd`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
+verified against real `clangd`, `gopls`, `pyright` and `typescript-language-server`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
 API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end-to-end audit in
 [VERIFICATION.md](VERIFICATION.md)).
 
@@ -24,7 +24,7 @@ These paths have deterministic tests but no live run yet:
 - ChatGPT token expiry and the 401-renewal retry;
 - Responses reasoning summaries and prompt-cache savings from task state;
 - Anthropic extended thinking and API-key model lists;
-- third-party remote MCP services, and language servers other than clangd;
+- third-party remote MCP services;
 - editor clients other than the ACP fixture.
 
 ## Platform coverage
