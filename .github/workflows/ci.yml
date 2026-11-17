@@ -140,4 +140,5 @@ jobs:
             $upgrade = goh upgrade 2>&1 | Out-String
             if ($LASTEXITCODE -eq 0 -or $upgrade -notmatch 'scoop update goh') { throw "goh upgrade did not defer to scoop: $upgrade" }
             Write-Host 'PASS goh upgrade defers to scoop'
+            $global:LASTEXITCODE = 0  # goh upgrade's refusal above is the expected result
           } finally { Stop-Process -Id $server.Id -ErrorAction SilentlyContinue }
