@@ -14,17 +14,15 @@ effort, plan handoff and end-of-request task state, plus 113 benchmark attempts 
 full tool loop ([benchmarks](../benchmarks/README.md)). LSP diagnostics and server restart were
 verified against real `clangd`, `gopls`, `pyright` and `typescript-language-server`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
 API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end-to-end audit in
-[VERIFICATION.md](VERIFICATION.md)).
+[VERIFICATION.md](VERIFICATION.md)). Failover from a failed route to Groq, for a turn and for compaction, and the DeepWiki remote MCP server were checked live.
 
 ## Verified only with fixtures
 
 These paths have deterministic tests but no live run yet:
 
-- provider failover across real providers, including failover during compaction;
 - ChatGPT token expiry and the 401-renewal retry;
 - Responses reasoning summaries and prompt-cache savings from task state;
-- Anthropic extended thinking and API-key model lists;
-- third-party remote MCP services;
+- Anthropic extended thinking and API-key model lists (no Anthropic key by decision; Claude subscriptions cannot be used);
 - editor clients other than the ACP fixture.
 
 ## Platform coverage

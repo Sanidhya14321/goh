@@ -8,6 +8,11 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: live failover and remote MCP
+
+- **Failover:** `goh run` with the primary route at a closed local port and `fallback_profiles: ["groq"]` (saved Groq key, `qwen/qwen3.8-27b`): two `provider_retry` events, `provider_failover` (`reason: connection`, `to: groq`), `model_route` with `failover: true`, and Groq streamed `FAILOVER_OK`. Two `goh resume` turns, then `goh compact`: `provider_failover` with `purpose: compaction`, then `context_compacted`.
+- **Remote MCP:** DeepWiki's public server (`https://mcp.deepwiki.com/mcp`, streamable HTTP, no auth; serverInfo DeepWiki 4.0.2) with `--allow mcp_start:deepwiki,mcp__deepwiki__read_wiki_structure`. The server started, `read_wiki_structure` for `charmbracelet/bubbletea` returned its page list, and an unknown repository came back as the server's own message. A call with a wrong argument was refused by goh's schema check before it was sent (`missing property 'repoName'`).
+
 ## Unreleased: live language servers (gopls, pyright, typescript-language-server)
 
 The compiled `goh run` driven by the scripted model through all six `lsp` operations (`documentSymbol`, `hover`, `goToDefinition`, `findReferences`, `workspaceSymbol`, `diagnostics`) on a small project per language, with `--allow lsp,lsp_start:NAME`:
