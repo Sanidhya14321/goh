@@ -46,6 +46,7 @@ them. No manual Windows session has been run.
 | MCP | No OAuth for remote MCP servers | Needs a real OAuth MCP server to build against |
 | Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
 | Attach | `goh attach` works only with a loopback `goh serve` | Remote servers are out of scope |
+| CI | On Windows runners, `TestRealClangd` and `TestParentChildCancellationUnderLoad` failed together in 3 of 8 runs on 17 Nov 2026 (clangd restarted while warming up; child PowerShell slower than 30 s), and passed unchanged on re-runs | Runner load; `TestRealClangd` now reports why clangd restarted, so the next failure names the cause |
 
 Not attempted by decision: custom tool plugins (they would run repository code), session sharing
 (it would upload conversations).
