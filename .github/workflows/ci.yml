@@ -41,7 +41,7 @@ jobs:
         with:
           go-version-file: go.mod
           cache-dependency-path: go.sum
-      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.1.4 ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
   terminal:
     # The compiled binary in real pseudo-terminals, plus CLI, setup and ACP
     # scenarios, against the scripted local model (no credentials).

@@ -10,7 +10,7 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
 ## Unreleased: CI back to green, credential boundary through symlinks
 
-Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all five terminal suites; `govulncheck ./...` (v1.1.4): no vulnerabilities. Linux ARM64 in a `python:3.12-bookworm` container (Colima): all five terminal suites passed with the cross-built binary.
+Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all five terminal suites; `govulncheck ./...` (v1.9.0, for darwin, linux and windows): no vulnerabilities; v1.1.4 panicked on the Linux build in CI (`unexpected expr: *ast.KeyValueExpr`). Linux ARM64 in a `python:3.12-bookworm` container (Colima): all five terminal suites passed with the cross-built binary.
 
 - CI run 43748015459 (15 Nov) failed three ways. Linux `test_tui.py` `text` showed the first-run provider picker: the suite's private home lived inside the test project, which goh refuses because its saved keys would be inside the project. Reproduced in the container with the old script (fails) and the new layout (passes).
 - The same layout passed on macOS, which exposed a real gap: `CheckProjectCredentialBoundary` compared the symlink-resolved project (`/private/var/…`) with the unresolved, not-yet-created key folder (`/var/…`), so the check was skipped. `TestCredentialBoundaryResolvesSymlinkedHome` fails without the fix.
