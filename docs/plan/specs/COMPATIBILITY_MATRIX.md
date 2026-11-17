@@ -2,11 +2,14 @@
 
 Reference identity: OpenCode v1.19.5, executable SHA256 `feaafead8cd563af0c2dcb386b0757e4355e327ebb6bd1aaad5440fe2f83596c`.
 
-> **Later changes (reviewed at RC168).** Rows record the state when their evidence was captured. Since then:
+> **Later changes (reviewed 17 Nov 2026, after rc.180).** Rows record the state when their evidence was captured. Since then:
 > exact edits gained whitespace-tolerant matching that must still match exactly one place (`internal/tools/flexible_edit.go`);
 > sessions gained `fork --before-turn` boundary forks; native Anthropic gained extended/adaptive thinking;
-> whole-project Git snapshots (`internal/projectsnap`), an OS shell sandbox and hooks were added. Upstream-format
-> session import, desktop/browser clients and plugins remain out of scope.
+> whole-project Git snapshots (`internal/projectsnap`), an OS shell sandbox and hooks were added;
+> MCP gained remote streamable-HTTP servers (no OAuth; checked live against DeepWiki), resources and prompts;
+> LSP was checked live against clangd, gopls, pyright and typescript-language-server;
+> provider failover was checked live (turn and compaction). Upstream-format session import,
+> desktop/browser clients and plugins remain out of scope.
 
 This matrix separates reference observations from Go acceptance tests. Go implementation and passing unit tests alone do not establish compatibility. The first comparisons are semantic (tool pairing, effects, outcome), not identical prose, identifiers, timing, or terminal layout.
 
@@ -23,7 +26,7 @@ This matrix separates reference observations from Go acceptance tests. Go implem
 | Sessions and uncertain effects | `reference-resume.json`; Go uncertain resume captured | Versioned durable journal; no automatic replay | Compatible normal text resume; recovery internals unverified | Go tests are independent acceptance |
 | Context and compaction | Reference unobserved | Preserve task/tool relationships; explicit budget outcome | Unverified | Token estimates must be documented |
 | TUI | `reference-tui-ready.json`, `go-tui-selected.json` | Same runtime, approval, cancel, resize, safe text | Compatible selected text/resize/exit; differing session-selection interaction | No visual equivalence claim |
-| Local stdio MCP | `reference-mcp.json`, `reference-mcp-disconnect.json` | Explicit admission/execution, schema checks, no replay | Compatible echo; stricter Go disconnect recovery | No remote transports/OAuth/sampling |
+| Local stdio MCP | `reference-mcp.json`, `reference-mcp-disconnect.json` | Explicit admission/execution, schema checks, no replay | Compatible echo; stricter Go disconnect recovery | Remote streamable HTTP added later (no OAuth); no sampling |
 | Windows, subagents, native Responses/Anthropic | Implemented (RC17–RC27) | Native CI on Windows; scripted subagent and provider fixtures | Live providers pending user keys | See VERIFICATION.md |
 | Desktop/browser, plugins, upstream session import | Outside V1 | Deferred | Deferred | See original plan |
 
