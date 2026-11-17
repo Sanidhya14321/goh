@@ -8,6 +8,12 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: Linux keychain, product name
+
+- Linux Secret Service: `TestOSStoreRoundTrip` (`GOH_OS_STORE_TEST=1`) passed in a Debian bookworm ARM64 container with `gnome-keyring` unlocked in a D-Bus session and `secret-tool` from `libsecret-tools`: binary-unsafe bytes written, read back, replaced and deleted.
+- `TestLSPInitializeQueriesUTF16SyncAndDiagnostics` checks that `initialize` names `goh`; the web-fetch test checks the `goh/` User-Agent.
+- CI note: one Windows run (44125517188) failed `TestRealClangd` (a second start approval during a 37 s clangd warm-up) and `TestParentChildCancellationUnderLoad` (a child shell did not start within 30 s). The next Windows run passed both unchanged. Recorded as runner-load timing; not reproduced.
+
 ## Unreleased: completion check for name-filtered tests
 
 `go test -race ./internal/runtime`. `TestTestScope` classifies 22 commands across Go, pytest, unittest, Jest, npm, Cargo, Maven and Gradle (including `grep` of a test command, which is not a test run). `TestCompletionCheckSelectedTests`: one reminder after `go test -run` alone or followed by a build; none after a full run, with or without a filtered run first, or after a non-test check. Not yet measured on the benchmark: the ChatGPT sign-in used for benchmark runs has been revoked.

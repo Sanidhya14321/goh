@@ -88,6 +88,9 @@ func TestLSPInitializeQueriesUTF16SyncAndDiagnostics(t *testing.T) {
 	if !bytes.Contains(b, []byte("textDocument/didChange")) || !bytes.Contains(b, []byte("shutdown")) {
 		t.Fatal("sync/shutdown missing")
 	}
+	if !bytes.Contains(b, []byte(`"clientInfo":{"name":"goh"`)) {
+		t.Fatal("initialize does not name goh as the client")
+	}
 }
 func TestLSPAdmissionFailureAndBounds(t *testing.T) {
 	m, path, _ := setup(t, "")

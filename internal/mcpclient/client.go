@@ -225,7 +225,7 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	m.processes = append(m.processes, p)
 	m.mu.Unlock()
 	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	client := mcp.NewClient(&mcp.Implementation{Name: "independent-harness", Version: "0.1.0"}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
+	client := mcp.NewClient(&mcp.Implementation{Name: core.ProductName, Version: core.ProductVersion}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
 	var transport mcp.Transport = &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}
 	if cfg.URL != "" {
 		httpClient, err := remoteClient(cfg)

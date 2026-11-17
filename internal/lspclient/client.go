@@ -338,7 +338,7 @@ func (m *Manager) start(ctx context.Context, name string, cfg core.LSPConfig) (*
 	}
 	m.servers[name] = s
 	m.mu.Unlock()
-	params := map[string]any{"processId": os.Getpid(), "rootUri": fileURI(m.project), "rootPath": m.project, "workspaceFolders": []any{map[string]any{"uri": fileURI(m.project), "name": filepath.Base(m.project)}}, "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"synchronization": map[string]any{"didSave": false}, "diagnostic": map[string]any{"dynamicRegistration": false}, "publishDiagnostics": map[string]any{"versionSupport": true}}, "workspace": map[string]any{"configuration": true}}, "initializationOptions": cfg.Initialization, "clientInfo": map[string]string{"name": "independent-harness", "version": "0.1.0"}}
+	params := map[string]any{"processId": os.Getpid(), "rootUri": fileURI(m.project), "rootPath": m.project, "workspaceFolders": []any{map[string]any{"uri": fileURI(m.project), "name": filepath.Base(m.project)}}, "capabilities": map[string]any{"general": map[string]any{"positionEncodings": []string{"utf-16"}}, "textDocument": map[string]any{"synchronization": map[string]any{"didSave": false}, "diagnostic": map[string]any{"dynamicRegistration": false}, "publishDiagnostics": map[string]any{"versionSupport": true}}, "workspace": map[string]any{"configuration": true}}, "initializationOptions": cfg.Initialization, "clientInfo": map[string]string{"name": core.ProductName, "version": core.ProductVersion}}
 	result, err := p.rpc.call(ctx, "initialize", params)
 	if err != nil {
 		s.broken = true

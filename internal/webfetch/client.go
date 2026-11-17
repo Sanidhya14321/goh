@@ -210,7 +210,7 @@ func (c *Client) Fetch(ctx context.Context, raw json.RawMessage) tools.Result {
 	if err != nil {
 		return fail("invalid webfetch request")
 	}
-	req.Header.Set("User-Agent", "independent-harness/0.1 webfetch")
+	req.Header.Set("User-Agent", core.ProductName+"/"+core.ProductVersion+" webfetch (+https://github.com/Sanidhya14321/goh)")
 	req.Header.Set("Accept", accept(a.Format))
 	resp, err := c.http.Do(req)
 	if err != nil {

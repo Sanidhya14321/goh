@@ -91,7 +91,7 @@ func TestRedirectBoundaryAndNoCredentialCookieProxyForwarding(t *testing.T) {
 		if r.Header.Get("Authorization") != "" || r.Header.Get("Proxy-Authorization") != "" || r.Header.Get("Cookie") != "" {
 			t.Error("credentials forwarded", r.Header)
 		}
-		if !strings.Contains(r.Header.Get("User-Agent"), "independent-harness") {
+		if !strings.HasPrefix(r.Header.Get("User-Agent"), "goh/") {
 			t.Error("user agent missing")
 		}
 		switch r.URL.Path {

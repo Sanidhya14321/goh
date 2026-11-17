@@ -38,7 +38,7 @@ them. No manual Windows session has been run.
 | --- | --- | --- |
 | Release | Binaries are not code-signed or notarized | Needs signing identities |
 | Credentials | One ChatGPT account at a time; Claude Pro/Max sign-in not offered | Anthropic does not permit subscription sign-in for third-party tools; use a Console API key |
-| Credentials | Linux keychain sealing needs `secret-tool` installed | Uses the desktop Secret Service |
+| Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
