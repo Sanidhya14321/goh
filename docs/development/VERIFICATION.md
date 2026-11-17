@@ -8,6 +8,13 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: package managers, SBOM, provenance
+
+- `scripts/packaging.sh` on a local `make release` (1.0.0-pkgtest): `ruby -c` accepts the formula and the Scoop manifest is valid JSON.
+- Homebrew, `homebrew/brew` container (Linux ARM64): installed from a temporary tap with `file://` URLs; `brew test` passed; `goh version` printed 1.0.0-pkgtest from `…/Cellar/goh/1.0.0-pkgtest/bin/goh`; `goh upgrade` answered `goh was installed with Homebrew; upgrade it with: brew upgrade goh`. On this Mac, Homebrew fetched and verified the binary but refused to install because the Command Line Tools are out of date (a host issue). CI now runs `scripts/test_brew.sh` on macOS and a real Scoop install on Windows.
+- SBOM: `cyclonedx-gomod@v1.10.0 app` wrote CycloneDX 1.6 with 26 components.
+- `TestPackageManagerOwnedCopies`: Homebrew and Scoop paths on each platform; goh's own install folders are not mistaken for them.
+
 ## Unreleased: live failover and remote MCP
 
 - **Failover:** `goh run` with the primary route at a closed local port and `fallback_profiles: ["groq"]` (saved Groq key, `qwen/qwen3.8-27b`): two `provider_retry` events, `provider_failover` (`reason: connection`, `to: groq`), `model_route` with `failover: true`, and Groq streamed `FAILOVER_OK`. Two `goh resume` turns, then `goh compact`: `provider_failover` with `purpose: compaction`, then `context_compacted`.

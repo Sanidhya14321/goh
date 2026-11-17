@@ -8,6 +8,8 @@ on:
     tags: ['v*']
 permissions:
   contents: write
+  id-token: write      # build provenance
+  attestations: write  # build provenance
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -25,6 +27,12 @@ jobs:
           make release GO=go VERSION="$version"
           tar -czf dist/licenses.tar.gz -C dist licenses
           test "$(./dist/goh-linux-amd64 version)" = "$version"
+          sh scripts/packaging.sh "$version" dist
+          go run github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 app -json -licenses -main cmd/harness -output dist/goh.cdx.json .
+      - name: Build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist/goh-*'
       - name: Release notes from the changelog
         run: |
           version="${GITHUB_REF_NAME#v}"
@@ -36,3 +44,19 @@ jobs:
         run: |
           files=$(find dist -maxdepth 1 -type f | sort)
           gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md --latest --verify-tag
+      - name: Package manager manifests
+        # Stable versions only, so `brew upgrade` and `scoop update` never
+        # move users to a release candidate.
+        if: ${{ !contains(github.ref_name, '-') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin main
+          git checkout -B packaging origin/main
+          mkdir -p Formula bucket
+          cp dist/goh.rb Formula/goh.rb
+          cp dist/goh.json bucket/goh.json
+          git add Formula/goh.rb bucket/goh.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "packaging: goh ${GITHUB_REF_NAME#v}"
+          git push origin packaging:main

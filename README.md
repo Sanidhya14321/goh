@@ -50,8 +50,25 @@ The installers verify the binary against `SHA256SUMS` and install to `~/.local/b
 `%LOCALAPPDATA%\Programs\goh`). Set `GOH_VERSION` to pin a release or `GOH_INSTALL_DIR` to change
 the destination.
 
-Update with `goh upgrade` (`--check` to only look, `--version TAG` for a specific release).
+With a package manager (stable releases):
+
+```sh
+brew tap sanidhya14321/goh https://github.com/Sanidhya14321/goh && brew install sanidhya14321/goh/goh
+```
+
+```powershell
+scoop bucket add goh https://github.com/Sanidhya14321/goh; scoop install goh/goh
+```
+
+Update with `goh upgrade` (`--check` to only look, `--version TAG` for a specific release), or with
+`brew upgrade goh` / `scoop update goh` for a package-manager copy (`goh upgrade` says so).
 Remove with `goh uninstall` (lists what it will delete; `--yes` to proceed).
+
+The binaries are not code-signed. The installers and package managers are unaffected; a binary
+downloaded with a browser needs `xattr -d com.apple.quarantine goh-darwin-*` on macOS, and Windows
+SmartScreen may ask for confirmation (More info, then Run anyway). Each release lists SHA-256
+checksums, a CycloneDX SBOM (`goh.cdx.json`) and GitHub build provenance
+(`gh attestation verify goh-darwin-arm64 --repo Sanidhya14321/goh`).
 
 ## Quick start
 

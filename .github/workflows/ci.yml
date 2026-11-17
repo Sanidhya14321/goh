@@ -84,6 +84,10 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: make release GO=go VERSION=ci-${{ github.sha }} && sh scripts/test_install.sh
+      - name: Homebrew formula
+        if: runner.os == 'macOS'
+        shell: bash
+        run: sh scripts/test_brew.sh ci-${{ github.sha }}
       - name: Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
@@ -115,4 +119,25 @@ jobs:
             if (-not $refused) { throw 'tampered binary was not refused' }
             if (Test-Path (Join-Path $env:GOH_INSTALL_DIR 'goh.exe')) { throw 'tampered binary left on disk' }
             Write-Host 'PASS tampered download refused'
+          } finally { Stop-Process -Id $server.Id -ErrorAction SilentlyContinue }
+      - name: Scoop manifest
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $version = "ci-${{ github.sha }}"
+          bash -c "GO=go VERSION=$version sh scripts/release.sh && sh scripts/packaging.sh $version dist http://127.0.0.1:8766"
+          if ($LASTEXITCODE -ne 0) { throw 'release build failed' }
+          $server = Start-Process python -ArgumentList '-m','http.server','8766','--bind','127.0.0.1','--directory','dist' -PassThru
+          try {
+            Invoke-RestMethod -Uri https://get.scoop.sh -OutFile "$env:RUNNER_TEMP\install-scoop.ps1"
+            & "$env:RUNNER_TEMP\install-scoop.ps1" -RunAsAdmin
+            $env:PATH = "$env:USERPROFILE\scoop\shims;$env:PATH"
+            scoop install .\dist\goh.json
+            if ($LASTEXITCODE -ne 0) { throw 'scoop install failed' }
+            $v = goh version
+            if ($v -ne $version) { throw "installed version $v" }
+            Write-Host "PASS scoop install: $v"
+            $upgrade = goh upgrade 2>&1 | Out-String
+            if ($LASTEXITCODE -eq 0 -or $upgrade -notmatch 'scoop update goh') { throw "goh upgrade did not defer to scoop: $upgrade" }
+            Write-Host 'PASS goh upgrade defers to scoop'
           } finally { Stop-Process -Id $server.Id -ErrorAction SilentlyContinue }

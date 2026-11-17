@@ -54,10 +54,22 @@ func runUpgrade(args []string, w io.Writer) error {
 	if f.NArg() != 0 {
 		return errors.New("usage: goh upgrade [--check] [--version TAG] [--force]")
 	}
+	base := os.Getenv("GOH_BASE_URL")
+	if base == "" {
+		// A package manager owns its copy: replacing it here would leave the
+		// manager's records wrong, so name its own upgrade command instead.
+		if exe, err := os.Executable(); err == nil {
+			if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+				exe = resolved
+			}
+			if manager, command := packageManager(exe); manager != "" {
+				return fmt.Errorf("goh was installed with %s; upgrade it with: %s", manager, command)
+			}
+		}
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
-	base := os.Getenv("GOH_BASE_URL")
 	if base == "" {
 		if *tag == "" || *tag == "latest" {
 			latest, err := latestTag(ctx)
@@ -286,4 +298,17 @@ func replaceExecutable(exe, next string) error {
 		return err
 	}
 	return nil
+}
+
+// packageManager names the package manager that installed exe and its
+// upgrade command, or "" for a copy goh manages itself.
+func packageManager(exe string) (name, command string) {
+	p := strings.ToLower(strings.ReplaceAll(exe, `\`, "/"))
+	switch {
+	case strings.Contains(p, "/cellar/goh/"):
+		return "Homebrew", "brew upgrade goh"
+	case strings.Contains(p, "/scoop/apps/goh/"):
+		return "Scoop", "scoop update goh"
+	}
+	return "", ""
 }

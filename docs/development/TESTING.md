@@ -12,7 +12,7 @@ protocols, so the same binary that users run is exercised end to end.
 | Fuzz | SSE and journal parsers, patch grammar, tool arguments, frontmatter, HTML conversion, command expansion | `make fuzz` (3 s per target) |
 | CLI acceptance | `goh run`, sessions, export and recovery through the compiled binary | `make acceptance` |
 | Terminal (PTY) | The compiled TUI in a real pseudo-terminal, read back through a VT100 screen model | `make e2e` (macOS and Linux) |
-| Installers | Install scripts against a local release-layout server, including a tampered download | `make release && sh scripts/test_install.sh` |
+| Installers | Install scripts against a local release-layout server, including a tampered download; the Homebrew formula (macOS CI) and Scoop manifest (Windows CI) installed for real | `make release && sh scripts/test_install.sh`; `sh scripts/test_brew.sh VERSION` (changes Homebrew; CI) |
 | Benchmark tasks | Each task fails before and passes with its reference fix | `make bench-check` |
 
 The terminal suites live in `scripts/e2e/`:

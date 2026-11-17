@@ -147,3 +147,19 @@ func TestReplaceExecutableKeepsOldOnWindowsOnly(t *testing.T) {
 		t.Fatal("unexpected .old state:", err)
 	}
 }
+
+func TestPackageManagerOwnedCopies(t *testing.T) {
+	for exe, want := range map[string]string{
+		"/opt/homebrew/Cellar/goh/1.0.0/bin/goh":                     "brew upgrade goh",
+		"/home/linuxbrew/.linuxbrew/Cellar/goh/1.0.0/bin/goh":        "brew upgrade goh",
+		`C:\Users\me\scoop\apps\goh\1.0.0\goh.exe`:                   "scoop update goh",
+		`C:\Users\me\scoop\apps\goh\current\goh.exe`:                 "scoop update goh",
+		"/Users/me/.local/bin/goh":                                   "",
+		`C:\Users\me\AppData\Local\Programs\goh\goh.exe`:             "",
+		"/opt/homebrew/Cellar/gohelper/1.0/bin/goh-but-not-ours/goh": "",
+	} {
+		if _, got := packageManager(exe); got != want {
+			t.Errorf("%s: %q, want %q", exe, got, want)
+		}
+	}
+}
