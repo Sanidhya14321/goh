@@ -498,8 +498,12 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         os.write(master, b"\r")
         # The fork opens in the same terminal program: the screen is not
         # left and re-entered, and the branch session appears.
+        # A fork is written in a staging folder and then moved into place;
+        # only the moved file counts.
+        def journals():
+            return [p for p in root.rglob("*.jsonl") if not any(part.startswith(".session-stage") for part in p.parts)]
         deadline = time.monotonic() + 8
-        while len(list(root.rglob("*.jsonl"))) < 3 and time.monotonic() < deadline:
+        while len(journals()) < 3 and time.monotonic() < deadline:
             if select.select([master], [], [], .1)[0]:
                 output.extend(os.read(master, 65536))
         time.sleep(.3)
@@ -507,7 +511,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
             output.extend(os.read(master, 65536))
         assert b"\x1b[?1049h" not in output[pos:], "fork re-entered the alternate screen"
         assert b"\x1b[?1049l" not in output[pos:], "fork left the alternate screen"
-        branch, = [p for p in root.rglob("*.jsonl") if p not in (journal_before, second_journal)]
+        branch, = [p for p in journals() if p not in (journal_before, second_journal)]
         branch_snapshot = branch.read_bytes()
         state = [json.loads(line) for line in branch_snapshot.splitlines()]
         assert state[1]["type"] == "session_forked"
