@@ -3,6 +3,7 @@ package lspclient
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -49,17 +50,20 @@ func TestRealClangd(t *testing.T) {
 		return out
 	}
 	// Diagnostics may arrive after the first request; poll briefly.
-	var errs []string
+	var errs, failures []string
+	started := time.Now()
 	for deadline := time.Now().Add(45 * time.Second); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
 		// "Not published yet" is expected while the server warms up.
 		in, _ := json.Marshal(map[string]any{"operation": "diagnostics", "filePath": "main.c", "line": 1, "character": 1})
-		m.Execute(ctx, "lsp", in)
+		if r := m.Execute(ctx, "lsp", in); r.Error && !strings.Contains(r.Content, "not published") && !strings.Contains(r.Content, "pending") {
+			failures = append(failures, fmt.Sprintf("%.1fs: %s", time.Since(started).Seconds(), r.Content))
+		}
 		if errs, _, _ = m.EditErrors(ctx, "main.c"); len(errs) > 0 {
 			break
 		}
 	}
 	if approvals != 1 {
-		t.Fatalf("server start needs exactly one approval, got %d", approvals)
+		t.Fatalf("server start needs exactly one approval, got %d; failures while warming up:\n%s", approvals, strings.Join(failures, "\n"))
 	}
 	if len(errs) == 0 || !strings.HasPrefix(errs[0], "2:") {
 		t.Fatalf("expected the int-to-pointer error on line 2, got %v", errs)
