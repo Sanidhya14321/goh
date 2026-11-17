@@ -84,6 +84,14 @@ func validComponent(name string) bool {
 
 // Connect initializes once and is idempotent after success. A failed connection
 // is cleaned up and cannot be retried on the same Manager.
+// Skip leaves a configured server out of this run: it is neither started
+// nor asked about. Call it before Connect.
+func (m *Manager) Skip(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.config, name)
+}
+
 func (m *Manager) Connect(ctx context.Context) (err error) {
 	m.mu.Lock()
 	if m.connected && !m.closed {

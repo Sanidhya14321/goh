@@ -28,7 +28,24 @@ func maskObservations(history []core.Message, cut int) ([]core.Message, int) {
 		for _, c := range m.ToolCalls {
 			names[c.ID] = c.Function.Name
 		}
-		if m.Role != "tool" || len(m.Content) < maskMinBytes || strings.HasPrefix(m.Content, maskPrefix) {
+		if m.Role != "tool" || len(m.Content) < maskMinBytes {
+			continue
+		}
+		if strings.HasPrefix(m.Content, maskPrefix) {
+			// An excerpt of an oversized result keeps its head while the
+			// result is recent; once older, it becomes a plain receipt.
+			var excerpt struct {
+				receipt
+				Head *string `json:"head"`
+			}
+			if json.Unmarshal([]byte(m.Content), &excerpt) != nil || excerpt.Head == nil {
+				continue
+			}
+			excerpt.Note = strings.TrimPrefix(excerpt.Note, excerptNote)
+			b, _ := json.Marshal(excerpt.receipt)
+			m.Content = string(b)
+			out[i] = m
+			masked++
 			continue
 		}
 		b, _ := json.Marshal(maskReceipt(names[m.ToolCallID], m.Content))
@@ -91,6 +108,8 @@ func maskReceipt(tool, content string) receipt {
 	return r
 }
 
+const excerptNote = "Output too large for the context window; only the beginning is shown. "
+
 // shrinkLargeResults replaces tool results larger than limit bytes with a
 // receipt plus the first part of the output, so one oversized result cannot
 // end a run. All results in history are complete (call/result pairs stay).
@@ -113,7 +132,7 @@ func shrinkLargeResults(history []core.Message, limit int) ([]core.Message, int)
 		for len(head) > 0 && !utf8.ValidString(head) {
 			head = head[:len(head)-1]
 		}
-		r.Note = "Output too large for the context window; only the beginning is shown. " + r.Note
+		r.Note = excerptNote + r.Note
 		if names[m.ToolCallID] == "read_file" {
 			r.Note += " Use read_file with start_line and end_line to page through the file."
 		}

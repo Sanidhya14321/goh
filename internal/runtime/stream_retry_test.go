@@ -93,3 +93,32 @@ func TestShownTextMatchesTheFinalReply(t *testing.T) {
 		})
 	}
 }
+
+// A reply the provider refused mid-generation (Groq's tool_use_failed) is
+// sampled again up to twice, without configuration; nothing from it runs.
+func TestRejectedOutputIsResampled(t *testing.T) {
+	for name, tc := range map[string]struct {
+		failures   int
+		wantStatus string
+		wantCalls  int
+	}{
+		"once":   {1, "completed", 2},
+		"always": {5, "failed", 3},
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, _ := testAgent(t)
+			calls := 0
+			a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+				calls++
+				if calls <= tc.failures {
+					return core.Reply{}, provider.ErrRejectedOutput
+				}
+				return core.Reply{Message: core.Message{Role: "assistant", Content: "done"}, Finish: "stop"}, nil
+			})
+			status, _ := a.Run(context.Background(), "go")
+			if status != tc.wantStatus || calls != tc.wantCalls {
+				t.Fatalf("status %s calls %d", status, calls)
+			}
+		})
+	}
+}

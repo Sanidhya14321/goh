@@ -56,6 +56,21 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 	for index := 0; index < len(lines); index++ {
 		line := lines[index]
 		row := transcriptRow{fg: foreground, bg: background}
+		if verbatim, ok := strings.CutPrefix(line, verbatimMark); ok && !review && fence == "" {
+			switch {
+			case strings.HasPrefix(verbatim, "[error]"):
+				row.fg = red
+			case strings.HasPrefix(verbatim, "✓"):
+				row.fg = green
+			default:
+				row.fg = muted
+			}
+			for _, wrapped := range terminalRows(strings.ReplaceAll(verbatim, "\t", "    "), width) {
+				row.text = wrapped
+				rows = append(rows, row)
+			}
+			continue
+		}
 		if !review && (fence != "" || fenceMarker(line) != "") {
 			marker, language := fence, ""
 			start := index

@@ -307,7 +307,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary:
                     else:
                         wait_for(b'Allow child:shell?')
                         os.write(master,b'y')
-                        wait_for(b'tool_started')
+                        wait_for('subagent ▸ shell'.encode())
                         for attempt in range(250):
                             if (root/'child-pid').exists(): break
                             time.sleep(.02)

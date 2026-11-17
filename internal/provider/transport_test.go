@@ -118,3 +118,64 @@ func TestProviderEndpointConfigurationRejectedWithoutEcho(t *testing.T) {
 		}
 	}
 }
+
+func TestRetryDelayWaitsOutRateLimits(t *testing.T) {
+	for _, c := range []struct {
+		status     int
+		retryAfter string
+		attempt    int
+		want       time.Duration
+	}{
+		{429, "", 0, 2 * time.Second},
+		{429, "", 1, 4 * time.Second},
+		{429, "7", 0, 7 * time.Second},
+		{429, "1.5", 0, 1500 * time.Millisecond},
+		{429, "600", 0, 30 * time.Second},
+		{429, "0", 0, 0},
+		{503, "20", 0, 5 * time.Second},
+		{503, "", 0, 100 * time.Millisecond},
+		{503, "soon", 0, 100 * time.Millisecond},
+	} {
+		if got := retryDelay(c.status, c.retryAfter, c.attempt, 100*time.Millisecond); got != c.want {
+			t.Errorf("%d %q attempt %d: %v, want %v", c.status, c.retryAfter, c.attempt, got, c.want)
+		}
+	}
+}
+
+// In-stream errors show their code and type, never the message, and an
+// invalid tool call is marked for a fresh sample.
+func TestStreamErrorCodes(t *testing.T) {
+	frame := func(e string) string { return "data: {\"error\":" + e + "}\n\n" }
+	_, err := Parse(strings.NewReader(frame(`{"message":"SECRET_ECHO of your prompt","type":"invalid_request_error","code":"tool_use_failed"}`)), nil)
+	if !errors.Is(err, ErrRejectedOutput) || strings.Contains(err.Error(), "SECRET_ECHO") || !strings.Contains(err.Error(), "tool_use_failed") {
+		t.Fatal(err)
+	}
+	_, err = Parse(strings.NewReader(frame(`{"message":"SECRET_ECHO","type":"server_error","code":"overloaded"}`)), nil)
+	if err == nil || errors.Is(err, ErrRejectedOutput) || strings.Contains(err.Error(), "SECRET_ECHO") || !strings.Contains(err.Error(), "overloaded, server_error") {
+		t.Fatal(err)
+	}
+	_, err = Parse(strings.NewReader(frame(`{"message":"SECRET_ECHO","code":"has spaces SECRET_ECHO"}`)), nil)
+	if err == nil || err.Error() != "provider stream error" {
+		t.Fatal(err)
+	}
+}
+
+type failingReader struct{ data string }
+
+func (f *failingReader) Read(p []byte) (int, error) {
+	if f.data == "" {
+		return 0, errors.New("read tcp 10.0.0.1:1->10.0.0.2:443: read: operation timed out")
+	}
+	n := copy(p, f.data)
+	f.data = f.data[n:]
+	return n, nil
+}
+
+// A connection that drops mid-reply is an interrupted stream (retryable by
+// retry_interrupted_streams), not a raw socket error shown to the user.
+func TestDroppedStreamIsInterrupted(t *testing.T) {
+	_, err := Parse(&failingReader{data: textFrame("partial")}, nil)
+	if !errors.Is(err, ErrInterrupted) || strings.Contains(err.Error(), "10.0.0.1") {
+		t.Fatal(err)
+	}
+}

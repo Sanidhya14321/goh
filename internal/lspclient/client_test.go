@@ -108,6 +108,18 @@ func TestLSPAdmissionFailureAndBounds(t *testing.T) {
 	if e := m.Validate("lsp", json.RawMessage(`{"operation":"hover","filePath":"fixture.lsptest","line":1,"character":1,"query":null}`)); e == nil {
 		t.Fatal("null query accepted")
 	}
+	// File-wide operations need no position; position operations still do.
+	for _, operation := range []string{"documentSymbol", "diagnostics"} {
+		if e := m.Validate("lsp", json.RawMessage(`{"operation":"`+operation+`","filePath":"fixture.lsptest"}`)); e != nil {
+			t.Fatal(operation, e)
+		}
+	}
+	if e := m.Validate("lsp", json.RawMessage(`{"operation":"hover","filePath":"fixture.lsptest"}`)); e == nil || !strings.Contains(e.Error(), "hover needs line and character") {
+		t.Fatal("hover without a position accepted", e)
+	}
+	if e := m.Validate("lsp", json.RawMessage(`{"operation":"documentSymbol","filePath":"fixture.lsptest","line":-1,"character":1}`)); e == nil {
+		t.Fatal("negative line accepted")
+	}
 }
 func TestLSPDisconnectCancelMalformedAndLarge(t *testing.T) {
 	for _, mode := range []string{"disconnect", "hang", "malformed", "bad-initialize", "bad-encoding", "large", "request-edit"} {

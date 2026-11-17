@@ -8,6 +8,11 @@ import "strings"
 const (
 	summaryMark = "\x00H"
 	detailMark  = "\x00R"
+	// verbatimMark (WORD JOINER, zero width) survives Safe() and tells the
+	// transcript renderer to show the line as-is: tool output is file and
+	// command text, not Markdown, so "# comment" must not become a heading
+	// and "**kwargs" must keep its asterisks.
+	verbatimMark = "\u2060"
 )
 
 func toolResultLines(mark, content string) string {
@@ -53,7 +58,10 @@ func withDetails(log string, show bool) string {
 		if strings.HasPrefix(line, drop) {
 			continue
 		}
-		out = append(out, strings.TrimPrefix(line, keep))
+		if strings.HasPrefix(line, keep) {
+			line = verbatimMark + strings.TrimPrefix(line, keep)
+		}
+		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
 }

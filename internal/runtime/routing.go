@@ -49,7 +49,18 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		shown = func(s string) { streamed.WriteString(s); delta(s) }
 	}
 	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
-	for retry := 1; err != nil && errors.Is(err, provider.ErrInterrupted) && ctx.Err() == nil && retry <= a.Config.RetryInterruptedStreams; retry++ {
+	retryable := func(retry int) bool {
+		if err == nil || ctx.Err() != nil {
+			return false
+		}
+		if errors.Is(err, provider.ErrInterrupted) {
+			return retry <= a.Config.RetryInterruptedStreams
+		}
+		// A reply the provider refused mid-generation (an invalid tool call)
+		// executed nothing; a new sample usually succeeds.
+		return errors.Is(err, provider.ErrRejectedOutput) && retry <= 2
+	}
+	for retry := 1; retryable(retry); retry++ {
 		// Nothing from the broken reply was committed or executed, so this
 		// is a fresh request on the same history. The event tells interfaces
 		// to drop the partial text already shown.
@@ -72,6 +83,10 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 				delta(reply.Message.Content)
 			}
 		}
+	}
+	if purpose == "turn" && reply.Usage != nil && (reply.Model == "" || reply.Model == primaryConfig.Model) {
+		size, images := requestBytes(history, defs)
+		a.calibrate(size, reply.Usage.Prompt-images*imageTokenEstimate)
 	}
 	if reply.Model == "" {
 		reply.Model = primaryConfig.Model
@@ -116,7 +131,7 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 			a.recordFailover(purpose, from, name, reason, "skipped", cfgErr.Error())
 			continue
 		}
-		if estimate(history, defs) > config.ContextWindow-config.OutputBudget {
+		if a.estimate(history, defs) > config.ContextWindow-config.OutputBudget {
 			a.recordFailover(purpose, from, name, reason, "skipped", "conversation exceeds fallback context window")
 			continue
 		}

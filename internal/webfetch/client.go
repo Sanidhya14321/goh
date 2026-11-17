@@ -93,7 +93,11 @@ func newClient(allowPrivate bool) *Client {
 			return err
 		}
 		if len(via) > 0 && origin(req.URL) != origin(via[0].URL) {
-			return errors.New("cross-origin redirect refused; approve the destination URL as a separate webfetch request")
+			// Name the destination so the model can request it as its own
+			// (separately approved) fetch. Query strings may carry tokens.
+			destination := *req.URL
+			destination.RawQuery, destination.Fragment, destination.User = "", "", nil
+			return &crossOriginError{destination: destination.String()}
 		}
 		return nil
 	}}, allowPrivate: allowPrivate}
@@ -213,8 +217,8 @@ func (c *Client) Fetch(ctx context.Context, raw json.RawMessage) tools.Result {
 		if ctx.Err() != nil {
 			return fail("webfetch cancelled or timed out")
 		}
-		if strings.Contains(err.Error(), "cross-origin redirect") {
-			return fail("cross-origin redirect refused; approve the destination URL separately")
+		if redirect := (*crossOriginError)(nil); errors.As(err, &redirect) {
+			return fail("cross-origin redirect refused: the server redirects to " + redirect.destination + "; fetch that URL as a separate webfetch request (it needs its own approval)")
 		}
 		if strings.Contains(err.Error(), "redirect limit") {
 			return fail("webfetch redirect limit exceeded")
@@ -226,7 +230,7 @@ func (c *Client) Fetch(ctx context.Context, raw json.RawMessage) tools.Result {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fail(fmt.Sprintf("webfetch HTTP%d", resp.StatusCode))
+		return fail(httpFailure(resp))
 	}
 	if resp.ContentLength > MaxResponse {
 		return fail("webfetch response exceeds 4MiB")
@@ -279,11 +283,14 @@ func (c *Client) Fetch(ctx context.Context, raw json.RawMessage) tools.Result {
 func accept(format string) string {
 	switch format {
 	case "html":
-		return "text/html, application/xhtml+xml;q=0.9, text/plain;q=0.8"
+		return "text/html, application/xhtml+xml;q=0.9, text/plain;q=0.8, */*;q=0.1"
 	case "text":
-		return "text/plain, text/html;q=0.9, application/json;q=0.8"
+		return "text/plain, text/html;q=0.9, application/json;q=0.8, */*;q=0.1"
 	default:
-		return "text/markdown, text/html;q=0.9, text/plain;q=0.8"
+		// JSON and other text APIs answer 406/415 to an Accept list that
+		// excludes them, so every format ends with a low-priority wildcard;
+		// binary responses are still refused after the fact.
+		return "text/markdown, text/html;q=0.9, text/plain;q=0.8, application/json;q=0.7, */*;q=0.1"
 	}
 }
 func textType(t string) bool {
@@ -324,4 +331,16 @@ func (c *Client) Close() error {
 		c.http.CloseIdleConnections()
 	}
 	return nil
+}
+
+type crossOriginError struct{ destination string }
+
+func (e *crossOriginError) Error() string {
+	return "cross-origin redirect refused; approve the destination URL as a separate webfetch request"
+}
+
+// httpFailure names the status ("HTTP 415 Unsupported Media Type" tells the
+// model more than a bare code). Error bodies are not returned.
+func httpFailure(resp *http.Response) string {
+	return fmt.Sprintf("webfetch HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 }

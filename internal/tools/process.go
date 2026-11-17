@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -22,21 +23,36 @@ const maxArtifact = 1 << 20
 type captureWriter struct {
 	mu              sync.Mutex
 	preview         strings.Builder
+	tail            []byte // the latest previewTail bytes once preview is full
 	file            *os.File
 	total, retained int64
 	err             error
 }
 
+// The inline preview keeps the start and the end of long output: test
+// summaries, compiler errors and stack traces come last, so a head-only
+// preview hides exactly the lines that explain a failure.
+const (
+	previewHead = MaxInline / 16
+	previewTail = MaxInline / 16
+)
+
 func (w *captureWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.total += int64(len(p))
-	n := MaxInline/8 - w.preview.Len()
+	n := previewHead - w.preview.Len()
 	if n > len(p) {
 		n = len(p)
 	}
 	if n > 0 {
 		w.preview.Write(p[:n])
+	}
+	if rest := p[max(n, 0):]; len(rest) > 0 {
+		w.tail = append(w.tail, rest...)
+		if over := len(w.tail) - previewTail; over > 0 {
+			w.tail = append(w.tail[:0], w.tail[over:]...)
+		}
 	}
 	n = maxArtifact - int(w.retained)
 	if n > len(p) {
@@ -49,6 +65,27 @@ func (w *captureWriter) Write(p []byte) (int, error) {
 	}
 	return len(p), nil
 }
+
+// text is the preview: all output when it fits, else its start and end
+// around a marker naming the omitted size and where the rest is kept.
+func (w *captureWriter) text(artifactID string) string {
+	head := strings.ToValidUTF8(w.preview.String(), "�")
+	if len(w.tail) == 0 {
+		return head
+	}
+	tail := w.tail
+	omitted := w.total - int64(w.preview.Len()) - int64(len(tail))
+	if omitted <= 0 {
+		return strings.ToValidUTF8(w.preview.String()+string(tail), "�")
+	}
+	// Start the tail on a whole line (and a whole character) when possible.
+	if i := bytes.IndexByte(tail, '\n'); i >= 0 && i < len(tail)-1 {
+		omitted += int64(i + 1)
+		tail = tail[i+1:]
+	}
+	return head + fmt.Sprintf("\n[… %d bytes omitted; read_artifact %s has the full output …]\n", omitted, artifactID) + strings.ToValidUTF8(string(tail), "�")
+}
+
 func (e *Engine) shell(ctx context.Context, a args) Result {
 	a.Cwd, _ = clean(a.Cwd, true)
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(a.Timeout)*time.Second)
@@ -190,7 +227,7 @@ settled:
 	if cleanupIncomplete {
 		state = "cleanup_incomplete"
 	}
-	value := map[string]any{"exit_code": code, "status": state, "output": strings.ToValidUTF8(output.preview.String(), "�"), "artifact": artifact.Name(), "artifact_id": filepath.Base(artifact.Name()), "output_bytes": output.total, "retained_bytes": output.retained, "truncated": output.total > output.retained, "preview_truncated": output.total > int64(output.preview.Len())}
+	value := map[string]any{"exit_code": code, "status": state, "output": output.text(filepath.Base(artifact.Name())), "artifact": artifact.Name(), "artifact_id": filepath.Base(artifact.Name()), "output_bytes": output.total, "retained_bytes": output.retained, "truncated": output.total > output.retained, "preview_truncated": output.total > int64(output.preview.Len()+len(output.tail))}
 	if waitErr != nil {
 		value["error"] = waitErr.Error()
 	}

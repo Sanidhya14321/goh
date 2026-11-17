@@ -281,7 +281,10 @@ goh sessions list|show|preview|rename|delete|restore|salvage|export|import|fork
 goh doctor
 ```
 
-- JSON output contains only versioned events; diagnostics go to stderr.
+- JSON output contains only versioned events; diagnostics go to stderr. Text output prints the
+  reply on stdout and one `▸ tool  arguments` line per tool call (plus `[error]` lines) on stderr.
+- A rate-limited provider (HTTP 429) is retried twice, waiting as long as its `Retry-After` asks
+  (up to 30 s). A limit that resets later than that (a daily quota) fails at once and says when.
 - Headless runs never wait for input. A permission request emits `needs_permission` and exits 3;
   a question emits `question_requested` and exits 4.
 - `--allow` grants tools for this process only, e.g. `--allow edit_file,shell`. MCP grants are
@@ -473,7 +476,7 @@ Hitting a budget ends the run as `budget_exhausted` (exit 5).
 | `webfetch`, `websearch` | Web access |
 | `lsp` | Language server queries |
 | `repo_map` | Go signatures and declarations without bodies |
-| `read_artifact` | Page through retained shell/formatter output |
+| `read_artifact` | Read or search (`pattern`) retained shell/formatter output and fetched pages |
 | `snapshot_list`, `snapshot_diff`, `snapshot_undo`, `snapshot_redo` | Checkpoint inspection and restore |
 | `memory_recall` | Project notes (opt-in) |
 
@@ -533,14 +536,28 @@ goh sessions import FILE --project DIR
 
 ## Context and compaction
 
-Context is estimated conservatively (one token per UTF-8 byte, including tool schemas). When it
-fills, compaction runs:
+Context is estimated conservatively: one token per UTF-8 byte (tool schemas included) until the
+provider reports real token counts. After that, the smallest counted request (mostly goh's
+instructions and tools) is the baseline, and bytes beyond it count at the ratio the provider
+reported for them, with a 15% margin. When the context fills, compaction runs:
 
 1. **Masking.** Tool results ≥512 bytes older than the recent turns are replaced with a placeholder
    pointing to the journal. If the result fits in half the context window, no summary is needed.
    Disable with `"compaction_masking": false`.
 2. **Summary.** Otherwise the model summarises the masked view, preserving the active request,
    the two most recent tool groups, unresolved calls and the task list.
+
+A tool result larger than the window allows is cut to its beginning plus a note; once it is older,
+it becomes a plain receipt. A fetched page or shell log stays readable through `read_artifact`.
+
+**Per-request caps.** Some providers accept less per request than the model's context window. For
+example, Groq's free tier allows about 8k tokens, and that includes the requested output. When a
+provider refuses a request with a stated cap (HTTP 413, or a 429 whose stated request size exceeds
+its limit), goh uses that cap as the window for the rest of the session. It shrinks the output
+reserve to a quarter of the cap and the context to fit, then resends the turn; nothing was generated
+or run. This happens at most twice per run, and the notice reads "The provider accepts at most N
+tokens per request…". A 429 that says to wait longer than two minutes (a daily quota) fails at once
+and says when the quota resets.
 
 The full history always stays in the journal. `/compact` or `goh compact ID` summarises manually.
 If the essential state cannot fit, the run stops with `budget_exhausted` rather than dropping the
@@ -695,8 +712,9 @@ with `/mcp` and run as `/mcp:<server>:<prompt> [name=value ...]`.
 ```
 
 The `lsp` tool supports `hover`, `goToDefinition`, `findReferences`, `goToImplementation`,
-`documentSymbol`, `workspaceSymbol` and `diagnostics`. The call and server start are approved
-separately: `--allow lsp,lsp_start:go`. Server requests to edit files or run commands are refused.
+`documentSymbol`, `workspaceSymbol` and `diagnostics`. Positions are 1-based and needed only by
+the first four; the others work on the whole file (or, for `workspaceSymbol`, a query). The call
+and server start are approved separately: `--allow lsp,lsp_start:go`. Server requests to edit files or run commands are refused.
 
 After a built-in edit, if that file's language server is already running, up to 20 error
 diagnostics are attached to the result as `lsp_errors`. Edits never start a server.
@@ -724,8 +742,13 @@ formatters.
 `webfetch` takes `url`, `format` (`text`, `markdown`, `html`; default markdown) and `timeout`
 (default 30 s, max 120 s). Each request needs approval. It sends no API headers or cookies, follows
 up to five same-origin redirects, accepts UTF-8 text up to 4 MiB, never executes scripts, and
-returns at most 64 KiB. Private, loopback and link-local addresses (including cloud metadata) are
-refused unless `"webfetch_allow_private": true`.
+returns at most 64 KiB. A page over 16 KiB is also saved as a session artifact (`artifact_id` in the
+result), which `read_artifact` can search (`pattern`) or read in parts. A small context window can
+then show only the start of a page and still reach the rest. JSON APIs work (the Accept header ends
+with `*/*`). An HTTP error reports
+its status, not the body. A cross-origin redirect is refused and names its destination, which
+the model can fetch as a separately approved request. Private, loopback and link-local addresses
+(including cloud metadata) are refused unless `"webfetch_allow_private": true`.
 
 Set `websearch_url` to a SearXNG-compatible JSON endpoint to enable `websearch`. Each search needs
 approval and returns titles, links and snippets.

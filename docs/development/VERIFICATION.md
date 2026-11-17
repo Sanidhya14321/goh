@@ -8,6 +8,37 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: small per-request caps (Groq free tier)
+
+Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; `test_tui.py`, `test_setup.py`, `test_acp.py`, `test_attach.py` and `test_resume_setup.py` all passed.
+
+- New tests:
+  - **Provider:** `TestRequestTooLargeReportsStatedCap` (only the two numbers leave the body), `TestRequestCapParsing`, `TestQuotaResetFailsWithoutRetrying` (one request, reset time stated).
+  - **Runtime:**
+    - `TestRequestCapShrinksAndResends` and `TestRequestCapShrinksPreservedGroup`: an oversized result in the only group and in the newest of several.
+    - `TestRequestCapLongRun`: page, lookups until a summary, the page again; one refusal, then nothing over the cap.
+    - `TestRequestCapWithoutNumbersFails`, `TestUsageCalibratesEstimate`, `TestSummaryEstimateSkipsAnchor`, `TestOlderExcerptBecomesReceipt`, `TestLargeFetchedPageIsPageable`.
+  - **Tools:** `TestArtifactPatternSearch`, `TestArtifactIDUsedAsPathGetsHint`.
+  - **TUI:** `TestArtifactReadLabel`.
+  - Disabling the anchor fails `TestRequestCapShrinksAndResends`.
+- Live, Groq, "What's the latest stable Go release? Check the official Go site":
+  - **Before:** failed at once with HTTP 413.
+  - **Cap estimate fixed:** Groq's first request counted 1,961 prompt tokens for goh's 9.7 KB of instructions and tools, against the 9.7k that one token per byte assumed (the earlier "about 10.8k" note was that estimate).
+  - **Checksum page:** go.dev/dl is mostly checksums, about 2.3 bytes a token. A single whole-request ratio inflated the tools to over 4k tokens until the anchor was split from the content ratio.
+  - **After, with `openai/gpt-oss-20b`:** the cap was learned once per run ("The provider accepts at most 8000 tokens per request…"). Later requests stayed under it through summaries and re-fetches, and the model searched the saved page with `read_artifact` `pattern`.
+  - **Not answered:** the 20B model never gave the answer within 290 s. It used wrong regexes, re-fetched the page and called `search` on artifact IDs, all while waiting 15–30 s on per-minute 429s. `openai/gpt-oss-120b` had used its daily quota: Groq's 429 said "try again in 28m", which led to the quota-reset fix.
+
+## Unreleased: end-to-end audit with real-world prompts
+
+Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; `test_tui.py` (25 scenarios), `test_setup.py`, `test_acp.py`, `test_attach.py` and `test_resume_setup.py` all passed.
+
+- Live, Groq `openai/gpt-oss-120b` over `chat_completions` (ChatGPT could not be used: its saved sign-in was revoked, which found the renewal message fix). Real prompts on a small Python project: "I just inherited this repo…" completed after six tool calls and four 429 waits of 6–25 s (the same prompt previously failed at the fifth request); "how many stars and open issues does golang/go have" through the GitHub REST API returned live counts (previously HTTP 415); "total spend in EUR via the ops MCP tool" started the server, read the CSV and converted correctly. Fetching go.dev and Hacker News failed with HTTP 413: Groq's free tier caps a request at about 8k tokens, below one 64 KiB page; the error now says so. With `--context-window 8000` the run stopped before any request (`budget_exhausted`). That figure was the one-token-per-byte estimate: Groq counts goh's instructions and tools as about 1,960 tokens (see the per-request cap section below). An explore subagent prompt completed: both children failed (one `tool_use_failed` after re-sampling, one 429) and were reported, and the parent finished the audit itself.
+- gpt-oss calls tools that do not exist (`repo_browser.read_file`) and invents file text (`<cstdio.h>`). Groq rejects some such calls mid-stream (`tool_use_failed`), which ended runs as "provider stream error"; the request is now re-sampled up to twice. Invented `old_text` is refused and the existing invalid-call limit stopped the loop after three identical failures.
+- Groq's rejection messages, read once with a local debug build, showed gpt-oss calling `apply_patch` with `patch` instead of `patchText` (refused by Groq's schema check), plus invented tools and an out-of-range `limit`. After the alias, "the monthly report prints months in the wrong order and top categories look backwards; fix both and make sure the tests pass" produced a correct two-line fix and `unittest` passed; the run then hit its 300 s cap during rate-limit waits before the final summary.
+- Components driven by the scripted model against real targets: `webfetch` of Hacker News, go.dev, example.com, a PDF, a 404, an `http://` → `https://` redirect and the cloud-metadata address; `lsp` against clangd (hover, references, document symbols and diagnostics without a position); a stdio MCP server (tool, error result, resources); skills, todos, `apply_patch`, 109 KB of shell output, `job_start` of a real HTTP server (stopped on exit), subagent with `output_schema`, question (exit 4), permission (exit 3), plan mode, resume, fork, Markdown export with tools, memory recall and a custom command.
+- TUI in a PTY (110×40): Python source with `# TODO` and `**kwargs` is shown verbatim; grep and glob results are lines; the reply after tool output is a separate paragraph.
+- New tests, each confirmed to fail without its fix where checked: `TestToolOutputRendersVerbatim`, `TestListingResultsAreReadable`, `TestJSONAPIsErrorsAndRedirectDestination`, LSP file-wide cases in `TestLSPAdmissionFailureAndBounds`, `TestPatchPreviewShowsChangeDeepInLongFile`, `TestShellPreviewKeepsHeadAndTail`, `TestRetryDelayWaitsOutRateLimits`, `TestStreamErrorCodes`, `TestRejectedOutputIsResampled`, `TestHeadlessRunSkipsUnapprovedMCPServer`, `TestPatchArgumentAlias`, `TestDroppedStreamIsInterrupted`.
+
 ## Unreleased: project browser and folder trust
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make e2e` all passed.

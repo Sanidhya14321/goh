@@ -173,13 +173,13 @@ func baseDefinitions() []Definition {
 	edit["replace_all"] = map[string]any{"type": "boolean"}
 	return append([]Definition{
 		{"repo_map", "Inspect a bounded declaration map (functions, types, classes, methods) without bodies: Go is parsed exactly; Python, JavaScript/TypeScript, Rust, Java/Kotlin/C#/Scala, C/C++ and Ruby use line patterns that can miss unusual forms. Optional path/query filters and max 500 symbols; reports lines, content hashes and scan bounds. No external process.", s(map[string]any{"path": str(), "query": str(), "limit": number(1, 500)})},
-		{"read_artifact", "Read a retained shell/formatter output artifact by session-local artifact_id; byte offset or tail, max 8192 bytes. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}}, "id")},
+		{"read_artifact", "Read a retained shell/formatter output or fetched page artifact by session-local artifact_id: a byte range (offset or tail, max 8192 bytes) or the lines matching pattern. Use base64 for exact bytes; discarded output beyond the retained cap is unavailable.", s(map[string]any{"id": str(), "offset": map[string]any{"type": "integer", "minimum": 0}, "limit": number(1, 8192), "tail": map[string]any{"type": "boolean"}, "encoding": map[string]any{"type": "string", "enum": []string{"text", "base64"}}, "pattern": map[string]any{"type": "string", "description": "RE2 regex: list matching lines with their byte offsets instead of a byte range"}}, "id")},
 		{"list_files", "List project files, skipping .git, node_modules and symlinks; at most 10000 entries.", s(list)},
 		{"read_file", "Read UTF-8 text with line numbers and full-file SHA-256; at most 4MiB.", s(read, "path")},
 		{"grep", "Search UTF-8 project text by Go regular expression with optional directory/file path and include glob; return at most 100 ordered lines. Filesystem safety/exclusions apply; no shell is invoked.", s(map[string]any{"pattern": str(), "path": str(), "include": str()}, "pattern")},
 		{"search", "Search project text with a Go regular expression; return bounded matching lines.", s(search, "pattern")},
 		{"glob", "Find files by glob pattern (*, ?, character classes, ** directories, {a,b} alternatives). Optional project-relative directory path. Return at most 100 lexically sorted project-relative paths; skip .git, node_modules, .harness and symlinks.", s(map[string]any{"pattern": str(), "path": str()}, "pattern")},
-		{"apply_patch", "Apply an exact multi-file patch with Add/Update/Delete/Move headers. Existing source paths require expected_sha256 hash map; new destinations must not exist and parent directories must exist. Publications are individually atomic, not a multi-file transaction.", s(map[string]any{"patchText": str(), "expected_sha256": map[string]any{"type": "object", "additionalProperties": str()}}, "patchText")},
+		{"apply_patch", "Apply an exact multi-file patch with Add/Update/Delete/Move headers. Existing source paths require expected_sha256 hash map; new destinations must not exist and parent directories must exist. Publications are individually atomic, not a multi-file transaction.", s(map[string]any{"patchText": str(), "patch": map[string]any{"type": "string", "description": "Same as patchText (for models trained on that name); give exactly one of them."}, "expected_sha256": map[string]any{"type": "object", "additionalProperties": str()}})},
 		{"create_file", "Create a new UTF-8 file; fail if it exists. Parent directory must exist.", s(map[string]any{"path": str(), "content": str()}, "path", "content")},
 		{"write_file", "Create a file, or replace an existing file with expected_sha256.", s(write, "path", "content")},
 		{"edit_file", "Replace exact text against expected_sha256; one occurrence unless replace_all.", s(edit, "path", "old_text", "new_text", "expected_sha256")},
@@ -502,6 +502,20 @@ func fileMutation(name string) bool {
 }
 
 func (e *Engine) Execute(ctx context.Context, name string, raw json.RawMessage) Result {
+	res := e.execute(ctx, name, raw)
+	if res.Error && (name == "read_file" || name == "grep" || name == "search" || name == "glob" || name == "list_files") {
+		// Models pass artifact IDs (fetch-123.log) as file paths; say
+		// where that content is instead of only "no such file".
+		var args struct {
+			Path string `json:"path"`
+		}
+		if json.Unmarshal(raw, &args) == nil && artifactName.MatchString(filepath.Base(args.Path)) {
+			res.Content += "\n" + filepath.Base(args.Path) + " is an output artifact, not a project file: use read_artifact with id (and pattern to search it)."
+		}
+	}
+	return res
+}
+func (e *Engine) execute(ctx context.Context, name string, raw json.RawMessage) Result {
 	if fileMutation(name) || name == "apply_patch" {
 		if paths, err := e.MutationPaths(name, raw); err == nil {
 			if err := e.CheckWritable(paths); err != nil {

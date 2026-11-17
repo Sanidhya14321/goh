@@ -30,6 +30,10 @@ const maxResult = 64 << 10
 const operationTimeout = 15 * time.Second
 
 var serverName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
+
+// fileWide operations do not take a position.
+var fileWide = map[string]bool{"documentSymbol": true, "workspaceSymbol": true, "diagnostics": true}
+
 var operations = map[string]string{"goToDefinition": "textDocument/definition", "findReferences": "textDocument/references", "hover": "textDocument/hover", "documentSymbol": "textDocument/documentSymbol", "workspaceSymbol": "workspace/symbol", "goToImplementation": "textDocument/implementation", "diagnostics": "textDocument/diagnostic",
 	"goToTypeDefinition": "textDocument/typeDefinition", "prepareCallHierarchy": "textDocument/prepareCallHierarchy",
 	"incomingCalls": "callHierarchy/incomingCalls", "outgoingCalls": "callHierarchy/outgoingCalls"}
@@ -141,8 +145,8 @@ func (m *Manager) Definitions() []core.Tool {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	schema := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"operation", "filePath", "line", "character"}, "properties": map[string]any{"operation": map[string]any{"type": "string", "enum": names}, "filePath": map[string]any{"type": "string"}, "line": map[string]any{"type": "integer", "minimum": 1}, "character": map[string]any{"type": "integer", "minimum": 1}, "query": map[string]any{"type": "string"}}}
-	return []core.Tool{core.NewTool("lsp", "Query explicitly configured local language servers. Requires approval before invoking the tool and before each server starts. File positions are 1-based Unicode character columns, converted to UTF-16 for the server. Operations: definition, references, hover, symbols, implementation and diagnostics.", schema)}
+	schema := map[string]any{"type": "object", "additionalProperties": false, "required": []string{"operation", "filePath"}, "properties": map[string]any{"operation": map[string]any{"type": "string", "enum": names}, "filePath": map[string]any{"type": "string"}, "line": map[string]any{"type": "integer", "minimum": 1}, "character": map[string]any{"type": "integer", "minimum": 1}, "query": map[string]any{"type": "string"}}}
+	return []core.Tool{core.NewTool("lsp", "Query explicitly configured local language servers. Requires approval before invoking the tool and before each server starts. File positions are 1-based Unicode character columns, converted to UTF-16 for the server; goToDefinition, findReferences, hover and goToImplementation need line and character, documentSymbol, workspaceSymbol (with query) and diagnostics do not. Operations: definition, references, hover, symbols, implementation and diagnostics.", schema)}
 }
 func (m *Manager) Has(name string) bool { return name == "lsp" && len(m.config) > 0 }
 func (m *Manager) Validate(name string, input json.RawMessage) error {
@@ -176,8 +180,10 @@ func (m *Manager) Validate(name string, input json.RawMessage) error {
 	if _, ok := operations[args.Operation]; !ok {
 		return fmt.Errorf("unsupported LSP operation %q", args.Operation)
 	}
-	if args.Line < 1 || args.Character < 1 {
-		return errors.New("LSP line and character must be positive 1-based positions")
+	if fileWide[args.Operation] && args.Line == 0 && args.Character == 0 {
+		// Whole-file and workspace operations ignore the position.
+	} else if args.Line < 1 || args.Character < 1 {
+		return fmt.Errorf("LSP %s needs line and character as positive 1-based positions", args.Operation)
 	}
 	if len(args.Query) > 8192 {
 		return errors.New("LSP query exceeds 8 KiB")
@@ -409,6 +415,9 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 	path, text, err := m.readFile(args.FilePath)
 	if err != nil {
 		return resultError("failed", err)
+	}
+	if fileWide[args.Operation] && args.Line == 0 && args.Character == 0 {
+		args.Line, args.Character = 1, 1
 	}
 	position, err := utf16Position(text, args.Line, args.Character)
 	if err != nil {

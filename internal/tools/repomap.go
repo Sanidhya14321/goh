@@ -235,6 +235,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 	defer r.Close()
 	symbols := []mapSymbol{}
 	visited, files, bytesRead, skipped, parseErrors, hits := 0, 0, 0, 0, 0, 0
+	languages := map[string]bool{}
 	truncated := false
 	query := strings.ToLower(a.Query)
 	err = fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(path string, d fs.DirEntry, walkErr error) error {
@@ -283,6 +284,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 		}
 		files++
 		bytesRead += len(data)
+		languages[mapLanguage(path)] = true
 		parsed, cached := e.symbols(path, data)
 		if cached {
 			hits++
@@ -326,7 +328,12 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 		symbols = symbols[:a.Limit]
 		truncated = true
 	}
-	output := map[string]any{"language": "go", "symbols": symbols, "matched_symbols": matched, "files_scanned": files, "bytes_read": bytesRead, "parse_cache_hits": hits, "skipped_files": skipped, "parse_errors": parseErrors, "truncated": truncated, "scope": "Syntax declarations only; no type checking, graph ranking, compilation or instruction authority."}
+	scanned := make([]string, 0, len(languages))
+	for language := range languages {
+		scanned = append(scanned, language)
+	}
+	sort.Strings(scanned)
+	output := map[string]any{"languages": scanned, "symbols": symbols, "matched_symbols": matched, "files_scanned": files, "bytes_read": bytesRead, "parse_cache_hits": hits, "skipped_files": skipped, "parse_errors": parseErrors, "truncated": truncated, "scope": "Syntax declarations only; no type checking, graph ranking, compilation or instruction authority."}
 	for {
 		output["symbols"] = symbols
 		output["truncated"] = truncated

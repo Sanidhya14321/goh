@@ -393,6 +393,10 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		nextProtocol, nextEndpoint, nextBase := c.Protocol, c.Endpoint, c.BaseURL
 		if *protocol != "" {
 			nextProtocol = *protocol
+		} else if nextProtocol == core.ChatGPTProtocol && (*endpoint != "" || *baseURL != "") {
+			// The ChatGPT protocol only reaches the official endpoint, so an
+			// explicit URL means another API: take its protocol from the path.
+			nextProtocol = protocolForURL(*endpoint + *baseURL)
 		}
 		if *endpoint != "" || *baseURL != "" {
 			nextEndpoint, nextBase = *endpoint, *baseURL
@@ -585,6 +589,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	enc := json.NewEncoder(os.Stdout)
 	var emitErr error
+	var pendingPermission *core.Permission
+	shownTools := map[string]bool{}
 	a.Emit = func(e core.Event) {
 		if *format == "json" {
 			if emitErr == nil {
@@ -597,18 +603,70 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 					fmt.Print(tui.Safe(fmt.Sprint(d["text"])))
 				}
 			case "stream_retry":
-				fmt.Fprintln(os.Stderr, "\nStream broke; the partial reply was discarded and the request re-sent")
+				fmt.Fprintln(os.Stderr, "\n"+tui.StreamRetryText(e.Data))
 			case "assistant_reset":
 				fmt.Fprintln(os.Stderr, "\nThe final reply differs from the streamed text above; it follows in full")
 			case "provider_retry":
 				if n, ok := e.Data.(core.RetryNotice); ok {
 					fmt.Fprintf(os.Stderr, "Provider busy (%s); retrying in %.1fs (attempt %d of %d)\n", tui.Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)
 				}
+			case "tool_requested", "tool_started":
+				// One line per tool on stderr, so a text run shows its
+				// progress without mixing it into the reply on stdout. A call
+				// is shown when requested, so one refused before it starts
+				// (bad arguments) still says which tool its error is about;
+				// integration starts (mcp_start) only have tool_started.
+				var tool struct {
+					ID        string          `json:"id"`
+					Name      string          `json:"name"`
+					Arguments json.RawMessage `json:"arguments"`
+					Function  struct {
+						Name      string `json:"name"`
+						Arguments string `json:"arguments"`
+					} `json:"function"`
+				}
+				if b, err := json.Marshal(e.Data); err == nil && json.Unmarshal(b, &tool) == nil {
+					if tool.Function.Name != "" {
+						tool.Name, tool.Arguments = tool.Function.Name, json.RawMessage(tool.Function.Arguments)
+					}
+					if tool.Name != "" && !shownTools[tool.ID] {
+						shownTools[tool.ID] = true
+						fmt.Fprintln(os.Stderr, "▸", tui.ToolLine(tool.Name, tool.Arguments))
+					}
+				}
+			case "tool_finished":
+				var tool struct {
+					Result struct {
+						Error   bool   `json:"error"`
+						Content string `json:"content"`
+					} `json:"result"`
+				}
+				if b, err := json.Marshal(e.Data); err == nil && json.Unmarshal(b, &tool) == nil && tool.Result.Error && !strings.HasPrefix(tool.Result.Content, "Not executed:") {
+					first, _, _ := strings.Cut(tool.Result.Content, "\n")
+					if len(first) > 200 {
+						first = strings.ToValidUTF8(first[:200], "") + "…"
+					}
+					fmt.Fprintln(os.Stderr, "  [error]", tui.Safe(first))
+				}
 			case "permission_requested":
+				// Granted tools need no prompt; the request is shown only if
+				// the run stops for it (see run_finished).
 				p, _ := e.Data.(core.Permission)
-				fmt.Fprintln(os.Stderr, "Approval required:", tui.Safe(p.Tool), tui.Safe(p.Preview))
+				pendingPermission = &p
+			case "permission_resolved":
+				pendingPermission = nil
+			case "integration_degraded":
+				if d, ok := e.Data.(map[string]any); ok {
+					fmt.Fprintf(os.Stderr, "%s server %s: %s\n", strings.ToUpper(fmt.Sprint(d["kind"])), tui.Safe(fmt.Sprint(d["name"])), tui.Safe(fmt.Sprint(d["error"])))
+				}
+			case "request_cap_learned":
+				fmt.Fprintln(os.Stderr, tui.RequestCapText(e.Data))
 			case "run_finished":
 				fmt.Println()
+				if d, ok := e.Data.(map[string]any); ok && d["status"] == "needs_permission" && pendingPermission != nil {
+					fmt.Fprintf(os.Stderr, "Approval required: %s\n%s\n", tui.Safe(pendingPermission.Tool), tui.Safe(pendingPermission.Preview))
+					fmt.Fprintf(os.Stderr, "A headless run cannot ask. Rerun with --allow %s, or use goh chat to approve interactively.\n", tui.Safe(pendingPermission.Tool))
+				}
 				if d, ok := e.Data.(map[string]any); ok && d["outcome"] == agent.OutcomeUnverified {
 					fmt.Fprintln(os.Stderr, "Note: files were changed but no check (test or build command) succeeded afterwards.")
 				}
@@ -677,8 +735,18 @@ func doctor(args []string) error {
 		fmt.Println("ChatGPT sign-in: none")
 	}
 	c = withChatGPTDefault(c)
-	if e := c.Validate(); e != nil {
+	// A ChatGPT run reads the model's context window from the service when
+	// none is configured; doctor makes no requests, so it reports that
+	// instead of calling the configuration invalid.
+	windowAtRun := c.EffectiveProtocol() == core.ChatGPTProtocol && c.ContextWindow == 0 && c.Model != ""
+	check := c
+	if windowAtRun {
+		check.ContextWindow = 1 << 20
+	}
+	if e := check.Validate(); e != nil {
 		fmt.Println("provider configuration:", e)
+	} else if windowAtRun {
+		fmt.Printf("provider configuration: valid (model %s, context window read from ChatGPT at run time)\n", tui.Safe(c.Model))
 	} else {
 		fmt.Printf("provider configuration: valid (model %s, context %d)\n", tui.Safe(c.Model), c.ContextWindow)
 	}
@@ -755,6 +823,19 @@ func runMessage(words []string, stdin io.Reader) (string, error) {
 // withChatGPTDefault uses a saved ChatGPT sign-in when no provider, endpoint
 // or model is configured at all. It never replaces an explicit provider, so
 // prompts only go where the user set things up.
+// protocolForURL picks the API protocol an explicit provider URL implies.
+func protocolForURL(raw string) string {
+	path := strings.TrimRight(strings.ToLower(raw), "/")
+	switch {
+	case strings.HasSuffix(path, "/messages"):
+		return "anthropic_messages"
+	case strings.HasSuffix(path, "/responses"):
+		return "openai_responses"
+	default:
+		return "chat_completions"
+	}
+}
+
 func withChatGPTDefault(c core.Config) core.Config {
 	if c.Protocol != "" || c.Endpoint != "" || c.BaseURL != "" || c.Model != "" {
 		return c

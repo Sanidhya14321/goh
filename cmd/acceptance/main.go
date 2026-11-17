@@ -101,6 +101,11 @@ func verify(harness, fixture string) error {
 			args = []string{"run", "-", "--project", project, "Perform", "the", "fixture", "task", "--title", "Piped fixture", "--reasoning-effort", "off", "--format", "json", "--endpoint", endpoint, "--model", "scripted", "--context-window", "131072", "--session-dir", filepath.Join(root, "sessions")}
 		}
 		cmd := exec.CommandContext(ctx, harness, args...)
+		// The developer's own settings (an active ChatGPT provider, saved
+		// keys) must not change a fixture run: use an empty home.
+		home := filepath.Join(root, "home")
+		os.MkdirAll(home, 0o700)
+		cmd.Env = append(os.Environ(), "HOME="+home, "XDG_CONFIG_HOME=", "XDG_STATE_HOME=", "APPDATA="+home, "LOCALAPPDATA="+home)
 		if scenario == "stdin-words" {
 			cmd.Stdin = strings.NewReader("piped context\n")
 		}

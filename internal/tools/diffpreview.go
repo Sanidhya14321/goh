@@ -17,6 +17,11 @@ const maxPreviewLine = 2048
 // shows one line, not the whole file twice. Output is bounded; a cut is
 // marked so the reviewer knows the preview is incomplete.
 func diffPreview(path string, before, after []byte, create bool) string {
+	return boundedDiff(path, before, after, create, MaxInline-4096)
+}
+
+// boundedDiff is diffPreview within budget bytes.
+func boundedDiff(path string, before, after []byte, create bool, budget int) string {
 	var out strings.Builder
 	header := "--- " + path + "\n+++ " + path + "\n"
 	if len(header) > 2048 {
@@ -28,7 +33,6 @@ func diffPreview(path string, before, after []byte, create bool) string {
 	}
 	// Removed and added lines have separate budgets so a large old text
 	// never hides the proposed new one; long lines are cut individually.
-	budget := MaxInline - 4096
 	side := map[byte]int{'-': budget * 2 / 5, '+': budget * 2 / 5}
 	truncated := false
 	write := func(line string) bool {

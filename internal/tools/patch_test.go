@@ -382,3 +382,36 @@ func TestPatchHugeInvalidHeaderErrorIsBounded(t *testing.T) {
 		t.Fatal("unbounded execution error", len(r.Content))
 	}
 }
+
+// A small change deep inside a long file must be visible in the approval
+// preview, and unchanged lines far from it must not crowd it out.
+func TestPatchPreviewShowsChangeDeepInLongFile(t *testing.T) {
+	var before strings.Builder
+	for i := 0; i < 6000; i++ {
+		fmt.Fprintf(&before, "line %04d unchanged\n", i)
+	}
+	after := strings.Replace(before.String(), "line 5000 unchanged", "line 5000 CHANGED", 1)
+	preview := patchPreview("/fixture", []patchChange{{kind: "update", path: "big.txt", before: []byte(before.String()), after: []byte(after)}, {kind: "add", path: "new.txt", after: []byte("fresh\n")}})
+	for _, want := range []string{"-line 5000 unchanged", "+line 5000 CHANGED", "@@ -4998,7 +4998,7 @@", "+fresh", "(new file)"} {
+		if !strings.Contains(preview, want) {
+			t.Fatalf("preview lacks %q:\n%s", want, preview)
+		}
+	}
+	if strings.Contains(preview, "line 0001") || strings.Count(preview, "\n") > 40 {
+		t.Fatalf("preview includes unchanged lines far from the change:\n%s", preview)
+	}
+}
+
+// gpt-oss names the argument "patch"; it is accepted as patchText.
+func TestPatchArgumentAlias(t *testing.T) {
+	a, err := decodePatch(json.RawMessage(`{"patch":"*** Begin Patch\n*** End Patch","expected_sha256":{}}`))
+	if err != nil || a.PatchText != "*** Begin Patch\n*** End Patch" {
+		t.Fatal(a, err)
+	}
+	if _, err := decodePatch(json.RawMessage(`{"patch":"x","patchText":"y"}`)); err == nil {
+		t.Fatal("both names accepted")
+	}
+	if _, err := decodePatch(json.RawMessage(`{"expected_sha256":{}}`)); err == nil || !strings.Contains(err.Error(), "patchText is required") {
+		t.Fatal(err)
+	}
+}

@@ -54,14 +54,25 @@ func decodePatch(raw json.RawMessage) (patchArguments, error) {
 		return a, errors.New("patch arguments must be a JSON object")
 	}
 	for key, value := range fields {
-		if key != "patchText" && key != "expected_sha256" {
+		if key != "patchText" && key != "patch" && key != "expected_sha256" {
 			return a, fmt.Errorf("unknown patch argument %q", key)
 		}
 		if bytes.Equal(bytes.TrimSpace(value), []byte("null")) {
 			return a, fmt.Errorf("null patch argument %q", key)
 		}
 	}
-	if _, ok := fields["patchText"]; !ok {
+	// gpt-oss models name the argument "patch"; providers that validate
+	// calls against the schema (Groq) refused every patch they wrote.
+	_, text := fields["patchText"]
+	alias, aliased := fields["patch"]
+	switch {
+	case text && aliased:
+		return a, errors.New("give patchText or patch, not both")
+	case aliased:
+		delete(fields, "patch")
+		fields["patchText"] = alias
+		raw, _ = json.Marshal(fields)
+	case !text:
 		return a, errors.New("patchText is required")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
@@ -405,46 +416,21 @@ func patchPreview(project string, changes []patchChange) string {
 	if per < 192 {
 		return ""
 	}
+	// Each file is shown as a unified diff: a two-line fix in a long file
+	// shows those lines, not both whole versions (where the change could
+	// fall past the excerpt and never reach the reviewer).
 	for i, change := range changes {
-		fmt.Fprintf(&preview, "\nFile %d before (-):\n", i+1)
-		preview.WriteString(patchExcerpt("-", change.before, (per-96)/2))
-		fmt.Fprintf(&preview, "File %d after (+):\n", i+1)
-		preview.WriteString(patchExcerpt("+", change.after, (per-96)/2))
+		path := change.path
+		if change.destination != "" {
+			path = change.path + " -> " + change.destination
+		}
+		fmt.Fprintf(&preview, "\nFile %d:\n", i+1)
+		preview.WriteString(boundedDiff(path, change.before, change.after, change.kind == "add", per-32))
 	}
 	if preview.Len() > MaxInline {
 		return ""
 	}
 	return preview.String()
-}
-func patchExcerpt(prefix string, content []byte, budget int) string {
-	const marker = "[excerpt truncated]\n"
-	var excerpt strings.Builder
-	remaining := string(content)
-	for {
-		line, rest, found := strings.Cut(remaining, "\n")
-		available := budget - excerpt.Len() - len(marker) - len(prefix) - 1
-		if available < 0 {
-			return excerpt.String() + marker
-		}
-		if len(line) > available {
-			cut := available
-			for cut > 0 && !utf8.ValidString(line[:cut]) {
-				cut--
-			}
-			excerpt.WriteString(prefix)
-			excerpt.WriteString(line[:cut])
-			excerpt.WriteByte('\n')
-			excerpt.WriteString(marker)
-			return excerpt.String()
-		}
-		excerpt.WriteString(prefix)
-		excerpt.WriteString(line)
-		excerpt.WriteByte('\n')
-		if !found {
-			return excerpt.String()
-		}
-		remaining = rest
-	}
 }
 func patchSuccess(changes []patchChange) Result {
 	outcomes := make([]map[string]any, 0, len(changes))

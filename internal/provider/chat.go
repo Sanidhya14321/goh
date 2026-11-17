@@ -9,10 +9,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,6 +28,38 @@ const maxResponse = 16 << 20
 
 var ErrConnection = errors.New("provider connection failed")
 var ErrInterrupted = errors.New("interrupted stream: missing finish or DONE")
+
+// ErrRejectedOutput marks a reply the provider refused while generating it,
+// such as a malformed or unknown tool call that Groq validates server-side
+// (tool_use_failed). Nothing was executed and sampling differs on each
+// attempt, so the request can simply be sent again.
+var ErrRejectedOutput = errors.New("the provider rejected the model's output")
+
+var errorIdentifier = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,64}$`)
+
+// streamError reports an error object sent inside a stream. Only its short
+// code and type identifiers are shown: messages can reflect request data.
+func streamError(raw json.RawMessage) error {
+	var body struct {
+		Code any    `json:"code"`
+		Type string `json:"type"`
+	}
+	json.Unmarshal(raw, &body)
+	code, _ := body.Code.(string)
+	var ids []string
+	for _, id := range []string{code, body.Type} {
+		if errorIdentifier.MatchString(id) {
+			ids = append(ids, id)
+		}
+	}
+	if code == "tool_use_failed" {
+		return fmt.Errorf("%w: an invalid tool call (tool_use_failed)", ErrRejectedOutput)
+	}
+	if len(ids) == 0 {
+		return errors.New("provider stream error")
+	}
+	return fmt.Errorf("provider stream error (%s)", strings.Join(ids, ", "))
+}
 
 type FinishError struct{ Reason string }
 
@@ -182,6 +216,11 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 				}
 				continue
 			}
+			var limit, requested int
+			var wait time.Duration
+			if resp.StatusCode == 413 || resp.StatusCode == 429 {
+				limit, requested, wait = requestCap(resp.Body)
+			}
 			resp.Body.Close()
 			// A ChatGPT token can be revoked before its recorded expiry. A 401
 			// means nothing was generated, so renew once and resend.
@@ -193,13 +232,25 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 					continue
 				}
 			}
-			err = classifyHTTP(resp.StatusCode)
-			if n, e := strconv.Atoi(resp.Header.Get("Retry-After")); e == nil && n >= 0 {
-				if n > 5 {
-					n = 5
-				}
-				delay = time.Duration(n) * time.Second
+			failure := classifyHTTP(resp.StatusCode)
+			failure.Limit, failure.Requested = limit, requested
+			if failure.TooLarge() {
+				// A rate limit smaller than the request itself (Groq states
+				// "Limit 8000, Requested 19000") never clears by waiting.
+				failure.Kind, failure.Retryable, retry = "request_too_large", false, false
 			}
+			delay = retryDelay(resp.StatusCode, resp.Header.Get("Retry-After"), attempt, delay)
+			if resp.StatusCode == 429 && retry {
+				if seconds, e := strconv.ParseFloat(strings.TrimSpace(resp.Header.Get("Retry-After")), 64); e == nil && seconds > 0 && seconds < 1e9 {
+					wait = max(wait, time.Duration(seconds*float64(time.Second)))
+				}
+				if wait > maxRateLimitWait {
+					// A quota that resets in minutes or hours: retrying
+					// within this request only spends the time.
+					failure.Wait, retry = wait, false
+				}
+			}
+			err = failure
 		}
 		if ctx.Err() != nil {
 			return core.Reply{}, ctx.Err()
@@ -272,7 +323,7 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 			return errors.New("invalid SSE JSON")
 		}
 		if len(ch.Error) > 0 && string(ch.Error) != "null" {
-			return errors.New("provider stream error")
+			return streamError(ch.Error)
 		}
 		if ch.Usage != nil {
 			u := ch.Usage.Usage
@@ -346,7 +397,12 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 		}
 	}
 	if e := s.Err(); e != nil {
-		return reply, e
+		if errors.Is(e, bufio.ErrTooLong) {
+			return reply, e
+		}
+		// A dropped or timed-out connection: an interrupted stream, which
+		// retry_interrupted_streams may re-send, not a raw socket error.
+		return reply, fmt.Errorf("provider stream read failed (connection dropped or timed out): %w", ErrInterrupted)
 	}
 	if len(data) > 0 {
 		if e := consume(); e != nil {
@@ -415,4 +471,25 @@ func joinPart(have, part string) string {
 		return have
 	}
 	return have + part
+}
+
+// retryDelay is how long to wait before resending after an HTTP failure.
+// Rate limits (429) usually reset within a minute: waiting a few hundred
+// milliseconds just spends the remaining attempts and fails a long run
+// midway, so a 429 waits as long as Retry-After asks (up to 30s), or 2s and
+// then 4s without one. Other statuses keep short waits (up to 5s).
+// maxRateLimitWait is the longest reset a 429 may state and still be
+// retried: beyond it the limit is a quota, not a burst.
+const maxRateLimitWait = 2 * time.Minute
+
+func retryDelay(status int, retryAfter string, attempt int, fallback time.Duration) time.Duration {
+	limit := 5 * time.Second
+	if status == 429 {
+		limit = 30 * time.Second
+		fallback = time.Duration(attempt+1) * 2 * time.Second
+	}
+	if seconds, err := strconv.ParseFloat(strings.TrimSpace(retryAfter), 64); err == nil && seconds >= 0 && seconds < 1e6 {
+		fallback = time.Duration(seconds * float64(time.Second))
+	}
+	return min(fallback, limit)
 }

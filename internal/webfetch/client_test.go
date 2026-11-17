@@ -305,3 +305,43 @@ func FuzzWebfetchArguments(f *testing.F) {
 		}
 	})
 }
+
+// Real APIs answer 415/406 to an Accept list without JSON; errors must say
+// what went wrong, and a refused redirect must name where it leads.
+func TestJSONAPIsErrorsAndRedirectDestination(t *testing.T) {
+	other := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer other.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api":
+			if !strings.Contains(r.Header.Get("Accept"), "*/*") && !strings.Contains(r.Header.Get("Accept"), "application/json") {
+				w.WriteHeader(http.StatusUnsupportedMediaType)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprint(w, `{"tag_name":"go1.27.2"}`)
+		case "/limited":
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusForbidden)
+			fmt.Fprint(w, `{"message":"API rate limit exceeded for 203.0.113.9"}`)
+		case "/cross":
+			http.Redirect(w, r, other.URL+"/landing?token=secret", http.StatusFound)
+		}
+	}))
+	defer server.Close()
+	c := NewAllowingPrivate()
+	defer c.Close()
+	for _, format := range []string{"", "text", "html"} {
+		if v := decoded(t, c.Fetch(context.Background(), raw(t, server.URL+"/api", format))); !strings.Contains(fmt.Sprint(v["content"]), "go1.27.2") {
+			t.Fatal(format, v)
+		}
+	}
+	r := c.Fetch(context.Background(), raw(t, server.URL+"/limited", ""))
+	if !r.Error || !strings.Contains(r.Content, "HTTP 403 Forbidden") || strings.Contains(r.Content, "rate limit exceeded") {
+		t.Fatal(r.Content)
+	}
+	r = c.Fetch(context.Background(), raw(t, server.URL+"/cross", ""))
+	if !r.Error || !strings.Contains(r.Content, other.URL+"/landing") || strings.Contains(r.Content, "secret") {
+		t.Fatal(r.Content)
+	}
+}

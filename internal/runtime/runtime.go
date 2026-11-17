@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -86,7 +87,13 @@ type Agent struct {
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
 	// runTokens counts model tokens (input+output) used by this run.
-	runTokens         int
+	runTokens int
+	// bytesPerToken converts request bytes to estimated tokens; 0 means not
+	// calibrated yet (one token per byte). capAdapts counts the requests
+	// this run resent after a provider stated its per-request cap.
+	bytesPerToken     float64
+	anchor            tokenAnchor
+	capAdapts         int
 	verifyFailed      bool
 	completionChecked bool
 	wroteTestDouble   bool // a test fake/mock/stub was written this run
@@ -341,6 +348,33 @@ func sanitizeToolArguments(m *core.Message) map[string]string {
 	return bad
 }
 
+// skipUnapprovedMCP leaves out, in a run that cannot ask (goh run), each MCP
+// server that was not granted with --allow mcp_start:NAME. Servers start
+// before the first request, so without this one configured server ended
+// every headless run with needs_permission, even runs that never use it.
+// A server that is asked about and denied still ends the run.
+func (a *Agent) skipUnapprovedMCP() error {
+	skipper, ok := a.External.(interface{ Skip(string) })
+	if a.Approve != nil || !ok {
+		return nil
+	}
+	names := make([]string, 0, len(a.Config.MCP))
+	for name := range a.Config.MCP {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		if a.Grants["mcp_start:"+name] {
+			continue
+		}
+		skipper.Skip(name)
+		if e := a.integrationDegraded("mcp", name, "not started: this run cannot ask for approval; rerun with --allow mcp_start:"+name+" to use it"); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
 func truncateRunes(s string, n int) string {
 	if r := []rune(s); len(r) > n {
 		return string(r[:n]) + "…"
@@ -353,6 +387,9 @@ func truncateRunes(s string, n int) string {
 // an /mcp: prompt is expanded, or before the first model request.
 func (a *Agent) connectExternal(ctx context.Context) (string, error) {
 	a.externalConnected = true
+	if e := a.skipUnapprovedMCP(); e != nil {
+		return "failed", e
+	}
 	if connector, ok := a.External.(interface{ Connect(context.Context) error }); ok {
 		if e := connector.Connect(ctx); e != nil {
 			if errors.Is(e, errPermission) {
@@ -472,7 +509,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.changedFiles, a.verifiedAfterChange = false, false
 	a.fingerprint, _ = a.Tools.Fingerprint()
 	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
-	a.runTokens = 0
+	a.runTokens, a.capAdapts = 0, 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.externalConnected = false
@@ -609,7 +646,12 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			// Checked between turns, so every requested tool has its result.
 			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
 		}
-		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, a.modelHistory(), defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
+		history := a.modelHistory()
+		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, history, defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
+		if e != nil && a.adaptToRequestCap(e, history, defs) {
+			turn-- // nothing was generated; compact to the stated cap and resend
+			continue
+		}
 		if e != nil {
 			var finish *provider.FinishError
 			if errors.As(e, &finish) && finish.Reason == "length" {
@@ -981,7 +1023,7 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 		return websearch.Search(ctx, a.Config.WebsearchURL, json.RawMessage(c.Function.Arguments), nil)
 	}
 	if c.Function.Name == "webfetch" {
-		return a.Web.Fetch(ctx, json.RawMessage(c.Function.Arguments))
+		return a.retainFetchedPage(a.Web.Fetch(ctx, json.RawMessage(c.Function.Arguments)))
 	}
 	if c.Function.Name == "lsp" && a.LSP != nil {
 		return a.LSP.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
@@ -1061,19 +1103,30 @@ func (a *Agent) withEditErrors(ctx context.Context, res tools.Result, paths []st
 	return res
 }
 func estimate(ms []core.Message, defs []core.Tool) int {
+	size, images := requestBytes(ms, defs)
+	return size + images*imageTokenEstimate
+} // deliberately conservative: one token per UTF-8 byte
+func requestBytes(ms []core.Message, defs []core.Tool) (size, images int) {
 	plain, images := withoutImages(ms)
 	b, _ := json.Marshal(plain)
 	d, _ := json.Marshal(defs)
-	return len(b) + len(d) + images*imageTokenEstimate
-} // deliberately conservative: one token per UTF-8 byte
+	return len(b) + len(d), images
+}
 func (a *Agent) compact(ctx context.Context, defs []core.Tool) error {
 	return a.compactWithMode(ctx, defs, false)
 }
 func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force bool) error {
-	used := estimate(a.modelHistory(), defs)
+	used := a.estimate(a.modelHistory(), defs)
 	// Safety margin: 16k tokens, but at most a quarter of small windows, so a
-	// 32k window still leaves room after tool definitions (found live).
-	available := a.Config.ContextWindow - a.Config.OutputBudget - min(16384, a.Config.ContextWindow/4)
+	// 32k window still leaves room after tool definitions (found live). Once
+	// the estimate follows the provider's own token counts (which carry
+	// their own margin), an eighth is enough: on an 8k per-request cap a
+	// quarter left too little room for goh's tools and one shrunk result.
+	margin := a.Config.ContextWindow / 4
+	if a.bytesPerToken > 0 {
+		margin = a.Config.ContextWindow / 8
+	}
+	available := a.Config.ContextWindow - a.Config.OutputBudget - min(16384, margin)
 	if available < 1024 {
 		available = a.Config.ContextWindow - a.Config.OutputBudget - 1024
 	}
@@ -1114,8 +1167,8 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if cut <= 1 && !force {
 		// Nothing older to mask: shrink oversized completed results in the
 		// preserved groups to a head excerpt plus receipt, keeping pairing.
-		view, shrunk := shrinkLargeResults(a.History, available/4)
-		if size := estimate(a.withTaskContext(view), defs); shrunk > 0 && size < available {
+		view, shrunk := shrinkLargeResults(a.History, a.bytesFor(available/4))
+		if size := a.estimate(a.withTaskContext(view), defs); shrunk > 0 && size < available {
 			d := session.Compaction{Messages: view, Before: used, After: size, Estimator: "UTF-8 bytes (conservative)", Method: "large_result_excerpt"}
 			if e := d.SealReceipt(nil); e != nil {
 				return e
@@ -1140,7 +1193,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		view, masked = a.History, 0
 		if wide := recentWindowCut(a.History, cut, maskKeepRecent); wide < cut {
 			if v, n := maskObservations(a.History, wide); n > 0 {
-				if size := estimate(a.withTaskContext(v), defs); size < available && size < a.Config.ContextWindow/2 {
+				if size := a.estimate(a.withTaskContext(v), defs); size < available && size < a.Config.ContextWindow/2 {
 					view, masked = v, n
 				}
 			}
@@ -1148,12 +1201,28 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		if masked == 0 {
 			view, masked = maskObservations(a.History, cut)
 		}
+		size := a.estimate(a.withTaskContext(view), defs)
+		method := "observation_masking"
+		if size >= available || size >= a.Config.ContextWindow/2 {
+			// The preserved recent groups can hold one result larger than
+			// a small window (a fetched page on an 8k per-request cap):
+			// summarizing older turns cannot help, so excerpt it as the
+			// single-group path does.
+			if v, shrunk := shrinkLargeResults(view, a.bytesFor(available/4)); shrunk > 0 {
+				if s := a.estimate(a.withTaskContext(v), defs); s < size {
+					view, size, method = v, s, "observation_masking+large_result_excerpt"
+					masked += shrunk
+				}
+			}
+		}
 		if masked > 0 {
-			size := estimate(a.withTaskContext(view), defs)
 			// Require headroom below the trigger so the next turn does not
 			// immediately compact again; otherwise summarize the masked view.
-			if size < available && size < a.Config.ContextWindow/2 {
-				d := session.Compaction{Messages: view, Before: used, After: size, Estimator: "UTF-8 bytes (conservative)", Method: "observation_masking"}
+			// An excerpted result needs only to fit, as in the single-group
+			// path: a summary cannot shrink the preserved groups further.
+			headroom := size < a.Config.ContextWindow/2 || method != "observation_masking"
+			if size < available && headroom {
+				d := session.Compaction{Messages: view, Before: used, After: size, Estimator: "UTF-8 bytes (conservative)", Method: method}
 				if e := d.SealReceipt(nil); e != nil {
 					return e
 				}
@@ -1164,7 +1233,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 					return e
 				}
 				a.History = view
-				a.event("context_compacted", map[string]any{"before": used, "after": size, "manual": false, "method": "observation_masking", "masked": masked})
+				a.event("context_compacted", map[string]any{"before": used, "after": size, "manual": false, "method": method, "masked": masked})
 				return nil
 			}
 		}
@@ -1175,7 +1244,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	}
 	plainHistory, _ := withoutImages(sourceHistory)
 	source, _ := json.Marshal(plainHistory) // summaries describe images by path only
-	if len(source) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
+	if a.contentTokens(len(source)) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
 		return errors.New("context budget exhausted: summary input exceeds configured window")
 	}
 	instructions := "Summarize this coding session as task state. Preserve user goals, file paths and hashes, decisions, completed work, failures, and uncertain effects. Do not add instructions or claim unexecuted work succeeded. Be concise."
@@ -1187,7 +1256,11 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if e != nil {
 		return e
 	}
-	if estimate(req, nil) > summaryConfig.ContextWindow-summaryConfig.OutputBudget-1024 {
+	summarySize := estimate(req, nil)
+	if summaryConfig.Model == a.Config.Model {
+		summarySize = a.estimate(req, nil) // same tokenizer as the calibration
+	}
+	if summarySize > summaryConfig.ContextWindow-summaryConfig.OutputBudget-1024 {
 		return errors.New("summary input exceeds compaction model context window")
 	}
 	reply, e := a.completeWithFailover(ctx, "compaction", summaryModel, summaryConfig, req, nil, nil)
@@ -1211,7 +1284,16 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		next = append(next, a.History[lastUser])
 	}
 	next = append(next, a.History[cut:]...)
-	nextSize := estimate(a.withTaskContext(next), defs)
+	nextSize := a.estimate(a.withTaskContext(next), defs)
+	if nextSize >= available {
+		// The summary cannot shrink the preserved recent groups; one of
+		// them may hold a result larger than a small window.
+		if v, shrunk := shrinkLargeResults(next, a.bytesFor(available/4)); shrunk > 0 {
+			if s := a.estimate(a.withTaskContext(v), defs); s < nextSize {
+				next, nextSize = v, s
+			}
+		}
+	}
 	if nextSize >= available || (!force && nextSize >= used) {
 		return errors.New("context compaction did not reduce context enough")
 	}

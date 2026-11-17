@@ -12,7 +12,9 @@ lists only what is **not** done or **not** verified, so it stays short.
 Over the ChatGPT sign-in (`gpt-6.1-sol`): streaming, tool calls, resume, image input, reasoning
 effort, plan handoff and end-of-request task state, plus 113 benchmark attempts that exercised the
 full tool loop ([benchmarks](../benchmarks/README.md)). LSP diagnostics and server restart were
-verified against a real `clangd`.
+verified against a real `clangd`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
+API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end-to-end audit in
+[VERIFICATION.md](VERIFICATION.md)).
 
 ## Verified only with fixtures
 
@@ -44,6 +46,7 @@ them. No manual Windows session has been run.
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
 | MCP | No OAuth for remote MCP servers | Needs a real OAuth MCP server to build against |
+| Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
 | Attach | `goh attach` works only with a loopback `goh serve` | Remote servers are out of scope |
 | Terminal UI | Provider, connect, model, settings and session-picker dialogs run as separate full-screen programs, drawn over a snapshot of the chat that does not reflow on resize; chat restarts after them (keys typed meanwhile are carried over) | See *Next* below |
 

@@ -181,7 +181,7 @@ func chatGPTRequest(ctx context.Context, method, endpoint string, form url.Value
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("OpenAI account request returned HTTP %d", resp.StatusCode)
+		return &chatGPTStatusError{status: resp.StatusCode}
 	}
 	if dst == nil {
 		return nil
@@ -249,8 +249,13 @@ func renewChatGPTLocked(ctx context.Context, a chatGPTAccount) (string, error) {
 		"grant_type": {"refresh_token"}, "client_id": {a.ClientID},
 		"refresh_token": {a.Tokens.Refresh}, "resource": {chatGPTResource},
 	}, "", &next)
+	if status := (*chatGPTStatusError)(nil); errors.As(err, &status) && (status.status == http.StatusBadRequest || status.status == http.StatusUnauthorized) {
+		// OAuth answers 400 (invalid_grant) or 401 when the saved sign-in
+		// expired or was revoked; retrying cannot help, signing in can.
+		return "", fmt.Errorf("ChatGPT sign-in has expired or was revoked (%w); sign in again with: goh auth login (in chat: /connect)", err)
+	}
 	if err != nil {
-		return "", fmt.Errorf("ChatGPT renewal failed; reconnect with /connect if it persists: %w", err)
+		return "", fmt.Errorf("ChatGPT renewal failed; if it persists, sign in again with: goh auth login (in chat: /connect): %w", err)
 	}
 	if next.Scope == "" {
 		next.Scope = a.Tokens.Scope
@@ -594,4 +599,10 @@ func verifyChatGPTIdentity(ctx context.Context, token, clientID, nonce string) (
 		}
 	}
 	return "", invalid
+}
+
+type chatGPTStatusError struct{ status int }
+
+func (e *chatGPTStatusError) Error() string {
+	return fmt.Sprintf("OpenAI account request returned HTTP %d", e.status)
 }

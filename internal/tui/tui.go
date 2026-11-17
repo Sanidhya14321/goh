@@ -275,12 +275,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				json.Unmarshal(b, &delta)
 				m.log += Safe(delta.Text)
 			} else if d.Event.Type == "tool_started" || d.Event.Type == "tool_finished" || d.Event.Type == "error" {
-				m.log += "\n[child " + Safe(d.TaskID) + " " + Safe(d.Event.Type) + "]\n"
+				m.log += childEventLine(d.Event)
 			}
 		case "stream_retry":
 			// Remove the abandoned partial reply; the retry streams it anew.
 			m.dropPartialReply()
-			m.log += "\n[stream broke; the partial reply was discarded and the request re-sent]\n"
+			m.log += "\n[" + strings.ToLower(StreamRetryText(v.Data)[:1]) + StreamRetryText(v.Data)[1:] + "]\n"
 		case "assistant_reset":
 			// The final reply differs from what streamed: show the final one.
 			m.dropPartialReply()
@@ -291,6 +291,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			json.Unmarshal(b, &d)
 			if m.partialReply == "" {
+				// A reply after tool output starts its own paragraph so it is
+				// not read as more of the output.
+				if strings.HasSuffix(m.log, "\n") && !strings.HasSuffix(m.log, "\n\n") && strings.Contains(m.log[strings.LastIndex(strings.TrimSuffix(m.log, "\n"), "\n")+1:], detailMark) {
+					m.log += "\n"
+				}
 				m.partialStart = len(m.log)
 			}
 			m.log += Safe(d.Text)
@@ -345,6 +350,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.log += failoverLine(v.Data)
 		case "integration_degraded":
 			m.log += degradedLine(v.Data)
+		case "request_cap_learned":
+			m.log += "\n[notice] " + RequestCapText(v.Data) + "\n"
 		case "todos_updated":
 			b, _ := json.Marshal(v.Data)
 			var d struct {

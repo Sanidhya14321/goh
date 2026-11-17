@@ -109,3 +109,33 @@ func regexSymbols(path string, data []byte) mapCacheEntry {
 	}
 	return out
 }
+
+// mapLanguage names the language repo_map read path as.
+func mapLanguage(path string) string {
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".go":
+		return "go"
+	case ".py", ".pyi":
+		return "python"
+	case ".js", ".jsx", ".mjs", ".cjs":
+		return "javascript"
+	case ".ts", ".tsx", ".mts":
+		return "typescript"
+	case ".rs":
+		return "rust"
+	case ".java":
+		return "java"
+	case ".kt", ".kts":
+		return "kotlin"
+	case ".cs":
+		return "csharp"
+	case ".scala":
+		return "scala"
+	case ".c", ".h":
+		return "c"
+	case ".rb":
+		return "ruby"
+	default:
+		return "cpp"
+	}
+}
