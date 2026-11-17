@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -178,5 +179,84 @@ func TestWritesTestDoublePatch(t *testing.T) {
 	c.Function.Arguments = string(b)
 	if !writesTestDouble(c) {
 		t.Fatal("patch fake not detected")
+	}
+}
+
+func TestTestScope(t *testing.T) {
+	for command, want := range map[string]string{
+		"go test ./...":                           "full",
+		"go test -count=1 ./internal/...":         "full",
+		"cd pkg && go test -run TestAdd .":        "selected",
+		"go test -run=TestParse ./parser":         "selected",
+		"go test -v -run 'TestA|TestB' ./x":       "selected",
+		"pytest":                                  "full",
+		"pytest -k add tests/":                    "selected",
+		"pytest tests/test_math.py::test_add":     "selected",
+		"python -m pytest -q":                     "full",
+		"python3 -m unittest discover":            "full",
+		"npx jest -t 'adds numbers'":              "selected",
+		"npm test":                                "full",
+		"npm run test -- --testNamePattern add":   "selected",
+		"cargo test":                              "full",
+		"cargo test parse_duration":               "selected",
+		"cargo test -- --nocapture":               "full",
+		"go build ./... && go vet ./...":          "",
+		"ls -la":                                  "",
+		"grep -rn 'go test -run' docs":            "",
+		"mvn test -Dtest=AddTest":                 "selected",
+		"./gradlew test --tests '*AddTest'":       "selected",
+		"go test ./... -run TestOnlyOne -count=1": "selected",
+	} {
+		if got := testScope(command); got != want {
+			t.Errorf("%q: %q, want %q", command, got, want)
+		}
+	}
+}
+
+// A run whose only passing tests after a change were picked by name gets
+// one reminder to run the full tests; a full run afterwards, or from the
+// start, needs none.
+func TestCompletionCheckSelectedTests(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for name, tc := range map[string]struct {
+		checks []string
+		want   int
+	}{
+		"selected only":        {[]string{"true go test -run TestAdd ./..."}, 1},
+		"selected then full":   {[]string{"true go test -run TestAdd ./...", "true go test ./..."}, 0},
+		"full only":            {[]string{"true go test ./..."}, 0},
+		"build after selected": {[]string{"true go test -run TestAdd ./...", "true go build ./..."}, 1},
+		"non-test check":       {[]string{"true go build ./..."}, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, _ := testAgent(t)
+			a.Config.CompletionCheck = nil
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			reminders, turn := 0, 0
+			a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+				turn++
+				if last := h[len(h)-1]; last.Role == "user" && strings.Contains(last.Content, "picked by name") {
+					reminders++
+					return answer(), nil
+				}
+				if turn == 1 {
+					return answer(toolCall("c", "create_file", map[string]any{"path": "fix.go", "content": "package fix\n"})), nil
+				}
+				if i := turn - 2; i < len(tc.checks) {
+					// "true <command>" passes without running the test runner.
+					return answer(toolCall(fmt.Sprint("t", i), "shell", map[string]any{"command": tc.checks[i]})), nil
+				}
+				return answer(), nil
+			})
+			if status, err := a.Run(context.Background(), "go"); status != "completed" {
+				t.Fatal(status, err)
+			}
+			if reminders != tc.want {
+				t.Fatalf("reminders %d want %d", reminders, tc.want)
+			}
+			if lastOutcome(t, a) != OutcomeVerified {
+				t.Fatal(lastOutcome(t, a))
+			}
+		})
 	}
 }

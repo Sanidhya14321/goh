@@ -448,6 +448,12 @@ approval prompt). On failure, its output goes back to the model, up to `repair_a
 (default 1, max 3). The outcome is then `verified` or `failed_verification`. `--verify` sets this
 per run.
 
+Without `verify`, a run that changed files is reminded once before it finishes when: no check
+passed after the last change; the passing checks used a fake, mock or stub the model wrote; or the
+only passing tests were picked by name (`go test -run`, `pytest -k` or `::`, `jest -t`,
+`cargo test NAME` and similar), in which case it is asked to run the full tests of what it changed.
+`"completion_check": false` turns the reminder off.
+
 Run budgets (child tasks count against the parent):
 
 | Field | Limit |

@@ -30,6 +30,7 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 	switch {
 	case fileChangeTools[c.Function.Name]:
 		a.changedFiles, a.verifiedAfterChange = true, false
+		a.narrowTestPassed, a.fullTestPassed = false, false
 		if writesTestDouble(c) {
 			a.wroteTestDouble = true
 		}
@@ -43,6 +44,16 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		}
 		if a.changedFiles && json.Unmarshal([]byte(r.Content), &out) == nil && out.ExitCode != nil && *out.ExitCode == 0 {
 			a.verifiedAfterChange = true
+			var args struct {
+				Command string `json:"command"`
+			}
+			_ = json.Unmarshal([]byte(c.Function.Arguments), &args)
+			switch testScope(args.Command) {
+			case "selected":
+				a.narrowTestPassed = true
+			case "full":
+				a.fullTestPassed = true
+			}
 		}
 	}
 }
@@ -64,6 +75,7 @@ func (a *Agent) noticeUntrackedChanges() bool {
 	}
 	a.fingerprint = now
 	a.changedFiles, a.verifiedAfterChange = true, false
+	a.narrowTestPassed, a.fullTestPassed = false, false
 	return true
 }
 
@@ -129,6 +141,8 @@ func writesTestDouble(c core.Call) bool {
 
 const testDoubleCheckPrompt = "[Automatic check, not a new request] Your checks in this run use a fake, mock or stub you wrote. A passing check against your own stand-in does not show the change works with the real code. Open the real definitions your change calls (functions, methods, constructors and their parameter names) and confirm every call matches them exactly; do not add parameters the real code does not accept. Run the project's existing tests too. Fix any mismatch, then finish."
 
+const selectedTestsCheckPrompt = "[Automatic check, not a new request] The tests that passed since your last change were picked by name (-run, -k, ::, -t or similar). Run the full tests of every package or module you changed, without the name filter, and fix any failure, including existing tests your change broke. Then finish."
+
 const completionCheckPrompt = "[Automatic check, not a new request] You changed files in this run but no test, build or other check has succeeded since your last change. Run the most relevant check now and fix any failure. If no check applies, say why in one sentence. Then finish."
 
 // needsCompletionCheck reports whether to remind the model, once per run, to
@@ -143,13 +157,46 @@ func (a *Agent) needsCompletionCheck() bool {
 	if a.Config.CompletionCheck != nil && !*a.Config.CompletionCheck {
 		return false
 	}
-	return a.changedFiles && (!a.verifiedAfterChange || a.wroteTestDouble)
+	return a.changedFiles && (!a.verifiedAfterChange || a.wroteTestDouble || a.onlySelectedTests())
+}
+
+// onlySelectedTests reports whether the passing tests since the last change
+// ran only tests picked by name. In the real-project benchmark every miss
+// was a fix the model's own passing checks called done, including one that
+// broke an existing test in the same package; a name-filtered run cannot
+// see such breakage.
+func (a *Agent) onlySelectedTests() bool {
+	return a.verifiedAfterChange && a.narrowTestPassed && !a.fullTestPassed
+}
+
+var (
+	// testCommandRe finds a test runner invocation in a shell command.
+	testCommandRe = regexp.MustCompile(`(^|[\s;&|(/])(go\s+test|pytest|py\.test|python3?\s+-m\s+(pytest|unittest)|jest|vitest|mocha|cargo\s+(nextest\s+run|test)|npm\s+(run\s+)?test|yarn\s+test|pnpm\s+(run\s+)?test|rspec|phpunit|dotnet\s+test|mvn\s+test|gradlew?\s+test|make\s+test|ctest)\b`)
+	// selectedTestRe finds options that run only tests picked by name.
+	selectedTestRe = regexp.MustCompile(`(\s-run[=\s]|\s-k\s|\s-k=|::|\s-t\s|--testNamePattern|--grep\s|\s--filter[=\s]|\s-Dtest=|--tests\s)`)
+	// cargoNamedRe is cargo test given a test name before any option.
+	cargoNamedRe = regexp.MustCompile(`cargo\s+test\s+[^-\s]`)
+)
+
+// testScope classifies a shell command: "selected" when it runs tests picked
+// by name, "full" when it runs a test suite, "" when it runs no tests.
+func testScope(command string) string {
+	if !testCommandRe.MatchString(command) {
+		return ""
+	}
+	if selectedTestRe.MatchString(" "+command) || cargoNamedRe.MatchString(command) {
+		return "selected"
+	}
+	return "full"
 }
 
 // completionCheck returns the reminder to send and the reason recorded with it.
 func (a *Agent) completionCheck() (prompt, reason string) {
 	if a.verifiedAfterChange && a.wroteTestDouble {
 		return testDoubleCheckPrompt, "checks used a test double written in this run"
+	}
+	if a.onlySelectedTests() {
+		return selectedTestsCheckPrompt, "only tests selected by name passed after the last change"
 	}
 	return completionCheckPrompt, "files changed without a passing check"
 }

@@ -97,6 +97,8 @@ type Agent struct {
 	verifyFailed      bool
 	completionChecked bool
 	wroteTestDouble   bool // a test fake/mock/stub was written this run
+	narrowTestPassed  bool // since the last change, a passing test run picked tests by name
+	fullTestPassed    bool // since the last change, a passing test run covered whole suites
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants      map[string]bool
 	runID             string
@@ -509,6 +511,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.changedFiles, a.verifiedAfterChange = false, false
 	a.fingerprint, _ = a.Tools.Fingerprint()
 	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
+	a.narrowTestPassed, a.fullTestPassed = false, false
 	a.runTokens, a.capAdapts = 0, 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil

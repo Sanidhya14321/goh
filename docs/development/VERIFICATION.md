@@ -8,6 +8,10 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: completion check for name-filtered tests
+
+`go test -race ./internal/runtime`. `TestTestScope` classifies 22 commands across Go, pytest, unittest, Jest, npm, Cargo, Maven and Gradle (including `grep` of a test command, which is not a test run). `TestCompletionCheckSelectedTests`: one reminder after `go test -run` alone or followed by a build; none after a full run, with or without a filtered run first, or after a non-test check. Not yet measured on the benchmark: the ChatGPT sign-in used for benchmark runs has been revoked.
+
 ## Unreleased: package managers, SBOM, provenance
 
 - `scripts/packaging.sh` on a local `make release` (1.0.0-pkgtest): `ruby -c` accepts the formula and the Scoop manifest is valid JSON.
