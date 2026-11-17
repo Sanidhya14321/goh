@@ -496,9 +496,17 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         assert len(list(root.rglob("*.jsonl"))) == 2
         pos = len(output)
         os.write(master, b"\r")
-        wait_for(b"\x1b[?1049h", pos)
-        wait_for(b"Verify selected model", output.index(b"\x1b[?1049h", pos))
-        time.sleep(.1)
+        # The fork opens in the same terminal program: the screen is not
+        # left and re-entered, and the branch session appears.
+        deadline = time.monotonic() + 8
+        while len(list(root.rglob("*.jsonl"))) < 3 and time.monotonic() < deadline:
+            if select.select([master], [], [], .1)[0]:
+                output.extend(os.read(master, 65536))
+        time.sleep(.3)
+        while select.select([master], [], [], .1)[0]:
+            output.extend(os.read(master, 65536))
+        assert b"\x1b[?1049h" not in output[pos:], "fork re-entered the alternate screen"
+        assert b"\x1b[?1049l" not in output[pos:], "fork left the alternate screen"
         branch, = [p for p in root.rglob("*.jsonl") if p not in (journal_before, second_journal)]
         branch_snapshot = branch.read_bytes()
         state = [json.loads(line) for line in branch_snapshot.splitlines()]

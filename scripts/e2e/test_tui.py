@@ -455,7 +455,14 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                     raise AssertionError('background job outlived GoHarness')
             if case != 'termination' and code != 0:
                 raise AssertionError(f'{case}: unexpected exit {code}')
-            reports.append({'scenario': case, 'exit_code': code, 'terminal_attributes_restored': restored})
+            # One terminal program for the whole session: navigations (plan
+            # approval, undo, revert, model and agent changes) replace screens
+            # inside it instead of leaving and re-entering the alternate
+            # screen. Only the editor handoff really leaves it.
+            entries = bytes(output).count(b'\x1b[?1049h')
+            if case != 'editor_handoff' and entries > 1:
+                raise AssertionError(f'{case}: entered the alternate screen {entries} times')
+            reports.append({'scenario': case, 'exit_code': code, 'terminal_attributes_restored': restored, 'screen_entries': entries})
         finally:
             if process is not None and process.poll() is None:
                 process.terminate()

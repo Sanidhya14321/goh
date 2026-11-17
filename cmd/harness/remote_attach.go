@@ -86,6 +86,7 @@ func runAttach(args []string) error {
 		acknowledged.session = id
 	}
 	notice, draft := fmt.Sprintf("Attached to %s (project %s).", address, info.Project), ""
+	defer tui.StartHost()()
 	for {
 		a, err := attachedAgent(info, id)
 		if err != nil {

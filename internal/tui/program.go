@@ -47,6 +47,9 @@ func takeTypeAhead() []tea.Msg {
 // runProgram runs m as a full-screen program, carrying keystrokes across the
 // change of screen in both directions.
 func runProgram(m tea.Model) error {
+	if hosted() {
+		return showHosted(m)
+	}
 	_, err := tea.NewProgram(&settler{inner: m, replay: takeTypeAhead()}).Run()
 	return err
 }

@@ -8,6 +8,16 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: one terminal program per interactive session
+
+Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all six terminal suites. Linux ARM64 container: all six terminal suites.
+
+- `test_tui.py` now fails any scenario that enters the alternate screen more than once (editor handoff excepted). Every scenario entered it once, including `undo_redo`, `timeline_revert`, `provider_models` and `plan_exit`. The same check against a build of the previous commit failed with `undo_redo: entered the alternate screen 3 times`.
+- `test_setup.py`: `/fork` before a turn opens the branch without leaving or re-entering the screen.
+- New `test_salvage.py`: `goh chat --session` on a session damaged in its second turn asks on the normal terminal, recovers the first turn into a new session, opens it in the chat, and leaves the damaged file unchanged.
+- SIGTERM to a hosted chat exits 0 with the terminal restored. The first version handed the waiting chat an error, and the launcher then opened a standalone provider picker that nothing could answer; found by `test_tui.py` `termination`.
+- Unit tests: `TestHostCarriesKeysAcrossScreensAndDropsStaleMessages` (fails when message tagging is disabled: a closed screen's timer reached the next screen), `TestHostQuitInsideBatchClosesScreen`, `TestHostDialogBackdropFollowsChatResize` (fails without the live backdrop), `TestOwnMessage`.
+
 ## Unreleased: CI back to green, credential boundary through symlinks
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all five terminal suites; `govulncheck ./...` (v1.9.0, for darwin, linux and windows): no vulnerabilities; v1.1.4 panicked on the Linux build in CI (`unexpected expr: *ast.KeyValueExpr`). Linux ARM64 in a `python:3.12-bookworm` container (Colima): all five terminal suites passed with the cross-built binary.

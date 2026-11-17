@@ -43,7 +43,7 @@ acceptance: build
 # Drives the compiled binary in pseudo-terminals against the scripted model
 # (macOS and Linux; needs python3, no credentials).
 e2e: build acceptance
-	for t in tui setup acp attach resume_setup; do python3 scripts/e2e/test_$$t.py || exit 1; done
+	for t in tui setup acp attach resume_setup salvage; do python3 scripts/e2e/test_$$t.py || exit 1; done
 release:
 	GO='$(GO)' VERSION='$(VERSION)' sh scripts/release.sh
 demo: build

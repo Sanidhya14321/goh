@@ -1044,7 +1044,11 @@ func removeProvider(name string) (bool, string, error) {
 func runProviders(args []string, w io.Writer) error {
 	usage := errors.New("usage: goh providers [list | use NAME | remove NAME]")
 	if len(args) == 0 {
-		_, notice, err := manageProviders("")
+		var notice string
+		err := inOneProgram(func() (err error) {
+			_, notice, err = manageProviders("")
+			return err
+		})
 		if notice != "" {
 			fmt.Fprintln(w, notice)
 		}
@@ -1098,4 +1102,17 @@ func keyInUse(route core.Config) bool {
 		}
 	}
 	return false
+}
+
+// inOneProgram runs an interactive flow with all of its screens inside one
+// terminal program, so moving between them never leaves the screen. Text
+// is printed only after it returns.
+func inOneProgram(fn func() error) error {
+	stop := tui.StartHost()
+	err := fn()
+	stop()
+	if errors.Is(err, tui.ErrHostEnded) {
+		return nil
+	}
+	return err
 }

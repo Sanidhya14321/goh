@@ -199,11 +199,16 @@ flowchart LR
 
 ## Terminal UI structure
 
-The chat view is one Bubble Tea program. The command palette, theme, changes, copy, jobs,
-timeline and approval views are overlays inside it. The provider manager, connect, model,
-settings and session-picker dialogs currently run as separate full-screen programs between chat
-sessions, drawn over
-a snapshot of the chat; moving them into the chat program is the next planned UI change
-(see [status](development/STATUS.md)). Every program runs through `runProgram`
-(`internal/tui/program.go`), which closes a screen only once typing pauses and replays keys
-typed meanwhile into the next screen, so fast typing survives a change of screen.
+An interactive session (`goh`, `goh chat`, `goh attach`, `goh setup`, `goh settings`,
+`goh providers`) runs one Bubble Tea program, the host (`internal/tui/host.go`). The command
+palette, theme, changes, copy, jobs, timeline and approval views are overlays inside the chat.
+Everything else (provider manager, connect, model and agent pickers, settings, project and
+session pickers, and the chat itself after a navigation) is a screen the host shows in turn:
+the launcher keeps its blocking style, `runProgram` hands each screen to the host and waits
+until it quits. So the terminal never leaves the alternate screen between screens, keys typed
+during a change of screen go to the next one, and a dialog over the chat is drawn over the live
+chat, which reflows on resize. Messages from a screen's timers and requests are tagged with that
+screen and dropped once it closes. A prompt that must read standard input directly (recovering a
+damaged session) runs through `tui.Suspended`, which hands the terminal back meanwhile. Outside a
+host, `runProgram` still runs a standalone program that closes only once typing pauses and
+replays keys typed meanwhile into the next screen.

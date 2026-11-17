@@ -150,14 +150,18 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if (args[0] == "setup" || args[0] == "settings") && len(args) == 1 {
 		if args[0] == "setup" {
-			_, notice, err := manageProviders("")
+			var notice string
+			err := inOneProgram(func() (err error) {
+				_, notice, err = manageProviders("")
+				return err
+			})
 			if notice != "" {
 				fmt.Println(notice)
 			}
 			return err
 		}
 		project := "."
-		return launch(&project)
+		return inOneProgram(func() error { return launch(&project) })
 	}
 	if args[0] == "auth" {
 		return chatGPTAuth(args[1:])
@@ -505,7 +509,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	var store *session.Store
 	if resumeID != "" && *forkSession {
 		store, e = session.Fork(c.SessionDir, resumeID)
-		if e == nil {
+		if e == nil && command != "chat" {
+			// The chat shows the new session itself; text written now would
+			// land on its screen.
 			fmt.Fprintf(os.Stderr, "Forked session %s into %s\n", resumeID, store.ID)
 		}
 	} else if *forkSession {
@@ -514,7 +520,12 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		store, e = session.Open(c.SessionDir, resumeID)
 		if errors.Is(e, session.ErrDamaged) {
 			if command != "run" && interactive() {
-				store, e = offerSalvage(os.Stdin, os.Stderr, c.SessionDir, resumeID, e)
+				damaged := e
+				e = tui.Suspended(func() error {
+					var err error
+					store, err = offerSalvage(os.Stdin, os.Stderr, c.SessionDir, resumeID, damaged)
+					return err
+				})
 			} else {
 				e = fmt.Errorf("%w\nThe damaged journal was not changed. Recover its readable conversation into a new session with:\n  goh sessions salvage %s", e, resumeID)
 			}

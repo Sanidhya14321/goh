@@ -148,6 +148,9 @@ func keepsStartupFlags(opened bool, action string) bool {
 
 func chatFirst(args []string) error {
 	defer stopParkedJobs()
+	// One terminal program for the whole session: chat, pickers and setup
+	// screens replace each other inside it instead of restarting.
+	defer tui.StartHost()()
 	project, sessionID, draft := "", "", ""
 	if picksWorkspace(args) {
 		// A trusted folder opens directly; any other shows the browser,
@@ -196,6 +199,9 @@ func chatFirst(args []string) error {
 		var nav *tui.ChatNavigation
 		if err == nil {
 			return nil
+		}
+		if errors.Is(err, tui.ErrHostEnded) {
+			return nil // the terminal program ended (SIGTERM); nothing can be shown
 		}
 		opened := errors.As(err, &nav) // chat ran, so its session was opened
 		if !opened {

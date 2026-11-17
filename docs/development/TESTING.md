@@ -19,10 +19,11 @@ The terminal suites live in `scripts/e2e/`:
 
 | Script | Covers |
 | --- | --- |
-| `test_tui.py` | 25 chat scenarios: approvals, undo, palette, sessions, jobs, layouts, editor handoff |
+| `test_tui.py` | 25 chat scenarios: approvals, undo, palette, sessions, jobs, layouts, editor handoff; each must enter the alternate screen once |
 | `test_setup.py` | First run, provider setup and failure paths, draft preservation, model switching |
 | `test_resume_setup.py` | `goh chat --session` through provider setup |
 | `test_attach.py` | `goh serve` plus `goh attach` |
+| `test_salvage.py` | A damaged session: the recovery question on the normal terminal, then the recovered chat |
 | `test_acp.py` | The editor protocol over stdio |
 
 `test_openai_live.py` and `test_openai_live_extra.py` make real requests with the saved ChatGPT

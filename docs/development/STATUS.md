@@ -48,16 +48,12 @@ them. No manual Windows session has been run.
 | MCP | No OAuth for remote MCP servers | Needs a real OAuth MCP server to build against |
 | Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
 | Attach | `goh attach` works only with a loopback `goh serve` | Remote servers are out of scope |
-| Terminal UI | Provider, connect, model, settings and session-picker dialogs run as separate full-screen programs, drawn over a snapshot of the chat that does not reflow on resize; chat restarts after them (keys typed meanwhile are carried over) | See *Next* below |
 
 Not attempted by decision: custom tool plugins (they would run repository code), session sharing
 (it would upload conversations).
 
 ## Next
 
-1. **In-chat dialogs.** Move the provider, connect, model and settings flows into the chat
-   program as overlays, like the theme, changes, jobs and timeline pickers already are. This
-   removes the frozen backdrop and the chat restart between dialogs.
-2. **Live checks** for the fixture-only paths above, starting with provider failover and token
+1. **Live checks** for the fixture-only paths above, starting with provider failover and token
    expiry.
-3. **First stable release** once the user approves publishing.
+2. **First stable release** once the user approves publishing.
