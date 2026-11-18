@@ -115,7 +115,9 @@ func readOnlySegment(words []string) bool {
 		if strings.HasPrefix(a, "-") {
 			continue
 		}
-		if filepath.IsAbs(a) || strings.HasPrefix(a, "~") || a == ".." || strings.HasPrefix(a, "../") || strings.Contains(a, "/../") || strings.HasSuffix(a, "/..") {
+		// "/x" and "C:x" count as outside on every system (filepath.IsAbs
+		// alone misses "/x" on Windows).
+		if filepath.IsAbs(a) || strings.HasPrefix(a, "/") || (len(a) >= 2 && a[1] == ':') || strings.HasPrefix(a, "~") || a == ".." || strings.HasPrefix(a, "../") || strings.Contains(a, "/../") || strings.HasSuffix(a, "/..") {
 			return false
 		}
 	}

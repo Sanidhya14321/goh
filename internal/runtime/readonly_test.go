@@ -19,7 +19,7 @@ func TestReadOnlyCommand(t *testing.T) {
 		"sort -o out.txt in.txt", "echo $(rm -rf .)", "echo `id`", "ls & rm x", "node -e 'process.exit()'",
 		"npm install", "go build ./...", "go env -w GOFLAGS=x", "FOO=1 ls", "/bin/ls", "tee x", "cat a\nrm b",
 		"sed -i s/a/b/ f", "git diff --output=x", "rg --pre sh x", "file -C -m magic", "uniq in out", "python3 x.py",
-		"curl https://example.com", "ls 'unterminated",
+		"curl https://example.com", "cat C:/Windows/win.ini", "ls d:", "ls 'unterminated",
 	} {
 		if readOnlyCommand(cmd) {
 			t.Errorf("allowed %q", cmd)
