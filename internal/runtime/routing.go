@@ -56,15 +56,29 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		if errors.Is(err, provider.ErrInterrupted) {
 			return retry <= a.Config.RetryInterruptedStreams
 		}
+		if errors.Is(err, provider.ErrBusy) {
+			return retry <= busyRetries
+		}
 		// A reply the provider refused mid-generation (an invalid tool call)
 		// executed nothing; a new sample usually succeeds.
 		return errors.Is(err, provider.ErrRejectedOutput) && retry <= 2
 	}
 	for retry := 1; retryable(retry); retry++ {
+		busy := errors.Is(err, provider.ErrBusy)
+		if busy {
+			// An overloaded service needs a pause, not an immediate resend.
+			wait := busyWait(retry)
+			a.event("provider_retry", core.RetryNotice{Attempt: retry + 1, Max: busyRetries + 1, DelayMS: wait.Milliseconds(), Reason: "overloaded"})
+			select {
+			case <-ctx.Done():
+				return core.Reply{}, ctx.Err()
+			case <-time.After(wait):
+			}
+		}
 		// Nothing from the broken reply was committed or executed, so this
 		// is a fresh request on the same history. The event tells interfaces
 		// to drop the partial text already shown.
-		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error()})
+		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error(), "busy": busy})
 		streamed.Reset()
 		reply, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
 	}
@@ -219,3 +233,9 @@ func (a *Agent) recordFailover(purpose, from, to, reason, state, detail string) 
 	a.event("provider_failover", data)
 	return a.Store.Append("provider_failover", data)
 }
+
+// busyRetries is how often a turn is resent after the provider reported
+// itself overloaded inside the stream; busyWait is the pause before each.
+const busyRetries = 3
+
+var busyWait = func(retry int) time.Duration { return time.Duration(5<<(retry-1)) * time.Second } // 5, 10, 20 s

@@ -58,7 +58,7 @@ func streamError(raw json.RawMessage) error {
 	if len(ids) == 0 {
 		return errors.New("provider stream error")
 	}
-	return fmt.Errorf("provider stream error (%s)", strings.Join(ids, ", "))
+	return markBusy(fmt.Errorf("provider stream error (%s)", strings.Join(ids, ", ")), code, body.Type)
 }
 
 type FinishError struct{ Reason string }

@@ -225,8 +225,12 @@ func StreamRetryText(data any) string {
 	b, _ := json.Marshal(data)
 	var retry struct {
 		Error string `json:"error"`
+		Busy  bool   `json:"busy"`
 	}
 	json.Unmarshal(b, &retry)
+	if retry.Busy {
+		return "The provider was overloaded; nothing ran, the request was sent again"
+	}
 	if strings.Contains(retry.Error, "rejected the model's output") {
 		return "The provider rejected the model's tool call; nothing ran, asking the model again"
 	}

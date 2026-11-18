@@ -8,6 +8,12 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: real-project A/B, overload retries
+
+- `goh-bench` on the 19 real-project tasks, check vs `--completion-check=false`, `gpt-6.2-sol`, containerised ([report](../benchmarks/real-ab-unreleased.md)). On the 13 tasks both arms finished: 10 resolved and 3 false completions each, the same tasks. The selected-tests reminder never fired, because the model ran `go test ./...` after every `-run`.
+- Five runs ended on in-stream `server_is_overloaded`, which goh did not retry. Fixed: `TestBusyStreamErrors` (OpenAI Responses, Chat Completions and Anthropic overload codes are `ErrBusy`; usage limits, rate-limit codes and empty errors are not; messages are never shown; credential-shaped Anthropic types are dropped) and `TestBusyProviderIsRetriedAfterAPause` (two failures then success; persistent failure gives up after three retries waiting 5, 10 and 20 s, each announced as `provider_retry`).
+- Three runs hit the plan's `subscription_sharing_usage_limit_exceeded`; those stop at once, as intended.
+
 ## Unreleased: live ChatGPT checks after re-sign-in
 
 The 12 Nov sign-in had been revoked; it was removed with `goh auth logout` and a new one made with `goh auth login` (model `gpt-6.2-sol`). All live, over the ChatGPT plan:

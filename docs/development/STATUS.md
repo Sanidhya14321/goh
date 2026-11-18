@@ -51,6 +51,5 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 
 ## Next
 
-1. **Benchmark re-run** to measure the name-filtered-tests completion check, and the manual checks
-   (Zed over ACP, one interactive Windows session).
+1. **Manual checks:** Zed over ACP, and one interactive Windows session.
 2. **First stable release** once the user approves publishing.

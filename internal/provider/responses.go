@@ -323,7 +323,7 @@ func responsesStreamError(raw string) error {
 	} else {
 		text += "; check model access and account usage"
 	}
-	return errors.New(text)
+	return markBusy(errors.New(text), code)
 }
 
 // errorCode accepts the shape of provider error codes (rate_limit_exceeded,

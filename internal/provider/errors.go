@@ -74,6 +74,33 @@ func classifyHTTP(status int) *HTTPError {
 	return &HTTPError{Status: status, Kind: kind, Retryable: retry}
 }
 
+// ErrBusy marks a provider error sent inside a stream that says the service
+// is temporarily overloaded or failed internally (OpenAI server_is_overloaded
+// or server_error, Anthropic overloaded_error or api_error). Nothing was
+// executed, so the request can be sent again after a pause.
+var ErrBusy = errors.New("the provider is temporarily overloaded")
+
+// busyCodes are the stream error codes and types that mean ErrBusy.
+var busyCodes = map[string]bool{
+	"server_is_overloaded": true, "server_error": true, "internal_server_error": true,
+	"service_unavailable": true, "overloaded": true, "overloaded_error": true, "api_error": true,
+}
+
+// busyError keeps a stream error's text while matching ErrBusy.
+type busyError struct{ error }
+
+func (busyError) Is(target error) bool { return target == ErrBusy }
+
+// markBusy wraps err as ErrBusy when one of codes is a busy code.
+func markBusy(err error, codes ...string) error {
+	for _, c := range codes {
+		if busyCodes[c] {
+			return busyError{err}
+		}
+	}
+	return err
+}
+
 // Failoverable reports failures that happened before the provider returned any
 // response body: connection failures and retryable HTTP statuses after the
 // client's own bounded retries. No content, tool call or partial stream exists

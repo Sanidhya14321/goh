@@ -2,7 +2,9 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/provider"
@@ -118,6 +120,49 @@ func TestRejectedOutputIsResampled(t *testing.T) {
 			status, _ := a.Run(context.Background(), "go")
 			if status != tc.wantStatus || calls != tc.wantCalls {
 				t.Fatalf("status %s calls %d", status, calls)
+			}
+		})
+	}
+}
+
+// A provider that reports itself overloaded inside the stream is asked
+// again after a pause, up to three times, and the pause is announced.
+func TestBusyProviderIsRetriedAfterAPause(t *testing.T) {
+	saved := busyWait
+	t.Cleanup(func() { busyWait = saved })
+	var waits []time.Duration
+	busyWait = func(retry int) time.Duration { w := saved(retry); waits = append(waits, w); return time.Millisecond }
+	for name, tc := range map[string]struct {
+		failures   int
+		wantStatus string
+		wantCalls  int
+	}{
+		"twice":  {2, "completed", 3},
+		"always": {9, "failed", 4},
+	} {
+		t.Run(name, func(t *testing.T) {
+			waits = nil
+			a, _ := testAgent(t)
+			var notices []core.RetryNotice
+			a.Emit = func(e core.Event) {
+				if n, ok := e.Data.(core.RetryNotice); ok && e.Type == "provider_retry" {
+					notices = append(notices, n)
+				}
+			}
+			calls := 0
+			a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+				calls++
+				if calls <= tc.failures {
+					return core.Reply{}, fmt.Errorf("wrapped: %w", provider.ErrBusy)
+				}
+				return core.Reply{Message: core.Message{Role: "assistant", Content: "done"}, Finish: "stop"}, nil
+			})
+			status, _ := a.Run(context.Background(), "go")
+			if status != tc.wantStatus || calls != tc.wantCalls {
+				t.Fatalf("status %s calls %d", status, calls)
+			}
+			if len(notices) != calls-1 || len(waits) != calls-1 || waits[0] != 5*time.Second || notices[0].Reason != "overloaded" || notices[0].DelayMS != 1 || notices[len(notices)-1].Max != busyRetries+1 {
+				t.Fatalf("notices %+v waits %v", notices, waits)
 			}
 		})
 	}
