@@ -344,6 +344,54 @@ func useProvider(name string) (bool, string, error) {
 	return true, "New chats use " + name + " (" + e.Title() + ", " + e.Model + ").", nil
 }
 
+// explicitConfig reports whether args name a --config file. Such a chat
+// reads only that file, so a provider saved to the user settings does not
+// reach it on its own.
+func explicitConfig(args []string) bool {
+	for _, a := range args {
+		if a == "--config" || a == "-config" || strings.HasPrefix(a, "--config=") || strings.HasPrefix(a, "-config=") {
+			return true
+		}
+	}
+	return false
+}
+
+// providerFlags returns the command-line route of the saved provider name
+// ("" is the active one),
+// for a chat whose --config file would otherwise hide it. Saved keys are
+// found by route, so the flags reach the same key.
+func providerFlags(name string) []string {
+	_, _, cfg, err := userSettings()
+	if err != nil {
+		return nil
+	}
+	for _, e := range cfg.Providers() {
+		if e.Unsaved || (name == "" && !e.Active) || (name != "" && e.Name != name) {
+			continue
+		}
+		flags := []string{"--protocol=" + e.Protocol}
+		switch {
+		case e.Protocol == core.ChatGPTProtocol || e.Address == "":
+			// ChatGPT only reaches its official endpoint.
+		case e.IsEndpoint:
+			flags = append(flags, "--endpoint="+e.Address)
+		default:
+			flags = append(flags, "--base-url="+e.Address)
+		}
+		if e.KeyEnv != "" {
+			flags = append(flags, "--api-key-env="+e.KeyEnv)
+		}
+		if e.Model != "" {
+			flags = append(flags, "--model="+e.Model)
+		}
+		if e.Window > 0 {
+			flags = append(flags, "--context-window="+strconv.Itoa(e.Window))
+		}
+		return flags
+	}
+	return nil
+}
+
 // addProvider asks which kind of provider to add and connects it. It
 // returns the new provider's name ("" when cancelled).
 func addProvider(backdrop string) (string, string, error) {

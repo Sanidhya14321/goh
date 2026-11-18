@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: live ChatGPT checks after re-sign-in
+
+The 12 Nov sign-in had been revoked; it was removed with `goh auth logout` and a new one made with `goh auth login` (model `gpt-6.2-sol`). All live, over the ChatGPT plan:
+
+- `goh auth refresh` renewed the token against the real token endpoint.
+- Token expiry: with the saved expiry moved into the past, a `goh run` renewed before its request (expiry 06:55 → 07:56) and completed. 401 renewal: with the saved access token replaced by an invalid one, the service refused it, goh renewed once and the retried request completed. The saved account was edited by a throwaway test, not committed.
+- `scripts/e2e/test_openai_live.py` passed: streamed text, permission-gated read → edit → read, durable resume, and the terminal `/connect` → ChatGPT → model → send. Its first run failed: the terminal check starts the chat with `--config`, and the connected provider never reached that chat. Fixed (`TestConnectedRouteForConfigChats`), then passed.
+- `scripts/e2e/test_openai_live_extra.py` passed: image input, `reasoning_effort: low`, end-of-request task state, plan handoff.
+- Reasoning summaries: with `effort: high` the service echoed `summary: detailed` and streamed `reasoning_summary_text.delta`; goh relayed the text unchanged (one heading per summary part, e.g. "**Counting roots below 2000**", which is all the service sends). An easy question produced no reasoning and so no summary.
+- Prompt cache: three identical 7.6k-token requests with one `prompt_cache_key` reported `cached_tokens` 0, 0, 7552; goh's usage showed `cache_read_tokens: 7552`. In a 10-turn tool run with `todowrite` updates (task state sent at the end of each request), turn 8 read 6656 cached tokens, covering the system prompt and the first file read across two task-list changes. Hits are sparse when requests are a few seconds apart, which is the service's cache warming, not a changed prefix.
+
 ## Unreleased: Linux keychain, product name
 
 - Linux Secret Service: `TestOSStoreRoundTrip` (`GOH_OS_STORE_TEST=1`) passed in a Debian bookworm ARM64 container with `gnome-keyring` unlocked in a D-Bus session and `secret-tool` from `libsecret-tools`: binary-unsafe bytes written, read back, replaced and deleted.

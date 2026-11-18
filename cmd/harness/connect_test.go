@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -149,5 +150,39 @@ func TestChatGPTSavesAsAProvider(t *testing.T) {
 	}
 	if e, _ := cfg.FindProvider("chatgpt"); !e.Active || keyState(e, cfg) != "not signed in" {
 		t.Fatal("ChatGPT entry wrong")
+	}
+}
+
+// A chat started with --config reads only that file, so a provider
+// connected from it is handed over as route flags; other chats need none.
+// The flags must yield the saved route and reach the saved key.
+func TestConnectedRouteForConfigChats(t *testing.T) {
+	isolateHome(t)
+	gateway := core.ProviderSettings{Protocol: "chat_completions", Address: "https://gw.example/v1", Model: "m1", Window: 65536}
+	if err := saveProvider("gateway", gateway, "gw-key", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveProvider("chatgpt", core.ProviderSettings{Protocol: core.ChatGPTProtocol, Address: "https://api.openai.com/v1", Model: "gpt-x"}, "", false); err != nil {
+		t.Fatal(err)
+	}
+	if got := connectedRoute([]string{"--project", "."}, "gateway"); got != nil {
+		t.Fatalf("chat without --config got %v", got)
+	}
+	want := []string{"--protocol=chat_completions", "--base-url=https://gw.example/v1", "--model=m1", "--context-window=65536"}
+	for _, args := range [][]string{{"--config", "c.json"}, {"--config=c.json"}} {
+		if got := connectedRoute(args, "gateway"); !slices.Equal(got, want) {
+			t.Fatalf("%v: got %v want %v", args, got, want)
+		}
+	}
+	if got := connectedRoute([]string{"--config=c.json"}, ""); !slices.Equal(got, want) {
+		t.Fatalf("active provider: got %v", got)
+	}
+	if got := connectedRoute([]string{"--config=c.json"}, "chatgpt"); !slices.Equal(got, []string{"--protocol=" + core.ChatGPTProtocol, "--model=gpt-x"}) {
+		t.Fatalf("chatgpt: got %v", got)
+	}
+	// The flags lead to the same route, so the saved key is found.
+	route := core.ProviderEntry{Protocol: gateway.Protocol, Address: gateway.Address, Model: gateway.Model}.Route(core.Defaults())
+	if key, err := route.ProviderKey(); err != nil || key != "gw-key" {
+		t.Fatalf("saved key by route: %q %v", key, err)
 	}
 }

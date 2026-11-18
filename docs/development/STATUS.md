@@ -9,8 +9,8 @@ lists only what is **not** done or **not** verified, so it stays short.
 
 ## Verified live
 
-Over the ChatGPT sign-in (`gpt-6.1-sol`): streaming, tool calls, resume, image input, reasoning
-effort, plan handoff and end-of-request task state, plus 113 benchmark attempts that exercised the
+Over the ChatGPT sign-in (`gpt-6.1-sol`, then `gpt-6.2-sol` on 18 Nov): streaming, tool calls, resume, image input, reasoning
+effort and summaries, prompt-cache reads, token expiry and the 401-renewal retry, `goh auth refresh`, plan handoff and end-of-request task state, plus 113 benchmark attempts that exercised the
 full tool loop ([benchmarks](../benchmarks/README.md)). LSP diagnostics and server restart were
 verified against real `clangd`, `gopls`, `pyright` and `typescript-language-server`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
 API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end-to-end audit in
@@ -20,8 +20,6 @@ API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end
 
 These paths have deterministic tests but no live run yet:
 
-- ChatGPT token expiry and the 401-renewal retry;
-- Responses reasoning summaries and prompt-cache savings from task state;
 - Anthropic extended thinking and API-key model lists (no Anthropic key by decision; Claude subscriptions cannot be used);
 - editor clients other than the ACP fixture.
 
@@ -53,6 +51,6 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 
 ## Next
 
-1. **Live checks** for the fixture-only paths above, starting with provider failover and token
-   expiry.
+1. **Benchmark re-run** to measure the name-filtered-tests completion check, and the manual checks
+   (Zed over ACP, one interactive Windows session).
 2. **First stable release** once the user approves publishing.

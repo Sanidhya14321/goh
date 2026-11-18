@@ -6,6 +6,7 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+- **Connecting from a `--config` chat works:** a chat started with `--config FILE` reads only that file, so a provider added with `/connect` (or switched to in `/providers`) was saved but never reached it, and the chat stayed on "waiting for setup". The launcher now passes the new provider's route to that chat; its key is found by route as before. Found by the live ChatGPT terminal check.
 - **`goh auth refresh`** renews the ChatGPT sign-in at once and says plainly if it was revoked; `goh auth status` shows when the access token expires. `status` used to report "saved locally" for a sign-in that could no longer be renewed.
 - goh names itself `goh` with its real version to language servers, MCP servers and editors (ACP), and in the web-fetch User-Agent. It used to send an old development name with version 0.1.0. Saved settings and session files keep their existing names.
 - **Completion check covers name-filtered tests:** when the only tests that passed after a change were picked by name (`go test -run`, `pytest -k`/`::`, `jest -t`, `cargo test NAME` and similar), the run is asked once to run the full tests of what it changed. In the rc.162 real-project benchmark every miss was reported verified: the model's own checks passed while the fix was incomplete or broke an existing test in the same package. Whether this reminder changes that result is still to be measured.

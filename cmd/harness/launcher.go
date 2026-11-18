@@ -171,6 +171,9 @@ func chatFirst(args []string) error {
 	}
 	var agent *string
 	chatModel := "" // a /models choice for a chat whose route is not saved
+	// The route of a provider connected from a chat whose --config file
+	// does not include it; without it the chat would still have no model.
+	var connected []string
 	sessionOverride := false
 	skipChooser := true
 	var actionErr error
@@ -184,6 +187,7 @@ func chatFirst(args []string) error {
 		if agent != nil {
 			command = append(command, "--agent="+*agent)
 		}
+		command = append(command, connected...)
 		if chatModel != "" {
 			command = append(command, "--model="+chatModel)
 		}
@@ -213,6 +217,7 @@ func chatFirst(args []string) error {
 				added, notice, err := addProviderFlow("", true)
 				if err == nil && added != "" {
 					info, chatModel = notice, ""
+					connected = connectedRoute(args, added)
 					continue
 				}
 				actionErr = err
@@ -260,6 +265,7 @@ func chatFirst(args []string) error {
 			added, info, actionErr = addProvider(nav.Backdrop)
 			if added != "" {
 				chatModel = ""
+				connected = connectedRoute(args, added)
 			}
 		case "plan_exit":
 			// The plan was approved in chat: same session, build agent.
@@ -273,6 +279,7 @@ func chatFirst(args []string) error {
 			changed, info, actionErr = manageProviders(nav.Backdrop)
 			if changed {
 				chatModel = "" // the provider's own model applies again
+				connected = connectedRoute(args, "")
 			}
 		case "settings":
 			draft = nav.Draft
@@ -446,4 +453,14 @@ func launch(project *string) error {
 func noProviders() bool {
 	_, _, cfg, err := userSettings()
 	return err == nil && len(cfg.Providers()) == 0
+}
+
+// connectedRoute is the route flags that make a just-connected provider
+// apply to a chat started with --config, or nil when the chat reads the
+// user settings and sees it anyway.
+func connectedRoute(args []string, name string) []string {
+	if !explicitConfig(args) {
+		return nil
+	}
+	return providerFlags(name)
 }
