@@ -39,10 +39,17 @@ func sandboxPolicy(c core.Config, project string) *sandbox.Policy {
 	if c.SessionDir != "" {
 		p.Protected = append(p.Protected, filepath.Dir(c.SessionDir))
 	}
-	// Never hide a folder that contains the project itself.
+	// Never hide a folder that contains the project itself. Compare resolved
+	// paths: /var/folders/… and /private/var/folders/… are the same place.
+	resolved := func(dir string) string {
+		if r, err := filepath.EvalSymlinks(dir); err == nil {
+			return r
+		}
+		return filepath.Clean(dir)
+	}
 	kept := p.Protected[:0]
 	for _, d := range p.Protected {
-		if rel, err := filepath.Rel(d, project); err != nil || strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(resolved(d), resolved(project)); err != nil || strings.HasPrefix(rel, "..") {
 			kept = append(kept, d)
 		}
 	}

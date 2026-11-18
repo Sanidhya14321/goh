@@ -93,17 +93,22 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 	}
 	var b []byte
 	var e error
-	parse := Parse
+	progress := core.ToolProgressSink(ctx)
+	parse := func(r io.Reader, d func(string)) (core.Reply, error) { return parseChat(r, d, progress) }
 	anthropic := protocol == "anthropic_messages"
 	var body map[string]any
 	if anthropic {
 		b, e = EncodeAnthropic(c.Config, messages, tools)
-		sink := core.ReasoningSink(ctx)
-		parse = func(r io.Reader, d func(string)) (core.Reply, error) { return parseAnthropic(r, d, sink) }
+		sink, progress := core.ReasoningSink(ctx), core.ToolProgressSink(ctx)
+		parse = func(r io.Reader, d func(string)) (core.Reply, error) {
+			return parseAnthropicStream(r, d, sink, progress)
+		}
 	} else if responses {
 		b, e = encodeResponses(c.Config, messages, tools)
-		sink := core.ReasoningSink(ctx)
-		parse = func(r io.Reader, d func(string)) (core.Reply, error) { return parseResponsesReasoning(r, d, sink) }
+		sink, progress := core.ReasoningSink(ctx), core.ToolProgressSink(ctx)
+		parse = func(r io.Reader, d func(string)) (core.Reply, error) {
+			return parseResponsesStream(r, d, sink, progress)
+		}
 	} else {
 		var clean []core.Message
 		for i := range messages {
@@ -168,6 +173,12 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 			}
 			if key != "" {
 				req.Header.Set("Authorization", "Bearer "+key)
+			}
+			if responses && c.Config.CacheKey != "" && !droppedCacheKey {
+				// The ChatGPT service routes requests with the same session_id
+				// to the same prompt cache; prompt_cache_key alone rarely hit
+				// (0 of 6 follow-up requests in a live probe, 3 of 4 with it).
+				req.Header.Set("session_id", c.Config.CacheKey)
 			}
 		}
 		resp, err := client.Do(req)
@@ -293,6 +304,14 @@ type chunk struct {
 }
 
 func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
+	return parseChat(r, delta, nil)
+}
+
+// parseChat is Parse that also reports tool calls as they are written to
+// progress.
+func parseChat(r io.Reader, delta func(string), progress func(core.ToolProgress)) (core.Reply, error) {
+	tracker := &toolTracker{sink: progress}
+	tracked := -1
 	reply := core.Reply{Message: core.Message{Role: "assistant"}}
 	calls := map[int]*core.Call{}
 	var content strings.Builder
@@ -368,6 +387,13 @@ func Parse(r io.Reader, delta func(string)) (core.Reply, error) {
 				call.ID = joinPart(call.ID, part.ID)
 				call.Function.Name = joinPart(call.Function.Name, part.Function.Name)
 				call.Function.Arguments += part.Function.Arguments
+				if part.Index != tracked && call.Function.Name != "" {
+					tracked = part.Index
+					tracker.start(call.Function.Name)
+				}
+				if part.Index == tracked {
+					tracker.add(part.Function.Arguments)
+				}
 				if len(call.Function.Arguments) > 1<<20 || len(call.ID) > 512 || len(call.Function.Name) > 256 {
 					return errors.New("tool payload limit")
 				}

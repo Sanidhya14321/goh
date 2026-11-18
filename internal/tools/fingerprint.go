@@ -51,7 +51,11 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 		if err != nil {
 			return nil
 		}
-		if p != "." && (d.IsDir() && (cacheDirs[d.Name()] || skipRel[p]) || filter.skip(p, d)) {
+		if p == "." {
+			filter.skip(p, d) // loads the root's .gitignore and .ignore
+			return nil
+		}
+		if d.IsDir() && (cacheDirs[d.Name()] || skipRel[p]) || filter.skip(p, d) {
 			if d.IsDir() {
 				return fs.SkipDir
 			}

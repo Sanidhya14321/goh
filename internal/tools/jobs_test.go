@@ -176,3 +176,32 @@ func TestFingerprintSeesRewritesWithRestoredTimes(t *testing.T) {
 		t.Fatal("a rewrite with restored size, mode and time went unnoticed")
 	}
 }
+
+// The project root's .gitignore applies to the fingerprint. It used to be
+// skipped (only subfolders' files loaded), so ignored build output counted as
+// a change and a large ignored folder pushed the walk past its limit: in this
+// repository every fingerprint took a second and then failed.
+func TestFingerprintHonoursRootGitignore(t *testing.T) {
+	root := testutil.TempDir(t)
+	os.WriteFile(filepath.Join(root, ".gitignore"), []byte("/out/\n/vendor/*\n!/vendor/keep.txt\n"), 0o600)
+	os.MkdirAll(filepath.Join(root, "out"), 0o700)
+	os.MkdirAll(filepath.Join(root, "vendor"), 0o700)
+	os.WriteFile(filepath.Join(root, "vendor", "keep.txt"), []byte("k"), 0o600)
+	e, err := New(root, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, ok := e.Fingerprint()
+	if !ok {
+		t.Fatal("no fingerprint")
+	}
+	os.WriteFile(filepath.Join(root, "out", "bin"), []byte("x"), 0o600)
+	os.WriteFile(filepath.Join(root, "vendor", "dep.go"), []byte("x"), 0o600)
+	if after, _ := e.Fingerprint(); after != before {
+		t.Fatal("a file ignored by the root .gitignore counted as a change")
+	}
+	os.WriteFile(filepath.Join(root, "vendor", "keep.txt"), []byte("changed"), 0o600)
+	if after, _ := e.Fingerprint(); after == before {
+		t.Fatal("a re-included file's change was not noticed")
+	}
+}

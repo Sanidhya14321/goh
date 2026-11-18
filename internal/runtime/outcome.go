@@ -34,7 +34,9 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		if writesTestDouble(c) {
 			a.wroteTestDouble = true
 		}
-		a.fingerprint, _ = a.Tools.Fingerprint()
+		if !a.noFingerprint {
+			a.fingerprint, _ = a.Tools.Fingerprint()
+		}
 	case c.Function.Name == "shell":
 		if a.noticeUntrackedChanges() {
 			return // the command changed files, so it did not check them
@@ -63,7 +65,7 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 // a change like an edit: the outcome and the configured verify then cover
 // them. Ignored files and build or test caches do not count.
 func (a *Agent) noticeUntrackedChanges() bool {
-	if a.Tools == nil {
+	if a.Tools == nil || a.noFingerprint {
 		return false
 	}
 	now, ok := a.Tools.Fingerprint()
