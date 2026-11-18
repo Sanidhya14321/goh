@@ -123,6 +123,13 @@ type responsesResult struct {
 // parseResponsesReasoning parses a Responses SSE stream, sending text to delta
 // and reasoning summary text to reasoning (either may be nil).
 func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(string)) (core.Reply, error) {
+	return parseResponsesStream(r, delta, reasoning, nil)
+}
+
+// parseResponsesStream is parseResponsesReasoning that also reports tool
+// calls as they are written to progress.
+func parseResponsesStream(r io.Reader, delta func(string), reasoning func(string), progress func(core.ToolProgress)) (core.Reply, error) {
+	tracker := &toolTracker{sink: progress}
 	scanner := bufio.NewScanner(io.LimitReader(r, maxResponse+1))
 	scanner.Buffer(make([]byte, 4096), maxResponse)
 	total := 0
@@ -141,6 +148,10 @@ func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(str
 			Type     string          `json:"type"`
 			Delta    json.RawMessage `json:"delta"`
 			Response responsesResult `json:"response"`
+			Item     struct {
+				Type string `json:"type"`
+				Name string `json:"name"`
+			} `json:"item"`
 		}
 		if !utf8.ValidString(raw) || json.Unmarshal([]byte(raw), &event) != nil || event.Type == "" {
 			return core.Reply{}, false, errors.New("invalid Responses stream event")
@@ -154,6 +165,15 @@ func parseResponsesReasoning(r io.Reader, delta func(string), reasoning func(str
 			if delta != nil && text != "" {
 				delta(text)
 				emitted = true
+			}
+		case "response.output_item.added":
+			if event.Item.Type == "function_call" {
+				tracker.start(event.Item.Name)
+			}
+		case "response.function_call_arguments.delta":
+			var text string
+			if json.Unmarshal(event.Delta, &text) == nil {
+				tracker.add(text)
 			}
 		case "response.reasoning_summary_text.delta":
 			var text string

@@ -8,6 +8,7 @@ The complete reference for `goh`. For installation and a quick start, see the
 - [Headless CLI](#headless-cli)
 - [Configuration](#configuration)
 - [Permissions and rules](#permissions-and-rules)
+- [Access levels](#access-levels)
 - [Shell sandbox](#shell-sandbox)
 - [Hooks](#hooks)
 - [Verification and budgets](#verification-and-budgets)
@@ -196,6 +197,11 @@ model list goes back to the picker, and a failed step is explained there.
 - Left/Right, Home/End, Ctrl+A/Ctrl+E, Ctrl+W (delete word), Ctrl+U (clear).
 - Up/Down move through lines, then through prompt history.
 - Tab completes slash commands, including configured custom commands.
+- **Shift+Tab** cycles the access level (Ask → Auto-edit → Auto → Full access), also during a run;
+  the footer shows the current one.
+- While a run is active, the status line says what it is doing: "Waiting for gpt-6.2-sol · 4s",
+  "Thinking", "Writing web/index.html · 1.8k tokens (42/s)", "Running npm test · 12s", with the
+  run's total time and its step and tool counts.
 - **Ctrl+X E** or `/editor` edits the draft in `$VISUAL`/`$EDITOR`. No shell is invoked; empty
   saves or editor errors keep the original draft.
 
@@ -225,7 +231,8 @@ composer.
 | Command | Action |
 | --- | --- |
 | `/status` (Ctrl+G) | Provider, credentials, budgets, usage, grants, MCP/LSP/formatter config |
-| `/models`, `/agents` | Choose the model (saved on the provider) or agent. Tab/Shift+Tab cycle agents on an empty composer |
+| `/models`, `/agents` | Choose the model (saved on the provider) or agent. Tab cycles agents on an empty composer |
+| `/access` | How much goh does without asking, for this session, the project or one folder in it ([Access levels](#access-levels)). Shift+Tab cycles the level |
 | `/new` | New conversation with the current model and agent |
 | `/settings` | Providers (`p`), advanced settings as JSON (`s`) and workspace (`w`) |
 | `/workspace` | Open the project browser and switch the next chat to another folder |
@@ -290,6 +297,8 @@ goh doctor
   a question emits `question_requested` and exits 4.
 - `--allow` grants tools for this process only, e.g. `--allow edit_file,shell`. MCP grants are
   `mcp_start:SERVER` and `mcp__SERVER__TOOL`. Grants are never restored on resume.
+- `--access ask|edits|auto|full` sets the [access level](#access-levels) for the project for this
+  run; levels saved for folders apply to `goh run` too.
 - `--profile` and `--agent` select a profile and agent per invocation.
 
 Exit codes: `0` completed, `1` error, `3` needs permission, `4` needs input, `5` budget exhausted,
@@ -334,6 +343,31 @@ of context), or the command, working directory and timeout. Large diffs mark tru
 origin, and shell commands with the same first two words (`go test`). A command that runs code
 given as an argument (`bash -c`, `node -e`, `python3 script.py`, `find -exec`, quoted or
 `$`-expanded text) or that is compound (`;`, `|`, `&&`, redirects) is covered only exactly.
+
+In the approval prompt, `a` allows the request and raises this session's access level so similar
+requests stop asking: Auto-edit for an edit, Auto for a command (where commands can be sandboxed).
+
+## Access levels
+
+An access level says how much goh does in a folder without asking. Choose it with Shift+Tab (this
+session), `/access` (this session, the project, or one folder inside it), or `--access`.
+
+| Level | Runs without asking | Still asks |
+| --- | --- | --- |
+| **Ask** (default) | Reading and searching | Edits, commands, network, MCP |
+| **Auto-edit** | Edits inside the folder; commands that only read inside the project (`ls`, `cat`, `grep`, `git status/diff/log`, `command -v` …, no redirection into files, no paths outside the project) | Other commands, network, MCP |
+| **Auto** | The above, plus every command run from inside the folder, **in the sandbox**: it can write only inside that folder and temporary folders, and cannot read goh's settings, keys or sessions. Network stays on unless `sandbox.network` is set to false | Network fetches, MCP; commands where no sandbox exists (Windows) |
+| **Full access** | Everything, with no sandbox | Nothing (except your ask/deny rules) |
+
+- A level saved for a folder covers it and its subfolders; the deepest saved folder wins. Give one
+  folder full access (`/access` → Full access → Only in a folder inside it…) and the rest of the
+  project keeps its own level. Saved levels live beside the trusted folders in `workspaces.json`.
+- A session level (Shift+Tab, `--access`) replaces the project folder's saved level for this session
+  only; deeper saved folders keep theirs.
+- `file_rules` and `shell_rules` with `deny` or `ask` win over every level, and the repeated-call
+  guard always asks.
+- Each decision is journaled with `"source": "access"` and the level, and the folder a command
+  was confined to.
 
 ### Environment filtering
 

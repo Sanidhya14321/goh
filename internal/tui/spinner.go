@@ -54,7 +54,11 @@ func humanDuration(ms int64) string {
 func (m *model) statusLine() string {
 	parts := []string{}
 	if m.active {
-		label := "Working"
+		model := ""
+		if m.a != nil {
+			model = m.a.Config.Model
+		}
+		label := m.act.label(model)
 		switch {
 		case m.pending != nil:
 			label = "Waiting for your approval"
@@ -72,6 +76,9 @@ func (m *model) statusLine() string {
 		parts = append(parts, head)
 		if d := humanDuration(elapsed / 1000 * 1000); d != "" {
 			parts = append(parts, d)
+		}
+		if c := m.act.counts(); c != "" {
+			parts = append(parts, c)
 		}
 		// A notice raised during the run (a provider retry, a full queue)
 		// shows beside the spinner instead of being hidden by it.

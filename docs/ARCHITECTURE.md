@@ -120,6 +120,10 @@ flowchart TD
   SHA-256, so a stale view never overwrites a newer change.
 - **Scoped approvals.** "Allow for this session" covers a command prefix, a web origin or a tool,
   never a compound shell command or one that runs code given as an argument.
+- **Access levels.** A level saved per folder (or chosen for the session) lets edits, read-only
+  commands, sandboxed commands or everything run without asking inside that folder
+  (`runtime/access.go`). Commands allowed by Auto run under a sandbox confined to the folder, set
+  per call through the context (`tools.WithSandbox`). Ask and deny rules are checked first.
 - **Filtered environment.** Shell commands get a scrubbed environment without provider secrets.
 - **Sandbox (opt-in, `sandbox.enabled`).** Shell commands may write only inside the project and
   temporary folders, never `.git/hooks` or `.git/config`, and have no network unless allowed.

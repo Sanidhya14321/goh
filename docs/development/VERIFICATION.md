@@ -8,6 +8,13 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: access levels, live status line, latency
+
+- Latency, measured live over ChatGPT (`gpt-6.2-sol`). goh's own share of a request is about 30 ms (token 1 ms, TLS 29 ms); the service took 1.5–1.8 s to the first byte and 2.4–3.1 s to the first word for a bare "hi" at every reasoning effort. In goh's repository, `goh run hi` spent 1.5 s before the request and 1.15 s after the reply walking ignored folders for the change fingerprint (`TestFingerprintHonoursRootGitignore`, which fails without the fix). After the fix: 0.08 s before the request, 3.1 s end to end (was 7.0 s).
+- Prompt cache: replaying three captured agent requests, a `session_id` header gave cache hits on 3 of 4 follow-ups against 0 of 6 without it. A live 10-turn `goh run` then hit on 5 of 9 follow-up turns (was 1 of 9), up to 21,760 of 22,170 tokens (`TestResponsesSessionHeader`). Requesting reasoning summaries without an effort was tried and dropped: the summary arrived 0.07 s before the answer.
+- Access levels: `TestAccessLevels` (each level against edits, commands, network and subagent edits), `TestAccessIsScopedToFolders` (deepest saved folder wins, patches reaching outside ask, commands confined to the granting folder, session level replaces only the project's own), `TestAccessKeepsSafetyRules` (no sandbox means commands ask under Auto; ask/deny rules and the loop guard win under Full), `TestAutoAccessCommandsAreSandboxed` (a real sandboxed command writes inside its folder and cannot write beside it; found that the sandbox compared `/var` and `/private/var` paths unresolved), `TestAutoEditRunsReadOnlyCommands`, `TestReadOnlyCommand` (33 commands each way), `TestShiftTabCyclesAccess`, `TestApprovalAllowAllRaisesAccess`.
+- Status line: `TestToolCallProgress` (Responses, Chat Completions and Anthropic streams report the tool, its size and the path once complete) and `TestActivityLabels`. Live chat: "Waiting for gpt-6.2-sol · 15s" then "Writing page.html · 265 tokens (41/s)"; the file was created at Auto-edit without a prompt (`"source": "access", "level": "edits"`).
+
 ## Unreleased: real-project A/B, overload retries
 
 - `goh-bench` on the 19 real-project tasks, check vs `--completion-check=false`, `gpt-6.2-sol`, containerised ([report](../benchmarks/real-ab-unreleased.md)). On the 13 tasks both arms finished: 10 resolved and 3 false completions each, the same tasks. The selected-tests reminder never fired, because the model ran `go test ./...` after every `-run`.

@@ -37,3 +37,27 @@ func RetryNotifier(ctx context.Context) func(RetryNotice) {
 	notify, _ := ctx.Value(retryKey{}).(func(RetryNotice))
 	return notify
 }
+
+type toolProgressKey struct{}
+
+// ToolProgress reports a tool call while the model is still writing it, so
+// an interface can show "Writing index.html · 1.8k tokens" instead of a bare
+// spinner during a long reply. Display only.
+type ToolProgress struct {
+	Tool string `json:"tool"`
+	// Target is a path or command seen in the arguments so far, if any.
+	Target string `json:"target,omitempty"`
+	// Chars counts the argument characters received so far.
+	Chars int `json:"chars"`
+}
+
+// WithToolProgress attaches a callback for tool calls being written.
+func WithToolProgress(ctx context.Context, notify func(ToolProgress)) context.Context {
+	return context.WithValue(ctx, toolProgressKey{}, notify)
+}
+
+// ToolProgressSink returns the attached callback, or nil.
+func ToolProgressSink(ctx context.Context) func(ToolProgress) {
+	notify, _ := ctx.Value(toolProgressKey{}).(func(ToolProgress))
+	return notify
+}

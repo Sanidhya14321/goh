@@ -541,6 +541,13 @@ func ParseAnthropic(r io.Reader, delta func(string)) (core.Reply, error) {
 
 // parseAnthropic also passes thinking text to reasoning as it streams.
 func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (core.Reply, error) {
+	return parseAnthropicStream(r, delta, reasoning, nil)
+}
+
+// parseAnthropicStream is parseAnthropic that also reports tool calls as
+// they are written to progress.
+func parseAnthropicStream(r io.Reader, delta func(string), reasoning func(string), progress func(core.ToolProgress)) (core.Reply, error) {
+	tracker := &toolTracker{sink: progress}
 	reply := core.Reply{Message: core.Message{Role: "assistant"}}
 	var text strings.Builder
 	var usage *anthropicUsage
@@ -628,6 +635,7 @@ func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (co
 				call.Function.Name = e.Block.Name
 				initialInput = e.Block.Input
 				arguments.Reset()
+				tracker.start(e.Block.Name)
 				return nil
 			case "thinking":
 				thinking.Reset()
@@ -670,6 +678,7 @@ func parseAnthropic(r io.Reader, delta func(string), reasoning func(string)) (co
 					return errors.New("Anthropic tool arguments exceed limit")
 				}
 				arguments.WriteString(*e.Delta.PartialJSON)
+				tracker.add(*e.Delta.PartialJSON)
 				return nil
 			case "thinking_delta":
 				if blockType != "thinking" || e.Delta.Thinking == nil || thinking.Len()+len(*e.Delta.Thinking) > anthropicMaxText {

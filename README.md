@@ -14,8 +14,8 @@ endpoint.
 - **Verified outcomes.** Every run ends as `verified`, `unverified`, `no_changes` or
   `failed_verification`. An optional `verify` command runs after changes and feeds failures back
   to the model for repair.
-- **Enforcement outside the model.** Approvals per tool, command prefix or web origin; an opt-in
-  shell sandbox (sandbox-exec on macOS, Landlock on Linux); a filtered child environment; no writes to
+- **Enforcement outside the model.** Approvals per tool, command prefix or web origin; access
+  levels per folder (Ask, Auto-edit, Auto with sandboxed commands, Full access); a shell sandbox (sandbox-exec on macOS, Landlock on Linux); a filtered child environment; no writes to
   `.git`; private-address blocking for web fetches; hooks that fail closed.
 - **Safe edits.** Hash-guarded writes, edits that must match exactly one location, per-edit
   checkpoints and optional whole-project snapshots with undo, redo and restore.
@@ -121,7 +121,9 @@ Headless runs never wait for input. Exit codes: `0` completed, `1` error, `3` ne
 | `/status` (`Ctrl+G`), `/theme`, `/editor` | Status snapshot, theme picker, edit draft in `$EDITOR` |
 | `Ctrl+B` | Toggle the session sidebar |
 
-Approvals: `y` allow once, `s` allow for this session, `n` refuse. Key bindings are configurable;
+Approvals: `y` allow once, `s` allow for this session, `a` allow all like it (raises the access
+level), `n` refuse. **Shift+Tab** cycles the access level; `/access` saves one for the project or a
+folder in it (see [access levels](docs/USER_GUIDE.md#access-levels)). Key bindings are configurable;
 see the [user guide](docs/USER_GUIDE.md#keyboard-shortcuts).
 
 ## Configuration
