@@ -211,3 +211,9 @@ func isProtected(dir string, protected []string) bool {
 	}
 	return false
 }
+
+// Supported reports whether commands can be sandboxed here (Landlock).
+func Supported() bool {
+	abi, err := landlockABI()
+	return err == nil && abi >= 1
+}

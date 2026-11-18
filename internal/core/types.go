@@ -99,6 +99,10 @@ type Permission struct {
 type Decision struct {
 	Allow   bool
 	Session bool
+	// Confine, when set, is the folder an access level allowed a command
+	// in without asking: the command runs sandboxed, writing only there and
+	// in temporary folders.
+	Confine string
 }
 
 // IntegrationFailure names one optional integration that could not start.

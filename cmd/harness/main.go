@@ -267,6 +267,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	retryInterrupted := f.Int("retry-interrupted", 0, "run: re-send a model request whose stream broke, up to N times (0-2); partial replies are discarded")
 	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
 	sessionDir := f.String("session-dir", "", "private session storage")
+	accessFlag := f.String("access", "", "how much runs without asking in this project: ask, edits (file edits), auto (edits and sandboxed commands) or full (everything, no sandbox)")
 	allow := f.String("allow", "", "comma-separated run grants (all = every built-in local tool: file edits, shell, todos, skills, tasks): write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
 	snapshotsEnabled := f.Bool("snapshots", false, "retain before/after file checkpoints outside project")
 	selectedSession := f.String("session", "", "saved session ID to continue (chat and run)")
@@ -344,6 +345,10 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("format must be text or json")
+	}
+	accessLevel, err := core.ParseAccessLevel(*accessFlag)
+	if err != nil {
+		return err
 	}
 	if command == "run" && strings.TrimSpace(*prompt) == "" {
 		return errors.New("usage: goh run MESSAGE (or --prompt TEXT, --command NAME, or pipe text in)")
@@ -588,6 +593,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		if v != "" {
 			a.Grants[v] = true
 		}
+	}
+	if *accessFlag != "" {
+		a.SetSessionAccess(accessLevel)
 	}
 	a.ExternalFactory = func() agent.External { return mcpclient.New(c.MCP, store.Project, a.Permission) }
 	if command == "chat" {

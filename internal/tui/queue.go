@@ -21,6 +21,9 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch v.String() {
 	case "esc":
 		m.cancelRun()
+	case "shift+tab":
+		// Raising access mid-run takes effect at the next request.
+		m.cycleAccess()
 	case "enter":
 		prompt := strings.TrimSpace(m.input)
 		switch {

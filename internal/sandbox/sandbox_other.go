@@ -8,3 +8,6 @@ import "os/exec"
 func HelperMain() {}
 
 func wrap(*exec.Cmd, Policy) error { return ErrUnsupported }
+
+// Supported reports whether commands can be sandboxed here.
+func Supported() bool { return false }

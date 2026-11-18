@@ -188,6 +188,9 @@ func chatFirst(args []string) error {
 			command = append(command, "--agent="+*agent)
 		}
 		command = append(command, connected...)
+		if level := tui.SessionAccess(); level != "" {
+			command = append(command, "--access="+string(level))
+		}
 		if chatModel != "" {
 			command = append(command, "--model="+chatModel)
 		}
@@ -288,6 +291,13 @@ func chatFirst(args []string) error {
 			if workspace != "." && workspace != project {
 				project, sessionID = workspace, ""
 			}
+		case "access":
+			draft = nav.Draft
+			workspace := nav.Project
+			if workspace == "" {
+				workspace = currentProject(project)
+			}
+			info, actionErr = chooseAccess(workspace, nav.Backdrop)
 		case "workspace":
 			draft = nav.Draft
 			var chosen string

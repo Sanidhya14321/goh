@@ -66,25 +66,27 @@ type model struct {
 	stashedDraft string
 	// partialReply is the assistant text streamed since the last other
 	// event, removed from the transcript if the stream is retried.
-	partialReply         string
-	partialStart         int // offset in log where partialReply begins
-	a                    *agent.Agent
-	events               chan tea.Msg
-	input                string
-	inputCursor          int
-	promptHistory        []string
-	historyPosition      int
-	historyDraft         string
-	log                  string
-	question             *questionState
-	pending              *permissionMsg
-	active               bool
-	cancel               context.CancelFunc
-	reviewOffset         int
-	durationMS           int64
-	runStarted           time.Time
-	lastInterrupt        time.Time
-	spinFrame            int
+	partialReply    string
+	partialStart    int // offset in log where partialReply begins
+	a               *agent.Agent
+	events          chan tea.Msg
+	input           string
+	inputCursor     int
+	promptHistory   []string
+	historyPosition int
+	historyDraft    string
+	log             string
+	question        *questionState
+	pending         *permissionMsg
+	active          bool
+	cancel          context.CancelFunc
+	reviewOffset    int
+	durationMS      int64
+	runStarted      time.Time
+	lastInterrupt   time.Time
+	spinFrame       int
+	// act is what the run is doing now, for the status line.
+	act                  activity
 	ticking              bool
 	todos                []core.Todo
 	usage                int
@@ -231,6 +233,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.width = v.Width
 		m.height = v.Height
 	case core.Event:
+		m.act.track(v)
+		if v.Type == "tool_progress" {
+			return m, m.wait() // shown in the status line only
+		}
 		if v.Type == "reasoning_updated" {
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -575,7 +581,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				m.reviewOffset = max(0, m.reviewOffset-page)
 			case "up":
 				m.reviewOffset = max(0, m.reviewOffset-min(5, page))
-			case "y", "s":
+			case "y", "s", "a":
+				level, covers := coveringLevel(m.pending.request)
+				if strings.ToLower(key) == "a" && (!covers || m.accessLevel().Rank() >= level.Rank()) {
+					return m, nil
+				}
 				if m.reviewHidden {
 					// Approving needs the operation on screen.
 					m.status = "Enlarge the terminal to see the operation before approving (n denies)"
@@ -586,6 +596,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					// been on screen.
 					m.status = "Scroll with PgDn through the whole command before approving (n denies)"
 					return m, nil
+				}
+				if strings.ToLower(key) == "a" {
+					// Raise this session's access so requests like this one
+					// stop asking; this one is allowed now.
+					m.setAccess(level)
 				}
 				m.pending.response <- core.Decision{Allow: true, Session: strings.ToLower(key) == "s"}
 				m.pending = nil
@@ -767,7 +782,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				return m, nil
 			}
 			switch strings.TrimSpace(prompt) {
-			case "/connect", "/provider", "/providers", "/settings", "/workspace", "/sessions", "/models", "/agents", "/new":
+			case "/connect", "/provider", "/providers", "/settings", "/workspace", "/access", "/sessions", "/models", "/agents", "/new":
 				m.navigation = strings.TrimSpace(prompt)[1:]
 				if m.navigation == "providers" {
 					m.navigation = "provider"
@@ -788,7 +803,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
-				m.log += "\nCommands: /providers, /connect, /models, /agents, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
+				m.log += "\nCommands: /providers, /connect, /models, /agents, /access, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
 				// The same set the palette shows: configured and project commands.
 				set := m.a.CommandSet()
 				names := make([]string, 0, len(set))
@@ -905,8 +920,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		case "shift+tab":
 			if m.input == "" && m.a != nil {
-				m.navigation = "previous_agent"
-				return m, tea.Quit
+				m.cycleAccess()
 			}
 		case "backspace":
 			m.deleteInput(true)
@@ -936,7 +950,7 @@ func (m *model) runControls() string {
 	if m.pending != nil || m.question != nil {
 		return "Ctrl+C cancel  ·  Ctrl+D exits after cleanup"
 	}
-	controls := "Esc / Ctrl+C cancel  ·  Enter queues a prompt  ·  Ctrl+D exits after cleanup"
+	controls := "Esc / Ctrl+C cancel  ·  Enter queues a prompt  ·  Shift+Tab access  ·  Ctrl+D exits after cleanup"
 	if n := len(m.queue); n > 0 {
 		controls = fmt.Sprintf("%d queued (↑ edit last)  ·  ", n) + controls
 	}
@@ -959,7 +973,7 @@ func (m *model) compactView() tea.View {
 	// stay hidden, and scrolling, /find and turn jumps work.
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
-		review = "Allow " + m.pending.request.Tool + "?  y once · s " + sessionScopeLabel(m.pending.request) + " · n deny · PgUp/PgDn scroll"
+		review = "Allow " + m.pending.request.Tool + "?  y once · s " + sessionScopeLabel(m.pending.request) + approvalAll(m.approvalAllShortcut(m.pending.request), " · ") + " · n deny · PgUp/PgDn scroll"
 		body = relativizePreview(m.pending.request.Preview, m.a.Store.Project)
 	} else if m.question != nil {
 		review = "INTERACTIVE QUESTION · answers grant no permissions · PgUp/PgDn scroll"

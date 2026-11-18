@@ -823,14 +823,27 @@ func (e *Engine) CheckWritable(paths []string) error {
 	return nil
 }
 
+type sandboxKey struct{}
+
+// WithSandbox confines the shell commands and jobs started with ctx to p,
+// in place of the configured sandbox (a container sandbox is kept). The
+// runtime uses it for commands an access level runs without asking.
+func WithSandbox(ctx context.Context, p *sandbox.Policy) context.Context {
+	return context.WithValue(ctx, sandboxKey{}, p)
+}
+
 // sandboxPolicy adds files the user's file_rules deny to the sandbox policy,
 // so a shell command cannot read them either (enforced where the sandbox can
 // hide single files; see sandbox.Policy.DenyFiles).
-func (e *Engine) sandboxPolicy() *sandbox.Policy {
-	if e.Sandbox == nil || e.DenyPath == nil {
-		return e.Sandbox
+func (e *Engine) sandboxPolicy(ctx context.Context) *sandbox.Policy {
+	base := e.Sandbox
+	if p, ok := ctx.Value(sandboxKey{}).(*sandbox.Policy); ok && p != nil && (base == nil || base.Container == "") {
+		base = p // the call's own confinement (an access level's folder)
 	}
-	p := *e.Sandbox
+	if base == nil || e.DenyPath == nil {
+		return base
+	}
+	p := *base
 	p.DenyFiles = append([]string(nil), p.DenyFiles...)
 	visited := 0
 	_ = filepath.WalkDir(e.root, func(path string, d fs.DirEntry, err error) error {

@@ -89,17 +89,20 @@ func OpenWorkspace(dir string) error {
 	if len(list) > maxWorkspaces {
 		list = list[:maxWorkspaces]
 	}
-	path, err := workspacesPath()
-	if err != nil {
-		return err
-	}
-	b, err := json.MarshalIndent(struct {
-		Folders []Workspace `json:"folders"`
-	}{list}, "", "  ")
-	if err != nil {
-		return err
-	}
-	return writePrivate(path, string(b)+"\n")
+	return saveWorkspaces(list)
+}
+
+// saveWorkspaces writes the trusted folders, keeping the file's other fields
+// (saved access levels).
+func saveWorkspaces(list []Workspace) error {
+	return updateWorkspacesFile(func(file map[string]json.RawMessage) error {
+		b, err := json.Marshal(list)
+		if err != nil {
+			return err
+		}
+		file["folders"] = b
+		return nil
+	})
 }
 
 // ForgetWorkspace removes dir from the trusted folders.
@@ -111,14 +114,7 @@ func ForgetWorkspace(dir string) error {
 			keep = append(keep, w)
 		}
 	}
-	path, err := workspacesPath()
-	if err != nil {
-		return err
-	}
-	b, _ := json.MarshalIndent(struct {
-		Folders []Workspace `json:"folders"`
-	}{keep}, "", "  ")
-	return writePrivate(path, string(b)+"\n")
+	return saveWorkspaces(keep)
 }
 
 func cleanWorkspace(dir string) string {

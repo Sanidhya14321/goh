@@ -167,7 +167,7 @@ func (m *model) View() tea.View {
 		draft := "Ask anything about your project…"
 		switch {
 		case m.pending != nil:
-			draft = "Waiting for your approval: y allow once · s allow for session · n deny"
+			draft = "Waiting for your approval: y allow once · s allow for session" + approvalAll(m.approvalAllShortcut(m.pending.request), " · ") + " · n deny"
 		case m.question != nil:
 			draft = "Answer the question above"
 		case m.active:
@@ -215,12 +215,12 @@ func (m *model) View() tea.View {
 	}
 	promptRows = append(promptRows,
 		cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel),
-		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName, promptWidth-1, blue, panel))
+		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName+"  ·  "+m.accessLabel(), promptWidth-1, blue, panel))
 	controls := "Enter send  Alt+Enter newline  "
 	if key := m.keyLabel("command_palette"); key != "" {
 		controls += key + " commands  "
 	}
-	controls += "Ctrl+D exit  Tab agents"
+	controls += "Ctrl+D exit  Tab agents  Shift+Tab access"
 	if m.active {
 		controls = m.runControls()
 	}
@@ -285,7 +285,7 @@ func (m *model) View() tea.View {
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
 		body = relativizePreview(m.pending.request.Preview, project)
-		review = "Allow " + m.pending.request.Tool + "?   y once  ·  s " + sessionScopeLabel(m.pending.request) + "  ·  n / Esc deny  ·  PgUp/PgDn scroll"
+		review = "Allow " + m.pending.request.Tool + "?   y once  ·  s " + sessionScopeLabel(m.pending.request) + approvalAll(m.approvalAllShortcut(m.pending.request), "  ·  ") + "  ·  n / Esc deny  ·  PgUp/PgDn scroll"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {

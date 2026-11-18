@@ -62,3 +62,9 @@ func profile(p Policy) string {
 func quote(s string) string {
 	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
 }
+
+// Supported reports whether commands can be sandboxed here.
+func Supported() bool {
+	_, err := exec.LookPath(sandboxExec)
+	return err == nil
+}

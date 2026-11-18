@@ -79,9 +79,18 @@ type Agent struct {
 	// fingerprint is the project state after the last known change, used to
 	// notice files changed by shell commands and background jobs.
 	fingerprint string
+	// noFingerprint is set when the project could not be fingerprinted at
+	// the start of the run (too many files that are not ignored), so later
+	// steps do not repeat a walk that cannot succeed.
+	noFingerprint bool
 	// externalConnected is set once connectExternal has run in this run.
 	externalConnected bool
 	eventMu           sync.Mutex
+	// accessMu guards the access levels, which the interface can change
+	// while a run is active.
+	accessMu     sync.Mutex
+	accessRules  []core.FolderAccess
+	sessionLevel core.AccessLevel
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
 	projectGuidance string
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
@@ -159,6 +168,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 		web = webfetch.NewAllowingPrivate()
 	}
 	a := &Agent{Web: web, readyIntegrations: map[string]bool{}, Config: c, Store: s, Tools: t, Provider: provider.New(c), Grants: map[string]bool{}, invalid: map[string]int{}}
+	a.accessRules = core.SavedAccess() // levels the user saved for folders
 	a.Skills, e = skills.New(context.Background(), s.Project, c.SkillPaths)
 	if e != nil {
 		return nil, e
@@ -279,6 +289,20 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 	}
 	scope := GrantScope(p)
 	scopedKey := p.Tool + "\x00" + scope
+	if rule != "ask" {
+		if allow, confine, level := a.accessDecision(p); allow {
+			d := core.Decision{Allow: true, Confine: confine}
+			data := map[string]any{"tool": p.Tool, "allowed": true, "session": false, "source": "access", "level": string(level)}
+			if confine != "" {
+				data["sandbox"] = confine
+			}
+			if e := a.Store.Append("permission", data); e != nil {
+				return d, e
+			}
+			a.event("permission_resolved", data)
+			return a.afterPermission(d, p)
+		}
+	}
 	granted := a.Grants[p.Tool] || (scope != "" && a.scopedGrants[scopedKey])
 	d := core.Decision{Allow: granted && rule != "ask"}
 	var e error
@@ -311,6 +335,11 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		return d, e
 	}
 	a.event("permission_resolved", data)
+	return a.afterPermission(d, p)
+}
+
+// afterPermission starts an MCP or language server whose start was allowed.
+func (a *Agent) afterPermission(d core.Decision, p core.Permission) (core.Decision, error) {
 	if d.Allow && (strings.HasPrefix(p.Tool, "mcp_start:") || strings.HasPrefix(p.Tool, "lsp_start:")) {
 		call := core.Call{ID: ID(), Type: "function"}
 		call.Function.Name = p.Tool
@@ -509,7 +538,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.changedFiles, a.verifiedAfterChange = false, false
-	a.fingerprint, _ = a.Tools.Fingerprint()
+	var fingerprinted bool
+	a.fingerprint, fingerprinted = a.Tools.Fingerprint()
+	a.noFingerprint = !fingerprinted
 	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
 	a.narrowTestPassed, a.fullTestPassed = false, false
 	a.runTokens, a.capAdapts = 0, 0
@@ -645,6 +676,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		a.event("assistant_started", map[string]any{"turn": turn})
 		reasoningCtx := core.WithReasoning(ctx, func(s string) { a.event("reasoning_updated", map[string]any{"text": s}) })
 		reasoningCtx = core.WithRetryNotices(reasoningCtx, func(n core.RetryNotice) { a.event("provider_retry", n) })
+		reasoningCtx = core.WithToolProgress(reasoningCtx, a.toolProgressEvents())
 		if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
 			// Checked between turns, so every requested tool has its result.
 			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
@@ -816,7 +848,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				if e = a.start(c); e != nil {
 					return "failed", e
 				}
-				results[i] = a.execute(ctx, c)
+				callCtx := ctx
+				if d.Confine != "" {
+					callCtx = tools.WithSandbox(ctx, a.confinedSandbox(d.Confine))
+				}
+				results[i] = a.execute(callCtx, c)
 				var outcome struct {
 					Status string `json:"status"`
 				}
@@ -1564,4 +1600,19 @@ func (a *Agent) fileRuleFor(p core.Permission) string {
 		return "allow"
 	}
 	return ""
+}
+
+// toolProgressEvents turns streamed tool-call progress into tool_progress
+// events: at once when the tool or its target changes, otherwise at most
+// four times a second.
+func (a *Agent) toolProgressEvents() func(core.ToolProgress) {
+	var last core.ToolProgress
+	var sent time.Time
+	return func(p core.ToolProgress) {
+		if p.Tool == last.Tool && p.Target == last.Target && time.Since(sent) < 250*time.Millisecond {
+			return
+		}
+		last, sent = p, time.Now()
+		a.event("tool_progress", p)
+	}
 }
