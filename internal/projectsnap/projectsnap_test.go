@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func write(t *testing.T, root, name, body string) {
@@ -208,5 +209,35 @@ func TestConcurrentCaptureAndRestore(t *testing.T) {
 	}
 	if again, _ := s1.Track(ctx); again != first {
 		t.Fatalf("tree after restore %s, want %s", again, first)
+	}
+}
+
+// Another process's capture or restore (its lock file) makes this one
+// wait; it gives up cleanly when its context ends.
+func TestCaptureWaitsForAnotherProcess(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	project, data := t.TempDir(), t.TempDir()
+	write(t, project, "a.txt", "one\n")
+	s, err := Open(data, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lock := filepath.Join(s.gitDir, "snapshot.lock")
+	if err := os.WriteFile(lock, []byte("other\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	if _, err := s.Track(ctx); err == nil || !strings.Contains(err.Error(), "in progress") {
+		t.Fatalf("capture did not wait for the lock: %v", err)
+	}
+	os.Remove(lock)
+	if _, err := s.Track(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(lock); !os.IsNotExist(err) {
+		t.Fatal("lock left behind")
 	}
 }

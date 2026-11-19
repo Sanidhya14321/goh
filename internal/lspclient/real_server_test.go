@@ -25,6 +25,12 @@ func TestRealClangd(t *testing.T) {
 	if err != nil {
 		t.Skip("clangd not installed")
 	}
+	// A cold clangd on a loaded CI runner (other packages' tests run in
+	// parallel) has taken over 15 s to initialize, which restarts it and asks
+	// for a second approval. Start-up speed is not what this test checks.
+	saved := operationTimeout
+	operationTimeout = 45 * time.Second
+	t.Cleanup(func() { operationTimeout = saved })
 	project := t.TempDir()
 	src := "int add(int a, int b) { return a + b; }\nint main(void) { int x = add(1, 2); char *p = x; return 0; }\n"
 	if err := os.WriteFile(filepath.Join(project, "main.c"), []byte(src), 0o600); err != nil {

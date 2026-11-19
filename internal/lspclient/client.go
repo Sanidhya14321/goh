@@ -28,7 +28,11 @@ import (
 
 const maxFile = 512 << 10
 const maxResult = 64 << 10
-const operationTimeout = 15 * time.Second
+
+// operationTimeout bounds one LSP operation, server start-up included. A
+// variable so tests against real servers on loaded CI runners can allow a
+// slower cold start; the product value is unchanged.
+var operationTimeout = 15 * time.Second
 
 var serverName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$`)
 

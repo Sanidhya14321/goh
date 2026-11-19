@@ -37,9 +37,12 @@ type Store struct {
 	index string
 }
 
-// restoreLocks serializes restores of one shadow repository in this
-// process; restoreLock (a lock file) does so across processes.
-var restoreLocks sync.Map
+// repoLocks serializes captures and restores of one shadow repository in
+// this process; lockRepo's lock file does so across processes. Private
+// indexes keep staging apart, but concurrent git processes still write the
+// same object files, which Windows refuses ("Permission denied") while
+// another process has one open.
+var repoLocks sync.Map
 
 var treeID = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
 
@@ -149,8 +152,13 @@ func (s *Store) withPrivateIndex(f func(*Store) error) error {
 
 // Track records the current project tree and returns its ID.
 func (s *Store) Track(ctx context.Context) (string, error) {
+	unlock, err := s.lockRepo(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer unlock()
 	var tree string
-	err := s.withPrivateIndex(func(p *Store) error {
+	err = s.withPrivateIndex(func(p *Store) error {
 		var err error
 		tree, err = p.track(ctx)
 		return err
@@ -218,10 +226,7 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 	if !treeID.MatchString(tree) {
 		return "", nil, errors.New("invalid snapshot id")
 	}
-	mu, _ := restoreLocks.LoadOrStore(s.gitDir, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	defer mu.(*sync.Mutex).Unlock()
-	unlock, err := s.restoreLock(ctx)
+	unlock, err := s.lockRepo(ctx)
 	if err != nil {
 		return "", nil, err
 	}
@@ -233,19 +238,24 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 	return before, changes, err
 }
 
-// restoreLock takes the shadow repository's restore lock file, waiting for
-// another process's restore to finish. A lock older than ten minutes is
-// left by a process that died and is taken over.
-func (s *Store) restoreLock(ctx context.Context) (func(), error) {
-	path := filepath.Join(s.gitDir, "restore.lock")
+// lockRepo takes the shadow repository for one capture or restore: an
+// in-process mutex, then a lock file shared with other processes, waiting
+// for the current holder. A lock file older than ten minutes was left by a
+// process that died and is taken over.
+func (s *Store) lockRepo(ctx context.Context) (func(), error) {
+	m, _ := repoLocks.LoadOrStore(s.gitDir, &sync.Mutex{})
+	mu := m.(*sync.Mutex)
+	mu.Lock()
+	path := filepath.Join(s.gitDir, "snapshot.lock")
 	for {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err == nil {
 			fmt.Fprintf(f, "%d\n", os.Getpid())
 			f.Close()
-			return func() { os.Remove(path) }, nil
+			return func() { os.Remove(path); mu.Unlock() }, nil
 		}
 		if !errors.Is(err, os.ErrExist) {
+			mu.Unlock()
 			return nil, err
 		}
 		if info, statErr := os.Stat(path); statErr == nil && time.Since(info.ModTime()) > 10*time.Minute {
@@ -254,7 +264,8 @@ func (s *Store) restoreLock(ctx context.Context) (func(), error) {
 		}
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("another restore of this project is in progress: %w", ctx.Err())
+			mu.Unlock()
+			return nil, fmt.Errorf("another snapshot of this project is in progress: %w", ctx.Err())
 		case <-time.After(100 * time.Millisecond):
 		}
 	}

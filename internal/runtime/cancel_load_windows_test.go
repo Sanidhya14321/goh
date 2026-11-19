@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // PowerShell writes its own PID, then sleeps; cmd.exe has no $$.
@@ -17,3 +18,9 @@ func processAlive(pid int) bool {
 }
 
 func killProcess(pid int) { exec.Command("taskkill", "/PID", strconv.Itoa(pid), "/T", "/F").Run() }
+
+// childStartWait bounds waiting for the child shell to start, before the
+// measured cancellation: six PowerShell starts at once on a loaded runner
+// have exceeded 30 s (CI runs 44125517188, 44553177409); start-up speed is
+// not what the test measures.
+const childStartWait = 120 * time.Second
