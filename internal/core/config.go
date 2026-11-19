@@ -326,6 +326,7 @@ func ReadConfigText(path string) (string, error) {
 	b, err := readConfig(path)
 	return string(b), err
 }
+
 // Research prototypes that can be switched on one at a time (experiments).
 const (
 	// ExperimentSubmissionEvidence asks for a structured evidence record

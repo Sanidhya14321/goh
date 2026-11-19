@@ -276,13 +276,16 @@ func restoreProtected(baselineDir, gradeDir string, baseline map[string]string) 
 // single and double quotes and backslashes, without evaluating anything
 // (no variables, globs or command substitution).
 func splitArgs(s string) ([]string, error) {
+	// Bytes, not runes: every delimiter is ASCII, and argv must keep any
+	// byte sequence exactly (ranging over runes rewrote invalid UTF-8).
 	var out []string
 	var cur strings.Builder
-	inWord, quote, escaped := false, rune(0), false
-	for _, r := range s {
+	inWord, quote, escaped := false, byte(0), false
+	for i := 0; i < len(s); i++ {
+		r := s[i]
 		switch {
 		case escaped:
-			cur.WriteRune(r)
+			cur.WriteByte(r)
 			escaped, inWord = false, true
 		case r == '\\' && quote != '\'':
 			escaped = true
@@ -290,7 +293,7 @@ func splitArgs(s string) ([]string, error) {
 			if r == quote {
 				quote = 0
 			} else {
-				cur.WriteRune(r)
+				cur.WriteByte(r)
 			}
 		case r == '\'' || r == '"':
 			quote, inWord = r, true
@@ -301,7 +304,7 @@ func splitArgs(s string) ([]string, error) {
 				inWord = false
 			}
 		default:
-			cur.WriteRune(r)
+			cur.WriteByte(r)
 			inWord = true
 		}
 	}

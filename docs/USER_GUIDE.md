@@ -306,6 +306,10 @@ Exit codes: `0` completed, `1` error, `3` needs permission, `4` needs input, `5`
 completed; text mode prints `Verification failed: …`, JSON has `outcome: failed_verification`),
 `130` cancelled.
 
+`--experiment NAME` (repeatable, or `"experiments": [...]` in the config) turns on a research
+prototype: `submission-evidence`, `recoverable-compression` or `retrieval-expansion`. All are off by
+default; see [experiments](benchmarks/experiments.md).
+
 `run_finished` carries `outcome` (`verified`, `unverified`, `no_changes`, `failed_verification`)
 and, additively, `verification_detail`: `change_tracking` (`known`, or `unknown` when the project
 is too large or unreadable to fingerprint; the configured verifier then runs after any command

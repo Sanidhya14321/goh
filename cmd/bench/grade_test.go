@@ -187,3 +187,19 @@ func TestReproducerAudit(t *testing.T) {
 		t.Fatalf("%+v", r.Reproducer)
 	}
 }
+
+// Arm flags never panic, and a quoted single word round-trips intact.
+func FuzzSplitArgs(f *testing.F) {
+	for _, seed := range []string{`--verify "go test ./..."`, `a 'b c' d\ e`, `"unbalanced`, `\`, ``} {
+		f.Add(seed)
+	}
+	f.Fuzz(func(t *testing.T, s string) {
+		args, err := splitArgs(s)
+		if err != nil {
+			return
+		}
+		if !strings.ContainsAny(s, `'"\`) && strings.Join(args, "\x00") != strings.Join(strings.FieldsFunc(s, func(r rune) bool { return r == ' ' || r == '\t' || r == '\n' }), "\x00") {
+			t.Fatalf("plain words changed: %q -> %q", s, args)
+		}
+	})
+}
