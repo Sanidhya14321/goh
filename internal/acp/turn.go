@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -25,6 +26,9 @@ type turn struct {
 	candidate *toolCall
 	sequence  int
 	runID     string
+	// asked is the question the agent asked that needs an answer, shown
+	// with the refusal so the editor user knows what to send next.
+	asked *core.QuestionRequest
 	// streamed is the reply text sent to the editor since the last model
 	// call began, to reconcile it with the final reply.
 	streamed strings.Builder
@@ -129,6 +133,24 @@ func (t *turn) event(event core.Event) {
 			}
 		}
 		t.streamed.Reset()
+	case "question_requested":
+		if q, ok := event.Data.(core.QuestionRequest); ok {
+			t.asked = &q
+		}
+	case "run_finished":
+		// ACP's stop reasons cannot say a check failed, so say it in text.
+		if data["outcome"] == "failed_verification" {
+			text := "\n\n[Verification failed"
+			if detail, ok := data["verification_detail"].(map[string]any); ok {
+				if ev, ok := detail["evidence"].(*agent.Evidence); ok && ev != nil {
+					text += ": " + ev.Command
+					if ev.ExitCode != nil {
+						text += fmt.Sprintf(" (exit %d)", *ev.ExitCode)
+					}
+				}
+			}
+			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(text + ". The changes were kept; review them before relying on this turn.]")})
+		}
 	case "reasoning_updated":
 		if text, ok := data["text"].(string); ok && text != "" {
 			t.update(map[string]any{"sessionUpdate": "agent_thought_chunk", "content": textBlock(text)})
@@ -258,6 +280,28 @@ func (s *server) receivePermission(m message) {
 		s.active.permission = nil
 		request.reply <- decision
 	}
+}
+
+// inputNeeded is the next action shown when the agent stopped for input an
+// ACP client cannot give through the protocol.
+func (t *turn) inputNeeded() string {
+	if t.asked == nil || len(t.asked.Questions) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\n[The agent needs an answer before it continues. Reply in your next message:")
+	for _, q := range t.asked.Questions {
+		b.WriteString("\n- " + q.Question)
+		if len(q.Options) > 0 {
+			labels := make([]string, len(q.Options))
+			for i, o := range q.Options {
+				labels[i] = o.Label
+			}
+			b.WriteString(" (options: " + strings.Join(labels, ", ") + ")")
+		}
+	}
+	b.WriteString("]")
+	return b.String()
 }
 
 func stopReason(status string, err error) (int, string) {

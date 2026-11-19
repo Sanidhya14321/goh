@@ -405,6 +405,16 @@ func (e *Engine) mutation(r *os.Root, name string, a args) (before, after []byte
 		if a.All {
 			count = -1
 		}
+		replaced := 1
+		if a.All {
+			replaced = n
+		}
+		// Check the result's size before building it: replace_all of a short
+		// text with a long one can expand a file far past the limit.
+		if growth := len(a.New) - len(a.Old); growth > 0 && replaced > (MaxFile-len(before))/growth {
+			err = errors.New("result exceeds 4MiB")
+			return
+		}
 		after = bytes.Replace(before, []byte(a.Old), []byte(a.New), count)
 	} else {
 		after = []byte(a.Content)

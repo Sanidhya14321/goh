@@ -124,8 +124,9 @@ func (m *Manager) Connect(ctx context.Context) (err error) {
 			if errors.Is(e, ErrPermission) || ctx.Err() != nil || errors.Is(e, errApproval) {
 				return e
 			}
+			var cleanup *CleanupError
 			m.mu.Lock()
-			m.failures = append(m.failures, Failure{Name: name, Error: e.Error()})
+			m.failures = append(m.failures, Failure{Name: name, Error: e.Error(), CleanupIncomplete: errors.As(e, &cleanup)})
 			m.mu.Unlock()
 		}
 	}
@@ -145,11 +146,16 @@ func (m *Manager) Failures() []Failure {
 	return append([]Failure(nil), m.failures...)
 }
 
-func (m *Manager) dropProcess(p *process) {
+// dropProcess stops p and forgets it. When the stop could not be confirmed
+// the process stays tracked (Close reports it again) and the error is
+// returned, so callers never record an unsettled cleanup as finished.
+func (m *Manager) dropProcess(p *process) error {
 	if p == nil {
-		return
+		return nil
 	}
-	p.stop()
+	if err := p.stop(); err != nil {
+		return err
+	}
 	m.mu.Lock()
 	for i, q := range m.processes {
 		if q == p {
@@ -158,13 +164,16 @@ func (m *Manager) dropProcess(p *process) {
 		}
 	}
 	m.mu.Unlock()
+	return nil
 }
 
 func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	var p *process
 	defer func() {
 		if err != nil && !errors.Is(err, ErrPermission) {
-			m.dropProcess(p)
+			if cleanup := m.dropProcess(p); cleanup != nil {
+				err = &CleanupError{Cause: err, Cleanup: cleanup}
+			}
 		}
 	}()
 	if !validComponent(name) {
@@ -241,22 +250,7 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		return fmt.Errorf("MCP server %s initialization failed: %w", name, e)
 	}
 	p.setSession(session)
-	if init := session.InitializeResult(); init != nil && init.Capabilities != nil && init.Capabilities.Resources != nil {
-		m.mu.Lock()
-		if m.resourceServers == nil {
-			m.resourceServers = map[string]*mcp.ClientSession{}
-		}
-		m.resourceServers[name] = session
-		m.mu.Unlock()
-	}
-	if init := session.InitializeResult(); init != nil && init.Capabilities != nil && init.Capabilities.Prompts != nil {
-		m.mu.Lock()
-		if m.promptServers == nil {
-			m.promptServers = map[string]*mcp.ClientSession{}
-		}
-		m.promptServers[name] = session
-		m.mu.Unlock()
-	}
+	init := session.InitializeResult()
 	count := 0
 	discovered := map[string]binding{}
 	for tool, e := range session.Tools(initCtx, nil) {
@@ -310,17 +304,44 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		discovered[full] = binding{server: name, session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
 	}
 	cancel()
+	// Tools, prompts and resources are published together, only after the
+	// whole discovery succeeded: a failed start never leaves a closed
+	// session advertised.
 	m.mu.Lock()
-	for n, b := range discovered {
+	defer m.mu.Unlock()
+	for n := range discovered {
 		if _, exists := m.bindings[n]; exists {
-			m.mu.Unlock()
 			return fmt.Errorf("MCP tool namespace collision %q", n)
 		}
+	}
+	for n, b := range discovered {
 		m.bindings[n] = b
 	}
-	m.mu.Unlock()
+	if init != nil && init.Capabilities != nil && init.Capabilities.Resources != nil {
+		if m.resourceServers == nil {
+			m.resourceServers = map[string]*mcp.ClientSession{}
+		}
+		m.resourceServers[name] = session
+	}
+	if init != nil && init.Capabilities != nil && init.Capabilities.Prompts != nil {
+		if m.promptServers == nil {
+			m.promptServers = map[string]*mcp.ClientSession{}
+		}
+		m.promptServers[name] = session
+	}
 	return nil
 }
+
+// CleanupError is a failed start whose process could not be confirmed
+// stopped. Its startup effect stays unsettled.
+type CleanupError struct {
+	Cause, Cleanup error
+}
+
+func (e *CleanupError) Error() string {
+	return e.Cause.Error() + "; cleanup_incomplete: " + e.Cleanup.Error()
+}
+func (e *CleanupError) Unwrap() []error { return []error{e.Cause, e.Cleanup} }
 
 type noLoader struct{}
 
@@ -526,7 +547,11 @@ func (m *Manager) reconnect(ctx context.Context, b binding) error {
 	delete(m.resourceServers, b.server)
 	delete(m.promptServers, b.server)
 	m.mu.Unlock()
-	m.dropProcess(b.process)
+	if err := m.dropProcess(b.process); err != nil {
+		// The dead server could not be confirmed stopped: do not start a
+		// second copy beside it.
+		return &CleanupError{Cause: errors.New("restart refused"), Cleanup: err}
+	}
 	return m.connectServer(ctx, b.server)
 }
 

@@ -109,6 +109,9 @@ type Decision struct {
 type IntegrationFailure struct {
 	Name  string `json:"name"`
 	Error string `json:"error"`
+	// CleanupIncomplete is set when the failed server could not be
+	// confirmed stopped; its startup effect then stays unsettled.
+	CleanupIncomplete bool `json:"cleanup_incomplete,omitempty"`
 }
 
 // MCPPrompt describes a prompt template an MCP server offers. Users invoke it

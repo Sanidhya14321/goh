@@ -7,6 +7,7 @@ import (
 	"github.com/Sanidhya14321/goh/internal/testutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -289,5 +290,24 @@ func TestCancellationDuringAdmissionPreventsNewSideEffects(t *testing.T) {
 				t.Fatal("side effect started after cancellation was observable")
 			}
 		})
+	}
+}
+
+// Review P1: replace_all checks the result size before building it.
+func TestReplaceAllSizePreflight(t *testing.T) {
+	e, root := engine(t)
+	before := []byte(strings.Repeat("x", 1<<20))
+	os.WriteFile(filepath.Join(root, "big"), before, 0o644)
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	start := stats.TotalAlloc
+	r := call(t, e, "edit_file", map[string]any{"path": "big", "old_text": "x", "new_text": strings.Repeat("y", 1024), "replace_all": true, "expected_sha256": hash(before)})
+	runtime.ReadMemStats(&stats)
+	if !r.Error || !strings.Contains(r.Content, "exceeds 4MiB") {
+		t.Fatal(r.Content)
+	}
+	// Without the preflight the 1 GiB result would be allocated.
+	if grown := stats.TotalAlloc - start; grown > 256<<20 {
+		t.Fatalf("allocated %d bytes for a refused edit", grown)
 	}
 }

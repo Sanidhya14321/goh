@@ -442,12 +442,20 @@ func (a *Agent) connectExternal(ctx context.Context) (string, error) {
 			}
 			return "failed", e
 		}
+		uncertain := map[string]string{}
 		if reporter, ok := a.External.(interface {
 			Failures() []core.IntegrationFailure
 		}); ok {
 			for _, f := range reporter.Failures() {
 				if e := a.integrationDegraded("mcp", f.Name, f.Error); e != nil {
 					return "failed", e
+				}
+				if f.CleanupIncomplete {
+					// Not settled: the start stays an uncertain effect, the
+					// run ends cleanup_incomplete, and resuming requires
+					// the explicit acknowledgment.
+					uncertain["mcp_start:"+f.Name] = f.Error
+					continue
 				}
 				b, _ := json.Marshal(map[string]string{"status": "failed_and_stopped", "error": f.Error})
 				if e := a.integrationSettled("mcp_start:"+f.Name, tools.Result{Content: string(b), Error: true}); e != nil {
@@ -459,9 +467,15 @@ func (a *Agent) connectExternal(ctx context.Context) (string, error) {
 			if a.readyIntegrations[call.ID] {
 				continue // already settled as failed and stopped
 			}
+			if _, open := uncertain[call.Function.Name]; open {
+				continue
+			}
 			if e := a.integrationReady(call.Function.Name); e != nil {
 				return "failed", e
 			}
+		}
+		for name, cause := range uncertain {
+			return "cleanup_incomplete", fmt.Errorf("%s failed and could not be confirmed stopped: %s", strings.TrimPrefix(name, "mcp_start:"), cause)
 		}
 	}
 	return "", nil
@@ -1389,7 +1403,7 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 	if closeExternal {
 		if e := a.closeIntegrations(); e != nil {
 			status = "cleanup_incomplete"
-			err = e
+			err = errors.Join(err, e) // keep why the run stopped, too
 		}
 		if a.ExternalFactory != nil {
 			a.External = nil // closed: the next run starts a new manager

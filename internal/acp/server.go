@@ -345,8 +345,12 @@ func (t *turn) run(ctx context.Context, text string, mcp map[string]core.MCPConf
 	a.Approve = t.approve
 	status, err := a.Run(ctx, text)
 	t.finishOpenCalls()
-	if status == "needs_input" && err != nil {
-		t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(err.Error())})
+	if status == "needs_input" {
+		if next := t.inputNeeded(); next != "" {
+			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(next)})
+		} else if err != nil {
+			t.update(map[string]any{"sessionUpdate": "agent_message_chunk", "content": textBlock(err.Error())})
+		}
 	}
 	return stopReason(status, err)
 }
