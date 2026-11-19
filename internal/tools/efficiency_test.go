@@ -222,3 +222,33 @@ func BenchmarkRepoMapCold(b *testing.B) {
 		}
 	}
 }
+
+// Review P2: ignored source never uses up the repo_map budget, and a file
+// the query names is read before the caps are reached.
+func TestRepoMapCoverage(t *testing.T) {
+	e, root := engine(t)
+	os.WriteFile(filepath.Join(root, ".gitignore"), []byte("build/\n"), 0o644)
+	for _, dir := range []string{"build", "pkg"} {
+		os.MkdirAll(filepath.Join(root, dir), 0o755)
+		for i := 0; i < 300; i++ {
+			os.WriteFile(filepath.Join(root, dir, fmt.Sprintf("f%03d.go", i)), []byte(fmt.Sprintf("package x\n\nfunc Filler%d() {}\n", i)), 0o644)
+		}
+	}
+	os.MkdirAll(filepath.Join(root, "zz"), 0o755)
+	os.WriteFile(filepath.Join(root, "zz", "widget.go"), []byte("package zz\n\nfunc TargetWidget() {}\n"), 0o644)
+	var out struct {
+		Symbols []struct {
+			Name string `json:"name"`
+		} `json:"symbols"`
+		Candidates int  `json:"candidate_files"`
+		Scanned    int  `json:"files_scanned"`
+		Truncated  bool `json:"truncated"`
+	}
+	r := e.Execute(context.Background(), "repo_map", json.RawMessage(`{"query":"widget"}`))
+	if err := json.Unmarshal([]byte(r.Content), &out); err != nil {
+		t.Fatal(r.Content)
+	}
+	if len(out.Symbols) != 1 || out.Symbols[0].Name != "TargetWidget" || out.Candidates != 301 || !out.Truncated {
+		t.Fatalf("%+v", out)
+	}
+}

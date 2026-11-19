@@ -234,17 +234,23 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 	}
 	defer r.Close()
 	symbols := []mapSymbol{}
-	visited, files, bytesRead, skipped, parseErrors, hits := 0, 0, 0, 0, 0, 0
+	visited, files, bytesRead, skipped, parseErrors, hits, generated := 0, 0, 0, 0, 0, 0, 0
 	languages := map[string]bool{}
-	truncated := false
+	truncated, walkTruncated := false, false
 	query := strings.ToLower(a.Query)
-	err = fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(path string, d fs.DirEntry, walkErr error) error {
+	// Pass 1: list candidate source files, honouring .gitignore/.ignore (the
+	// same filter as search and the change fingerprint) and the deny rules.
+	// Ignored files never use up the scan budget.
+	start := filepath.ToSlash(a.Path)
+	filter := newIgnoreFilter(r, start)
+	var candidates []string
+	err = fs.WalkDir(r.FS(), start, func(path string, d fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		visited++
 		if visited > 20000 {
-			truncated = true
+			walkTruncated = true
 			return fs.SkipAll
 		}
 		if walkErr != nil {
@@ -257,33 +263,53 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 			}
 			return nil
 		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules", ".harness", "vendor":
-				if path != a.Path {
-					return fs.SkipDir
-				}
+		if d.IsDir() && path != start && (cacheDirs[d.Name()] || d.Name() == "vendor") {
+			return fs.SkipDir
+		}
+		if filter.skip(path, d) {
+			if d.IsDir() {
+				return fs.SkipDir
 			}
 			return nil
 		}
-		if !mapSupported(path) || !d.Type().IsRegular() {
+		if d.IsDir() || !mapSupported(path) || !d.Type().IsRegular() {
 			return nil
 		}
+		candidates = append(candidates, path)
+		return nil
+	})
+	if err != nil {
+		return failure(err)
+	}
+	// Pass 2: read in ranked order, so the files a query names are parsed
+	// before the caps are reached: path matches first, then the rest.
+	if query != "" {
+		sort.SliceStable(candidates, func(i, j int) bool {
+			return strings.Contains(strings.ToLower(candidates[i]), query) && !strings.Contains(strings.ToLower(candidates[j]), query)
+		})
+	}
+	for _, path := range candidates {
 		if files >= mapMaxFiles || bytesRead >= mapMaxBytes || len(symbols) >= mapMaxSymbols {
 			truncated = true
-			return fs.SkipAll
+			break
 		}
 		data, err := mapRead(r, path)
 		if err != nil {
 			skipped++
-			return nil
+			continue
 		}
 		if bytesRead+len(data) > mapMaxBytes {
 			truncated = true
-			return fs.SkipAll
+			break
 		}
 		files++
 		bytesRead += len(data)
+		if path != start && generatedHeader(data) {
+			// Generated code is not edited by hand (edits are refused), so
+			// its declarations are left out unless asked for directly.
+			generated++
+			continue
+		}
 		languages[mapLanguage(path)] = true
 		parsed, cached := e.symbols(path, data)
 		if cached {
@@ -291,7 +317,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 		}
 		if parsed.ParseError {
 			parseErrors++
-			return nil
+			continue
 		}
 		if parsed.Partial {
 			truncated = true
@@ -306,11 +332,8 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 			}
 			symbols = append(symbols, symbol)
 		}
-		return nil
-	})
-	if err != nil {
-		return failure(err)
 	}
+	truncated = truncated || walkTruncated
 	sort.SliceStable(symbols, func(i, j int) bool {
 		if query != "" {
 			a, b := strings.EqualFold(symbols[i].Name, query), strings.EqualFold(symbols[j].Name, query)
@@ -333,7 +356,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 		scanned = append(scanned, language)
 	}
 	sort.Strings(scanned)
-	output := map[string]any{"languages": scanned, "symbols": symbols, "matched_symbols": matched, "files_scanned": files, "bytes_read": bytesRead, "parse_cache_hits": hits, "skipped_files": skipped, "parse_errors": parseErrors, "truncated": truncated, "scope": "Syntax declarations only; no type checking, graph ranking, compilation or instruction authority."}
+	output := map[string]any{"languages": scanned, "symbols": symbols, "matched_symbols": matched, "files_scanned": files, "candidate_files": len(candidates), "walk_truncated": walkTruncated, "generated_files_skipped": generated, "bytes_read": bytesRead, "parse_cache_hits": hits, "skipped_files": skipped, "parse_errors": parseErrors, "truncated": truncated, "scope": "Syntax declarations only; no type checking, graph ranking, compilation or instruction authority."}
 	for {
 		output["symbols"] = symbols
 		output["truncated"] = truncated
