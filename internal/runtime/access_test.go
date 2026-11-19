@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -200,19 +201,61 @@ func TestAutoAccessCommandsAreSandboxed(t *testing.T) {
 // Auto-edit also runs commands that only read inside the project; Ask does
 // not, and a reading command that leaves the project still asks.
 func TestAutoEditRunsReadOnlyCommands(t *testing.T) {
-	a, _, probe := accessHarness(t)
+	saved := sandboxSupported
+	t.Cleanup(func() { sandboxSupported = saved })
+	sandboxSupported = func() bool { return true }
+	a, root, probe := accessHarness(t)
 	look := map[string]string{"command": "pwd; ls -d web 2>/dev/null; command -v node"}
 	if asked, _ := probe("shell", look); !asked {
 		t.Error("ask level ran a command unasked")
 	}
 	a.SetSessionAccess(core.AccessEdits)
-	if asked, confine := probe("shell", look); asked || confine != "" {
-		t.Errorf("read-only command asked=%v confine=%q", asked, confine)
+	// Review P1: the read-only heuristic is backed by a sandbox in which
+	// nothing in the project is writable.
+	b, _ := json.Marshal(look)
+	d, _ := a.Permission(context.Background(), core.Permission{Tool: "shell", Arguments: b})
+	if !d.Allow || d.Confine != root || !d.ConfineReadOnly {
+		t.Errorf("read-only command not confined read-only: %+v", d)
 	}
+	if p := a.confinedSandbox(readOnlyConfine + root); len(p.Writable) == 0 || slices.Contains(p.Writable, root) {
+		t.Errorf("read-only policy writable %v", p.Writable)
+	}
+	sandboxSupported = func() bool { return false }
+	if asked, _ := probe("shell", look); !asked {
+		t.Error("a read-only command ran unconfined without a sandbox")
+	}
+	sandboxSupported = func() bool { return true }
 	if asked, _ := probe("shell", map[string]string{"command": "ls /Applications"}); !asked {
 		t.Error("a command reading outside the project ran unasked")
 	}
 	if asked, _ := probe("shell", map[string]string{"command": "npm install"}); !asked {
 		t.Error("a writing command ran unasked under auto-edit")
+	}
+}
+
+// Review P1: auto in a folder keeps stricter subfolders unwritable, and asks
+// where the sandbox cannot restrict a folder inside a writable one (Linux).
+func TestAutoKeepsStricterSubfoldersUnwritable(t *testing.T) {
+	savedS, savedN := sandboxSupported, nestedEnforced
+	t.Cleanup(func() { sandboxSupported, nestedEnforced = savedS, savedN })
+	sandboxSupported = func() bool { return true }
+	nestedEnforced = func() bool { return true }
+	a, root, probe := accessHarness(t)
+	os.MkdirAll(filepath.Join(root, "web", "vendor"), 0o755)
+	a.SetAccess([]core.FolderAccess{
+		{Path: filepath.Join(root, "web"), Level: core.AccessAuto},
+		{Path: filepath.Join(root, "web", "vendor"), Level: core.AccessAsk},
+	})
+	run := map[string]string{"command": "npm test", "cwd": "web"}
+	asked, confine := probe("shell", run)
+	if asked || confine != filepath.Join(root, "web") {
+		t.Fatalf("asked=%v confine=%q", asked, confine)
+	}
+	if p := a.confinedSandbox(confine); !slices.Contains(p.ReadOnly, filepath.Join(root, "web", "vendor")) {
+		t.Fatalf("stricter subfolder writable: %v", p.ReadOnly)
+	}
+	nestedEnforced = func() bool { return false }
+	if asked, _ := probe("shell", run); !asked {
+		t.Error("auto ran a command whose stricter subfolder the sandbox cannot protect")
 	}
 }

@@ -307,7 +307,10 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		if allow, confine, level := a.accessDecision(p); allow {
 			d := core.Decision{Allow: true, Confine: confine}
 			data := map[string]any{"tool": p.Tool, "allowed": true, "session": false, "source": "access", "level": string(level)}
-			if confine != "" {
+			if root, ok := strings.CutPrefix(confine, readOnlyConfine); ok {
+				d.Confine, d.ConfineReadOnly = root, true
+				data["sandbox"], data["sandbox_read_only"] = root, true
+			} else if confine != "" {
 				data["sandbox"] = confine
 			}
 			if e := a.Store.Append("permission", data); e != nil {
@@ -875,7 +878,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				}
 				callCtx := ctx
 				if d.Confine != "" {
-					callCtx = tools.WithSandbox(ctx, a.confinedSandbox(d.Confine))
+					folder := d.Confine
+					if d.ConfineReadOnly {
+						folder = readOnlyConfine + folder
+					}
+					callCtx = tools.WithSandbox(ctx, a.confinedSandbox(folder))
 				}
 				results[i] = a.execute(callCtx, c)
 				var outcome struct {

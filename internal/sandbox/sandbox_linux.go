@@ -217,3 +217,8 @@ func Supported() bool {
 	abi, err := landlockABI()
 	return err == nil && abi >= 1
 }
+
+// NestedRestrictionsEnforced reports whether a path inside a writable folder
+// can be made read-only or unreadable. Landlock only adds access, so a
+// folder inside a writable one cannot be restricted again.
+func NestedRestrictionsEnforced() bool { return false }

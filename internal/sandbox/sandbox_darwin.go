@@ -68,3 +68,7 @@ func Supported() bool {
 	_, err := exec.LookPath(sandboxExec)
 	return err == nil
 }
+
+// NestedRestrictionsEnforced reports whether a path inside a writable folder
+// can be made read-only or unreadable (Seatbelt deny rules can).
+func NestedRestrictionsEnforced() bool { return true }

@@ -10,8 +10,16 @@ import (
 	"github.com/Sanidhya14321/goh/internal/tools"
 )
 
-// sandboxSupported is a variable so tests can stand in for the platform.
-var sandboxSupported = sandbox.Supported
+// sandboxSupported and nestedEnforced are variables so tests can stand in
+// for the platform.
+var (
+	sandboxSupported = sandbox.Supported
+	nestedEnforced   = sandbox.NestedRestrictionsEnforced
+)
+
+// readOnlyConfine marks, in a confine folder, a command allowed only because
+// it reads: it runs with no writable project folder.
+const readOnlyConfine = "\x00read-only:"
 
 // SetAccess replaces the folder access levels (the saved ones). It is safe
 // to call while a run is active; the next permission check uses them.
@@ -118,14 +126,29 @@ func (a *Agent) accessDecision(p core.Permission) (allow bool, confine string, l
 			}
 		}
 		level, folder := a.levelAt(dir)
+		container := a.Config.Sandbox != nil && a.Config.Sandbox.Container != ""
 		switch {
 		case level == core.AccessFull:
 			return true, "", level
 		case name == "shell" && level.Rank() >= core.AccessEdits.Rank() && readOnlyCommand(args.Command):
-			return true, "", level // only reads inside the project
-		case level == core.AccessAuto && a.Config.Sandbox != nil && a.Config.Sandbox.Container != "":
+			// The read-only check is a heuristic, so the command also runs
+			// where it cannot write: in the container, or in a sandbox with
+			// no writable project folder. Without either, it asks.
+			if container {
+				return true, "", level
+			}
+			if sandboxSupported() {
+				return true, readOnlyConfine + root, level
+			}
+		case level == core.AccessAuto && container:
 			return true, "", level // every command already runs in the configured container
 		case level == core.AccessAuto && sandboxSupported():
+			// Folders inside this one with a stricter level, and goh's own
+			// state, must stay unwritable; where the sandbox cannot restrict
+			// a folder inside a writable one, the command asks instead.
+			if !nestedEnforced() && len(a.nestedRestrictions(folder)) > 0 {
+				return false, "", ""
+			}
 			return true, folder, level
 		}
 		return false, "", ""
@@ -154,5 +177,49 @@ func (a *Agent) confinedSandbox(folder string) *sandbox.Policy {
 		sb.Writable = c.Sandbox.Writable
 	}
 	c.Sandbox = &sb
-	return sandboxPolicy(c, folder)
+	if root, ok := strings.CutPrefix(folder, readOnlyConfine); ok {
+		// Allowed because it only reads: nothing in the project is writable.
+		sb.Writable = nil
+		p := sandboxPolicy(c, root)
+		p.Writable = sandbox.TempDirs()
+		return p
+	}
+	p := sandboxPolicy(c, folder)
+	p.ReadOnly = append(p.ReadOnly, a.stricterFolders(folder)...)
+	return p
+}
+
+// stricterFolders are folders inside folder whose saved level is below auto:
+// a command allowed by auto in folder must not write there.
+func (a *Agent) stricterFolders(folder string) []string {
+	a.accessMu.Lock()
+	rules := append([]core.FolderAccess(nil), a.accessRules...)
+	a.accessMu.Unlock()
+	var out []string
+	for _, r := range rules {
+		rel, err := filepath.Rel(folder, r.Path)
+		if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		if r.Level.Rank() < core.AccessAuto.Rank() {
+			out = append(out, r.Path)
+		}
+	}
+	return out
+}
+
+// nestedRestrictions are the paths inside folder that a command confined to
+// folder must not write (stricter folders) or read (goh's own state).
+func (a *Agent) nestedRestrictions(folder string) []string {
+	out := a.stricterFolders(folder)
+	c := a.Config
+	c.Sandbox = &core.SandboxConfig{Enabled: true}
+	if p := sandboxPolicy(c, folder); p != nil {
+		for _, d := range p.Protected {
+			if rel, err := filepath.Rel(folder, d); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				out = append(out, d)
+			}
+		}
+	}
+	return out
 }

@@ -364,8 +364,8 @@ session), `/access` (this session, the project, or one folder inside it), or `--
 | Level | Runs without asking | Still asks |
 | --- | --- | --- |
 | **Ask** (default) | Reading and searching | Edits, commands, network, MCP |
-| **Auto-edit** | Edits inside the folder; commands that only read inside the project (`ls`, `cat`, `grep`, `git status/diff/log`, `command -v` …, no redirection into files, no paths outside the project) | Other commands, network, MCP |
-| **Auto** | The above, plus every command run from inside the folder, **in the sandbox**: it can write only inside that folder and temporary folders, and cannot read goh's settings, keys or sessions. Network stays on unless `sandbox.network` is set to false | Network fetches, MCP; commands where no sandbox exists (Windows) |
+| **Auto-edit** | Edits inside the folder; commands that only read inside the project (`ls`, `cat`, `grep`, `git status/diff/log`, `command -v` …, no redirection into files, no paths outside the project), run **in a read-only sandbox** (nothing in the project is writable) | Other commands, network, MCP; read-only commands where no sandbox exists (Windows) |
+| **Auto** | The above, plus every command run from inside the folder, **in the sandbox**: it can write only inside that folder and temporary folders, not inside a subfolder saved with a stricter level, and cannot read goh's settings, keys or sessions. Network stays on unless `sandbox.network` is set to false | Network fetches, MCP; commands where no sandbox exists (Windows); on Linux, commands in a folder that contains a stricter subfolder or goh's own state (Landlock cannot restrict a folder inside a writable one) |
 | **Full access** | Everything, with no sandbox | Nothing (except your ask/deny rules) |
 
 - A level saved for a folder covers it and its subfolders; the deepest saved folder wins. Give one

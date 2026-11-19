@@ -103,6 +103,9 @@ type Decision struct {
 	// in without asking: the command runs sandboxed, writing only there and
 	// in temporary folders.
 	Confine string
+	// ConfineReadOnly, with Confine, runs the command with no writable
+	// project folder: it was allowed only because it reads.
+	ConfineReadOnly bool
 }
 
 // IntegrationFailure names one optional integration that could not start.
