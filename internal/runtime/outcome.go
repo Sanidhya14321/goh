@@ -59,6 +59,7 @@ func (a *Agent) resetOutcome(fingerprint bool) {
 	a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, false, false, false
 	a.narrowTestPassed, a.fullTestPassed = false, false
 	a.evidence = nil
+	a.runCommands, a.evidenceSubmitted, a.evidenceRevision = nil, false, ""
 	var fingerprinted bool
 	a.fingerprint, fingerprinted = "", false
 	if a.Tools != nil && fingerprint {
@@ -100,6 +101,9 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		Command string `json:"command"`
 	}
 	_ = json.Unmarshal([]byte(c.Function.Arguments), &args)
+	if c.Function.Name == "shell" && !r.Error && len(a.runCommands) < 500 {
+		a.runCommands = append(a.runCommands, args.Command)
+	}
 	if a.noFingerprint {
 		// Changes cannot be detected, so any command that may write leaves
 		// the coverage unknown, and later checks still run.

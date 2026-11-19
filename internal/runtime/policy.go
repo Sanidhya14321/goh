@@ -12,7 +12,7 @@ import (
 func (a *Agent) isPlan() bool { return a.Config.AgentMode == "plan" || a.Config.Agent == "plan" }
 func (a *Agent) allowedInPlan(name string) bool {
 	switch name {
-	case "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task", "job_output", "repeated_call", "plan_exit":
+	case "recall_observation", "memory_recall", "repo_map", "read_artifact", "formatter_status", "snapshot_list", "snapshot_diff", "list_files", "read_file", "search", "glob", "grep", "skill", "question", "task", "job_output", "repeated_call", "plan_exit":
 		return true
 	}
 	return false
@@ -45,6 +45,7 @@ func (a *Agent) localDefinitions() []core.Tool {
 	for _, d := range a.Tools.Definitions() {
 		defs = append(defs, core.NewTool(d.Name, d.Description, d.Schema))
 	}
+	defs = append(defs, a.experimentDefinitions()...)
 	if !a.isPlan() {
 		return defs
 	}

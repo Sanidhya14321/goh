@@ -252,3 +252,71 @@ func TestRepoMapCoverage(t *testing.T) {
 		t.Fatalf("%+v", out)
 	}
 }
+
+// retrieval-expansion: repo_map adds files that reference the matching
+// symbols, with provenance; the cache follows content changes; off by default.
+func TestRepoMapRelatedExpansion(t *testing.T) {
+	e, root := engine(t)
+	os.MkdirAll(filepath.Join(root, "store"), 0o755)
+	os.MkdirAll(filepath.Join(root, "api"), 0o755)
+	os.WriteFile(filepath.Join(root, "store", "store.go"), []byte("package store\n\nfunc SaveWidget() {}\n"), 0o644)
+	os.WriteFile(filepath.Join(root, "api", "api.go"), []byte("package api\n\nimport \"x/store\"\n\nfunc H() {\n\tstore.SaveWidget()\n}\n"), 0o644)
+	os.WriteFile(filepath.Join(root, "other.go"), []byte("package x\n\nfunc Unrelated() {}\n"), 0o644)
+	related := func() []relatedRef {
+		var out struct {
+			Related []relatedRef `json:"related"`
+		}
+		r := e.Execute(context.Background(), "repo_map", json.RawMessage(`{"query":"savewidget"}`))
+		json.Unmarshal([]byte(r.Content), &out)
+		return out.Related
+	}
+	if got := related(); got != nil {
+		t.Fatal("expansion without the experiment", got)
+	}
+	e.RelatedExpansion = true
+	got := related()
+	if len(got) != 1 || got[0].Path != "api/api.go" || got[0].Line != 6 || got[0].DefinedIn != "store/store.go" {
+		t.Fatalf("%+v", got)
+	}
+	os.WriteFile(filepath.Join(root, "api", "api.go"), []byte("package api\n\nfunc H() {}\n"), 0o644)
+	if got := related(); len(got) != 0 {
+		t.Fatalf("stale reference after the file changed: %+v", got)
+	}
+}
+
+// BenchmarkRepoMapQuery measures a query on 256 files, with and without the
+// retrieval-expansion experiment, warm (caches filled) and cold.
+func BenchmarkRepoMapQuery(b *testing.B) {
+	for _, tc := range []struct {
+		name          string
+		expand, clear bool
+	}{{"base/warm", false, false}, {"expand/warm", true, false}, {"expand/cold", true, true}} {
+		b.Run(tc.name, func(b *testing.B) {
+			root := b.TempDir()
+			e, _ := New(root, b.TempDir())
+			e.RelatedExpansion = tc.expand
+			for i := 0; i < 256; i++ {
+				body := fmt.Sprintf("package fixture\n\nfunc Entry%d() int { return Shared() }\n", i)
+				os.WriteFile(filepath.Join(root, fmt.Sprintf("file-%03d.go", i)), []byte(body+strings.Repeat("// comment content\n", 100)), 0o600)
+			}
+			os.WriteFile(filepath.Join(root, "shared.go"), []byte("package fixture\n\nfunc Shared() int { return 1 }\n"), 0o600)
+			args := json.RawMessage(`{"query":"shared"}`)
+			e.Execute(context.Background(), "repo_map", args)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				if tc.clear {
+					e.mapMu.Lock()
+					e.mapCache, e.mapOrder = nil, nil
+					e.mapMu.Unlock()
+					e.refMu.Lock()
+					e.refCache = nil
+					e.refMu.Unlock()
+				}
+				if r := e.Execute(context.Background(), "repo_map", args); r.Error {
+					b.Fatal(r)
+				}
+			}
+		})
+	}
+}

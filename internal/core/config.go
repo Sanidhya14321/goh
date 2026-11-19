@@ -172,6 +172,9 @@ type Config struct {
 	// CompletionCheck (default on) reminds the model once per run to check
 	// its file changes before finishing when nothing has checked them.
 	CompletionCheck *bool `json:"completion_check,omitempty"`
+	// Experiments turns on research prototypes by name (see Experiments
+	// below). All are off by default; the default behaviour is unchanged.
+	Experiments []string `json:"experiments,omitempty"`
 	// MaxToolCalls bounds tool calls per run, child tasks included (0 = no
 	// limit).
 	MaxToolCalls int `json:"max_tool_calls,omitempty"`
@@ -323,7 +326,43 @@ func ReadConfigText(path string) (string, error) {
 	b, err := readConfig(path)
 	return string(b), err
 }
+// Research prototypes that can be switched on one at a time (experiments).
+const (
+	// ExperimentSubmissionEvidence asks for a structured evidence record
+	// (submit_evidence) before finishing changed work, in place of the
+	// one-time completion reminder.
+	ExperimentSubmissionEvidence = "submission-evidence"
+	// ExperimentRecoverableCompression lets the model recall the exact
+	// output of a masked tool result from this session's journal.
+	ExperimentRecoverableCompression = "recoverable-compression"
+	// ExperimentRetrievalExpansion adds a capped one-hop list of files that
+	// reference repo_map's matching symbols.
+	ExperimentRetrievalExpansion = "retrieval-expansion"
+)
+
+// KnownExperiments lists the accepted experiment names.
+var KnownExperiments = []string{ExperimentSubmissionEvidence, ExperimentRecoverableCompression, ExperimentRetrievalExpansion}
+
+// Experiment reports whether the named experiment is on.
+func (c Config) Experiment(name string) bool {
+	for _, e := range c.Experiments {
+		if e == name {
+			return true
+		}
+	}
+	return false
+}
+
 func (c Config) Validate() error {
+	for _, e := range c.Experiments {
+		known := false
+		for _, k := range KnownExperiments {
+			known = known || e == k
+		}
+		if !known {
+			return fmt.Errorf("unknown experiment %q (known: %s)", e, strings.Join(KnownExperiments, ", "))
+		}
+	}
 	if c.RetryInterruptedStreams < 0 || c.RetryInterruptedStreams > 2 {
 		return fmt.Errorf("retry_interrupted_streams must be 0-2")
 	}

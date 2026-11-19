@@ -45,6 +45,11 @@ type Engine struct {
 	// end_line) instead of matching old_text. Off unless configured, for A/B
 	// comparison; the whole-file expected_sha256 guard still applies.
 	LineEdits bool
+	// RelatedExpansion (the retrieval-expansion experiment) makes repo_map
+	// add, for query matches, the files that reference those symbols.
+	RelatedExpansion bool
+	refMu            sync.Mutex
+	refCache         map[string]refEntry
 	// DenyPath reports project-relative paths (slash-separated) that the
 	// user's file_rules deny. Denied files are not read, searched, listed or
 	// mapped, as well as not edited. fold asks for a comparison that ignores

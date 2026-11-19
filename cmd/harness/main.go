@@ -309,6 +309,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	lineEdits := f.Bool("line-edits", false, "run: let edit_file replace numbered line ranges as well as exact text")
 	retryInterrupted := f.Int("retry-interrupted", 0, "run: re-send a model request whose stream broke, up to N times (0-2); partial replies are discarded")
 	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
+	var experiments []string
+	f.Func("experiment", "turn on a research prototype (repeatable): "+strings.Join(core.KnownExperiments, ", "), func(v string) error {
+		experiments = append(experiments, v)
+		return nil
+	})
 	sessionDir := f.String("session-dir", "", "private session storage")
 	accessFlag := f.String("access", "", "how much runs without asking in this project: ask, edits (file edits), auto (edits and sandboxed commands) or full (everything, no sandbox)")
 	allow := f.String("allow", "", "comma-separated run grants (all = every built-in local tool: file edits, shell, todos, skills, tasks): write_file,create_file,edit_file,apply_patch,todowrite,skill,shell,task,child:TOOL,format:NAME,snapshot_undo,snapshot_redo,webfetch,lsp,lsp_start:NAME,mcp_start:NAME,mcp__NAME__TOOL")
@@ -505,6 +510,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			c.RetryInterruptedStreams = *retryInterrupted
 		case "completion-check":
 			c.CompletionCheck = completionCheck
+		case "experiment":
+			c.Experiments = append(c.Experiments, experiments...)
 		}
 	})
 

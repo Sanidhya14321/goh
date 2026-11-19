@@ -85,6 +85,12 @@ type Agent struct {
 	changeUnknown bool
 	// evidence is the check behind the current outcome (nil when none).
 	evidence *Evidence
+	// runCommands are the shell commands run in this operation, and
+	// evidenceSubmitted/evidenceRevision the submission-evidence
+	// experiment's record for the current revision.
+	runCommands       []string
+	evidenceSubmitted bool
+	evidenceRevision  string
 	// operation is "run", "user_shell" or "compact" for the current call.
 	operation string
 	// titleSource is the user's prompt as typed, before command, @file and
@@ -164,6 +170,7 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	}
 	t.AllowGeneratedEdits = c.AllowGeneratedEdits
 	t.LineEdits = c.LineEdits
+	t.RelatedExpansion = c.Experiment(core.ExperimentRetrievalExpansion)
 	t.Sandbox = sandboxPolicy(c, s.Project)
 	if c.SessionDir != "" {
 		// Session storage (journals, artifacts, job registry) and project
@@ -735,7 +742,17 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model})
 		if len(reply.Message.ToolCalls) == 0 {
 			a.noticeUntrackedChanges() // background jobs, for example
-			if a.needsCompletionCheck() {
+			if a.needsEvidence() {
+				// Experiment: a structured evidence record replaces the
+				// one-time completion reminder.
+				a.completionChecked = true
+				if e := a.commit(core.Message{Role: "user", Content: evidencePrompt, Automatic: true}); e != nil {
+					return "failed", e
+				}
+				a.event("completion_check", map[string]any{"reason": "submission evidence requested", "experiment": core.ExperimentSubmissionEvidence})
+				continue
+			}
+			if !a.Config.Experiment(core.ExperimentSubmissionEvidence) && a.needsCompletionCheck() {
 				a.completionChecked = true
 				prompt, reason := a.completionCheck()
 				if e := a.commit(core.Message{Role: "user", Content: prompt, Automatic: true}); e != nil {
@@ -1055,6 +1072,13 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 	if name == "plan_exit" {
 		return a.preparePlanExit(b)
 	}
+	if name == "submit_evidence" && a.Config.Experiment(core.ExperimentSubmissionEvidence) {
+		_, e := parseEvidence(b)
+		return "Record submission evidence", false, e
+	}
+	if name == "recall_observation" && a.Config.Experiment(core.ExperimentRecoverableCompression) {
+		return "Recall a masked tool result from this session", false, nil
+	}
 	if len(b) > 1<<20 || !json.Valid(b) {
 		return "", false, errors.New("invalid or oversized tool arguments")
 	}
@@ -1110,6 +1134,12 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 	}
 	if c.Function.Name == "plan_exit" {
 		return a.executePlanExit(json.RawMessage(c.Function.Arguments))
+	}
+	if c.Function.Name == "submit_evidence" && a.Config.Experiment(core.ExperimentSubmissionEvidence) {
+		return a.executeEvidence(json.RawMessage(c.Function.Arguments))
+	}
+	if c.Function.Name == "recall_observation" && a.Config.Experiment(core.ExperimentRecoverableCompression) {
+		return a.executeRecall(json.RawMessage(c.Function.Arguments))
 	}
 	if a.External != nil && a.External.Has(c.Function.Name) {
 		res := a.External.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))
@@ -1293,6 +1323,9 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		}
 		if masked == 0 {
 			view, masked = maskObservations(a.History, cut)
+		}
+		if masked > 0 && a.Config.Experiment(core.ExperimentRecoverableCompression) {
+			view = withRecallIDs(view)
 		}
 		size := a.estimate(a.withTaskContext(view), defs)
 		method := "observation_masking"

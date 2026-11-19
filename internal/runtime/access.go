@@ -152,6 +152,10 @@ func (a *Agent) accessDecision(p core.Permission) (allow bool, confine string, l
 			return true, folder, level
 		}
 		return false, "", ""
+	case name == "submit_evidence" || name == "recall_observation":
+		// Experiment bookkeeping and data this session already holds.
+		level, _ = a.levelAt(root)
+		return true, "", level
 	case name == "todowrite" || name == "skill" || name == "task" || strings.HasPrefix(name, "format:") || name == "snapshot_undo" || name == "snapshot_redo":
 		// Session bookkeeping, subagents (whose own tools are checked
 		// again) and changes to files goh itself edited.

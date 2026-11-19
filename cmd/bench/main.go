@@ -47,6 +47,10 @@ type task struct {
 	// task without them is graded by exit code and labelled "aggregate".
 	FailToPassTests []string `json:"fail_to_pass_tests,omitempty"`
 	PassToPassTests []string `json:"pass_to_pass_tests,omitempty"`
+	// GoldFiles are the files a fix needs (benchmark-only telemetry, never
+	// shown to the agent): retrieval recall and time to first useful
+	// evidence are measured against them.
+	GoldFiles []string `json:"gold_files,omitempty"`
 	// Image, when set, isolates the task in Docker: setup runs in a
 	// container with network, while the agent's shell commands and grading
 	// run in containers with no network. Only the attempt folder and a
@@ -130,12 +134,16 @@ type Result struct {
 	TerminalEvents  int    `json:"terminal_events"`
 	StreamProblem   string `json:"stream_problem,omitempty"`
 	// Route and accounting from the run itself.
-	Model     string                   `json:"model,omitempty"`
-	Protocol  string                   `json:"protocol,omitempty"`
-	Profile   string                   `json:"profile,omitempty"`
-	Usage     map[string]purposeTokens `json:"usage_by_purpose,omitempty"` // from the session journals: turn, compaction, title, fallback; children included
-	Children  int                      `json:"child_sessions"`
-	Scheduled time.Time                `json:"scheduled"`
+	Model    string                   `json:"model,omitempty"`
+	Protocol string                   `json:"protocol,omitempty"`
+	Profile  string                   `json:"profile,omitempty"`
+	Usage    map[string]purposeTokens `json:"usage_by_purpose,omitempty"` // from the session journals: turn, compaction, title, fallback; children included
+	Children int                      `json:"child_sessions"`
+	// Retrieval telemetry (tasks with gold_files) and the optional
+	// generated-reproducer audit.
+	Retrieval  *retrievalStats `json:"retrieval,omitempty"`
+	Reproducer string          `json:"reproducer,omitempty"`
+	Scheduled  time.Time       `json:"scheduled"`
 }
 
 // purposeTokens is reported usage for one purpose across every session the
@@ -153,6 +161,7 @@ func main() {
 	out := flag.String("out", "bench/results", "results folder (one run per timestamped subfolder)")
 	only := flag.String("only", "", "comma-separated task IDs")
 	attempts := flag.Int("attempts", 1, "attempts per task and arm")
+	flag.BoolVar(&reproducerAudit, "reproducer", false, "also run test files the agent added on the baseline and the candidate, in isolated copies, and record whether they fail before and pass after (evidence only; never changes the grade)")
 	flag.BoolVar(&hostGrading, "host-grading", false, "run tasks that have no image: the agent's shell and grading then run model-edited code on this machine, unsandboxed during grading")
 	dry := flag.Bool("dry-run", false, "check that each task's fail-to-pass fails on repo/ and passes with hidden/ reference, without a model")
 	var armSpecs []string
@@ -420,6 +429,9 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		}
 	}
 	r.Usage, r.Children = journalUsage(sessions)
+	if len(t.GoldFiles) > 0 {
+		r.Retrieval = retrievalTelemetry(sessions, t.GoldFiles, start)
+	}
 	candidate, err := snapshotHashes(work)
 	if err != nil {
 		return infra("regrade_copy", err.Error())
@@ -481,6 +493,9 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	r.Resolved = r.FailToPassOK && r.PassToPassOK
 	r.FalseComplete = r.Status == "completed" && !r.Resolved
 	r.FalseVerified = r.Outcome == "verified" && !r.Resolved
+	if reproducerAudit {
+		r.Reproducer = auditReproducers(t, pristine, grade, baseline, candidate, hiddenPaths, base)
+	}
 	if len(r.ProtectedChanged) > 0 {
 		// Legitimate test changes are assessed apart: the candidate's own
 		// tree with the hidden tests on top.

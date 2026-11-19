@@ -356,7 +356,14 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 		scanned = append(scanned, language)
 	}
 	sort.Strings(scanned)
+	var related []relatedRef
+	if e.RelatedExpansion && query != "" && len(symbols) > 0 {
+		related = e.relatedFiles(ctx, r, candidates, symbols)
+	}
 	output := map[string]any{"languages": scanned, "symbols": symbols, "matched_symbols": matched, "files_scanned": files, "candidate_files": len(candidates), "walk_truncated": walkTruncated, "generated_files_skipped": generated, "bytes_read": bytesRead, "parse_cache_hits": hits, "skipped_files": skipped, "parse_errors": parseErrors, "truncated": truncated, "scope": "Syntax declarations only; no type checking, graph ranking, compilation or instruction authority."}
+	if related != nil {
+		output["related"] = related
+	}
 	for {
 		output["symbols"] = symbols
 		output["truncated"] = truncated

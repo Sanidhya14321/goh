@@ -2,10 +2,12 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/testutil"
 )
@@ -141,5 +143,47 @@ func TestRunTaskFoldersAreFresh(t *testing.T) {
 	entries, _ := os.ReadDir(work)
 	if len(entries) != 2 || !a.Resolved || !b.Resolved {
 		t.Fatalf("folders %d, results %+v %+v", len(entries), a, b)
+	}
+}
+
+// Research: retrieval telemetry from the journals, against gold files the
+// agent never sees.
+func TestRetrievalTelemetry(t *testing.T) {
+	dir := t.TempDir()
+	start := time.UnixMilli(1_000_000)
+	journal := strings.Join([]string{
+		`{"version":1,"type":"tool_start","time":1002000,"data":{"name":"grep","arguments":{"pattern":"x"}}}`,
+		`{"version":1,"type":"tool_result","time":1003000,"data":{"result":{"content":"{\"matches\":[{\"path\":\"pkg/a.go\",\"line\":3}]}"}}}`,
+		`{"version":1,"type":"tool_start","time":1005000,"data":{"name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
+		`{"version":1,"type":"tool_start","time":1006000,"data":{"name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
+	}, "\n") + "\n"
+	os.WriteFile(filepath.Join(dir, "s.jsonl"), []byte(journal), 0o600)
+	s := retrievalTelemetry(dir, []string{"pkg/a.go", "pkg/b.go"}, start)
+	if s.Read != 1 || s.Recall != 0.5 || s.RepeatReads != 1 || s.FirstGoldSecs == nil || *s.FirstGoldSecs != 3 || len(s.Missed) != 1 {
+		t.Fatalf("%+v", s)
+	}
+}
+
+// Research: a test the agent adds counts as reproducer evidence only when
+// it fails on the baseline and passes on the candidate, in isolated copies.
+func TestReproducerAudit(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("python3 not installed")
+	}
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "repo"), 0o755)
+	os.WriteFile(filepath.Join(dir, "repo", "calc.py"), []byte("def add(a, b):\n    return a - b\n"), 0o644)
+	tk := task{ID: "calc", Prompt: "fix add", FailToPass: `python3 -c "import calc; assert calc.add(2, 3) == 5"`, dir: dir}
+	hostGrading, reproducerAudit = true, true
+	defer func() { hostGrading, reproducerAudit = false, false }()
+	fix := `printf 'def add(a, b):\n    return a + b\n' > calc.py; printf 'import unittest, calc\nclass T(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(calc.add(2, 3), 5)\n' > test_repro.py`
+	r := runTask(tk, fakeGoh(t, fix), "base", nil, 1, t.TempDir())
+	if !r.Resolved || r.Reproducer != "fail_to_pass" {
+		t.Fatalf("%+v", r)
+	}
+	weak := `printf 'def add(a, b):\n    return a + b\n' > calc.py; printf 'import unittest\nclass T(unittest.TestCase):\n    def test_true(self):\n        self.assertTrue(True)\n' > test_repro.py`
+	if r := runTask(tk, fakeGoh(t, weak), "base", nil, 1, t.TempDir()); r.Reproducer != "no_signal" {
+		t.Fatalf("%+v", r.Reproducer)
 	}
 }
