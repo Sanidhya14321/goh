@@ -222,14 +222,15 @@ func TestCompletionCheckSelectedTests(t *testing.T) {
 		checks []string
 		want   int
 	}{
-		"selected only":        {[]string{"true go test -run TestAdd ./..."}, 1},
-		"selected then full":   {[]string{"true go test -run TestAdd ./...", "true go test ./..."}, 0},
-		"full only":            {[]string{"true go test ./..."}, 0},
-		"build after selected": {[]string{"true go test -run TestAdd ./...", "true go build ./..."}, 1},
-		"non-test check":       {[]string{"true go build ./..."}, 0},
+		"selected only":        {[]string{stubGo + "go test -run TestAdd ./..."}, 1},
+		"selected then full":   {[]string{stubGo + "go test -run TestAdd ./...", stubGo + "go test ./..."}, 0},
+		"full only":            {[]string{stubGo + "go test ./..."}, 0},
+		"build after selected": {[]string{stubGo + "go test -run TestAdd ./...", stubGo + "go build ./..."}, 1},
+		"non-test check":       {[]string{stubGo + "go build ./..."}, 0},
 	} {
 		t.Run(name, func(t *testing.T) {
-			a, _ := testAgent(t)
+			a, root := testAgent(t)
+			writeStubGo(t, root)
 			a.Config.CompletionCheck = nil
 			a.Grants["create_file"], a.Grants["shell"] = true, true
 			reminders, turn := 0, 0
@@ -243,7 +244,7 @@ func TestCompletionCheckSelectedTests(t *testing.T) {
 					return answer(toolCall("c", "create_file", map[string]any{"path": "fix.go", "content": "package fix\n"})), nil
 				}
 				if i := turn - 2; i < len(tc.checks) {
-					// "true <command>" passes without running the test runner.
+					// A stub go on PATH passes without running a real toolchain.
 					return answer(toolCall(fmt.Sprint("t", i), "shell", map[string]any{"command": tc.checks[i]})), nil
 				}
 				return answer(), nil
@@ -258,5 +259,17 @@ func TestCompletionCheckSelectedTests(t *testing.T) {
 				t.Fatal(lastOutcome(t, a))
 			}
 		})
+	}
+}
+
+// stubGo puts the project's stub/go first on PATH: a fake runner that passes
+// and reports a package that ran tests.
+const stubGo = "PATH=./stub:$PATH "
+
+func writeStubGo(t *testing.T, root string) {
+	t.Helper()
+	os.MkdirAll(filepath.Join(root, "stub"), 0o755)
+	if err := os.WriteFile(filepath.Join(root, "stub", "go"), []byte("#!/bin/sh\necho 'ok  \tfix\t0.01s'\n"), 0o755); err != nil {
+		t.Fatal(err)
 	}
 }

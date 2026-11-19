@@ -761,8 +761,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				a.event("completion_check", map[string]any{"reason": reason})
 				continue
 			}
-			if retry, e := a.verifyAndMaybeRepair(ctx); e != nil {
-				return "failed", e
+			if retry, st, e := a.verifyAndMaybeRepair(ctx); e != nil {
+				if st == "" {
+					st = "failed"
+				}
+				return st, e
 			} else if retry {
 				continue // the failed check was handed back for one more attempt
 			}

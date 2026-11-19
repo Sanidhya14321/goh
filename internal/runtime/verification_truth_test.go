@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/testutil"
@@ -231,5 +232,120 @@ func TestAutoTitleUsesTypedPrompt(t *testing.T) {
 	a.Run(context.Background(), "summarize @secret.txt")
 	if titleInput == "" || strings.Contains(titleInput, "FILE-BODY-MARKER") {
 		t.Fatalf("title input %q", titleInput)
+	}
+}
+
+// Follow-up review P1: a command that only mentions a test runner, and a
+// test run that executed no tests, do not verify a change.
+func TestMentionsAndEmptyRunsAreNotChecks(t *testing.T) {
+	for cmd, want := range map[string]string{
+		`echo "now running go test ./..."`:     "",
+		`printf 'pytest -q\n'`:                 "",
+		`echo done && cd pkg && go test ./...`: "full",
+		`timeout 60 go test -run TestA ./x`:    "selected",
+		`uv run pytest -q`:                     "full",
+		`node_modules/.bin/jest`:               "full",
+		`grep -r "go test" Makefile`:           "",
+	} {
+		if got := testScope(cmd); got != want {
+			t.Errorf("testScope(%q) = %q want %q", cmd, got, want)
+		}
+	}
+	for out, want := range map[string]bool{
+		"?   \tex/p\t[no test files]\n":                          true,
+		"ok  \tex/p\t0.01s [no tests to run]\n":                  true,
+		"ok  \tex/p\t0.01s\n?   \tex/q\t[no test files]\n":       false,
+		"\n----\nRan 0 tests in 0.000s\n\nNO TESTS RAN\n":        true,
+		"collected 0 items\n\n==== no tests ran in 0.01s ====\n": true,
+		"Ran 3 tests in 0.01s\n\nOK\n":                           false,
+	} {
+		if got := ranNoTests(out); got != want {
+			t.Errorf("ranNoTests(%q) = %v want %v", out, got, want)
+		}
+	}
+	testutil.RequireUnixShell(t)
+	for name, command := range map[string]string{
+		"mention": `echo "running go test ./... now"`,
+		"empty":   `printf 'Ran 0 tests in 0.000s\n\nOK\n' >&2; ` + "PATH=./stub:$PATH go test ./...",
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, root := testAgent(t)
+			os.MkdirAll(filepath.Join(root, "stub"), 0o755)
+			os.WriteFile(filepath.Join(root, "stub", "go"), []byte("#!/bin/sh\necho '?   \tex/p\t[no test files]'\n"), 0o755)
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			a.Provider = scripted(
+				[]core.Call{toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})},
+				[]core.Call{toolCall("t", "shell", map[string]any{"command": command})},
+			)
+			a.Run(context.Background(), "go")
+			if got := lastFinished(t, a)["outcome"]; got != OutcomeUnverified {
+				t.Fatalf("outcome %v", got)
+			}
+		})
+	}
+}
+
+// Follow-up review P1: a configured check that changes the worktree passes
+// only for the revision it leaves, after re-checking it once.
+func TestVerifierThatChangesFiles(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for name, tc := range map[string]struct {
+		command, want string
+	}{
+		"keeps rewriting": {`date +%s%N >> stamp.txt`, OutcomeUnverified},
+		"formats once":    {`grep -q formatted w.txt || printf 'formatted\n' > w.txt`, OutcomeVerified},
+	} {
+		t.Run(name, func(t *testing.T) {
+			zero := 0
+			a, _ := testAgent(t)
+			a.Grants["create_file"] = true
+			a.Config.Verify = &core.VerifyConfig{Command: tc.command, RepairAttempts: &zero}
+			a.Provider = scripted([]core.Call{toolCall("c", "create_file", map[string]any{"path": "w.txt", "content": "raw\n"})})
+			a.Run(context.Background(), "go")
+			if got := lastFinished(t, a)["outcome"]; got != tc.want {
+				t.Fatalf("outcome %v want %v", got, tc.want)
+			}
+			if len(a.Store.Pending()) != 0 {
+				t.Fatal("settled verifier left pending")
+			}
+		})
+	}
+}
+
+// Follow-up review P1: an interrupted verifier is a pending effect: the run
+// ends without further model work and the next one needs acknowledgement.
+func TestInterruptedVerifierIsPending(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, root := testAgent(t)
+	a.Grants["create_file"] = true
+	a.Config.Verify = &core.VerifyConfig{Command: "touch started && sleep 30"}
+	modelCalls := 0
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		modelCalls++
+		if modelCalls == 1 {
+			return answer(toolCall("c", "create_file", map[string]any{"path": "w.txt", "content": "x\n"})), nil
+		}
+		return answer(), nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		for i := 0; i < 500; i++ {
+			if _, err := os.Stat(filepath.Join(root, "started")); err == nil {
+				cancel()
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
+	status, _ := a.Run(ctx, "go")
+	if status != "cancelled" || modelCalls != 2 {
+		t.Fatalf("status %s, model calls %d", status, modelCalls)
+	}
+	pending := a.Store.Pending()
+	if len(pending) != 1 || !strings.HasPrefix(pending[0], "verify_") {
+		t.Fatalf("pending %v", pending)
+	}
+	if st, err := a.Run(context.Background(), "again"); st != "failed" || err == nil || !strings.Contains(err.Error(), "acknowledge") || modelCalls != 2 {
+		t.Fatalf("next run admitted: %s %v", st, err)
 	}
 }

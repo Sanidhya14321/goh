@@ -119,7 +119,8 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		return
 	}
 	var out struct {
-		ExitCode *int `json:"exit_code"`
+		ExitCode *int   `json:"exit_code"`
+		Output   string `json:"output"`
 	}
 	if !(a.changedFiles || a.changeUnknown) || json.Unmarshal([]byte(r.Content), &out) != nil || out.ExitCode == nil || *out.ExitCode != 0 {
 		return
@@ -127,6 +128,9 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 	kind := checkKind(args.Command)
 	if kind == "" {
 		return // ran fine, but checked nothing
+	}
+	if kind == "test" && ranNoTests(out.Output) {
+		return // the runner found no tests: nothing was checked
 	}
 	a.verifiedAfterChange = true
 	scope := ""
@@ -287,15 +291,110 @@ var (
 )
 
 // testScope classifies a shell command: "selected" when it runs tests picked
-// by name, "full" when it runs a test suite, "" when it runs no tests.
+// by name, "full" when it runs a test suite, "" when it runs no tests. Only
+// the programs the command executes count (see programs), so text that
+// merely mentions a test command is not a test run.
 func testScope(command string) string {
-	if !testCommandRe.MatchString(command) {
-		return ""
+	scope := ""
+	for _, seg := range programs(command) {
+		if !startsWith(testCommandRe, seg) {
+			continue
+		}
+		if selectedTestRe.MatchString(" "+seg) || cargoNamedRe.MatchString(seg) {
+			if scope == "" {
+				scope = "selected"
+			}
+			continue
+		}
+		scope = "full"
 	}
-	if selectedTestRe.MatchString(" "+command) || cargoNamedRe.MatchString(command) {
-		return "selected"
+	return scope
+}
+
+// startsWith reports whether re matches seg at its start; the program is
+// matched by its base name, so ./gradlew and node_modules/.bin/jest count.
+func startsWith(re *regexp.Regexp, seg string) bool {
+	program, rest, _ := strings.Cut(seg, " ")
+	if i := strings.LastIndex(program, "/"); i >= 0 {
+		program = program[i+1:]
 	}
-	return "full"
+	seg = strings.TrimSpace(program + " " + rest)
+	loc := re.FindStringIndex(seg)
+	return loc != nil && loc[0] == 0
+}
+
+// nonPrograms only print, change directory or set state: their arguments
+// are text, never a check.
+var nonPrograms = map[string]bool{"echo": true, "printf": true, "cd": true, "pushd": true, "popd": true, "true": true, ":": true,
+	"export": true, "set": true, "unset": true, "sleep": true, "pwd": true, "ls": true, "cat": true, "tee": true, "head": true, "tail": true}
+
+// wrappers run the rest of their words as the program.
+var wrappers = map[string]int{"timeout": 1, "time": 0, "nice": 0, "env": 0, "npx": 0, "xvfb-run": 0, "command": 0, "exec": 0}
+
+// programs returns each simple command of a shell command line as the
+// program it runs with its arguments, after environment assignments and
+// wrappers (timeout 60, npx, uv run, poetry run…), skipping commands that
+// only print or move around. An unparseable command yields nothing, so it
+// is never counted as a check.
+func programs(command string) []string {
+	var out []string
+	for _, words := range splitShell(strings.TrimSpace(command)) {
+		for {
+			for len(words) > 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "=") && !strings.HasPrefix(words[0], "-") {
+				words = words[1:] // FOO=1 cmd
+			}
+			if len(words) == 0 {
+				break
+			}
+			if skip, ok := wrappers[words[0]]; ok {
+				words = words[1:]
+				for len(words) > 0 && strings.HasPrefix(words[0], "-") {
+					words = words[1:] // wrapper options (timeout -s KILL)
+				}
+				if skip > 0 && len(words) > 0 {
+					words = words[skip:]
+				}
+				continue
+			}
+			if len(words) >= 2 && (words[0] == "uv" || words[0] == "poetry" || words[0] == "pipenv" || words[0] == "pdm" || words[0] == "hatch") && words[1] == "run" {
+				words = words[2:]
+				continue
+			}
+			if len(words) >= 2 && words[0] == "bundle" && words[1] == "exec" {
+				words = words[2:]
+				continue
+			}
+			break
+		}
+		if len(words) == 0 || nonPrograms[words[0]] {
+			continue
+		}
+		out = append(out, strings.Join(words, " "))
+	}
+	return out
+}
+
+// zeroTestsRe finds a test runner's report that it ran no tests.
+var zeroTestsRe = regexp.MustCompile(`(?m)(^Ran 0 tests\b|\bno tests ran\b|\bcollected 0 items\b|^No tests found|\brunning 0 tests\b|\[no tests to run\]|\[no test files\])`)
+
+// goPassedRe is a Go package that ran tests and passed.
+var goPassedRe = regexp.MustCompile(`(?m)^ok\s+\S+\s+[\d.]+s(\s|$)`)
+
+// ranNoTests reports whether a test command's output says it executed no
+// tests: such a run passes without checking anything. Go output counts as
+// a run when any package passed with tests (not "[no tests to run]").
+func ranNoTests(output string) bool {
+	if !zeroTestsRe.MatchString(output) {
+		return false
+	}
+	if goPassedRe.MatchString(output) {
+		for _, line := range strings.Split(output, "\n") {
+			if goPassedRe.MatchString(line) && !strings.Contains(line, "[no tests to run]") {
+				return false // some package really ran tests
+			}
+		}
+	}
+	return true
 }
 
 // completionCheck returns the reminder to send and the reason recorded with it.
@@ -324,29 +423,23 @@ var (
 // It returns "" for commands that only inspect the project (pwd, ls, cat,
 // git status, echo), which prove nothing about a change.
 func checkKind(command string) string {
-	command = strings.TrimSpace(command)
-	if command == "" {
-		return ""
-	}
+	segs := programs(command)
 	if testScope(command) != "" {
 		return "test"
 	}
-	if buildCheckRe.MatchString(command) {
-		return "build"
-	}
-	if runCheckRe.MatchString(command) {
-		return "run"
-	}
-	segments := splitShell(command)
-	for _, words := range segments {
-		for len(words) > 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "=") {
-			words = words[1:] // FOO=1 cmd
+	for _, seg := range segs {
+		if startsWith(buildCheckRe, seg) {
+			return "build"
 		}
-		if len(words) == 0 {
-			continue
+	}
+	for _, seg := range segs {
+		if startsWith(runCheckRe, seg) {
+			return "run"
 		}
-		name := words[0]
-		args := words[1:]
+	}
+	for _, seg := range segs {
+		words := strings.Fields(seg)
+		name, args := words[0], words[1:]
 		switch {
 		case assertCheckRe.MatchString(name):
 			return "assert"

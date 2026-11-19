@@ -315,7 +315,13 @@ and, additively, `verification_detail`: `change_tracking` (`known`, or `unknown`
 is too large or unreadable to fingerprint; the configured verifier then runs after any command
 that may write) and `evidence` (the check behind the outcome: `source` `shell` or `configured`,
 `command`, `kind` `test`/`build`/`assert`/`run`/`custom`, `scope`, `passed`, `exit_code`,
-`revision`). Only a recognized check counts as verification; `pwd`, `ls` or `git status` do not.
+`revision`). Only a recognized check counts as verification: a test runner, build, lint or type
+check, an explicit assertion, or running the program, judged by the program each part of the
+command runs (so `echo "go test"` is not a test), and a test run whose output says it ran no tests
+does not count. `pwd`, `ls` or `git status` do not. The configured verifier runs as a journaled
+effect: if it is interrupted or its cleanup is uncertain, the run stops and the next one needs
+`--acknowledge-uncertain`. A verifier that changes files is run once more on its own result; if it
+changes files again, the outcome is `unverified`.
 
 ---
 
