@@ -38,7 +38,7 @@ them. No manual Windows session has been run.
 | Credentials | One ChatGPT account at a time; Claude Pro/Max sign-in not offered | Anthropic does not permit subscription sign-in for third-party tools; use a Console API key |
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
-| Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; verified with fixtures and macOS only, no native Linux run yet |
+| Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
 | Benchmark | The 19 container tasks have not passed the stricter dry run; no task lists `gold_files`; no private holdout exists; the research experiments have no live result | Docker daemon was offline; holdout and gold annotations still to write; live arms need model quota ([experiments](../benchmarks/experiments.md)) |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
