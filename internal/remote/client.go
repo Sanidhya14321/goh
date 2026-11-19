@@ -235,6 +235,11 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 	setRunID(resp.Header.Get("X-Harness-Run-ID"))
 
 	status, finalErr := "failed", errors.New("the server ended the run without a result")
+	// inputErr is a reply the server refused (a run already cancelled no
+	// longer accepts it); the stream's own terminal event still decides
+	// how the run ended.
+	var inputErr error
+	terminal := false
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64<<10), 16<<20)
 	for scanner.Scan() {
@@ -252,9 +257,7 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 		switch {
 		case frame.Event != nil:
 			e := normalize(*frame.Event)
-			if runID == "" {
-				runID = e.RunID
-			}
+			setRunID(e.RunID)
 			if e.Type == "run_finished" {
 				var d struct {
 					Status string `json:"status"`
@@ -262,7 +265,7 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 				}
 				b, _ := json.Marshal(e.Data)
 				_ = json.Unmarshal(b, &d)
-				status, finalErr = d.Status, nil
+				status, finalErr, terminal = d.Status, nil, true
 				if d.Error != "" {
 					finalErr = errors.New(oneLine(d.Error))
 				}
@@ -275,9 +278,9 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 			if err != nil {
 				return "failed", err
 			}
-			path := "/v1/runs/" + url.PathEscape(runID) + "/inputs/" + url.PathEscape(frame.Input.ID)
+			path := "/v1/runs/" + url.PathEscape(currentRunID()) + "/inputs/" + url.PathEscape(frame.Input.ID)
 			if err := c.call(context.Background(), http.MethodPost, path, reply, nil, http.StatusNoContent); err != nil {
-				return "failed", err
+				inputErr = err // keep reading: the terminal event follows
 			}
 		}
 	}
@@ -286,6 +289,12 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 			return "cancelled", nil // the stream was dropped to cancel
 		}
 		return "failed", fmt.Errorf("lost the server stream: %w", err)
+	}
+	if !terminal && inputErr != nil {
+		if ctx.Err() != nil {
+			return "cancelled", nil
+		}
+		return "failed", inputErr
 	}
 	if status == "" {
 		status = "failed"

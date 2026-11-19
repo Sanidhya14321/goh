@@ -19,15 +19,18 @@ func (a *Agent) maybeAutoTitle(ctx context.Context) {
 	if !a.Config.AutoTitle || a.depth > 0 || a.Config.SessionDir == "" || ctx.Err() != nil {
 		return
 	}
-	first, users := "", 0
+	if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+		return // the run's token allowance is spent; a title is optional
+	}
+	users := 0
 	for _, m := range a.History {
-		if m.Role == "user" {
+		if m.Role == "user" && !m.Automatic {
 			users++
-			if users == 1 {
-				first = m.Content
-			}
 		}
 	}
+	// The title reads only what the user typed, never text added by @file
+	// or @agent expansion or by a custom command template.
+	first := a.titleSource
 	if users != 1 || strings.TrimSpace(first) == "" {
 		return
 	}

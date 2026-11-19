@@ -95,12 +95,13 @@ func runAttach(args []string) error {
 		a.Remote = func(ctx context.Context, prompt string) (string, error) {
 			// Handlers are read at call time: the UI installs its own.
 			status, err := client.Run(ctx, id, prompt, acknowledged.take(id), remote.Handlers{Emit: a.Emit, Approve: a.Approve, Ask: a.Ask})
-			if errors.Is(err, remote.ErrUncertain) {
-				return status, err
-			}
-			reloadAttached(a, info, id)
 			return status, err
 		}
+		// The server wrote the run to its journal; the view reloads it on the
+		// interface's own event loop (never from this worker, which would
+		// replace the store while the screen reads it).
+		sessionForView := id
+		a.RemoteRefresh = func() { reloadAttached(a, info, sessionForView) }
 		tui.Version = version
 		err = tui.Run(a, notice, draft)
 		var nav *tui.ChatNavigation
@@ -110,8 +111,11 @@ func runAttach(args []string) error {
 		notice, draft = "", nav.Draft
 		switch nav.Action {
 		case "new":
-			if id, err = client.Create(ctx); err != nil {
-				notice = err.Error()
+			// A failed create keeps the current session (and the draft).
+			if created, err := client.Create(ctx); err != nil {
+				notice = "Could not create a session on the server: " + err.Error()
+			} else {
+				id = created
 			}
 		case "sessions":
 			list, err := client.Sessions(ctx)
@@ -124,6 +128,13 @@ func runAttach(args []string) error {
 				notice = err.Error()
 			} else if chosen && selected != "" {
 				id = selected
+			} else if chosen {
+				// The picker's new-session row.
+				if created, err := client.Create(ctx); err != nil {
+					notice = "Could not create a session on the server: " + err.Error()
+				} else {
+					id = created
+				}
 			}
 		default:
 			notice = fmt.Sprintf("/%s is not available while attached; the server's configuration and history are managed on the server.", nav.Action)

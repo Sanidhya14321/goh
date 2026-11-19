@@ -265,7 +265,11 @@ func (m *chooser) View() tea.View {
 					if summary.Limited {
 						preview = append(preview, "Limited preview · first 64 KiB")
 					}
-					preview = append(preview, summary.Modified.Local().Format("02 Jan 15:04"), summary.Status)
+					status := summary.Status
+					if label := (&runResult{Status: summary.Status, Outcome: summary.Outcome}).label(); summary.Outcome != "" && label != "" {
+						status = "Last run: " + label
+					}
+					preview = append(preview, summary.Modified.Local().Format("02 Jan 15:04"), status)
 					if strings.TrimSpace(summary.User) == "" && strings.TrimSpace(summary.Assistant) == "" {
 						preview = append(preview, "", "No messages yet.")
 					} else {

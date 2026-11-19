@@ -302,7 +302,16 @@ goh doctor
 - `--profile` and `--agent` select a profile and agent per invocation.
 
 Exit codes: `0` completed, `1` error, `3` needs permission, `4` needs input, `5` budget exhausted,
+`6` the configured `verify.command` still failed after the allowed repair attempts (the run
+completed; text mode prints `Verification failed: …`, JSON has `outcome: failed_verification`),
 `130` cancelled.
+
+`run_finished` carries `outcome` (`verified`, `unverified`, `no_changes`, `failed_verification`)
+and, additively, `verification_detail`: `change_tracking` (`known`, or `unknown` when the project
+is too large or unreadable to fingerprint; the configured verifier then runs after any command
+that may write) and `evidence` (the check behind the outcome: `source` `shell` or `configured`,
+`command`, `kind` `test`/`build`/`assert`/`run`/`custom`, `scope`, `passed`, `exit_code`,
+`revision`). Only a recognized check counts as verification; `pwd`, `ls` or `git status` do not.
 
 ---
 

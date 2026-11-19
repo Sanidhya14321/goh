@@ -66,16 +66,30 @@ type Agent struct {
 	// Remote, when set, runs prompts on a GoHarness server instead of in
 	// this process (`goh attach`). Its events and input requests still go
 	// through Emit, Approve and Ask; local-only operations are refused.
-	Remote  func(ctx context.Context, prompt string) (status string, err error)
-	Emit    func(core.Event)
-	Approve func(context.Context, core.Permission) (core.Decision, error)
-	Ask     func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
-	Grants  map[string]bool
-	Todos   []core.Todo
-	History []core.Message
-	seq     int
+	Remote func(ctx context.Context, prompt string) (status string, err error)
+	// RemoteRefresh, when set, reloads the attached view of the server's
+	// session. Interfaces call it on their own event loop after a remote
+	// run ends, so the view is never replaced while it is being read.
+	RemoteRefresh func()
+	Emit          func(core.Event)
+	Approve       func(context.Context, core.Permission) (core.Decision, error)
+	Ask           func(context.Context, core.QuestionRequest) (core.QuestionReply, error)
+	Grants        map[string]bool
+	Todos         []core.Todo
+	History       []core.Message
+	seq           int
 	// changedFiles and verifiedAfterChange track this run's outcome.
 	changedFiles, verifiedAfterChange bool
+	// changeUnknown is set when a command that may write ran while the
+	// project could not be fingerprinted.
+	changeUnknown bool
+	// evidence is the check behind the current outcome (nil when none).
+	evidence *Evidence
+	// operation is "run", "user_shell" or "compact" for the current call.
+	operation string
+	// titleSource is the user's prompt as typed, before command, @file and
+	// @agent expansion; auto-title reads only this.
+	titleSource string
 	// fingerprint is the project state after the last known change, used to
 	// notice files changed by shell commands and background jobs.
 	fingerprint string
@@ -537,12 +551,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	status = "failed"
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
-	a.changedFiles, a.verifiedAfterChange = false, false
-	var fingerprinted bool
-	a.fingerprint, fingerprinted = a.Tools.Fingerprint()
-	a.noFingerprint = !fingerprinted
-	a.toolCalls, a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, 0, false, false, false
-	a.narrowTestPassed, a.fullTestPassed = false, false
+	a.operation, a.titleSource = "run", prompt
+	a.resetOutcome(true)
+	a.toolCalls = 0
 	a.runTokens, a.capAdapts = 0, 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
@@ -1394,12 +1405,18 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 			err = fmt.Errorf("run stopped at the max_run_seconds limit (%ds); effects of interrupted tools are uncertain", a.Config.MaxRunSeconds)
 		}
 	}
-	if status == "completed" && err == nil {
+	if status == "completed" && err == nil && a.operation == "run" {
+		// Optional model work: only for model runs (a typed !command and a
+		// compaction stay local), bounded, and skipped when it cannot fit.
 		a.maybeAutoTitle(ctx)
 	}
-	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds()}
-	if status == "completed" {
+	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds(), "run_id": a.runID}
+	if a.operation != "" {
+		d["operation"] = a.operation
+	}
+	if status == "completed" || a.verifyFailed {
 		d["outcome"] = a.outcome()
+		d["verification_detail"] = a.outcomeDetail()
 	}
 	if err != nil {
 		d["error"] = err.Error()
@@ -1411,9 +1428,14 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		d["status"] = status
 		d["error"] = e.Error()
 	}
-	a.recordProjectSnapshot(context.Background(), "end")
+	snapCtx, cancelSnap := context.WithTimeout(context.Background(), 30*time.Second)
+	a.recordProjectSnapshot(snapCtx, "end")
+	cancelSnap()
+	// Notification hooks see the settled result; they run before the
+	// public terminal event so run_finished is the last event of the run,
+	// and their failures never change it.
+	a.runFinishedHooks(d)
 	a.event("run_finished", d)
-	a.runFinishedHooks(status, err)
 	return status, err
 }
 

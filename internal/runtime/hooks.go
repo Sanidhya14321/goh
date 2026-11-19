@@ -165,14 +165,16 @@ func (a *Agent) postToolHooks(ctx context.Context, c core.Call, res tools.Result
 }
 
 // runFinishedHooks notifies hooks that a run ended; they cannot change it.
-func (a *Agent) runFinishedHooks(status string, err error) {
+func (a *Agent) runFinishedHooks(settled map[string]any) {
 	hooks := a.matchingHooks("run_finished", "")
 	if len(hooks) == 0 {
 		return
 	}
-	payload := map[string]any{"status": status}
-	if err != nil {
-		payload["error"] = err.Error()
+	payload := map[string]any{}
+	for _, k := range []string{"status", "error", "outcome", "verification_detail", "operation"} {
+		if v, ok := settled[k]; ok {
+			payload[k] = v
+		}
 	}
 	for _, h := range hooks {
 		// Not tied to the run's context: a cancelled run still notifies.

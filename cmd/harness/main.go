@@ -123,6 +123,40 @@ type exitError struct {
 }
 
 func (e *exitError) Error() string { return e.status }
+
+// exitFailedVerification is the exit code of a headless run whose configured
+// verify command still failed after the allowed repair attempts.
+const exitFailedVerification = 6
+
+// verificationFailureText describes a failed configured check from a
+// run_finished record, or returns "" when the check did not fail.
+func verificationFailureText(d map[string]any) string {
+	if d["outcome"] != agent.OutcomeFailedVerification {
+		return ""
+	}
+	detail, _ := d["verification_detail"].(map[string]any)
+	cmd, code := "", ""
+	switch ev := detail["evidence"].(type) {
+	case *agent.Evidence:
+		cmd = ev.Command
+		if ev.ExitCode != nil {
+			code = fmt.Sprint(*ev.ExitCode)
+		}
+	case map[string]any:
+		cmd = fmt.Sprint(ev["command"])
+		if v, ok := ev["exit_code"]; ok {
+			code = fmt.Sprint(v)
+		}
+	}
+	line := "Verification failed"
+	if cmd != "" {
+		line += ": " + tui.Safe(cmd)
+	}
+	if code != "" {
+		line += " (exit " + code + ")"
+	}
+	return line + ". The changes were kept; inspect them before relying on this run."
+}
 func run(args []string) error {
 	if len(args) == 0 {
 		return chatFirst([]string{"chat"})
@@ -357,19 +391,26 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if e != nil {
 		return e
 	}
-	if *selectedSession != "" {
-		// A resumed session runs in its own project: project agents and
-		// --file attachments come from there, and a different --project is
-		// refused rather than mixed in.
+	projectSet := false
+	f.Visit(func(v *flag.Flag) { projectSet = projectSet || v.Name == "project" })
+	// boundSession is the session named on the command line, as --session or
+	// as the positional ID of resume and compact.
+	boundSession := *selectedSession
+	if boundSession == "" {
+		boundSession = resumeID
+	}
+	if boundSession != "" {
+		// A resumed session runs in its own project: project agents, guidance
+		// and --file attachments come from there, and a different --project
+		// is refused rather than mixed in. This happens before anything is
+		// read from a project.
 		dir := c.SessionDir
 		if *sessionDir != "" {
 			dir = *sessionDir
 		}
-		if sessionProject, err := session.ProjectOf(dir, *selectedSession); err == nil {
-			projectSet := false
-			f.Visit(func(v *flag.Flag) { projectSet = projectSet || v.Name == "project" })
+		if sessionProject, err := session.ProjectOf(dir, boundSession); err == nil {
 			if projectSet && !sameDir(*project, sessionProject) {
-				return fmt.Errorf("session %s belongs to project %s, not --project %s", *selectedSession, sessionProject, *project)
+				return fmt.Errorf("session %s belongs to project %s, not --project %s", boundSession, sessionProject, *project)
 			}
 			*project = sessionProject
 		}
@@ -550,6 +591,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 		return e
 	}
 	defer store.Close()
+	if resumeID != "" && projectSet && !sameDir(*project, store.Project) {
+		// Checked again on the opened (locked) journal: its recorded project
+		// is the one that counts.
+		return fmt.Errorf("session %s belongs to project %s, not --project %s", resumeID, store.Project, *project)
+	}
 	if t := session.CleanTitle(*title); t != "" {
 		if e := session.SetTitle(c.SessionDir, store.ID, t); e != nil {
 			return e
@@ -611,7 +657,14 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	var emitErr error
 	var pendingPermission *core.Permission
 	shownTools := map[string]bool{}
+	// finished is this run's terminal record, read for the exit code.
+	var finished map[string]any
 	a.Emit = func(e core.Event) {
+		if e.Type == "run_finished" && e.RunID != "" {
+			if d, ok := e.Data.(map[string]any); ok {
+				finished = d
+			}
+		}
 		if *format == "json" {
 			if emitErr == nil {
 				emitErr = enc.Encode(e)
@@ -690,6 +743,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				if d, ok := e.Data.(map[string]any); ok && d["outcome"] == agent.OutcomeUnverified {
 					fmt.Fprintln(os.Stderr, "Note: files were changed but no check (test or build command) succeeded afterwards.")
 				}
+				if d, ok := e.Data.(map[string]any); ok {
+					if line := verificationFailureText(d); line != "" {
+						fmt.Fprintln(os.Stderr, line)
+					}
+				}
 			}
 		}
 	}
@@ -703,6 +761,11 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if emitErr != nil {
 		return emitErr
+	}
+	if e == nil && finished != nil && finished["outcome"] == agent.OutcomeFailedVerification {
+		// The run ended normally but the configured check still fails after
+		// the repair allowance: automation must not treat it as success.
+		return &exitError{code: exitFailedVerification, status: "failed_verification: " + verificationFailureText(finished)}
 	}
 	if e != nil {
 		code := 1

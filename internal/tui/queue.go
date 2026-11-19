@@ -41,11 +41,7 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "up":
 		// Take back the newest queued prompt to edit it or delete it.
 		if strings.TrimSpace(m.input) == "" && len(m.queue) > 0 {
-			last := m.queue[len(m.queue)-1]
-			m.queue = m.queue[:len(m.queue)-1]
-			m.input, m.inputCursor = last, len([]rune(last))
-			m.status = "Queued prompt returned to the composer"
-			m.log += "\n[unqueued] " + Safe(firstLine(strings.TrimSpace(last))) + "\n"
+			m.unqueueLast()
 		}
 	case "alt+enter", "shift+enter", "ctrl+j":
 		m.insertInput("\n")
@@ -105,18 +101,45 @@ func (m *model) afterRun(done doneMsg) tea.Cmd {
 	if len(m.queue) == 0 {
 		return nil
 	}
-	if done.status == "completed" && done.err == nil {
+	if reason := m.holdReason(done); reason == "" {
+		m.queueHeld = ""
 		return func() tea.Msg { return queuedSubmitMsg{} }
+	} else {
+		// Nothing is sent without the user seeing why the run stopped. The
+		// prompts stay queued, each on its own, and the draft is untouched.
+		m.queueHeld = reason
+		m.log += fmt.Sprintf("\n[%d queued prompt(s) held because %s. Enter on an empty composer sends the next; ↑ takes the newest back to edit]\n", len(m.queue), reason)
 	}
-	held := strings.Join(m.queue, "\n\n")
-	if strings.TrimSpace(m.input) != "" {
-		held += "\n\n" + m.input
-	}
-	m.queue = nil
-	m.input, m.inputCursor = "", 0
-	m.insertInput(held)
-	m.log += "\n[queued prompts returned to the composer because the run ended with status " + Safe(done.status) + "]\n"
 	return nil
+}
+
+// holdReason says why queued prompts must wait after a run, or "" when the
+// run settled successfully and the next one may be sent. It reads the run's
+// own terminal result first and the transport status second.
+func (m *model) holdReason(done doneMsg) string {
+	status := done.status
+	if m.lastRun != nil {
+		status = m.lastRun.Status
+	}
+	switch {
+	case m.lastRun.failedVerification():
+		return "the configured verification failed"
+	case done.err != nil || status != "completed":
+		return "the run ended with status " + Safe(status)
+	}
+	return ""
+}
+
+// unqueueLast moves the newest queued prompt back into the empty composer.
+func (m *model) unqueueLast() {
+	last := m.queue[len(m.queue)-1]
+	m.queue = m.queue[:len(m.queue)-1]
+	m.input, m.inputCursor = last, len([]rune(last))
+	m.status = "Queued prompt returned to the composer"
+	m.log += "\n[unqueued] " + Safe(firstLine(strings.TrimSpace(last))) + "\n"
+	if len(m.queue) == 0 {
+		m.queueHeld = ""
+	}
 }
 
 // submitQueued sends the next queued prompt through the normal Enter path,

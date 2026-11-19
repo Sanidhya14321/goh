@@ -158,7 +158,7 @@ func TestCompletionCheckTestDouble(t *testing.T) {
 					os.MkdirAll(filepath.Join(root, filepath.Dir(tc.path)), 0o755)
 					return answer(toolCall("c", "create_file", map[string]any{"path": tc.path, "content": tc.content})), nil
 				case 2:
-					return answer(toolCall("t", "shell", map[string]any{"command": "true"})), nil
+					return answer(toolCall("t", "shell", map[string]any{"command": "test -f " + tc.path})), nil
 				}
 				return answer(), nil
 			})

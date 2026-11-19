@@ -21,38 +21,74 @@ const OutcomeFailedVerification = "failed_verification"
 // inside the sandbox when that is enabled.
 func (a *Agent) verifyAndMaybeRepair(ctx context.Context) (retry bool, err error) {
 	v := a.Config.Verify
-	if v == nil || !a.changedFiles || a.depth > 0 || a.isPlan() {
+	if v == nil || !a.mayHaveChanged() || a.depth > 0 || a.isPlan() {
 		return false, nil
 	}
 	timeout := v.Timeout
 	if timeout == 0 {
 		timeout = 300
 	}
+	allowed := 1
+	if v.RepairAttempts != nil {
+		allowed = *v.RepairAttempts
+	}
+	// The verifier is an effect like any command: its start is journaled
+	// first, so an interruption leaves a record of what was running.
+	startRec := map[string]any{"command": v.Command, "repair_attempt": a.repairsUsed, "repair_allowance": allowed, "change_tracking": a.outcomeDetail()["change_tracking"]}
+	if e := a.Store.Append("verification_started", startRec); e != nil {
+		return false, e
+	}
+	a.event("verification_started", startRec)
 	args, _ := json.Marshal(map[string]any{"command": v.Command, "timeout_seconds": timeout})
 	res := a.Tools.Execute(ctx, "shell", args)
 	var out struct {
 		ExitCode   *int   `json:"exit_code"`
 		Output     string `json:"output"`
 		ArtifactID string `json:"artifact_id"`
+		Status     string `json:"status"`
 	}
 	_ = json.Unmarshal([]byte(res.Content), &out)
 	passed := !res.Error && out.ExitCode != nil && *out.ExitCode == 0
-	record := map[string]any{"command": v.Command, "passed": passed, "repair_attempt": a.repairsUsed, "artifact_id": out.ArtifactID}
+	// The evidence names the revision the check left behind; a check that
+	// rewrote files (a formatter, say) is reported as having done so.
+	worktreeChanged := false
+	revision := ""
+	if !a.noFingerprint && a.Tools != nil {
+		if now, ok := a.Tools.Fingerprint(); ok {
+			worktreeChanged = a.fingerprint != "" && now != a.fingerprint
+			a.fingerprint, revision = now, now
+		} else {
+			a.noFingerprint, a.changeUnknown = true, true
+		}
+	}
+	record := map[string]any{"command": v.Command, "passed": passed, "repair_attempt": a.repairsUsed, "repair_allowance": allowed, "artifact_id": out.ArtifactID}
 	if out.ExitCode != nil {
 		record["exit_code"] = *out.ExitCode
+	}
+	if out.Status != "" {
+		record["status"] = out.Status
+	}
+	if worktreeChanged {
+		record["worktree_changed"] = true
+	}
+	if revision != "" {
+		record["revision"] = revision
 	}
 	if e := a.Store.Append("verification", record); e != nil {
 		return false, e
 	}
 	a.event("verification", record)
+	a.evidence = &Evidence{Source: "configured", Command: v.Command, Kind: "custom", Passed: passed, ExitCode: out.ExitCode, Revision: revision, RepairAttempt: a.repairsUsed, ArtifactID: out.ArtifactID}
+	if worktreeChanged {
+		a.changedFiles = true
+	}
 	if passed {
 		a.verifiedAfterChange, a.verifyFailed = true, false
 		return false, nil
 	}
 	a.verifiedAfterChange = false
-	allowed := 1
-	if v.RepairAttempts != nil {
-		allowed = *v.RepairAttempts
+	if ctx.Err() != nil {
+		return false, nil // interrupted: the run ends as cancelled, not as a failed check
 	}
 	if a.repairsUsed >= allowed {
 		a.verifyFailed = true

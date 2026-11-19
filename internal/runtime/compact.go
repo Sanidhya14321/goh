@@ -26,6 +26,9 @@ func (a *Agent) CompactWith(ctx context.Context, focus string) (string, error) {
 func (a *Agent) Compact(ctx context.Context) (status string, err error) {
 	a.seq = 0
 	a.runID = ID()
+	a.operation, a.titleSource = "compact", ""
+	a.resetOutcome(false)
+	a.noFingerprint = false // a compaction runs no commands
 	status = "failed"
 	started := time.Now()
 	a.event("run_started", map[string]any{"operation": "compact", "model": a.Config.Model, "project": a.Store.Project})

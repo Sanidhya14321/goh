@@ -14,50 +14,129 @@ import (
 // stopped; the outcome says whether its file changes were checked.
 const (
 	OutcomeNoChanges  = "no_changes" // no file was changed
-	OutcomeVerified   = "verified"   // a shell command succeeded after the last change
+	OutcomeVerified   = "verified"   // a recognized check succeeded after the last change
 	OutcomeUnverified = "unverified" // files changed and nothing checked them afterwards
+)
+
+// Change tracking states reported with a run's verification detail.
+const (
+	TrackingKnown   = "known"   // the project fingerprint covered every change
+	TrackingUnknown = "unknown" // the project could not be fingerprinted (too large or unreadable)
 )
 
 var fileChangeTools = map[string]bool{"create_file": true, "write_file": true, "edit_file": true, "apply_patch": true}
 
-// trackOutcome updates the run outcome from a finished tool call. This is a
-// heuristic: any successful shell command after the last edit counts as a
-// check, whatever it ran.
-func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
-	if r.Error {
-		return
+// effectTools can change files outside the edit tools: shell commands, child
+// agents and background jobs. After each, the project is compared with its
+// last known state.
+var effectTools = map[string]bool{"shell": true, "task": true, "job_start": true, "job_stop": true, "job_output": true}
+
+// Evidence is the check that last established a run's verification outcome.
+// It is reported in run_finished (as "verification") so a consumer can tell
+// what was checked: a recognized test or build command the model ran, or the
+// user's configured verify command.
+type Evidence struct {
+	Source   string `json:"source"`          // "shell" (model ran it) or "configured" (verify.command)
+	Command  string `json:"command"`         // the command that ran
+	Kind     string `json:"kind"`            // test, build, assert, run or custom
+	Scope    string `json:"scope,omitempty"` // for tests: selected or full
+	Passed   bool   `json:"passed"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+	// Revision is the project fingerprint the check saw; empty when the
+	// change tracking is unknown.
+	Revision string `json:"revision,omitempty"`
+	// RepairAttempt is the number of repairs used before this check
+	// (configured checks only).
+	RepairAttempt int    `json:"repair_attempt,omitempty"`
+	ArtifactID    string `json:"artifact_id,omitempty"`
+}
+
+// resetOutcome clears the per-operation verification state. Every Run,
+// RunShell and Compact starts from it, so an operation never reports a
+// result left by an earlier one.
+func (a *Agent) resetOutcome(fingerprint bool) {
+	a.changedFiles, a.verifiedAfterChange, a.changeUnknown = false, false, false
+	a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, false, false, false
+	a.narrowTestPassed, a.fullTestPassed = false, false
+	a.evidence = nil
+	var fingerprinted bool
+	a.fingerprint, fingerprinted = "", false
+	if a.Tools != nil && fingerprint {
+		a.fingerprint, fingerprinted = a.Tools.Fingerprint()
 	}
-	switch {
-	case fileChangeTools[c.Function.Name]:
-		a.changedFiles, a.verifiedAfterChange = true, false
-		a.narrowTestPassed, a.fullTestPassed = false, false
+	a.noFingerprint = !fingerprinted
+}
+
+// markChanged records a file change: earlier checks no longer cover the
+// project.
+func (a *Agent) markChanged() {
+	a.changedFiles, a.verifiedAfterChange = true, false
+	a.narrowTestPassed, a.fullTestPassed = false, false
+	a.evidence = nil
+}
+
+// trackOutcome updates the run outcome from a finished tool call. Only a
+// recognized check (a test runner, a build, lint or type check, an explicit
+// assertion such as test or diff, or running the program) counts as
+// verification; inspecting the project (pwd, ls, git status) does not.
+func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
+	if fileChangeTools[c.Function.Name] {
+		if r.Error {
+			return
+		}
+		a.markChanged()
 		if writesTestDouble(c) {
 			a.wroteTestDouble = true
 		}
 		if !a.noFingerprint {
 			a.fingerprint, _ = a.Tools.Fingerprint()
 		}
-	case c.Function.Name == "shell":
-		if a.noticeUntrackedChanges() {
-			return // the command changed files, so it did not check them
+		return
+	}
+	if !effectTools[c.Function.Name] {
+		return
+	}
+	var args struct {
+		Command string `json:"command"`
+	}
+	_ = json.Unmarshal([]byte(c.Function.Arguments), &args)
+	if a.noFingerprint {
+		// Changes cannot be detected, so any command that may write leaves
+		// the coverage unknown, and later checks still run.
+		if c.Function.Name != "shell" || (!readOnlyCommand(args.Command) && checkKind(args.Command) == "") {
+			a.changeUnknown = true
+			a.verifiedAfterChange = false
+			a.evidence = nil
 		}
-		var out struct {
-			ExitCode *int `json:"exit_code"`
-		}
-		if a.changedFiles && json.Unmarshal([]byte(r.Content), &out) == nil && out.ExitCode != nil && *out.ExitCode == 0 {
-			a.verifiedAfterChange = true
-			var args struct {
-				Command string `json:"command"`
-			}
-			_ = json.Unmarshal([]byte(c.Function.Arguments), &args)
-			switch testScope(args.Command) {
-			case "selected":
-				a.narrowTestPassed = true
-			case "full":
-				a.fullTestPassed = true
-			}
+	} else if a.noticeUntrackedChanges() {
+		return // the command changed files, so it did not check them
+	}
+	if c.Function.Name != "shell" || r.Error {
+		return
+	}
+	var out struct {
+		ExitCode *int `json:"exit_code"`
+	}
+	if !(a.changedFiles || a.changeUnknown) || json.Unmarshal([]byte(r.Content), &out) != nil || out.ExitCode == nil || *out.ExitCode != 0 {
+		return
+	}
+	kind := checkKind(args.Command)
+	if kind == "" {
+		return // ran fine, but checked nothing
+	}
+	a.verifiedAfterChange = true
+	scope := ""
+	if kind == "test" {
+		scope = testScope(args.Command)
+		switch scope {
+		case "selected":
+			a.narrowTestPassed = true
+		case "full":
+			a.fullTestPassed = true
 		}
 	}
+	code := 0
+	a.evidence = &Evidence{Source: "shell", Command: truncateRunes(args.Command, 500), Kind: kind, Scope: scope, Passed: true, ExitCode: &code, Revision: a.fingerprint}
 }
 
 // noticeUntrackedChanges compares the project with the state after the last
@@ -69,28 +148,51 @@ func (a *Agent) noticeUntrackedChanges() bool {
 		return false
 	}
 	now, ok := a.Tools.Fingerprint()
-	if !ok || a.fingerprint == "" || now == a.fingerprint {
-		if ok && a.fingerprint == "" {
+	if !ok {
+		// The project became unreadable or too large during the run.
+		a.noFingerprint, a.changeUnknown = true, true
+		a.verifiedAfterChange, a.evidence = false, nil
+		return true
+	}
+	if a.fingerprint == "" || now == a.fingerprint {
+		if a.fingerprint == "" {
 			a.fingerprint = now
 		}
 		return false
 	}
 	a.fingerprint = now
-	a.changedFiles, a.verifiedAfterChange = true, false
-	a.narrowTestPassed, a.fullTestPassed = false, false
+	a.markChanged()
 	return true
 }
+
+// mayHaveChanged reports whether the configured verifier must run: files
+// changed, or a command that may have changed them ran while changes could
+// not be tracked.
+func (a *Agent) mayHaveChanged() bool { return a.changedFiles || a.changeUnknown }
 
 func (a *Agent) outcome() string {
 	switch {
 	case a.verifyFailed:
 		return OutcomeFailedVerification
-	case !a.changedFiles:
+	case !a.mayHaveChanged():
 		return OutcomeNoChanges
 	case a.verifiedAfterChange:
 		return OutcomeVerified
 	}
 	return OutcomeUnverified
+}
+
+// outcomeDetail is the additive verification detail recorded beside the
+// outcome in run_finished.
+func (a *Agent) outcomeDetail() map[string]any {
+	d := map[string]any{"change_tracking": TrackingKnown}
+	if a.noFingerprint {
+		d["change_tracking"] = TrackingUnknown
+	}
+	if a.evidence != nil {
+		d["evidence"] = a.evidence
+	}
+	return d
 }
 
 // testDoubleRe finds a stand-in the model defines for code it did not write.
@@ -201,4 +303,62 @@ func (a *Agent) completionCheck() (prompt, reason string) {
 		return selectedTestsCheckPrompt, "only tests selected by name passed after the last change"
 	}
 	return completionCheckPrompt, "files changed without a passing check"
+}
+
+var (
+	// buildCheckRe finds a build, compile, lint or type check.
+	buildCheckRe = regexp.MustCompile(`(^|[\s;&|(/])(go\s+(build|vet)|gofmt\s+-l|staticcheck|golangci-lint|cargo\s+(build|check|clippy)|tsc|eslint|mypy|pyright|ruff(\s+check)?|flake8|pylint|python3?\s+-m\s+(py_compile|compileall|mypy|ruff|flake8)|javac|gcc|g\+\+|clang|cc|make|cmake\s+--build|ninja|npm\s+run\s+(build|lint|typecheck|check)|yarn\s+(build|lint|tsc)|pnpm\s+(run\s+)?(build|lint|typecheck)|dotnet\s+build|mvn\s+(compile|verify|package)|gradlew?\s+(build|check|assemble)|swift\s+build|zig\s+build)\b`)
+	// assertCheckRe finds an explicit assertion about files or output.
+	assertCheckRe = regexp.MustCompile(`^(test|\[|\[\[|diff|cmp)$`)
+	// runCheckRe finds a command that runs the program or a script.
+	runCheckRe = regexp.MustCompile(`(^|[\s;&|(/])(go\s+run|cargo\s+run|deno\s+run|bun\s+run|npm\s+(start|run\s+\S+)|swift\s+run|dotnet\s+run)\b`)
+)
+
+// checkKind classifies a successful shell command as verification evidence:
+// "test" (a test runner), "build" (build, lint or type check), "assert"
+// (test, [, diff, cmp, grep -q) or "run" (running the program or a script).
+// It returns "" for commands that only inspect the project (pwd, ls, cat,
+// git status, echo), which prove nothing about a change.
+func checkKind(command string) string {
+	command = strings.TrimSpace(command)
+	if command == "" {
+		return ""
+	}
+	if testScope(command) != "" {
+		return "test"
+	}
+	if buildCheckRe.MatchString(command) {
+		return "build"
+	}
+	if runCheckRe.MatchString(command) {
+		return "run"
+	}
+	segments := splitShell(command)
+	for _, words := range segments {
+		for len(words) > 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "=") {
+			words = words[1:] // FOO=1 cmd
+		}
+		if len(words) == 0 {
+			continue
+		}
+		name := words[0]
+		args := words[1:]
+		switch {
+		case assertCheckRe.MatchString(name):
+			return "assert"
+		case name == "grep" || name == "rg":
+			for _, a := range args {
+				if a == "-q" || a == "--quiet" || (strings.HasPrefix(a, "-") && !strings.HasPrefix(a, "--") && strings.Contains(a, "q")) {
+					return "assert"
+				}
+			}
+		case name == "python" || name == "python3" || name == "node" || name == "ruby" || name == "perl" || name == "php" || name == "bash" || name == "sh" || name == "zsh":
+			if len(args) > 0 && args[0] != "--version" && args[0] != "-v" && args[0] != "-V" {
+				return "run"
+			}
+		case strings.HasPrefix(name, "./") || (strings.Contains(name, "/") && !strings.HasPrefix(name, "/")):
+			return "run" // a project script or binary
+		}
+	}
+	return ""
 }

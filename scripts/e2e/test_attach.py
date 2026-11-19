@@ -88,14 +88,20 @@ with tempfile.TemporaryDirectory(prefix='goh-attach-') as temporary:
         os.write(master, b'\r')
         wait_for('not available while attached')
         os.write(master, b'\x04')
-        attach.wait(timeout=10)
+        code = attach.wait(timeout=10)
+        # A race-instrumented build exits 66 (or GORACE exitcode) on a report.
+        assert code == 0, f'attached process exited {code}'
         print(json.dumps({'attach': 'passed', 'edit_approved_on_server': True, 'shell_denied': True, 'local_writes_refused': True}))
     finally:
         if attach and attach.poll() is None:
             attach.kill()
         server.send_signal(signal.SIGTERM)
         try:
-            server.wait(timeout=20)
+            server_code = server.wait(timeout=20)
         except subprocess.TimeoutExpired:
             server.kill()
+            server_code = 'timeout'
         model.kill()
+        # SIGTERM ends serve cleanly (0) or by the signal (-15).
+        if server_code not in (0, -signal.SIGTERM):
+            raise AssertionError(f'server exited {server_code}')

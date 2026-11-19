@@ -57,3 +57,36 @@ func TestResumedSessionKeepsItsProject(t *testing.T) {
 		t.Fatal("the session's own project refused:", err)
 	}
 }
+
+// Review P1: positional resume binds the session's project before loading
+// project agents, as --session does; a conflicting --project is refused.
+func TestPositionalResumeUsesSessionProject(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprint(w, "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+	}))
+	defer server.Close()
+	config := filepath.Join(t.TempDir(), "config.json")
+	data, _ := json.Marshal(map[string]any{"endpoint": server.URL, "model": "m", "context_window": 131072})
+	os.WriteFile(config, data, 0o600)
+	a, b, sessions := testutil.TempDir(t), testutil.TempDir(t), t.TempDir()
+	os.MkdirAll(filepath.Join(a, ".harness", "agents"), 0o755)
+	os.WriteFile(filepath.Join(a, ".harness", "agents", "reviewer.md"), []byte("---\ndescription: reviews\n---\nReview carefully.\n"), 0o600)
+	store, err := session.New(sessions, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := store.ID
+	store.Close()
+	wd, _ := os.Getwd()
+	os.Chdir(b)
+	defer os.Chdir(wd)
+	if err := run([]string{"resume", id, "--config", config, "--session-dir", sessions, "--agent", "reviewer", "--format", "json", "--prompt", "go"}); err != nil {
+		t.Fatal("agent from the session's project not found:", err)
+	}
+	err = run([]string{"resume", id, "--config", config, "--session-dir", sessions, "--project", b, "--format", "json", "--prompt", "go"})
+	if err == nil || !strings.Contains(err.Error(), "belongs to project") {
+		t.Fatalf("conflicting --project accepted: %v", err)
+	}
+}

@@ -98,3 +98,19 @@ func approvalAll(shortcut, sep string) string {
 	}
 	return sep + shortcut
 }
+
+// attached reports whether this chat runs on a GoHarness server (goh attach).
+func (m *model) attached() bool { return m.a != nil && m.a.Remote != nil }
+
+// approvalChoices is the one decision row for a pending approval: only the
+// decisions the runtime behind this chat accepts. An attached chat sends a
+// once-only decision to the server, so it offers y and n alone.
+func (m *model) approvalChoices(sep string) string {
+	if m.pending == nil {
+		return ""
+	}
+	if m.attached() {
+		return "y allow once on the server" + sep + "n / Esc deny"
+	}
+	return "y once" + sep + "s " + sessionScopeLabel(m.pending.request) + approvalAll(m.approvalAllShortcut(m.pending.request), sep) + sep + "n / Esc deny"
+}

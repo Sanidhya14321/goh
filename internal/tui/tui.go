@@ -143,7 +143,12 @@ type model struct {
 	reasoning            strings.Builder
 	find                 *findState
 	queue                []string // prompts typed during a run, sent in order
-	export               *exportPanel
+	// queueHeld explains why queued prompts were not sent after the last
+	// run; they stay queued, in order, until the user sends or edits them.
+	queueHeld string
+	// lastRun is the settled result of the latest run (nil while running).
+	lastRun *runResult
+	export  *exportPanel
 }
 
 func Safe(s string) string {
@@ -391,6 +396,8 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				// the context window is now.
 				m.contextTokens = d.Usage.Prompt + d.Usage.Completion
 			}
+		case "run_started":
+			m.lastRun = nil
 		case "run_finished":
 			m.fileIndexStale = true
 			m.log += "\n"
@@ -400,7 +407,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				Duration int64  `json:"duration_ms"`
 			}
 			json.Unmarshal(b, &d)
-			m.status = d.Status
+			r := parseRunResult(v)
+			m.lastRun = &r
+			m.status = r.label()
+			if r.failedVerification() {
+				m.log += r.failureLine()
+			}
 			m.durationMS = d.Duration
 		}
 		if len(m.log) > 128<<10 {
@@ -428,7 +440,14 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		m.active = false
 		m.pending = nil
 		m.question = nil
-		m.status = v.status
+		if m.a != nil && m.a.RemoteRefresh != nil {
+			m.a.RemoteRefresh() // on the event loop: the view reads the store
+		}
+		// The run's own terminal event already set the status; the
+		// transport's completion only ends the wait unless it differs.
+		if m.lastRun == nil || m.lastRun.Status != v.status {
+			m.status = v.status
+		}
 		if v.err != nil {
 			m.log += "\n" + Safe(v.err.Error()) + "\n"
 			var httpErr *provider.HTTPError
@@ -582,6 +601,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			case "up":
 				m.reviewOffset = max(0, m.reviewOffset-min(5, page))
 			case "y", "s", "a":
+				if m.attached() && strings.ToLower(key) != "y" {
+					// The server takes a once-only decision; its session
+					// grants and access are not this terminal's to change.
+					m.status = "Attached: the server accepts y (allow once) or n (deny)"
+					return m, nil
+				}
 				level, covers := coveringLevel(m.pending.request)
 				if strings.ToLower(key) == "a" && (!covers || m.accessLevel().Rank() >= level.Rank()) {
 					return m, nil
@@ -665,6 +690,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		switch key {
 		case "enter":
+			if strings.TrimSpace(m.input) == "" && len(m.queue) > 0 && m.blocked == "" {
+				// Held follow-ups: Enter on an empty composer sends the next.
+				m.queueHeld = ""
+				return m.submitQueued()
+			}
 			if strings.TrimSpace(m.input) == "" {
 				if m.blocked != "" {
 					// Nothing can run yet: Enter goes to setup.
@@ -905,6 +935,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "end", "ctrl+e":
 			m.inputLineEnd(true)
 		case "up":
+			if strings.TrimSpace(m.input) == "" && len(m.queue) > 0 {
+				m.unqueueLast()
+				break
+			}
 			m.inputUpDown(false)
 		case "down":
 			m.inputUpDown(true)
@@ -973,7 +1007,7 @@ func (m *model) compactView() tea.View {
 	// stay hidden, and scrolling, /find and turn jumps work.
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
-		review = "Allow " + m.pending.request.Tool + "?  y once · s " + sessionScopeLabel(m.pending.request) + approvalAll(m.approvalAllShortcut(m.pending.request), " · ") + " · n deny · PgUp/PgDn scroll"
+		review = "Allow " + m.pending.request.Tool + "?  " + m.approvalChoices(" · ") + " · PgUp/PgDn scroll"
 		body = relativizePreview(m.pending.request.Preview, m.a.Store.Project)
 	} else if m.question != nil {
 		review = "INTERACTIVE QUESTION · answers grant no permissions · PgUp/PgDn scroll"
@@ -1141,6 +1175,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	if len(m.log) > 128<<10 {
 		m.log = m.log[len(m.log)-(128<<10):]
 	}
+	m.restoreLastRun()
 	if notice != "" {
 		m.log += "\n[notice] " + Safe(notice) + "\n"
 		m.status = "Action needs attention"

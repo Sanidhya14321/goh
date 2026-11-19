@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -208,5 +209,38 @@ func TestCancelBeforeResponseHeaders(t *testing.T) {
 	case <-gone:
 	case <-time.After(5 * time.Second):
 		t.Fatal("the server never saw the request end")
+	}
+}
+
+// Review: a reply the server refuses because the run was already cancelled
+// must not turn the run's own cancelled terminal event into a failure.
+func TestStaleInputReplyKeepsTerminalEvent(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			io.Copy(io.Discard, r.Body)
+			w.Header().Set("X-Harness-Run-ID", "run1")
+			w.WriteHeader(http.StatusOK)
+			fl := w.(http.Flusher)
+			fmt.Fprintln(w, `{"input":{"id":"q1","kind":"permission","data":{"tool":"shell"}}}`)
+			fl.Flush()
+			time.Sleep(100 * time.Millisecond) // the reply arrives late
+			fmt.Fprintln(w, `{"event":{"version":1,"run_id":"run1","sequence":2,"type":"run_finished","data":{"status":"cancelled","error":"context canceled"}}}`)
+			fl.Flush()
+		case strings.Contains(r.URL.Path, "/inputs/"):
+			time.Sleep(50 * time.Millisecond)
+			http.Error(w, `{"error":"no such input"}`, http.StatusNotFound)
+		}
+	}))
+	defer srv.Close()
+	client, err := New(srv.URL, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := client.Run(context.Background(), "s", "hi", false, Handlers{Approve: func(context.Context, core.Permission) (core.Decision, error) {
+		return core.Decision{Allow: true}, nil
+	}})
+	if status != "cancelled" {
+		t.Fatalf("status %q err %v", status, err)
 	}
 }

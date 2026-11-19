@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -49,7 +50,12 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 	n := 0
 	err = fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return nil
+			if errors.Is(err, fs.ErrNotExist) {
+				return nil // removed during the walk
+			}
+			// An unreadable folder hides its changes, so the coverage is
+			// unknown rather than "unchanged".
+			return err
 		}
 		if p == "." {
 			filter.skip(p, d) // loads the root's .gitignore and .ignore

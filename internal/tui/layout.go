@@ -167,11 +167,13 @@ func (m *model) View() tea.View {
 		draft := "Ask anything about your project…"
 		switch {
 		case m.pending != nil:
-			draft = "Waiting for your approval: y allow once · s allow for session" + approvalAll(m.approvalAllShortcut(m.pending.request), " · ") + " · n deny"
+			draft = "Waiting for your approval (keys above)"
 		case m.question != nil:
 			draft = "Answer the question above"
 		case m.active:
 			draft = "Working… type to queue a follow-up"
+		case len(m.queue) > 0 && m.queueHeld != "":
+			draft = fmt.Sprintf("%d queued prompt(s) held: Enter sends the next · ↑ edits the newest", len(m.queue))
 		}
 		if m.blocked != "" {
 			_, step := m.setupStep()
@@ -285,7 +287,7 @@ func (m *model) View() tea.View {
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
 		body = relativizePreview(m.pending.request.Preview, project)
-		review = "Allow " + m.pending.request.Tool + "?   y once  ·  s " + sessionScopeLabel(m.pending.request) + approvalAll(m.approvalAllShortcut(m.pending.request), "  ·  ") + "  ·  n / Esc deny  ·  PgUp/PgDn scroll"
+		review = "Allow " + m.pending.request.Tool + "?   " + m.approvalChoices("  ·  ") + "  ·  PgUp/PgDn scroll"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {
@@ -568,9 +570,9 @@ func statusColor(m *model) string {
 		return accent
 	case m.active:
 		return blue
-	case m.status == "failed" || m.status == "cancelled":
+	case m.status == "failed" || m.status == "cancelled" || m.lastRun.failedVerification():
 		return red
-	case m.status == "completed":
+	case m.status == "completed" || strings.HasPrefix(m.status, "completed ·"):
 		return green
 	}
 	return muted

@@ -103,3 +103,23 @@ func BenchmarkSessionPreview(b *testing.B) {
 		}
 	}
 }
+
+// The preview shows the latest run's verification outcome with its run id,
+// also when that run lies beyond the bounded prefix.
+func TestPreviewShowsLatestOutcome(t *testing.T) {
+	dir := t.TempDir()
+	store, err := New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store.Append("message", core.Message{Role: "user", Content: "Fix it"})
+	store.Append("run_finished", map[string]string{"status": "completed", "outcome": "verified", "run_id": "r1"})
+	store.Append("message", core.Message{Role: "assistant", Content: strings.Repeat("x", previewBytes*2)})
+	store.Append("run_started", map[string]string{"model": "fixture"})
+	store.Append("run_finished", map[string]string{"status": "completed", "outcome": "failed_verification", "run_id": "r2"})
+	store.Close()
+	p, err := Preview(dir, store.ID)
+	if err != nil || !p.Limited || p.Status != "completed" || p.Outcome != "failed_verification" || p.RunID != "r2" {
+		t.Fatalf("%+v %v", p, err)
+	}
+}
