@@ -75,3 +75,43 @@ func TestManualCompactFailureAndPendingProtection(t *testing.T) {
 		t.Fatal("compacted uncertain effects")
 	}
 }
+
+// Review P2: a first request over the soft compaction trigger but under the
+// hard ceiling, with nothing older to shrink, is sent unchanged.
+func TestFittingFirstRequestIsSentUnchanged(t *testing.T) {
+	a, _ := testAgent(t)
+	a.Config.ContextWindow = 131072
+	a.Config.CompactionThreshold = 10                // soft trigger ~13k tokens
+	prompt := strings.Repeat("context line. ", 4000) // ~56k bytes
+	calls := 0
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
+		calls++
+		if !strings.Contains(h[len(h)-1].Content, "context line.") {
+			t.Fatal("prompt was changed")
+		}
+		return answer(), nil
+	})
+	if status, err := a.Run(context.Background(), prompt); status != "completed" || calls != 1 {
+		t.Fatal(status, err, calls)
+	}
+}
+
+// Review P2: manual compaction never grows a short conversation, and a
+// repeated one is a no-op.
+func TestRepeatedManualCompactIsNoOp(t *testing.T) {
+	a := contextAgent(t)
+	a.Config.ContextWindow = 131072
+	for _, m := range []core.Message{{Role: "user", Content: "hi"}, {Role: "assistant", Content: "hello"}} {
+		a.commit(m)
+	}
+	a.Provider = &summaryModel{summary: strings.Repeat("A long summary of a tiny chat. ", 50)}
+	before := len(a.History)
+	for i := 0; i < 2; i++ {
+		if status, err := a.Compact(context.Background()); status != "completed" || err != nil {
+			t.Fatal(status, err)
+		}
+		if len(a.History) != before || a.History[1].Content != "hi" {
+			t.Fatalf("round %d changed a short conversation: %+v", i, a.History)
+		}
+	}
+}

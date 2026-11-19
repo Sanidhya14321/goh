@@ -42,7 +42,10 @@ func (a *Agent) Compact(ctx context.Context) (status string, err error) {
 	}
 	// Local tools reserve their future schemas. Explicit compaction does not launch MCP.
 	defs := a.localDefinitions()
-	if e := a.compactWithMode(ctx, defs, true); e != nil {
+	if e := a.compactWithMode(ctx, defs, true); errors.Is(e, errNothingToCompact) {
+		a.event("context_compaction_skipped", map[string]any{"manual": true, "reason": e.Error()})
+		return "completed", nil
+	} else if e != nil {
 		return "budget_exhausted", e
 	}
 	return "completed", nil

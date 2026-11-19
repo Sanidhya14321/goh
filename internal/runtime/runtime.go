@@ -1183,11 +1183,27 @@ func requestBytes(ms []core.Message, defs []core.Tool) (size, images int) {
 	d, _ := json.Marshal(defs)
 	return len(b) + len(d), images
 }
+// errNothingToCompact: a manual compaction found no history it could
+// shrink; the conversation is left as it is.
+var errNothingToCompact = errors.New("nothing to compact: the conversation is already as short as compaction can make it")
+
 func (a *Agent) compact(ctx context.Context, defs []core.Tool) error {
-	return a.compactWithMode(ctx, defs, false)
+	err := a.compactWithMode(ctx, defs, false)
+	if err == nil || ctx.Err() != nil {
+		return err
+	}
+	// The soft trigger fired but compaction could not help. A request that
+	// still fits under the hard ceiling is sent unchanged.
+	if used, available := a.estimate(a.modelHistory(), defs), a.requestCeiling(); used < available {
+		a.event("context_compaction_skipped", map[string]any{"used": used, "available": available, "reason": err.Error()})
+		return nil
+	}
+	return err
 }
-func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force bool) error {
-	used := a.estimate(a.modelHistory(), defs)
+
+// requestCeiling is the hard limit for one request's estimated tokens: the
+// window less the output budget and a safety margin.
+func (a *Agent) requestCeiling() int {
 	// Safety margin: 16k tokens, but at most a quarter of small windows, so a
 	// 32k window still leaves room after tool definitions (found live). Once
 	// the estimate follows the provider's own token counts (which carry
@@ -1201,6 +1217,11 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if available < 1024 {
 		available = a.Config.ContextWindow - a.Config.OutputBudget - 1024
 	}
+	return available
+}
+func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force bool) error {
+	used := a.estimate(a.modelHistory(), defs)
+	available := a.requestCeiling()
 	if !force && used < available && used < a.Config.ContextWindow*a.Config.CompactAt()/100 {
 		return nil
 	}
@@ -1313,6 +1334,11 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 	if force && cut == 1 {
 		sourceHistory = a.History[1:]
 	}
+	if force && onlyCompactionState(sourceHistory) {
+		// Everything older is already a summary: summarizing it again would
+		// spend a model call and can only grow or blur it.
+		return errNothingToCompact
+	}
 	plainHistory, _ := withoutImages(sourceHistory)
 	source, _ := json.Marshal(plainHistory) // summaries describe images by path only
 	if a.contentTokens(len(source)) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
@@ -1364,6 +1390,9 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 				next, nextSize = v, s
 			}
 		}
+	}
+	if force && nextSize >= used && nextSize < available {
+		return errNothingToCompact // a manual compaction never grows the context
 	}
 	if nextSize >= available || (!force && nextSize >= used) {
 		return errors.New("context compaction did not reduce context enough")
@@ -1658,4 +1687,19 @@ func (a *Agent) toolProgressEvents() func(core.ToolProgress) {
 		last, sent = p, time.Now()
 		a.event("tool_progress", p)
 	}
+}
+
+// onlyCompactionState reports whether history holds nothing but an earlier
+// compaction's summary and pinned instructions (or nothing at all).
+func onlyCompactionState(history []core.Message) bool {
+	for _, m := range history {
+		if m.Role == "assistant" && strings.HasPrefix(m.Content, "Previous session state (untrusted summary):") {
+			continue
+		}
+		if m.Role == "user" && strings.HasPrefix(m.Content, pinnedMarker) {
+			continue
+		}
+		return false
+	}
+	return true
 }
