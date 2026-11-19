@@ -24,6 +24,7 @@ type Damaged struct {
 // ListAll returns readable sessions and, separately, journals that could not
 // be read. One damaged journal never hides the others.
 func ListAll(dir string) ([]Info, []Damaged, error) {
+	reconcileMoves(dir)
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
 		return []Info{}, nil, nil
@@ -156,8 +157,8 @@ func readPrefix(r io.Reader) ([]Record, int64, string) {
 	var records []Record
 	var offset int64
 	for {
-		line, err := reader.ReadBytes('\n')
-		if len(line) > maxRecordBytes {
+		line, err, tooLong := readBoundedLine(reader, maxRecordBytes)
+		if tooLong {
 			return records, offset, "record exceeds 16 MiB"
 		}
 		if err == io.EOF {
@@ -175,6 +176,22 @@ func readPrefix(r io.Reader) ([]Record, int64, string) {
 		}
 		records = append(records, record)
 		offset += int64(len(line))
+	}
+}
+
+// readBoundedLine reads one line, refusing (tooLong) as soon as it grows past
+// limit, so a corrupt journal without newlines is never read whole.
+func readBoundedLine(r *bufio.Reader, limit int) (line []byte, err error, tooLong bool) {
+	for {
+		chunk, e := r.ReadSlice('\n')
+		if len(line)+len(chunk) > limit {
+			return nil, nil, true
+		}
+		line = append(line, chunk...)
+		if e == bufio.ErrBufferFull {
+			continue
+		}
+		return line, e, false
 	}
 }
 

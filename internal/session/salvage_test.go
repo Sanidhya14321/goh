@@ -2,6 +2,7 @@ package session
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -126,5 +127,55 @@ func TestSalvageRefusesIntactOrHeaderless(t *testing.T) {
 	corruptLine(t, dir, headless, 0, "garbage")
 	if _, _, err := Salvage(dir, headless); err == nil || !strings.Contains(err.Error(), "header is damaged") {
 		t.Fatal(err)
+	}
+}
+
+// Review P3: salvage stops at an oversized record without reading it whole.
+func TestReadPrefixBoundsLongLine(t *testing.T) {
+	good := `{"version":1,"type":"message","data":{"role":"user","content":"hi"}}` + "\n"
+	r := io.MultiReader(strings.NewReader(good), io.LimitReader(neverEnding('x'), maxRecordBytes+1<<20))
+	records, offset, problem := readPrefix(r)
+	if len(records) != 1 || offset != int64(len(good)) || problem != "record exceeds 16 MiB" {
+		t.Fatal(len(records), offset, problem)
+	}
+}
+
+type neverEnding byte
+
+func (b neverEnding) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = byte(b)
+	}
+	return len(p), nil
+}
+
+// Review P3: a trash interrupted after its sidecars moved is put back.
+func TestReconcileInterruptedTrash(t *testing.T) {
+	dir := t.TempDir()
+	store, err := New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := store.ID
+	store.Close()
+	if err := SetTitle(dir, id, "keep me"); err != nil {
+		t.Fatal(err)
+	}
+	// Simulate the crash: intent written, metadata moved, journal not.
+	os.MkdirAll(trashDir(dir), 0o700)
+	if _, err := writeMoveIntent(dir, id, "trash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(dir, id+".meta.json"), filepath.Join(trashDir(dir), id+".meta.json")); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := ListAll(dir); err != nil {
+		t.Fatal(err)
+	}
+	if m, err := ReadMeta(dir, id); err != nil || m.Title != "keep me" {
+		t.Fatalf("metadata not put back: %+v %v", m, err)
+	}
+	if entries, _ := os.ReadDir(moveIntentDir(dir)); len(entries) != 0 {
+		t.Fatal("intent left behind")
 	}
 }

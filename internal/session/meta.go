@@ -118,6 +118,58 @@ var ErrSessionOpen = errors.New("session is open in a running GoHarness; close i
 
 func trashDir(dir string) string { return filepath.Join(dir, "trash") }
 
+// moveIntentDir holds one file per session move in progress.
+func moveIntentDir(dir string) string { return filepath.Join(trashDir(dir), ".moves") }
+
+// writeMoveIntent records that id's files are being moved (trash or
+// restore) and returns a function that clears the record.
+func writeMoveIntent(dir, id, kind string) (func(), error) {
+	if err := os.MkdirAll(moveIntentDir(dir), 0o700); err != nil {
+		return nil, err
+	}
+	path := filepath.Join(moveIntentDir(dir), id+"."+kind)
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		return nil, err
+	}
+	return func() { os.Remove(path) }, nil
+}
+
+// reconcileMoves settles moves a crash interrupted. The journal's location
+// decides the outcome: a session whose journal is still in place keeps (gets
+// back) all its sidecars; one whose journal is in the trash gets its
+// sidecars there too. Nothing is overwritten.
+func reconcileMoves(dir string) {
+	entries, err := os.ReadDir(moveIntentDir(dir))
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		id, _, ok := strings.Cut(e.Name(), ".")
+		if !ok || !validID.MatchString(id) {
+			continue
+		}
+		live := filepath.Join(dir, id+".jsonl")
+		if f, err := os.OpenFile(live, os.O_RDWR|platform.NoFollow|platform.NonBlock, 0); err == nil {
+			if lock(f) != nil {
+				f.Close()
+				continue // in use: its own process is still moving it
+			}
+			f.Close()
+		}
+		src, dst := trashDir(dir), dir // journal live: sidecars come home
+		if _, err := os.Lstat(live); err != nil {
+			src, dst = dir, trashDir(dir) // journal trashed: sidecars follow it
+		}
+		for _, name := range sidecars(id) {
+			if _, err := os.Lstat(filepath.Join(dst, name)); err == nil {
+				continue
+			}
+			_ = os.Rename(filepath.Join(src, name), filepath.Join(dst, name))
+		}
+		os.Remove(filepath.Join(moveIntentDir(dir), e.Name()))
+	}
+}
+
 // Trash moves a session's journal, metadata, artifacts and snapshots into the
 // trash folder, from which Restore can bring it back. A session open in any
 // process is refused, using the same writer lock as Open.
@@ -157,7 +209,13 @@ func Trash(dir, id string) error {
 	}
 	// Sidecars first, journal last: an interrupted delete leaves a session
 	// that still opens, never an orphaned journal in the trash. A failed move
-	// puts back the ones already made.
+	// puts back the ones already made; one interrupted by a crash is put
+	// back by reconcileMoves from the intent written first.
+	done, err := writeMoveIntent(dir, id, "trash")
+	if err != nil {
+		return err
+	}
+	defer done()
 	moved, err := moveAll(sidecars(id), dir, trashDir(dir))
 	if err != nil {
 		return err
@@ -214,7 +272,13 @@ func Restore(dir, id string) error {
 		}
 	}
 	// Journal first, so an interrupted restore leaves an openable session.
-	// A failed sidecar move returns everything to the trash.
+	// A failed sidecar move returns everything to the trash; one interrupted
+	// by a crash is completed by reconcileMoves.
+	done, err := writeMoveIntent(dir, id, "restore")
+	if err != nil {
+		return err
+	}
+	defer done()
 	if err := os.Rename(src, filepath.Join(dir, id+".jsonl")); err != nil {
 		return err
 	}
