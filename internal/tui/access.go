@@ -94,6 +94,9 @@ func coveringLevel(p core.Permission) (core.AccessLevel, bool) {
 // request has none.
 func (m *model) approvalAllShortcut(p core.Permission) string {
 	level, ok := coveringLevel(p)
+	if ok && level == core.AccessAuto && m.a != nil && m.a.Config.Sandbox != nil && m.a.Config.Sandbox.Container != "" {
+		return "" // commands in a configured container ask below full access
+	}
 	if !ok || m.accessLevel().Rank() >= level.Rank() {
 		return ""
 	}

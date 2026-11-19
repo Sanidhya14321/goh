@@ -17,6 +17,12 @@ import (
 // ran without asking, and the folder a command was confined to.
 func accessHarness(t *testing.T) (*Agent, string, func(tool string, args any) (asked bool, confine string)) {
 	t.Helper()
+	// These policy probes model a project outside the temporary folders
+	// (the test project itself lives in one); TestAccessTempOverlap covers
+	// a project inside one.
+	savedTemp := tempDirs
+	tempDirs = func() []string { return []string{filepath.Join(string(filepath.Separator), "goh-test-no-such-tmp")} }
+	t.Cleanup(func() { tempDirs = savedTemp })
 	a, root := testAgent(t)
 	if r, err := filepath.EvalSymlinks(root); err == nil {
 		root = r
@@ -261,5 +267,41 @@ func TestAutoKeepsStricterSubfoldersUnwritable(t *testing.T) {
 	nestedEnforced = func() bool { return false }
 	if asked, _ := probe("shell", run); !asked {
 		t.Error("auto ran a command whose stricter subfolder the sandbox cannot protect")
+	}
+}
+
+// Follow-up review P1: automatic shell access needs a boundary the backend
+// enforces: a configured container gives none, and a writable temporary
+// folder that holds the project makes "read-only" and "only this folder"
+// untrue, so those commands ask.
+func TestAccessNeedsEnforceableBoundary(t *testing.T) {
+	saved := sandboxSupported
+	t.Cleanup(func() { sandboxSupported = saved })
+	sandboxSupported = func() bool { return true }
+	a, root, probe := accessHarness(t)
+	look := map[string]string{"command": "ls"}
+	run := map[string]string{"command": "npm test"}
+	a.SetSessionAccess(core.AccessAuto)
+	a.Config.Sandbox = &core.SandboxConfig{Container: "dev"}
+	if asked, _ := probe("shell", look); !asked {
+		t.Error("a read through a container ran unasked")
+	}
+	if asked, _ := probe("shell", run); !asked {
+		t.Error("auto ran a command in a container unasked")
+	}
+	a.Config.Sandbox = nil
+	if asked, _ := probe("shell", run); asked {
+		t.Error("auto asked with a native sandbox and no overlap")
+	}
+	tempDirs = func() []string { return []string{filepath.Dir(root)} } // the project is inside temp
+	if asked, _ := probe("shell", look); !asked {
+		t.Error("read-only command ran while temp (holding the project) is writable")
+	}
+	if asked, _ := probe("shell", run); !asked {
+		t.Error("auto ran while temp (holding the project) is writable")
+	}
+	a.SetSessionAccess(core.AccessFull)
+	if asked, _ := probe("shell", run); asked {
+		t.Error("full access asked")
 	}
 }

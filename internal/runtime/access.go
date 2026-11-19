@@ -15,7 +15,43 @@ import (
 var (
 	sandboxSupported = sandbox.Supported
 	nestedEnforced   = sandbox.NestedRestrictionsEnforced
+	tempDirs         = sandbox.TempDirs
 )
+
+// canonical resolves symlinks (where the path exists) for comparing folders.
+func canonical(p string) string {
+	if r, err := filepath.EvalSymlinks(p); err == nil {
+		return r
+	}
+	return filepath.Clean(p)
+}
+
+// within reports whether child is parent or inside it.
+func within(parent, child string) bool {
+	rel, err := filepath.Rel(parent, child)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
+// tempOverlap reports whether a temporary folder the sandbox keeps writable
+// would let a command write in the project outside allowed (allowed ""
+// means nothing in the project may be written): a temporary folder that
+// contains the project, or one inside it but outside allowed.
+func tempOverlap(root, allowed string) bool {
+	root = canonical(root)
+	if allowed != "" {
+		allowed = canonical(allowed)
+	}
+	for _, t := range tempDirs() {
+		t = canonical(t)
+		if within(t, root) {
+			return true
+		}
+		if within(root, t) && (allowed == "" || !within(allowed, t)) {
+			return true
+		}
+	}
+	return false
+}
 
 // readOnlyConfine marks, in a confine folder, a command allowed only because
 // it reads: it runs with no writable project folder.
@@ -130,23 +166,29 @@ func (a *Agent) accessDecision(p core.Permission) (allow bool, confine string, l
 		switch {
 		case level == core.AccessFull:
 			return true, "", level
+		case container:
+			// A configured container runs commands with whatever its own
+			// mounts allow: goh cannot show that the project is read-only
+			// there, or that stricter folders are protected, so below full
+			// access commands ask.
+			return false, "", ""
 		case name == "shell" && level.Rank() >= core.AccessEdits.Rank() && readOnlyCommand(args.Command):
 			// The read-only check is a heuristic, so the command also runs
-			// where it cannot write: in the container, or in a sandbox with
-			// no writable project folder. Without either, it asks.
-			if container {
-				return true, "", level
-			}
-			if sandboxSupported() {
+			// where it cannot write: a sandbox with no writable project
+			// folder. Without one, or when a writable temporary folder
+			// overlaps the project, it asks.
+			if sandboxSupported() && !tempOverlap(root, "") {
 				return true, readOnlyConfine + root, level
 			}
-		case level == core.AccessAuto && container:
-			return true, "", level // every command already runs in the configured container
 		case level == core.AccessAuto && sandboxSupported():
 			// Folders inside this one with a stricter level, and goh's own
 			// state, must stay unwritable; where the sandbox cannot restrict
-			// a folder inside a writable one, the command asks instead.
+			// a folder inside a writable one, or a writable temporary folder
+			// reaches outside this one, the command asks instead.
 			if !nestedEnforced() && len(a.nestedRestrictions(folder)) > 0 {
+				return false, "", ""
+			}
+			if tempOverlap(root, folder) {
 				return false, "", ""
 			}
 			return true, folder, level
