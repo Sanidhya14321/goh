@@ -114,13 +114,24 @@ func toolResultText(raw string) string {
 		ExitCode *int    `json:"exit_code"`
 		URL      string  `json:"url"`
 		Status   int     `json:"status_code"`
+		// Shell and formatter output: the retained artifact and how much of
+		// the output the inline text shows.
+		ArtifactID       string `json:"artifact_id"`
+		OutputBytes      int64  `json:"output_bytes"`
+		RetainedBytes    int64  `json:"retained_bytes"`
+		PreviewTruncated bool   `json:"preview_truncated"`
 	}
 	if json.Unmarshal([]byte(raw), &result) != nil {
 		return raw
 	}
 	switch {
 	case result.Output != nil && result.ExitCode != nil:
-		return fmt.Sprintf("exit %d\n%s", *result.ExitCode, *result.Output)
+		head := fmt.Sprintf("exit %d", *result.ExitCode)
+		if result.PreviewTruncated && result.ArtifactID != "" {
+			// On the first line, so no display cap can cut the pointer off.
+			head += fmt.Sprintf(" · %s of output, preview below; retained %s as artifact %s (ask to read_artifact it)", byteSize(result.OutputBytes), byteSize(result.RetainedBytes), result.ArtifactID)
+		}
+		return head + "\n" + *result.Output
 	case result.Content != nil && result.URL != "":
 		return fmt.Sprintf("%s · HTTP %d", result.URL, result.Status) + "\n" + *result.Content
 	case result.Content != nil:
@@ -246,4 +257,14 @@ func RequestCapText(data any) string {
 	}
 	json.Unmarshal(b, &learned)
 	return fmt.Sprintf("The provider accepts at most %d tokens per request; fitting the context to that and resending", learned.Limit)
+}
+
+func byteSize(n int64) string {
+	switch {
+	case n >= 1<<20:
+		return fmt.Sprintf("%.1f MiB", float64(n)/(1<<20))
+	case n >= 1<<10:
+		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
+	}
+	return fmt.Sprintf("%d bytes", n)
 }

@@ -1,8 +1,11 @@
 package tui
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/Sanidhya14321/goh/internal/core"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -22,8 +25,9 @@ func (m *model) startFind(query string) {
 		m.status = "Usage: /find text"
 		return
 	}
-	lines := strings.Split(m.displayLog(), "\n")
 	needle := strings.ToLower(query)
+	m.addEarlierMatches(query, needle)
+	lines := strings.Split(m.displayLog(), "\n")
 	f := &findState{query: query}
 	for i, line := range lines {
 		if strings.Contains(strings.ToLower(line), needle) {
@@ -93,4 +97,63 @@ func (m *model) findKey(key string) (tea.Model, tea.Cmd) {
 		}
 	}
 	return m, nil
+}
+
+// addEarlierMatches searches the session journal for user and assistant
+// turns that match but are no longer in the transcript (it is capped during
+// a run and rebuilt from retained history on reopen), and lists them in the
+// transcript so /find can reach them. At most 20 are listed; the rest are
+// counted.
+func (m *model) addEarlierMatches(query, needle string) {
+	if m.a == nil || m.a.Store == nil {
+		return
+	}
+	shown := strings.ToLower(m.displayLog())
+	var found []string
+	extra, turn := 0, 0
+	for _, r := range m.a.Store.Records() {
+		if r.Type != "message" {
+			continue
+		}
+		var msg core.Message
+		if json.Unmarshal(r.Data, &msg) != nil || msg.Automatic || (msg.Role != "user" && msg.Role != "assistant") {
+			continue
+		}
+		if msg.Role == "user" {
+			turn++
+		}
+		lower := strings.ToLower(msg.Content)
+		at := strings.Index(lower, needle)
+		if at < 0 {
+			continue
+		}
+		// The matching line, as the transcript would show it.
+		start := strings.LastIndex(lower[:at], "\n") + 1
+		end := strings.IndexByte(lower[at:], '\n')
+		line := msg.Content[start:]
+		if end >= 0 {
+			line = msg.Content[start : at+end]
+		}
+		if strings.Contains(shown, strings.ToLower(strings.TrimSpace(Safe(line)))) {
+			continue // already in the transcript
+		}
+		if len(found) == 20 {
+			extra++
+			continue
+		}
+		who := "You"
+		if msg.Role == "assistant" {
+			who = "Assistant"
+		}
+		found = append(found, fmt.Sprintf("  turn %d · %s: %s", turn, who, Safe(oneLine(line, 160))))
+	}
+	if len(found) == 0 {
+		return
+	}
+	// The heading does not repeat the query, so it is not itself a match.
+	block := "\n[find] Earlier matching turns, from the session journal (no longer in the transcript):\n" + strings.Join(found, "\n") + "\n"
+	if extra > 0 {
+		block += fmt.Sprintf("  … %d more earlier matches not listed; refine the search\n", extra)
+	}
+	m.log += block
 }

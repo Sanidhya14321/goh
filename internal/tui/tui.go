@@ -75,7 +75,10 @@ type model struct {
 	childPartial map[string][]string
 	// inputWidth is the composer's text width at the last render, so Up and
 	// Down move by displayed rows.
-	inputWidth      int
+	inputWidth int
+	// servedModel is the model that answered the latest turn, which differs
+	// from the configured one after a fallback.
+	servedModel     string
 	a               *agent.Agent
 	events          chan tea.Msg
 	input           string
@@ -401,8 +404,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			b, _ := json.Marshal(v.Data)
 			var d struct {
 				Usage *core.Usage `json:"usage"`
+				Model string      `json:"model"`
 			}
 			json.Unmarshal(b, &d)
+			if d.Model != "" {
+				m.servedModel = d.Model // after a fallback, not the configured one
+			}
 			if d.Usage != nil {
 				n := d.Usage.Total
 				if n == 0 {
@@ -410,7 +417,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				}
 				m.usage += n
 				if m.a != nil {
-					if p, ok := m.a.Config.Prices[m.a.Config.Model]; ok {
+					priced := m.a.Config.Model
+					if d.Model != "" {
+						priced = d.Model // usage is charged to the model that served it
+					}
+					if p, ok := m.a.Config.Prices[priced]; ok {
 						m.costUSD += float64(d.Usage.Prompt)/1e6*p.Input + float64(d.Usage.Completion)/1e6*p.Output
 						m.priced = true
 					}

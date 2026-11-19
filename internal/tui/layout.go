@@ -128,6 +128,9 @@ func (m *model) View() tea.View {
 	modelName, agentName, project, sessionID := "No model connected", "build", "", ""
 	if m.a != nil {
 		modelName, agentName = m.a.Config.Model, m.a.Config.Agent
+		if m.servedModel != "" && m.servedModel != modelName {
+			modelName += " (served by " + m.servedModel + ")"
+		}
 		project, sessionID = m.a.Store.Project, m.a.Store.ID
 	}
 	if m.fix == FixWorkspace {

@@ -726,13 +726,13 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		if len(reply.Message.ToolCalls) == 0 && strings.TrimSpace(reply.Message.Content) == "" {
 			// Not committed: an empty assistant message is invalid history
 			// for some providers (Anthropic) and would break the session.
-			a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
+			a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model})
 			return "failed", errors.New("the model returned an empty reply; nothing was done")
 		}
 		if e = a.commit(reply.Message); e != nil {
 			return "failed", e
 		}
-		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage})
+		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model})
 		if len(reply.Message.ToolCalls) == 0 {
 			a.noticeUntrackedChanges() // background jobs, for example
 			if a.needsCompletionCheck() {

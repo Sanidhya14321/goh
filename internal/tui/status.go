@@ -61,7 +61,7 @@ func (m *model) openStatus() {
 		if cfg.ThinkingBudget > 0 {
 			effort = fmt.Sprintf("thinking %d tokens", cfg.ThinkingBudget)
 		}
-		lines = append(lines, configuration, "Model: "+cfg.Model+" · reasoning: "+effort, "Protocol: "+cfg.EffectiveProtocol(),
+		lines = append(lines, configuration, "Model: "+cfg.Model+servedNote(cfg.Model, m.servedModel)+" · reasoning: "+effort, "Protocol: "+cfg.EffectiveProtocol(),
 			"Origin: "+origin, keyState, failoverStatus(cfg), "", "# CONTEXT",
 			fmt.Sprintf("Context window: %d tokens", cfg.ContextWindow),
 			fmt.Sprintf("Output reserve: %d tokens", cfg.OutputBudget),
@@ -180,6 +180,12 @@ func (m *model) statusKey(key string) (tea.Model, tea.Cmd) {
 
 func (m *model) statusView(width, height int) tea.View {
 	boxWidth := min(82, max(1, width-4))
+	compact := width < 70 || height < 20
+	if compact {
+		// Small terminals: a full-width panel, so no transcript fragments
+		// show at its edges.
+		boxWidth = max(1, width)
+	}
 	left := max(0, (width-boxWidth)/2)
 	padding := strings.Repeat(" ", left)
 	var content []transcriptRow
@@ -192,23 +198,40 @@ func (m *model) statusView(width, height int) tea.View {
 			content = append(content, transcriptRow{text: wrapped, fg: color})
 		}
 	}
-	visible := max(1, min(len(content), height-7))
+	visible := max(1, min(len(content), height-4))
 	offset := min(m.infoPanel.offset, max(0, len(content)-visible))
 	m.infoPanel.offset = offset
-	top := max(0, (height-visible-5)/2)
-	rows := make([]string, top)
-	title, hint := "Status", "  r refresh · p providers · m models · a agents · s settings · Esc back"
-	if m.infoPanel.title != "" {
-		title, hint = m.infoPanel.title, "  Snapshot · Esc back"
+	top := max(0, (height-visible-4)/2)
+	if compact {
+		top = 0
+		visible = max(1, min(len(content), height-3))
+		offset = min(m.infoPanel.offset, max(0, len(content)-visible))
+		m.infoPanel.offset = offset
 	}
-	rows = append(rows, padding+cell("  GoHarness  /  "+title, boxWidth, foreground, panel),
-		padding+cell(hint, boxWidth, muted, panel))
+	rows := make([]string, top)
+	title := "Status"
+	// One footer, built from the keys this panel acts on: read-only panels
+	// (diffs, snapshots, jobs) do not offer the status shortcuts.
+	actions := "↑/↓ PgUp/PgDn scroll · r refresh · p providers · m models · a agents · s settings · Esc back"
+	if m.infoPanel.title != "" {
+		title, actions = m.infoPanel.title, "↑/↓ PgUp/PgDn scroll · Home/End · Esc back"
+	}
+	rows = append(rows, padding+cell("  GoHarness  /  "+title, boxWidth, foreground, panel))
 	for _, row := range content[offset : offset+visible] {
 		rows = append(rows, padding+cell("  "+row.text, boxWidth, row.fg, panel))
 	}
-	rows = append(rows, padding+cell("  ↑/↓ scroll · PgUp/PgDn · Home/End", boxWidth, muted, panel),
-		padding+cell("  p providers · m models · a agents · s settings", boxWidth, accent, panel))
-	return overlayView(m.infoPanel.backdrop, rows, left, top, width, height)
+	for _, line := range wordWrap(actions, max(1, boxWidth-4)) {
+		rows = append(rows, padding+cell("  "+line, boxWidth, muted, panel))
+	}
+	backdrop := m.infoPanel.backdrop
+	if compact {
+		backdrop = "" // nothing of the transcript shows through
+		for len(rows) < height {
+			rows = append(rows, cell("", boxWidth, foreground, panel))
+		}
+		rows = rows[:height]
+	}
+	return overlayView(backdrop, rows, left, top, width, height)
 }
 
 // failoverStatus summarizes explicit fallback profiles; none means a failed
@@ -243,4 +266,13 @@ func checkpointMode(cfg core.Config) string {
 		return "on (strict: an edit that cannot be checkpointed is refused)"
 	}
 	return "on (best effort)"
+}
+
+// servedNote names the model that answered the latest turn when a fallback
+// served it instead of the configured one.
+func servedNote(configured, served string) string {
+	if served == "" || served == configured {
+		return ""
+	}
+	return " (latest turn served by " + served + ")"
 }

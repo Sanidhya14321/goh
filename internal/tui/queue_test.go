@@ -139,3 +139,23 @@ func TestChildRetryRetractsOnlyItsText(t *testing.T) {
 		t.Fatalf("log %q", m.log)
 	}
 }
+
+// Review: /find reaches turns that are only in the journal.
+func TestFindSearchesEarlierJournalTurns(t *testing.T) {
+	s, err := session.New(t.TempDir(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	s.Append("message", core.Message{Role: "user", Content: "please rename the zebra handler"})
+	s.Append("message", core.Message{Role: "assistant", Content: "Renamed the zebra handler."})
+	a, err := agent.New(core.Defaults(), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &model{a: a, width: 80, height: 24, log: "recent turn only\n"}
+	m.startFind("zebra")
+	if m.find == nil || len(m.find.matches) != 2 || !strings.Contains(m.log, "turn 1 · You: please rename the zebra handler") {
+		t.Fatalf("find %+v log %q", m.find, m.log)
+	}
+}
