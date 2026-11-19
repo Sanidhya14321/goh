@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 
@@ -30,7 +31,7 @@ func (m *model) startFind(query string) {
 	lines := strings.Split(m.displayLog(), "\n")
 	f := &findState{query: query}
 	for i, line := range lines {
-		if strings.Contains(strings.ToLower(line), needle) {
+		if at, _ := foldIndex(line, query); at >= 0 {
 			f.matches = append(f.matches, i)
 		}
 	}
@@ -67,8 +68,7 @@ func (m *model) showMatch() {
 	after := len(transcriptRows(strings.Join(lines[line:], "\n"), width, "", false))
 	// On a line that wraps, aim at the row holding the match rather than
 	// the start of the line, which can be several screens above it.
-	if i := strings.Index(strings.ToLower(lines[line]), strings.ToLower(f.query)); i > 0 {
-		end := min(len(lines[line]), i+len(f.query))
+	if i, end := foldIndex(lines[line], f.query); i > 0 {
 		after -= max(0, len(transcriptRows(lines[line][:end], width, "", false))-1)
 	}
 	h := m.transcriptHeight()
@@ -108,7 +108,7 @@ func (m *model) addEarlierMatches(query, needle string) {
 	if m.a == nil || m.a.Store == nil {
 		return
 	}
-	shown := strings.ToLower(m.displayLog())
+	shown := m.displayLog()
 	var found []string
 	extra, turn := 0, 0
 	for _, r := range m.a.Store.Records() {
@@ -122,30 +122,27 @@ func (m *model) addEarlierMatches(query, needle string) {
 		if msg.Role == "user" {
 			turn++
 		}
-		lower := strings.ToLower(msg.Content)
-		at := strings.Index(lower, needle)
-		if at < 0 {
-			continue
+		// Line by line on the original text: case folding never shifts
+		// offsets into another string, so multibyte text cannot be cut.
+		for _, line := range strings.Split(msg.Content, "\n") {
+			at, end := foldIndex(line, query)
+			if at < 0 {
+				continue
+			}
+			excerpt := matchExcerpt(line, at, end, 160)
+			if _, e := foldIndex(shown, strings.TrimSpace(Safe(line))); e >= 0 && strings.TrimSpace(line) != "" {
+				continue // already in the transcript
+			}
+			if len(found) == 20 {
+				extra++
+				continue
+			}
+			who := "You"
+			if msg.Role == "assistant" {
+				who = "Assistant"
+			}
+			found = append(found, fmt.Sprintf("  turn %d · %s: %s", turn, who, Safe(excerpt)))
 		}
-		// The matching line, as the transcript would show it.
-		start := strings.LastIndex(lower[:at], "\n") + 1
-		end := strings.IndexByte(lower[at:], '\n')
-		line := msg.Content[start:]
-		if end >= 0 {
-			line = msg.Content[start : at+end]
-		}
-		if strings.Contains(shown, strings.ToLower(strings.TrimSpace(Safe(line)))) {
-			continue // already in the transcript
-		}
-		if len(found) == 20 {
-			extra++
-			continue
-		}
-		who := "You"
-		if msg.Role == "assistant" {
-			who = "Assistant"
-		}
-		found = append(found, fmt.Sprintf("  turn %d · %s: %s", turn, who, Safe(oneLine(line, 160))))
 	}
 	if len(found) == 0 {
 		return
@@ -156,4 +153,52 @@ func (m *model) addEarlierMatches(query, needle string) {
 		block += fmt.Sprintf("  … %d more earlier matches not listed; refine the search\n", extra)
 	}
 	m.log += block
+}
+
+// foldIndex finds query in s by Unicode case folding and returns the byte
+// range of the match in s itself (-1, -1 when absent). Lowercasing s and
+// searching the copy would give offsets into a string whose byte length
+// can differ.
+func foldIndex(s, query string) (int, int) {
+	n := utf8.RuneCountInString(query)
+	if n == 0 {
+		return -1, -1
+	}
+	for i := 0; i < len(s); {
+		j, k := i, 0
+		for k < n && j < len(s) {
+			_, size := utf8.DecodeRuneInString(s[j:])
+			j += size
+			k++
+		}
+		if k == n && strings.EqualFold(s[i:j], query) {
+			return i, j
+		}
+		_, size := utf8.DecodeRuneInString(s[i:])
+		i += size
+	}
+	return -1, -1
+}
+
+// matchExcerpt is at most limit runes of line, centred on the match
+// [at, end) (byte offsets in line), so a match far into a long line stays
+// in the excerpt and /find finds it again in the transcript.
+func matchExcerpt(line string, at, end, limit int) string {
+	r := []rune(line)
+	if len(r) <= limit {
+		return line
+	}
+	from := utf8.RuneCountInString(line[:at])
+	to := from + utf8.RuneCountInString(line[at:end])
+	start := max(0, from-(limit-(to-from))/2)
+	stop := min(len(r), start+limit)
+	start = max(0, stop-limit)
+	out := string(r[start:stop])
+	if start > 0 {
+		out = "…" + out
+	}
+	if stop < len(r) {
+		out += "…"
+	}
+	return out
 }

@@ -168,3 +168,34 @@ func TestPickerTinyHeightShowsSelection(t *testing.T) {
 		t.Fatalf("selected option not visible:\n%s", v)
 	}
 }
+
+// Follow-up review P1: /find over multiline Unicode history neither panics
+// nor loses a match beyond the excerpt cap.
+func TestFindUnicodeAndLongLines(t *testing.T) {
+	s, err := session.New(t.TempDir(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	// "İ" lowercases to a longer byte sequence; "ẞ" folds to "ß".
+	s.Append("message", core.Message{Role: "user", Content: "İİİİ first line\nİSTANBUL Straße ẞ zebra here\nlast"})
+	long := strings.Repeat("filler words ", 60) + "NEEDLE-AT-END tail"
+	s.Append("message", core.Message{Role: "assistant", Content: long})
+	a, err := agent.New(core.Defaults(), s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &model{a: a, width: 80, height: 24, log: "recent\n"}
+	m.startFind("ZEBRA")
+	if m.find == nil || !strings.Contains(m.log, "İSTANBUL Straße ẞ zebra here") {
+		t.Fatalf("unicode match: %q", m.log)
+	}
+	m.find = nil
+	m.startFind("needle-at-end")
+	if m.find == nil || len(m.find.matches) != 1 || !strings.Contains(m.log, "NEEDLE-AT-END") {
+		t.Fatalf("late match lost: find %+v", m.find)
+	}
+	if at, end := foldIndex("İİ zebra", "ZEBRA"); at < 0 || "İİ zebra"[at:end] != "zebra" {
+		t.Fatal(at, end)
+	}
+}
