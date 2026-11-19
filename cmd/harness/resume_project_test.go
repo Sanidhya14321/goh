@@ -90,3 +90,10 @@ func TestPositionalResumeUsesSessionProject(t *testing.T) {
 		t.Fatalf("conflicting --project accepted: %v", err)
 	}
 }
+
+func TestFlagGiven(t *testing.T) {
+	if !flagGiven([]string{"chat", "--config=/x.json"}, "config") || !flagGiven([]string{"chat", "-config", "x"}, "config") ||
+		flagGiven([]string{"chat", "--configs"}, "config") || flagGiven([]string{"chat", "--", "--config"}, "config") {
+		t.Fatal("flagGiven")
+	}
+}

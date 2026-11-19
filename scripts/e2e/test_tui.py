@@ -118,6 +118,8 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
             home=home_root/'home'; home.mkdir(exist_ok=True)
             env = dict(os.environ, TERM='xterm-256color', COLORTERM='truecolor', HOME=str(home), XDG_CONFIG_HOME='', XDG_STATE_HOME='', APPDATA=str(home))
             env.pop('OPENAI_API_KEY', None); env.pop('ANTHROPIC_API_KEY', None)
+            # The colour checks need colour: never inherit the caller's NO_COLOR.
+            env.pop('NO_COLOR', None)
             if case=='editor_handoff':
                 fake_editor=root/'fake-editor.sh'
                 fake_editor.write_text('#!/bin/sh\nprintf "%s" "$(cat "$1") rewritten in editor" > "$1"\n')
@@ -325,7 +327,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                         wait_for(b'2/3:')
                         os.write(master,b'\r')
                         wait_for(b'3/3:')
-                        os.write(master,b'c')
+                        # A free-text question has its field focused at once.
                         wait_for(b'Custom answer:')
                         os.write(master,b'custom context\r')
                         wait_for(b'completed')
@@ -350,7 +352,9 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                     wait_for(b'Session tasks:')
                     output.clear()
                     os.write(master,b'/compact\r')
-                    wait_for(b'context_compacted')
+                    # A short conversation may not shrink: manual compaction
+                    # then reports a no-op instead of growing the history.
+                    wait_for(b'context_compact')
                     # Incremental terminal rendering can retain the previous
                     # 'completed' cells without writing that word a second time.
                     # Verify the durable new operation outcome instead.
@@ -359,8 +363,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                         journals = list((root / case).glob('*.jsonl'))
                         if journals:
                             records = live_records(journals[0])
-                            compact_indices = [i for i,r in enumerate(records) if r['type']=='context_compacted']
-                            if compact_indices and any(r['type']=='run_finished' and r['data']['status']=='completed' for r in records[compact_indices[-1]+1:]):
+                            if any(r['type']=='run_finished' and r['data'].get('operation')=='compact' and r['data']['status']=='completed' for r in records):
                                 finished=True; break
                         time.sleep(.02)
                     assert finished, 'manual compaction did not finish durably'

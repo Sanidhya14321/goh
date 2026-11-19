@@ -804,7 +804,10 @@ func changeProviderModel(name, backdrop string) (bool, string, error) {
 	if err != nil {
 		return false, "", err
 	}
-	options, windows, err := modelChoices(e, cfg)
+	options, windows, err := modelChoices(e, cfg, backdrop)
+	if errors.Is(err, tui.ErrCancelled) {
+		return false, modelListCancelled, nil
+	}
 	if err != nil {
 		return false, "", err
 	}
@@ -818,9 +821,20 @@ func changeProviderModel(name, backdrop string) (bool, string, error) {
 
 // modelChoices lists e's chat models as picker options, with the context
 // windows the provider reports (0 when unknown).
-func modelChoices(e core.ProviderEntry, cfg core.Config) ([]tui.Option, map[string]int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
+func modelChoices(e core.ProviderEntry, cfg core.Config, backdrop string) (options []tui.Option, windows map[string]int, err error) {
+	// The request runs behind a screen that says so and owns the keys: Esc
+	// cancels it there, and nothing typed meanwhile reaches the next picker.
+	err = tui.WithProgress("Loading "+e.Name+" models", backdrop, func(parent context.Context) error {
+		ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+		defer cancel()
+		var e2 error
+		options, windows, e2 = listModelChoices(ctx, e, cfg)
+		return e2
+	})
+	return options, windows, err
+}
+
+func listModelChoices(ctx context.Context, e core.ProviderEntry, cfg core.Config) ([]tui.Option, map[string]int, error) {
 	windows := map[string]int{}
 	var options []tui.Option
 	if e.Protocol == core.ChatGPTProtocol {
@@ -875,12 +889,18 @@ func setProviderModel(e core.ProviderEntry, cfg core.Config, model string, windo
 // holds for this chat and the next ones. A chat whose route came from
 // flags or --config is not a saved provider: its choice applies to it
 // alone and comes back as override.
-func chooseModel(chat *core.Config, backdrop string) (override, notice string, err error) {
+// modelListCancelled is the notice when Esc cancelled loading a model list;
+// nothing was chosen or changed.
+const modelListCancelled = "Model list cancelled; nothing changed."
+
+// chatScoped is set when the chat's configuration came from --config: its
+// choice stays with the chat even if its endpoint matches a saved provider.
+func chooseModel(chat *core.Config, chatScoped bool, backdrop string) (override, notice string, err error) {
 	_, _, cfg, err := userSettings()
 	if err != nil {
 		return "", "", err
 	}
-	if chat != nil && !sameRoute(*chat, cfg) {
+	if chat != nil && (chatScoped || !sameRoute(*chat, cfg)) {
 		return chooseChatModel(*chat, backdrop)
 	}
 	notice, err = chooseSavedModel(cfg, backdrop)
@@ -895,9 +915,17 @@ func sameRoute(chat, saved core.Config) bool {
 
 // chooseChatModel picks a model for a chat whose route is not saved.
 func chooseChatModel(chat core.Config, backdrop string) (string, string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	ids, err := provider.ListModels(ctx, chat, &http.Client{})
+	var ids []string
+	err := tui.WithProgress("Loading this chat's models", backdrop, func(parent context.Context) error {
+		ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+		defer cancel()
+		var e error
+		ids, e = provider.ListModels(ctx, chat, &http.Client{})
+		return e
+	})
+	if errors.Is(err, tui.ErrCancelled) {
+		return "", modelListCancelled, nil
+	}
 	if err != nil {
 		return "", "", fmt.Errorf("could not list this chat's models: %w", err)
 	}
@@ -935,7 +963,10 @@ func chooseSavedModel(cfg core.Config, backdrop string) (string, error) {
 		_, notice, err := addProvider(backdrop)
 		return notice, err
 	}
-	options, windows, listErr := modelChoices(active, cfg)
+	options, windows, listErr := modelChoices(active, cfg, backdrop)
+	if errors.Is(listErr, tui.ErrCancelled) {
+		return modelListCancelled, nil
+	}
 	manage := tui.Option{Value: "@manage", Label: "Manage providers…", Description: "Add, switch, test or change keys"}
 	if listErr != nil {
 		// Still offer the other providers and the manager, which can fix it.

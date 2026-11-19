@@ -282,7 +282,9 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         time.sleep(.05)
         pos = len(output)
         os.write(master, b"\r")
-        wait_for(b"Agent: build", pos)
+        # The redraw repaints only changed cells, so wait for what changed
+        # (the model name) rather than the unchanged agent label.
+        wait_for(b"setup-fixture", pos)
         time.sleep(.1)
         pos = len(output)
         os.write(master, b"Verify default model\r")

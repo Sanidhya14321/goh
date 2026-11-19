@@ -367,6 +367,16 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				mark = "[error] "
 			}
 			m.log += toolResultLines(mark, Safe(content))
+		case "context_compaction_skipped":
+			b, _ := json.Marshal(v.Data)
+			var d struct {
+				Manual bool   `json:"manual"`
+				Reason string `json:"reason"`
+			}
+			json.Unmarshal(b, &d)
+			if d.Manual {
+				m.log += "\n[context_compaction_skipped] Nothing to compact: the conversation is already as short as compaction can make it.\n"
+			}
 		case "subagent_started", "subagent_finished", "tool_updated", "error", "context_compacted", "command_expanded", "images_attached":
 			b, _ := json.Marshal(v.Data)
 			if len(b) > 2048 {
