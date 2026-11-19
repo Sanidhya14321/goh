@@ -1183,6 +1183,7 @@ func requestBytes(ms []core.Message, defs []core.Tool) (size, images int) {
 	d, _ := json.Marshal(defs)
 	return len(b) + len(d), images
 }
+
 // errNothingToCompact: a manual compaction found no history it could
 // shrink; the conversation is left as it is.
 var errNothingToCompact = errors.New("nothing to compact: the conversation is already as short as compaction can make it")

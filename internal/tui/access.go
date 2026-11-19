@@ -49,6 +49,10 @@ func (m *model) setAccess(level core.AccessLevel) {
 	if m.a == nil {
 		return
 	}
+	if m.attached() {
+		m.status = "Attached: the server's own access levels apply; this terminal cannot change them"
+		return
+	}
 	m.a.SetSessionAccess(level)
 	if m.a.Store != nil {
 		SetSessionAccessLevel(level, m.a.Store.ID)
@@ -101,6 +105,9 @@ func (m *model) approvalAllShortcut(p core.Permission) string {
 
 // accessLabel is the footer's access entry.
 func (m *model) accessLabel() string {
+	if m.attached() {
+		return "Access: server's" // the server's own levels apply, not this terminal's
+	}
 	level := m.accessLevel()
 	if level == core.AccessAsk {
 		return "Access: Ask"

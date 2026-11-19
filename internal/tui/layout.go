@@ -231,7 +231,11 @@ func (m *model) View() tea.View {
 	}
 	if m.blocked != "" {
 		_, step := m.setupStep()
-		controls = "Enter " + step + "  Ctrl+P commands  /providers  /settings  Ctrl+D exit"
+		palette := "/ commands"
+		if key := m.keyLabel("command_palette"); key != "" {
+			palette = key + " commands"
+		}
+		controls = "Enter " + step + "  " + palette + "  /providers  /settings  Ctrl+D exit"
 	}
 	if m.scrollOffset > 0 && m.pending == nil && m.question == nil {
 		// Without this a reader cannot tell that newer output is below.

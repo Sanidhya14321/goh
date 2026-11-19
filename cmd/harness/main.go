@@ -162,6 +162,15 @@ func run(args []string) error {
 		return chatFirst([]string{"chat"})
 	}
 	if args[0] == "chat" {
+		for _, a := range args[1:] {
+			if a == "--" {
+				break
+			}
+			if a == "-h" || a == "--help" || a == "-help" {
+				// Usage is printed before any picker or setup screen.
+				return runCommand(args, true, "", "")
+			}
+		}
 		return chatFirst(args)
 	}
 	return runCommand(args, false, "", "")
@@ -196,7 +205,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 			return err
 		}
 		project := "."
-		return inOneProgram(func() error { return launch(&project) })
+		return inOneProgram(func() error { return launch(&project, true) })
 	}
 	if args[0] == "auth" {
 		return chatGPTAuth(args[1:])

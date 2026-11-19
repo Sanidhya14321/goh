@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -66,15 +67,15 @@ type model struct {
 	stashedDraft string
 	// partialReply is the assistant text streamed since the last other
 	// event, removed from the transcript if the stream is retried.
-	partialReply    string
-	partialStart    int // offset in log where partialReply begins
+	partialReply string
+	partialStart int // offset in log where partialReply begins
 	// childPartial is each subagent's streamed text since its last other
 	// event, as the pieces appended to the log (parallel children
 	// interleave), so a child's retry retracts only its own text.
 	childPartial map[string][]string
 	// inputWidth is the composer's text width at the last render, so Up and
 	// Down move by displayed rows.
-	inputWidth int
+	inputWidth      int
 	a               *agent.Agent
 	events          chan tea.Msg
 	input           string
@@ -1025,6 +1026,14 @@ func (m *model) compactView() tea.View {
 	header := []string{"GoHarness", m.statusLine()}
 	if m.a != nil {
 		header[0] = "GoHarness  ·  " + m.a.Config.Agent + "  ·  " + m.a.Config.Model
+		// Where it acts and with how much access come first at any width;
+		// the model and agent drop off before them.
+		scope := "local"
+		if m.attached() {
+			scope = "attached"
+		}
+		header = append([]string{filepath.Base(m.a.Store.Project) + " · " + scope + " · " + m.accessLabel()}, header...)
+		header[1] = m.a.Config.Agent + "  ·  " + m.a.Config.Model
 	}
 	// The same transcript as the wide layout: hidden reasoning and details
 	// stay hidden, and scrolling, /find and turn jumps work.
@@ -1065,17 +1074,21 @@ func (m *model) compactView() tea.View {
 		return view
 	}
 
-	controls := "Enter send  ·  Alt+Enter newline  ·  Ctrl+P commands  ·  Ctrl+D exit"
+	palette := "/ commands"
+	if key := m.keyLabel("command_palette"); key != "" {
+		palette = key + " commands"
+	}
+	controls := "Enter send  ·  Alt+Enter newline  ·  " + palette + "  ·  Ctrl+D exit"
 	if m.active {
 		controls = m.runControls()
 	} else if m.blocked != "" {
 		_, step := m.setupStep()
-		controls = "Enter " + step + "  ·  Ctrl+P commands  ·  /settings  ·  Ctrl+D exit"
+		controls = "Enter " + step + "  ·  " + palette + "  ·  /settings  ·  Ctrl+D exit"
 	}
 	hints := fitHints(controls, width)
 	if hints != controls {
 		// Too narrow for every hint: keep the two that matter most.
-		short := "Ctrl+P commands  ·  Ctrl+D exit"
+		short := palette + "  ·  Ctrl+D exit"
 		if m.active {
 			short = "Ctrl+C cancel  ·  Ctrl+D exit"
 		} else if m.blocked != "" {

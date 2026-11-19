@@ -303,7 +303,7 @@ func chatFirst(args []string) error {
 		case "settings":
 			draft = nav.Draft
 			workspace := project
-			actionErr = launch(&workspace)
+			actionErr = launch(&workspace, false)
 			if workspace != "." && workspace != project {
 				project, sessionID = workspace, ""
 			}
@@ -444,13 +444,13 @@ func selectChatGPTModel(current, backdrop string) (string, bool, error) {
 
 // launch runs the settings menu. A workspace chosen there is written to
 // *project, so the chat that opens next uses it.
-func launch(project *string) error {
+func launch(project *string, standalone bool) error {
 	var status string
 	if *project == "" {
 		*project = "."
 	}
 	for {
-		action, err := tui.LaunchMenu(status)
+		action, err := tui.LaunchMenu(status, standalone)
 		if err != nil {
 			return err
 		}

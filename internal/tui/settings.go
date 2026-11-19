@@ -319,6 +319,9 @@ func EditSettings(title, hint string, fields []SettingsField, multiline bool, sa
 }
 
 type launcher struct {
+	// standalone is goh settings run on its own: leaving exits instead of
+	// returning to a chat, and the menu says so.
+	standalone     bool
 	status, action string
 	index          int
 	width, height  int
@@ -382,6 +385,9 @@ func (m *launcher) View() tea.View {
 	rows := []string{"", padding + cell("  GoHarness  /  Settings", boxWidth, foreground, panel),
 		padding + cell("", boxWidth, foreground, panel)}
 	for i, item := range launchItems {
+		if item.action == "chat" && m.standalone {
+			item.label, item.description = "Exit settings", "goh chat opens the chat"
+		}
 		mark, fg := "  ", foreground
 		if i == m.index {
 			mark, fg = "› ", accent
@@ -399,12 +405,16 @@ func (m *launcher) View() tea.View {
 			rows = append(rows, padding+cell("  "+line, boxWidth, accent, panel))
 		}
 	}
-	rows = append(rows, padding+cell("  "+fitHints("↑/↓ select  ·  Enter or key open  ·  Esc back to chat", boxWidth-2), boxWidth, muted, panel))
+	back := "Esc back to chat"
+	if m.standalone {
+		back = "Esc exit"
+	}
+	rows = append(rows, padding+cell("  "+fitHints("↑/↓ select  ·  Enter or key open  ·  "+back, boxWidth-2), boxWidth, muted, panel))
 	return canvas(rows, width, height)
 }
 
-func LaunchMenu(status string) (string, error) {
-	m := &launcher{status: status}
+func LaunchMenu(status string, standalone bool) (string, error) {
+	m := &launcher{status: status, standalone: standalone}
 	err := runProgram(m)
 	return m.action, err
 }
