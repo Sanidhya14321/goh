@@ -135,45 +135,76 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 		a.startCooldown(from)
 	}
 
+	// Fallbacks in order, each once, never the primary again; fallbacks in
+	// their own cooldown wait until every fresh route has failed.
+	primaryName := primaryConfig.Profile
+	seen := map[string]bool{cooldownKey(primaryName): true}
+	var order, cooled []string
 	for _, name := range a.Config.FallbackProfiles {
-		if name == from {
+		if seen[cooldownKey(name)] {
 			continue
 		}
+		seen[cooldownKey(name)] = true
+		if a.coolingDown(name) {
+			cooled = append(cooled, name)
+			continue
+		}
+		order = append(order, name)
+	}
+	for _, name := range cooled {
+		a.recordFailover(purpose, from, name, "cooldown", "skipped", "fallback is cooling down after a recent failure")
+	}
+	try := func(name string) (core.Reply, error, bool) {
 		reason := failoverReason(err)
 		config, cfgErr := a.Config.WithFallbackProfile(name)
 		if cfgErr != nil {
 			a.recordFailover(purpose, from, name, reason, "skipped", cfgErr.Error())
-			continue
+			return core.Reply{}, nil, false
 		}
 		if a.estimate(history, defs) > config.ContextWindow-config.OutputBudget {
 			a.recordFailover(purpose, from, name, reason, "skipped", "conversation exceeds fallback context window")
-			continue
+			return core.Reply{}, nil, false
 		}
 		model := Model(provider.New(config))
 		if a.RoleModelFactory != nil {
 			if model = a.RoleModelFactory(config, "fallback"); model == nil {
 				a.recordFailover(purpose, from, name, reason, "skipped", "fallback factory returned no provider")
-				continue
+				return core.Reply{}, nil, false
 			}
 		}
 		if e := a.recordFailover(purpose, from, name, reason, "attempting", ""); e != nil {
-			return core.Reply{}, e
+			return core.Reply{}, e, true
 		}
-		reply, err = model.Complete(ctx, history, defs, delta)
-		if err == nil {
-			reply.Model = config.Model // usage is charged to the model that served it
-			data := map[string]any{"purpose": purpose, "model": config.Model, "profile": name, "protocol": config.EffectiveProtocol(), "context_window": config.ContextWindow, "failover": true}
+		r, e := model.Complete(ctx, history, defs, delta)
+		if e == nil {
+			r.Model = config.Model // usage is charged to the model that served it
+			data := map[string]any{"purpose": purpose, "model": config.Model, "profile": name, "protocol": config.EffectiveProtocol(), "context_window": config.ContextWindow, "failover": true, "primary": primaryName}
 			if e := a.Store.Append("model_route", data); e != nil {
-				return core.Reply{}, e
+				return core.Reply{}, e, true
 			}
 			a.event("model_route", data)
-			return reply, nil
+			return r, nil, true
 		}
-		if ctx.Err() != nil || !provider.Failoverable(err) {
-			return reply, err
+		reply, err = r, e
+		if ctx.Err() != nil || !provider.Failoverable(e) {
+			return r, e, true
 		}
 		a.startCooldown(name)
 		from = name
+		return core.Reply{}, nil, false
+	}
+	for _, name := range order {
+		if r, e, done := try(name); done {
+			return r, e
+		}
+	}
+	if !cooling && ctx.Err() == nil {
+		// Every fresh route failed: cooling fallbacks may have recovered.
+		for _, name := range cooled {
+			if r, e, done := try(name); done {
+				return r, e
+			}
+		}
 	}
 	if cooling && ctx.Err() == nil {
 		// Last resort: the primary may have recovered.

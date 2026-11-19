@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -45,5 +46,39 @@ func TestFailedPrimaryCoolsDownWhileFallbacksExist(t *testing.T) {
 	a.Run(context.Background(), "four")
 	if primaryCalls != 3 {
 		t.Fatal("cooldown never expired", primaryCalls)
+	}
+}
+
+// Review P2: a fallback that failed is skipped while it cools down, in favour
+// of the next fresh fallback.
+func TestFailedFallbackCoolsDown(t *testing.T) {
+	a := failoverAgent(t, "backup", "other")
+	now := time.Unix(1000, 0)
+	a.clock = func() time.Time { return now }
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		return core.Reply{}, &provider.HTTPError{Status: 503, Kind: "server", Retryable: true}
+	})
+	var routed []string
+	a.RoleModelFactory = func(c core.Config, _ string) Model {
+		return modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+			routed = append(routed, c.Profile)
+			if c.Profile == "backup" {
+				return core.Reply{}, &provider.HTTPError{Status: 503, Kind: "server", Retryable: true}
+			}
+			return answer(), nil
+		})
+	}
+	if s, err := a.Run(context.Background(), "one"); s != "completed" {
+		for _, r := range a.Store.Records() {
+			if r.Type == "provider_failover" || r.Type == "failover" {
+				t.Log(string(r.Data))
+			}
+		}
+		t.Fatal(s, err)
+	}
+	a.Run(context.Background(), "two")
+	got := strings.Join(routed, ",")
+	if got != "backup,other,other" {
+		t.Fatalf("routes %s", got)
 	}
 }
