@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -263,8 +264,60 @@ func (m *Manager) readFile(path string) (string, string, error) {
 	}
 	return filepath.Clean(absolute), string(data), nil
 }
-func fileURI(path string) string {
-	return (&url.URL{Scheme: "file", Path: filepath.ToSlash(path)}).String()
+func fileURI(path string) string { return fileURIFor(path, runtime.GOOS == "windows") }
+
+// fileURIFor builds a file URI. On Windows a drive path (C:\x) becomes
+// file:///C:/x, not a URI whose authority is the drive, and a UNC path
+// (\\server\share\x) becomes file://server/share/x.
+func fileURIFor(path string, windows bool) string {
+	if !windows {
+		return (&url.URL{Scheme: "file", Path: path}).String()
+	}
+	slashed := strings.ReplaceAll(path, `\`, "/")
+	if host, rest, ok := strings.Cut(strings.TrimPrefix(slashed, "//"), "/"); strings.HasPrefix(slashed, "//") && ok && host != "" {
+		return (&url.URL{Scheme: "file", Host: host, Path: "/" + rest}).String()
+	}
+	if len(slashed) >= 2 && slashed[1] == ':' {
+		slashed = "/" + slashed
+	}
+	return (&url.URL{Scheme: "file", Path: slashed}).String()
+}
+
+// syncKind is the server's document sync: 0 none, 1 full, 2 incremental
+// (LSP TextDocumentSyncKind). A server that states nothing gets full text.
+func syncKind(capabilities map[string]json.RawMessage) int {
+	raw := capabilities["textDocumentSync"]
+	var kind int
+	if json.Unmarshal(raw, &kind) == nil {
+		return kind
+	}
+	var options struct {
+		Change *int `json:"change"`
+	}
+	if json.Unmarshal(raw, &options) == nil && options.Change != nil {
+		return *options.Change
+	}
+	return 1
+}
+
+// documentEnd is the UTF-16 position just past the end of text.
+func documentEnd(text string) map[string]int {
+	lines := strings.Split(strings.ReplaceAll(strings.ReplaceAll(text, "\r\n", "\n"), "\r", "\n"), "\n")
+	last := lines[len(lines)-1]
+	units := 0
+	for _, r := range last {
+		units += utf16.RuneLen(r)
+	}
+	return map[string]int{"line": len(lines) - 1, "character": units}
+}
+
+// contentChange is the didChange content for the server's sync kind: an
+// incremental server gets a range replacing the whole old text.
+func contentChange(kind int, old, text string) map[string]any {
+	if kind == 2 {
+		return map[string]any{"range": map[string]any{"start": map[string]int{"line": 0, "character": 0}, "end": documentEnd(old)}, "text": text}
+	}
+	return map[string]any{"text": text}
 }
 func utf16Position(text string, line, column int) (map[string]int, error) {
 	// CRLF and bare CR form one editor line break; columns count Unicode scalars.
@@ -450,12 +503,26 @@ func (m *Manager) Execute(ctx context.Context, name string, input json.RawMessag
 			}
 			s.documents[uri] = document{version, text}
 		} else if old.text != text {
-			version := old.version + 1
-			s.process.rpc.forgetDiagnostics(uri)
-			if err := s.process.rpc.notify("textDocument/didChange", map[string]any{"textDocument": map[string]any{"uri": uri, "version": version}, "contentChanges": []any{map[string]string{"text": text}}}); err != nil {
-				return nil, err
+			kind := syncKind(s.capabilities)
+			if kind == 0 {
+				// The server takes no updates: reopen the document so it
+				// never answers from the stale text.
+				if err := s.process.rpc.notify("textDocument/didClose", map[string]any{"textDocument": map[string]string{"uri": uri}}); err != nil {
+					return nil, err
+				}
+				s.process.rpc.forgetDiagnostics(uri)
+				if err := s.process.rpc.notify("textDocument/didOpen", map[string]any{"textDocument": map[string]any{"uri": uri, "languageId": languageID(path, cfg.LanguageID), "version": old.version + 1, "text": text}}); err != nil {
+					return nil, err
+				}
+				s.documents[uri] = document{old.version + 1, text}
+			} else {
+				version := old.version + 1
+				s.process.rpc.forgetDiagnostics(uri)
+				if err := s.process.rpc.notify("textDocument/didChange", map[string]any{"textDocument": map[string]any{"uri": uri, "version": version}, "contentChanges": []any{contentChange(kind, old.text, text)}}); err != nil {
+					return nil, err
+				}
+				s.documents[uri] = document{version, text}
 			}
-			s.documents[uri] = document{version, text}
 		}
 		params := map[string]any{"textDocument": map[string]string{"uri": uri}}
 		switch args.Operation {
