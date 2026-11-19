@@ -3,7 +3,32 @@ package tui
 import (
 	"strings"
 	"unicode"
+
+	"github.com/rivo/uniseg"
 )
+
+// graphemeStarts returns the rune offsets where each grapheme cluster of s
+// begins, plus len(runes) at the end. Editing moves by these, so one
+// Backspace removes 👍🏽 or e + combining accent whole.
+func graphemeStarts(s string) []int {
+	starts := []int{}
+	offset := 0
+	g := uniseg.NewGraphemes(s)
+	for g.Next() {
+		starts = append(starts, offset)
+		offset += len(g.Runes())
+	}
+	return append(starts, offset)
+}
+
+// dropLastGrapheme removes the last grapheme cluster of s.
+func dropLastGrapheme(s string) string {
+	starts := graphemeStarts(s)
+	if len(starts) < 2 {
+		return s
+	}
+	return string([]rune(s)[:starts[len(starts)-2]])
+}
 
 func (m *model) insertInput(text string) {
 	value := []rune(m.input)
@@ -15,15 +40,86 @@ func (m *model) insertInput(text string) {
 func (m *model) deleteInput(backward bool) {
 	value := []rune(m.input)
 	m.inputCursor = min(m.inputCursor, len(value))
+	starts := graphemeStarts(m.input)
+	from, to := m.inputCursor, m.inputCursor
 	if backward {
 		if m.inputCursor == 0 {
 			return
 		}
-		m.inputCursor--
+		for i := len(starts) - 1; i >= 0; i-- {
+			if starts[i] < m.inputCursor {
+				from = starts[i]
+				break
+			}
+		}
+	} else {
+		for _, st := range starts {
+			if st > m.inputCursor {
+				to = st
+				break
+			}
+		}
 	}
-	if m.inputCursor < len(value) {
-		m.input = string(value[:m.inputCursor]) + string(value[m.inputCursor+1:])
+	if from < to {
+		m.input = string(value[:from]) + string(value[to:])
+		m.inputCursor = from
 	}
+}
+
+// moveCursor moves the cursor one grapheme cluster left or right.
+func (m *model) moveCursor(right bool) {
+	starts := graphemeStarts(m.input)
+	cur := min(m.inputCursor, starts[len(starts)-1])
+	if right {
+		for _, st := range starts {
+			if st > cur {
+				m.inputCursor = st
+				return
+			}
+		}
+		return
+	}
+	for i := len(starts) - 1; i >= 0; i-- {
+		if starts[i] < cur {
+			m.inputCursor = starts[i]
+			return
+		}
+	}
+}
+
+// visualRows splits the draft into the rows the composer shows at width:
+// each logical line wrapped by display cells. Each row is [start, end) in
+// runes; end excludes the newline.
+func visualRows(value []rune, width int) [][2]int {
+	if width < 1 {
+		width = 1
+	}
+	var rows [][2]int
+	start, cells := 0, 0
+	g := uniseg.NewGraphemes(string(value))
+	offset := 0
+	for g.Next() {
+		n := len(g.Runes())
+		if g.Str() == "\n" || g.Str() == "\r\n" {
+			rows = append(rows, [2]int{start, offset})
+			offset += n
+			start, cells = offset, 0
+			continue
+		}
+		w := g.Width()
+		if cells+w > width && offset > start {
+			rows = append(rows, [2]int{start, offset})
+			start, cells = offset, 0
+		}
+		cells += w
+		offset += n
+	}
+	return append(rows, [2]int{start, offset})
+}
+
+// cellsBetween is the display width of value[from:to].
+func cellsBetween(value []rune, from, to int) int {
+	return uniseg.StringWidth(string(value[from:to]))
 }
 
 func (m *model) inputLineEnd(end bool) {
@@ -43,36 +139,46 @@ func (m *model) inputLineEnd(end bool) {
 func (m *model) inputUpDown(down bool) {
 	value := []rune(m.input)
 	m.inputCursor = min(m.inputCursor, len(value))
-	start := m.inputCursor
-	for start > 0 && value[start-1] != '\n' {
-		start--
+	width := m.inputWidth
+	if width <= 0 {
+		width = 1 << 30 // not rendered yet: logical lines only
 	}
-	column := m.inputCursor - start
-	if down {
-		end := m.inputCursor
-		for end < len(value) && value[end] != '\n' {
-			end++
+	rows := visualRows(value, width)
+	row := 0
+	for i, r := range rows {
+		if m.inputCursor >= r[0] && m.inputCursor <= r[1] {
+			row = i
+			if m.inputCursor < r[1] || i == len(rows)-1 || rows[i+1][0] > r[1] {
+				break // at a wrap point the cursor belongs to the next row
+			}
 		}
-		if end == len(value) {
+	}
+	// Up/Down move through displayed rows; history only past the first or
+	// last row, so a long wrapped draft is never replaced by mistake.
+	if (!down && row == 0) || (down && row == len(rows)-1) {
+		if down {
 			m.moveHistory(1)
-			return
+		} else {
+			m.moveHistory(-1)
 		}
-		nextEnd := end + 1
-		for nextEnd < len(value) && value[nextEnd] != '\n' {
-			nextEnd++
-		}
-		m.inputCursor = min(end+1+column, nextEnd)
 		return
 	}
-	if start == 0 {
-		m.moveHistory(-1)
-		return
+	column := cellsBetween(value, rows[row][0], m.inputCursor)
+	var target [2]int
+	if down {
+		target = rows[row+1]
+	} else {
+		target = rows[row-1]
 	}
-	previous := start - 1
-	for previous > 0 && value[previous-1] != '\n' {
-		previous--
+	cursor := target[0]
+	for _, st := range graphemeStarts(string(value[target[0]:target[1]])) {
+		at := target[0] + st
+		if at > target[1] || cellsBetween(value, target[0], at) > column {
+			break
+		}
+		cursor = at
 	}
-	m.inputCursor = min(previous+column, start-1)
+	m.inputCursor = cursor
 }
 
 func (m *model) moveHistory(step int) {
@@ -117,6 +223,7 @@ func (m *model) deleteWord() {
 }
 
 func (m *model) inputRows(width int) []string {
+	m.inputWidth = width
 	value := []rune(m.input)
 	cursor := min(m.inputCursor, len(value))
 	// Render a bounded window around the cursor while retaining the entire

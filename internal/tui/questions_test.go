@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -17,7 +18,10 @@ func TestQuestionsMultipleCustomAndDismissal(t *testing.T) {
 	key(tea.KeyPressMsg{Code: tea.KeyDown})
 	key(tea.KeyPressMsg{Code: ' ', Text: " "})
 	key(tea.KeyPressMsg{Code: tea.KeyEnter})
-	key(tea.KeyPressMsg{Code: 'c', Text: "c"})
+	// Review: a question without options focuses its text field at once.
+	if !m.question.custom {
+		t.Fatal("free-text question not focused")
+	}
 	for _, r := range "custom notes" {
 		key(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
@@ -59,5 +63,30 @@ func TestQuestionAnswerMustBeVisible(t *testing.T) {
 	m.questionKey(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if r := <-ch; len(r.reply.Answers) != 1 || r.reply.Answers[0][0] != "delta" {
 		t.Fatal(r)
+	}
+}
+
+// Review: a free-text question at 80x24 accepts typing and Enter at once,
+// without a scroll warning or an extra key.
+func TestFreeTextQuestionFocusedAndSubmits(t *testing.T) {
+	ch := make(chan questionResponse, 1)
+	m := &model{width: 80, height: 24, events: make(chan tea.Msg, 4)}
+	m.Update(questionMsg{request: core.QuestionRequest{Questions: []core.Question{{Header: "Name", Question: "What should the branch be called?"}}}, response: ch})
+	for _, r := range "fix-parser" {
+		m.View()
+		m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+	m.View()
+	if !strings.Contains(m.View().Content, "Enter submit") {
+		t.Fatal("submit hint not visible")
+	}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	select {
+	case r := <-ch:
+		if r.reply.Answers[0][0] != "fix-parser" {
+			t.Fatal(r)
+		}
+	default:
+		t.Fatalf("Enter did not submit; status %q", m.status)
 	}
 }

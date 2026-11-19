@@ -42,7 +42,7 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		return
 	}
 	current := q.message.request.Questions[q.index]
-	if key == "enter" && (m.reviewHidden || !m.questionCursorVisible()) {
+	if key == "enter" && (m.reviewHidden || (!q.custom && !m.questionCursorVisible())) {
 		// Enter answers what is highlighted, so it must be on screen.
 		m.status = "Enlarge the terminal or scroll to see the answer before submitting (Esc dismisses)"
 		return
@@ -61,10 +61,7 @@ func (m *model) questionKey(v tea.KeyPressMsg) {
 		case "ctrl+u":
 			q.text = ""
 		case "backspace":
-			r := []rune(q.text)
-			if len(r) > 0 {
-				q.text = string(r[:len(r)-1])
-			}
+			q.text = dropLastGrapheme(q.text)
 		default:
 			if v.Text != "" && len(q.text) < 4096 {
 				q.text += Safe(v.Text)
@@ -181,6 +178,16 @@ func (q *questionState) finish(m *model, answer []string) {
 	q.custom = false
 	q.text = ""
 	m.reviewOffset = 0
+	q.focusFreeText(m)
+}
+
+// focusFreeText opens the text field at once for a question without
+// options: typing answers it, with no extra key first.
+func (q *questionState) focusFreeText(m *model) {
+	if len(q.message.request.Questions[q.index].Options) == 0 {
+		q.custom = true
+		m.reviewOffset = 1 << 30 // the input is at the end; the view clamps
+	}
 }
 func (q *questionState) view() string {
 	text, _ := q.render()

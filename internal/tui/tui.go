@@ -68,6 +68,13 @@ type model struct {
 	// event, removed from the transcript if the stream is retried.
 	partialReply    string
 	partialStart    int // offset in log where partialReply begins
+	// childPartial is each subagent's streamed text since its last other
+	// event, as the pieces appended to the log (parallel children
+	// interleave), so a child's retry retracts only its own text.
+	childPartial map[string][]string
+	// inputWidth is the composer's text width at the last render, so Up and
+	// Down move by displayed rows.
+	inputWidth int
 	a               *agent.Agent
 	events          chan tea.Msg
 	input           string
@@ -278,15 +285,30 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				Event  core.Event `json:"event"`
 			}
 			json.Unmarshal(b, &d)
-			if d.Event.Type == "assistant_updated" {
+			switch d.Event.Type {
+			case "assistant_updated":
 				b, _ := json.Marshal(d.Event.Data)
 				var delta struct {
 					Text string `json:"text"`
 				}
 				json.Unmarshal(b, &delta)
-				m.log += Safe(delta.Text)
-			} else if d.Event.Type == "tool_started" || d.Event.Type == "tool_finished" || d.Event.Type == "error" {
-				m.log += childEventLine(d.Event)
+				text := Safe(delta.Text)
+				m.log += text
+				if m.childPartial == nil {
+					m.childPartial = map[string][]string{}
+				}
+				m.childPartial[d.TaskID] = append(m.childPartial[d.TaskID], text)
+			case "stream_retry", "assistant_reset":
+				// The child's attempt was abandoned: retract only its text.
+				m.dropChildPartial(d.TaskID)
+				if d.Event.Type == "stream_retry" {
+					m.log += "\n[subagent " + Safe(d.TaskID) + " retrying its reply]\n"
+				}
+			default:
+				delete(m.childPartial, d.TaskID) // its streamed text is final
+				if d.Event.Type == "tool_started" || d.Event.Type == "tool_finished" || d.Event.Type == "error" {
+					m.log += childEventLine(d.Event)
+				}
 			}
 		case "stream_retry":
 			// Remove the abandoned partial reply; the retry streams it anew.
@@ -429,6 +451,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		}
 		m.question = &questionState{message: v, selected: map[int]bool{}}
 		m.reviewOffset, m.reviewSeen = 0, 0
+		m.question.focusFreeText(m)
 		return m, m.wait()
 	case permissionMsg:
 		m.pending = &v
@@ -927,9 +950,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "alt+enter", "shift+enter", "ctrl+j":
 			m.insertInput("\n")
 		case "left":
-			m.inputCursor = max(0, min(m.inputCursor, len([]rune(m.input)))-1)
+			m.moveCursor(false)
 		case "right":
-			m.inputCursor = min(len([]rune(m.input)), m.inputCursor+1)
+			m.moveCursor(true)
 		case "home", "ctrl+a":
 			m.inputLineEnd(false)
 		case "end", "ctrl+e":
@@ -1327,6 +1350,18 @@ func (m *model) requestRewind(action string) tea.Cmd {
 
 // dropPartialReply removes the streamed text of an abandoned reply, with any
 // reasoning shown after it, from the transcript.
+// dropChildPartial removes one subagent's provisional text from the log,
+// newest piece first, leaving the parent's and other children's text alone.
+func (m *model) dropChildPartial(task string) {
+	pieces := m.childPartial[task]
+	for i := len(pieces) - 1; i >= 0; i-- {
+		if at := strings.LastIndex(m.log, pieces[i]); at >= 0 && pieces[i] != "" {
+			m.log = m.log[:at] + m.log[at+len(pieces[i]):]
+		}
+	}
+	delete(m.childPartial, task)
+}
+
 func (m *model) dropPartialReply() {
 	switch {
 	case m.partialReply == "":

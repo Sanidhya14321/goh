@@ -122,3 +122,20 @@ func TestReopenShowsLastVerification(t *testing.T) {
 		t.Fatal("new turn inherited the previous run's result")
 	}
 }
+
+// Review: a subagent's retry retracts only its own abandoned text.
+func TestChildRetryRetractsOnlyItsText(t *testing.T) {
+	m := &model{width: 80, height: 24, active: true, events: make(chan tea.Msg, 8)}
+	child := func(task, kind string, data any) core.Event {
+		return core.Event{Type: "subagent_event", Data: map[string]any{"task_id": task, "event": core.Event{Type: kind, Data: data}}}
+	}
+	m.log = "parent text\n"
+	m.Update(child("a", "assistant_updated", map[string]any{"text": "BROKEN-A"}))
+	m.Update(child("b", "assistant_updated", map[string]any{"text": "KEEP-B"}))
+	m.Update(child("a", "assistant_updated", map[string]any{"text": " more"}))
+	m.Update(child("a", "stream_retry", map[string]any{"attempt": 1}))
+	m.Update(child("a", "assistant_updated", map[string]any{"text": "GOOD-A"}))
+	if strings.Contains(m.log, "BROKEN-A") || strings.Contains(m.log, " more") || !strings.Contains(m.log, "KEEP-B") || !strings.Contains(m.log, "GOOD-A") || !strings.Contains(m.log, "parent text") {
+		t.Fatalf("log %q", m.log)
+	}
+}

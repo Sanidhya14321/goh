@@ -46,9 +46,9 @@ func (m *model) activeKey(v tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case "alt+enter", "shift+enter", "ctrl+j":
 		m.insertInput("\n")
 	case "left":
-		m.inputCursor = max(0, min(m.inputCursor, len([]rune(m.input)))-1)
+		m.moveCursor(false)
 	case "right":
-		m.inputCursor = min(len([]rune(m.input)), m.inputCursor+1)
+		m.moveCursor(true)
 	case "home", "ctrl+a":
 		m.inputLineEnd(false)
 	case "end", "ctrl+e":
