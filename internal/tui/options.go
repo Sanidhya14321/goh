@@ -96,6 +96,21 @@ func (m *optionPicker) View() tea.View {
 		return blankView()
 	}
 	options := m.matches()
+	if height < 7 {
+		// Too short for the box: show the highlighted option itself (and the
+		// title when it fits), so Enter never applies something unseen.
+		var rows []string
+		if height >= 2 {
+			rows = append(rows, ansi.Truncate(Safe(m.title)+" · ↑/↓ Enter Esc", width, "…"))
+		}
+		if len(options) == 0 {
+			rows = append(rows, ansi.Truncate("No matches", width, "…"))
+		} else {
+			o := options[min(m.index, len(options)-1)]
+			rows = append(rows, cell(ansi.Truncate("› "+Safe(o.Label), width, "…"), width, onAccent, accent))
+		}
+		return canvas(rows, width, height)
+	}
 	// Wide enough for the longest option with its description (so they
 	// are not cut mid-word), within the terminal and a readable maximum.
 	labelWidth, want := 0, 68

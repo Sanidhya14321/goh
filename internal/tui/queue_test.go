@@ -159,3 +159,12 @@ func TestFindSearchesEarlierJournalTurns(t *testing.T) {
 		t.Fatalf("find %+v log %q", m.find, m.log)
 	}
 }
+
+// Review: at a tiny height a picker still shows the option Enter applies.
+func TestPickerTinyHeightShowsSelection(t *testing.T) {
+	m := &optionPicker{title: "Theme", options: []Option{{Value: "a", Label: "Alpha"}, {Value: "b", Label: "Bravo"}}, width: 72, height: 3}
+	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
+	if v := m.View().Content; !strings.Contains(v, "Bravo") {
+		t.Fatalf("selected option not visible:\n%s", v)
+	}
+}
