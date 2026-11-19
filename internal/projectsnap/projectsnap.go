@@ -15,11 +15,13 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/platform"
@@ -30,7 +32,14 @@ type Store struct {
 	git     string
 	gitDir  string
 	project string
+	// index is the private index file for this Store's current operation;
+	// "" uses the shadow repository's shared index (read-only commands).
+	index string
 }
+
+// restoreLocks serializes restores of one shadow repository in this
+// process; restoreLock (a lock file) does so across processes.
+var restoreLocks sync.Map
 
 var treeID = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
 
@@ -83,6 +92,9 @@ func (s *Store) run(ctx context.Context, stdin []byte, args ...string) (string, 
 	// Only the safe environment, and none of the user's GIT_* overrides, so
 	// nothing redirects these commands to the real repository.
 	cmd.Env = append(platform.ChildEnv(), "GIT_TERMINAL_PROMPT=0", "GIT_CONFIG_NOSYSTEM=1")
+	if s.index != "" {
+		cmd.Env = append(cmd.Env, "GIT_INDEX_FILE="+s.index)
+	}
 	if stdin != nil {
 		cmd.Stdin = bytes.NewReader(stdin)
 	}
@@ -94,8 +106,59 @@ func (s *Store) run(ctx context.Context, stdin []byte, args ...string) (string, 
 	return out.String(), nil
 }
 
+// withPrivateIndex runs f on a copy of s that stages into its own index
+// file, seeded from the shared one (a stat cache only). Two sessions
+// capturing or restoring the same project then never interleave stage,
+// read-tree and checkout operations on one index.
+func (s *Store) withPrivateIndex(f func(*Store) error) error {
+	if s.index != "" {
+		return f(s)
+	}
+	tmp, err := os.CreateTemp(s.gitDir, "index-*.tmp")
+	if err != nil {
+		return err
+	}
+	name := tmp.Name()
+	defer os.Remove(name)
+	seeded := false
+	if shared, err := os.Open(filepath.Join(s.gitDir, "index")); err == nil {
+		_, err = io.Copy(tmp, shared)
+		shared.Close()
+		if err != nil {
+			tmp.Close()
+			return err
+		}
+		seeded = true
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if !seeded {
+		os.Remove(name) // git creates a fresh index; an empty file is invalid
+	}
+	private := *s
+	private.index = name
+	if err := f(&private); err != nil {
+		return err
+	}
+	// Keep the warm stat cache for the next capture; replacing the file is
+	// atomic, so a concurrent reader sees the old or the new index whole.
+	_ = os.Rename(name, filepath.Join(s.gitDir, "index"))
+	return nil
+}
+
 // Track records the current project tree and returns its ID.
 func (s *Store) Track(ctx context.Context) (string, error) {
+	var tree string
+	err := s.withPrivateIndex(func(p *Store) error {
+		var err error
+		tree, err = p.track(ctx)
+		return err
+	})
+	return tree, err
+}
+
+func (s *Store) track(ctx context.Context) (string, error) {
 	if _, err := s.run(ctx, nil, "add", "--all", "--", "."); err != nil {
 		return "", err
 	}
@@ -155,10 +218,53 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 	if !treeID.MatchString(tree) {
 		return "", nil, errors.New("invalid snapshot id")
 	}
+	mu, _ := restoreLocks.LoadOrStore(s.gitDir, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+	unlock, err := s.restoreLock(ctx)
+	if err != nil {
+		return "", nil, err
+	}
+	defer unlock()
+	err = s.withPrivateIndex(func(p *Store) error {
+		before, changes, err = p.restore(ctx, tree)
+		return err
+	})
+	return before, changes, err
+}
+
+// restoreLock takes the shadow repository's restore lock file, waiting for
+// another process's restore to finish. A lock older than ten minutes is
+// left by a process that died and is taken over.
+func (s *Store) restoreLock(ctx context.Context) (func(), error) {
+	path := filepath.Join(s.gitDir, "restore.lock")
+	for {
+		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+		if err == nil {
+			fmt.Fprintf(f, "%d\n", os.Getpid())
+			f.Close()
+			return func() { os.Remove(path) }, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, err
+		}
+		if info, statErr := os.Stat(path); statErr == nil && time.Since(info.ModTime()) > 10*time.Minute {
+			os.Remove(path)
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("another restore of this project is in progress: %w", ctx.Err())
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
+func (s *Store) restore(ctx context.Context, tree string) (before string, changes []Change, err error) {
 	if _, err := s.run(ctx, nil, "cat-file", "-e", tree+"^{tree}"); err != nil {
 		return "", nil, errors.New("snapshot not found in this project's history")
 	}
-	if before, err = s.Track(ctx); err != nil {
+	if before, err = s.track(ctx); err != nil {
 		return "", nil, err
 	}
 	if changes, err = s.Diff(ctx, before, tree); err != nil {
@@ -229,8 +335,11 @@ func (s *Store) checkUnrecorded(ctx context.Context, before string, changes []Ch
 			}
 		}
 		var lost string
-		_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
-			if err != nil || lost != "" {
+		walkErr := filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err // an unreadable folder could hide an unrecorded file
+			}
+			if lost != "" {
 				return filepath.SkipAll
 			}
 			if d.IsDir() {
@@ -243,6 +352,9 @@ func (s *Store) checkUnrecorded(ctx context.Context, before string, changes []Ch
 			}
 			return nil
 		})
+		if walkErr != nil {
+			return fmt.Errorf("restore refused: could not check %s for unrecorded files: %w", c.Path, walkErr)
+		}
 		if lost != "" {
 			return fmt.Errorf("restore would replace folder %s with a file and delete %s, which no snapshot records; move it first", c.Path, lost)
 		}

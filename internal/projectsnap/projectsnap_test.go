@@ -170,3 +170,43 @@ func TestLinkedParentDetectsSymlinkedFolders(t *testing.T) {
 		t.Fatal("plain folders reported as links")
 	}
 }
+
+// Review P2: two sessions capturing and restoring one project never share a
+// mutable index, so their operations cannot interleave into a wrong tree.
+func TestConcurrentCaptureAndRestore(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	ctx := context.Background()
+	project, data := t.TempDir(), t.TempDir()
+	write(t, project, "a.txt", "one\n")
+	s1, err := Open(data, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2, _ := Open(data, project)
+	first, err := s1.Track(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, project, "b.txt", "two\n")
+	errs := make(chan error, 20)
+	for i := 0; i < 10; i++ {
+		go func() { _, err := s1.Track(ctx); errs <- err }()
+		go func() { _, err := s2.Track(ctx); errs <- err }()
+	}
+	for i := 0; i < 20; i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, _, err := s2.Restore(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if read(t, project, "b.txt") != "<missing>" || read(t, project, "a.txt") != "one\n" {
+		t.Fatal("restore did not reach the first snapshot")
+	}
+	if again, _ := s1.Track(ctx); again != first {
+		t.Fatalf("tree after restore %s, want %s", again, first)
+	}
+}
