@@ -79,9 +79,13 @@ func TestAccessLevels(t *testing.T) {
 // A level saved for one folder covers only that folder; the deepest saved
 // folder wins, and the session level replaces only the project's own.
 func TestAccessIsScopedToFolders(t *testing.T) {
-	saved := sandboxSupported
-	t.Cleanup(func() { sandboxSupported = saved })
+	saved, savedNested := sandboxSupported, nestedEnforced
+	t.Cleanup(func() { sandboxSupported, nestedEnforced = saved, savedNested })
 	sandboxSupported = func() bool { return true }
+	// web/vendor below is stricter than web: a backend that can keep it
+	// read-only (macOS) runs the command; Linux asks instead, which
+	// TestAutoKeepsStricterSubfoldersUnwritable covers.
+	nestedEnforced = func() bool { return true }
 	a, root, probe := accessHarness(t)
 	os.MkdirAll(filepath.Join(root, "web", "vendor"), 0o755)
 	a.SetAccess([]core.FolderAccess{
