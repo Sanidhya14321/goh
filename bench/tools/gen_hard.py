@@ -795,7 +795,10 @@ func TestSubscribeDuringPublish(t *testing.T) {
 	for _, it := range sorted {
 		io.WriteString(w, it.SKU+","+it.Name+","+it.Price.String()+","+strconv.Itoa(it.Quantity)+"\\n")
 	}
-	return nil''')],
+	return nil'''),
+   # The buggy version no longer uses encoding/csv: drop the import so the
+   # starting tree compiles and the hidden test fails on its assertion.
+   ("report/report.go", '\t"encoding/csv"\n', '')],
   hidden={"report/report_test.go": '''package report
 
 import (
@@ -1014,7 +1017,7 @@ def main():
         solution = {}
         for path, good, bad in t["mutate"]:
             assert files[path].count(good) == 1, (t["id"], path, good[:60])
-            solution[path] = files[path]
+            solution.setdefault(path, files[path])  # the original, before any mutation
             files[path] = files[path].replace(good, bad)
         for path, body in files.items():
             write(os.path.join(d, "repo"), path, body)

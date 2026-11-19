@@ -10,6 +10,11 @@ counts as resolved only when both its fail-to-pass and pass-to-pass checks succe
 make bench-check        # builds bin/goh-bench and confirms each task fails before and passes with its reference solution
 ```
 
+The dry run builds each revision from isolated inputs (setup with network, checks without) and requires:
+the fail-to-pass check fails on the starting tree **by a test failure** (not a build or setup error), passes
+with `solution/`, and every pass-to-pass test passing with the solution also passes on the starting tree
+(except the tests the fix changes). Copy and setup errors make a task BROKEN.
+
 ## Run
 
 `goh-bench` uses whatever model `goh` is configured for. With the ChatGPT sign-in, that is `gpt-6.1-sol` by default.
@@ -25,9 +30,33 @@ Add `-host-grading` to include the tasks that have no image (see **Isolation** b
 reported as errors and not run.
 
 Each arm is a name plus extra `goh run` flags, so any switch can be A/B tested (for example
-`--reasoning-effort xhigh` or `--verify "go test ./..."`). Results go to `bench/results/<time>/`:
-- `results.jsonl`: one line per attempt;
-- `summary.md`: per-arm resolved rate, false completions, budget stops, average tool calls and time, and tokens (including cached).
+`--reasoning-effort xhigh` or `--verify "go test ./..."`). Arm flags are split like shell words (quotes
+kept, never evaluated); names must be unique letters, digits, `.`, `_` or `-`. Arms are interleaved per task
+and attempt, in rotating order. Each invocation gets a fresh `bench/results/<time>-<random>/` folder and
+each attempt its own work folder:
+- `manifest.json`: the goh binary's version and SHA-256, every task's source commit, image and `task.json`
+  digest, the arms with their argv, the grading policy and every scheduled attempt;
+- `results.jsonl`: one line per attempt, with the model route, per-purpose usage from every session journal
+  (turns, compaction, titles, fallbacks; subagents included), per-test grading results, stream checks
+  (malformed lines, exactly one final `run_finished`) and, for failures, a `failure_kind`;
+- `summary.md`: per arm, resolution over scored attempts and end-to-end reliability over all scheduled
+  ones, infrastructure errors, false completions, **false verification** (goh said `verified`, the grader
+  failed), budget stops, p50/p95 time and tokens including auxiliary and child use.
+
+**Failures.** `copy`, `source`, `setup`, `container`, `start`, `regrade_copy`, `grade_container` and
+`grader` are infrastructure failures: excluded from resolution, counted against reliability.
+`agent_timeout` and everything after the agent ran are scored.
+
+**Grading policy.** The grade tree is the agent's final tree with the pre-run (post-setup) test and
+discovery files (`*_test.go`, `test_*.py`, `*_test.py`, `conftest.py`, `pytest.ini`, `tox.ini`,
+`testdata/`) restored, and the hidden tests on top, so the grader's own fixtures and discovery decide.
+Changes to those files are listed in `protected_changed` (compared with the actual baseline, deletions
+included) and graded separately as `candidate_tests_resolved`. Each check is classified as `passed`,
+`test_failure`, `build_failure`, `no_tests` (nothing ran, or an expected test was skipped or missing),
+`timeout` or `tool_error`; only `passed` passes. `go test` runs with `-json`, and `unittest -v` and
+`pytest -rA` output is parsed, so tests are identified. A task may list `fail_to_pass_tests` and
+`pass_to_pass_tests` (identities, matched by suffix); it is then graded `identity`, otherwise
+`aggregate` (exit codes, labelled as such).
 
 ## Task format
 

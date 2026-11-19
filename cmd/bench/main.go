@@ -17,6 +17,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -40,6 +42,11 @@ type task struct {
 	PassToPass    string   `json:"pass_to_pass,omitempty"`
 	MaxRunSeconds int      `json:"max_run_seconds,omitempty"`
 	MaxToolCalls  int      `json:"max_tool_calls,omitempty"`
+	// FailToPassTests and PassToPassTests, when set, are the test
+	// identities that must pass (go test names or unittest/pytest ids). A
+	// task without them is graded by exit code and labelled "aggregate".
+	FailToPassTests []string `json:"fail_to_pass_tests,omitempty"`
+	PassToPassTests []string `json:"pass_to_pass_tests,omitempty"`
 	// Image, when set, isolates the task in Docker: setup runs in a
 	// container with network, while the agent's shell commands and grading
 	// run in containers with no network. Only the attempt folder and a
@@ -90,7 +97,8 @@ type Result struct {
 	Outcome        string  `json:"outcome"` // goh outcome
 	ExitCode       int     `json:"exit_code"`
 	Resolved       bool    `json:"resolved"`
-	FalseComplete  bool    `json:"false_completion"` // completed but the grader fails
+	FalseComplete  bool    `json:"false_completion"`   // completed but the grader fails
+	FalseVerified  bool    `json:"false_verification"` // goh said verified but the grader fails
 	ToolCalls      int     `json:"tool_calls"`
 	PromptTokens   int     `json:"prompt_tokens"`
 	OutputTokens   int     `json:"output_tokens"`
@@ -100,6 +108,43 @@ type Result struct {
 	PassToPassOK   bool    `json:"pass_to_pass_ok"`
 	HiddenTampered bool    `json:"hidden_tests_overwritten"` // agent edited files the hidden tree replaces
 	Error          string  `json:"error,omitempty"`
+	// FailureKind separates infrastructure failures (copy, setup,
+	// container, start, regrade, grader) from the agent's own result;
+	// Scored is false for infrastructure failures, which are excluded from
+	// the resolution rate but count against end-to-end reliability.
+	FailureKind string `json:"failure_kind,omitempty"`
+	Scored      bool   `json:"scored"`
+	// Grading is "identity" when expected test identities were checked,
+	// "aggregate" when only exit codes were available (legacy tasks).
+	Grading    string      `json:"grading"`
+	FailToPass checkResult `json:"fail_to_pass"`
+	PassToPass checkResult `json:"pass_to_pass"`
+	// ProtectedChanged lists test and discovery files the candidate changed
+	// relative to the pre-run baseline; they are restored before grading.
+	// CandidateTestsResolved is the separate evaluation with the
+	// candidate's own test changes kept.
+	ProtectedChanged       []string `json:"protected_changed,omitempty"`
+	CandidateTestsResolved *bool    `json:"candidate_tests_resolved,omitempty"`
+	// Stream checks: malformed lines and terminal events in goh's output.
+	MalformedEvents int    `json:"malformed_events"`
+	TerminalEvents  int    `json:"terminal_events"`
+	StreamProblem   string `json:"stream_problem,omitempty"`
+	// Route and accounting from the run itself.
+	Model     string                   `json:"model,omitempty"`
+	Protocol  string                   `json:"protocol,omitempty"`
+	Profile   string                   `json:"profile,omitempty"`
+	Usage     map[string]purposeTokens `json:"usage_by_purpose,omitempty"` // from the session journals: turn, compaction, title, fallback; children included
+	Children  int                      `json:"child_sessions"`
+	Scheduled time.Time                `json:"scheduled"`
+}
+
+// purposeTokens is reported usage for one purpose across every session the
+// attempt wrote (the top-level run and its children).
+type purposeTokens struct {
+	Calls      int `json:"calls"`
+	Prompt     int `json:"prompt_tokens"`
+	Completion int `json:"completion_tokens"`
+	CacheRead  int `json:"cache_read_tokens"`
 }
 
 func main() {
@@ -110,14 +155,18 @@ func main() {
 	attempts := flag.Int("attempts", 1, "attempts per task and arm")
 	flag.BoolVar(&hostGrading, "host-grading", false, "run tasks that have no image: the agent's shell and grading then run model-edited code on this machine, unsandboxed during grading")
 	dry := flag.Bool("dry-run", false, "check that each task's fail-to-pass fails on repo/ and passes with hidden/ reference, without a model")
-	var arms []string
-	flag.Func("arm", `name=extra goh run flags, repeatable (e.g. "base=" or "nocheck=--completion-check=false")`, func(v string) error {
-		arms = append(arms, v)
+	var armSpecs []string
+	flag.Func("arm", `name=extra goh run flags, repeatable (e.g. "base=" or "nocheck=--completion-check=false"); flags are split like shell words but never evaluated`, func(v string) error {
+		armSpecs = append(armSpecs, v)
 		return nil
 	})
 	flag.Parse()
-	if len(arms) == 0 {
-		arms = []string{"base="}
+	if len(armSpecs) == 0 {
+		armSpecs = []string{"base="}
+	}
+	arms, err := parseArms(armSpecs)
+	if err != nil {
+		fail(err)
 	}
 	if resolved, err := exec.LookPath(*gohBin); err == nil {
 		*gohBin, _ = filepath.Abs(resolved) // tasks run in their own folders
@@ -129,8 +178,26 @@ func main() {
 	if *dry {
 		os.Exit(dryRun(tasks))
 	}
-	runDir := filepath.Join(*out, time.Now().UTC().Format("20060102T150405Z"))
-	if err := os.MkdirAll(runDir, 0o755); err != nil {
+	// The effective isolation of every task, before anything runs.
+	for _, t := range tasks {
+		switch {
+		case t.Image != "":
+			fmt.Fprintf(os.Stderr, "isolation %-28s container %s (setup with network; agent and grader without)\n", t.ID, t.Image)
+		case hostGrading:
+			fmt.Fprintf(os.Stderr, "isolation %-28s HOST: agent shell in goh's sandbox, grading unsandboxed on this machine\n", t.ID)
+		default:
+			fmt.Fprintf(os.Stderr, "isolation %-28s refused (no image; pass -host-grading)\n", t.ID)
+		}
+	}
+	if err := os.MkdirAll(*out, 0o755); err != nil {
+		fail(err)
+	}
+	// A fresh folder per invocation, even when two start in one second.
+	runDir, err := os.MkdirTemp(*out, time.Now().UTC().Format("20060102T150405Z")+"-")
+	if err != nil {
+		fail(err)
+	}
+	if err := writeManifest(runDir, *gohBin, tasks, arms, *attempts); err != nil {
 		fail(err)
 	}
 	f, err := os.Create(filepath.Join(runDir, "results.jsonl"))
@@ -139,21 +206,62 @@ func main() {
 	}
 	defer f.Close()
 	var all []Result
-	for _, armSpec := range arms {
-		name, extra, _ := strings.Cut(armSpec, "=")
-		for _, t := range tasks {
-			for n := 1; n <= *attempts; n++ {
-				r := runTask(t, *gohBin, name, strings.Fields(extra), n, filepath.Join(runDir, "work"))
+	// Arms are interleaved per task and attempt, in an order that rotates,
+	// so drift in the provider or machine affects every arm alike.
+	for _, t := range tasks {
+		for n := 1; n <= *attempts; n++ {
+			for i := range arms {
+				a := arms[(i+n-1)%len(arms)]
+				r := runTask(t, *gohBin, a.Name, a.Args, n, filepath.Join(runDir, "work"))
 				all = append(all, r)
 				b, _ := json.Marshal(r)
 				f.Write(append(b, '\n'))
-				fmt.Fprintf(os.Stderr, "%-10s %-28s #%d resolved=%v status=%s outcome=%s %.0fs\n", name, t.ID, n, r.Resolved, r.Status, r.Outcome, r.Seconds)
+				fmt.Fprintf(os.Stderr, "%-10s %-28s #%d resolved=%v status=%s outcome=%s grading=%s %s %.0fs\n", a.Name, t.ID, n, r.Resolved, r.Status, r.Outcome, r.Grading, r.FailureKind, r.Seconds)
 			}
 		}
 	}
 	summary := summarize(all)
 	os.WriteFile(filepath.Join(runDir, "summary.md"), []byte(summary), 0o644)
 	fmt.Print(summary)
+}
+
+// writeManifest records what the run used: the harness build, the tasks
+// (source, image, task.json digest), the arms and every scheduled attempt.
+func writeManifest(runDir, goh string, tasks []task, arms []arm, attempts int) error {
+	digest := func(path string) string {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return ""
+		}
+		sum := sha256.Sum256(b)
+		return hex.EncodeToString(sum[:])
+	}
+	version, _ := exec.Command(goh, "version").Output()
+	type taskInfo struct {
+		ID, Image, Git, Commit, TaskDigest string
+	}
+	var ts []taskInfo
+	var schedule []string
+	for _, t := range tasks {
+		info := taskInfo{ID: t.ID, Image: t.Image, TaskDigest: digest(filepath.Join(t.dir, "task.json"))}
+		if t.Git != nil {
+			info.Git, info.Commit = t.Git.URL, t.Git.Commit
+		}
+		ts = append(ts, info)
+		for n := 1; n <= attempts; n++ {
+			for i := range arms {
+				schedule = append(schedule, fmt.Sprintf("%s/%s/%d", t.ID, arms[(i+n-1)%len(arms)].Name, n))
+			}
+		}
+	}
+	m := map[string]any{"started": time.Now().UTC(), "goh": goh, "goh_version": strings.TrimSpace(string(version)), "goh_sha256": digest(goh),
+		"host_grading": hostGrading, "attempts": attempts, "arms": arms, "tasks": ts, "schedule": schedule,
+		"grading_policy": "candidate tree with the pre-run test and discovery files restored and the hidden tests on top; candidate test changes are evaluated separately"}
+	b, err := json.MarshalIndent(m, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(runDir, "manifest.json"), b, 0o644)
 }
 
 func fail(err error) {
@@ -206,54 +314,68 @@ var hostGrading bool
 // tree: the agent's container sees agent/ and is stopped before grading, and
 // the grader's sees only grade/, so nothing the agent leaves running or
 // writes can reach the grade.
-func runTask(t task, goh, arm string, extra []string, attempt int, workRoot string) Result {
-	r := Result{Task: t.ID, Arm: arm, Attempt: attempt}
+func runTask(t task, goh, arm string, extra []string, attempt int, workRoot string) (r Result) {
+	r = Result{Task: t.ID, Arm: arm, Attempt: attempt, Scheduled: time.Now().UTC(), Grading: "aggregate"}
+	if len(t.FailToPassTests) > 0 {
+		r.Grading = "identity"
+	}
+	infra := func(kind, msg string) Result {
+		r.FailureKind, r.Error, r.Scored = kind, msg, false
+		return r
+	}
 	if t.Image == "" && !hostGrading {
-		r.Error = "task has no image, so grading would run model-edited code on this machine; pass -host-grading to accept that"
-		return r
+		return infra("isolation", "task has no image, so grading would run model-edited code on this machine; pass -host-grading to accept that")
 	}
-	base, err := filepath.Abs(filepath.Join(workRoot, fmt.Sprintf("%s-%s-%d", arm, t.ID, attempt)))
+	if err := os.MkdirAll(workRoot, 0o755); err != nil {
+		return infra("copy", err.Error())
+	}
+	// A fresh folder for every attempt, never reused.
+	base, err := os.MkdirTemp(workRoot, fmt.Sprintf("%s-%s-%d-", arm, t.ID, attempt))
 	if err != nil {
-		r.Error = err.Error()
-		return r
+		return infra("copy", err.Error())
 	}
-	work, grade, sessions := filepath.Join(base, "agent"), filepath.Join(base, "grade"), filepath.Join(base, "sessions")
+	if base, err = filepath.Abs(base); err != nil {
+		return infra("copy", err.Error())
+	}
+	work, grade, sessions, pristine := filepath.Join(base, "agent"), filepath.Join(base, "grade"), filepath.Join(base, "sessions"), filepath.Join(base, "baseline")
 	src, err := t.sourceTree()
 	if err != nil {
-		r.Error = "source: " + err.Error()
-		return r
+		return infra("source", err.Error())
 	}
 	if err := copyTree(src, work); err != nil {
-		r.Error = "copy: " + err.Error()
-		return r
+		return infra("copy", err.Error())
 	}
 	var agentBox string
 	if t.Image != "" {
 		setupBox, err := startContainer(t.Image, work, true)
 		if err != nil {
-			r.Error = err.Error()
-			return r
+			return infra("container", err.Error())
 		}
 		for _, s := range t.Setup {
 			if code, out := csh(setupBox, work, s, 900); code != 0 {
 				stopContainer(setupBox)
-				r.Error = fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out))
-				return r
+				return infra("setup", fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out)))
 			}
 		}
 		stopContainer(setupBox)
 		if agentBox, err = startContainer(t.Image, work, false); err != nil {
-			r.Error = err.Error()
-			return r
+			return infra("container", err.Error())
 		}
 		defer stopContainer(agentBox)
 	} else {
 		for _, s := range t.Setup {
 			if code, out := sh(work, s, 600); code != 0 {
-				r.Error = fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out))
-				return r
+				return infra("setup", fmt.Sprintf("setup %q exit %d: %s", s, code, tail(out)))
 			}
 		}
+	}
+	// The pre-run baseline: what the agent started from, after setup.
+	if err := copyTree(work, pristine); err != nil {
+		return infra("copy", err.Error())
+	}
+	baseline, err := snapshotHashes(pristine)
+	if err != nil {
+		return infra("copy", err.Error())
 	}
 	args := []string{"run", "--project", work, "--prompt", t.Prompt, "--format", "json", "--allow", "all", "--session-dir", sessions}
 	if t.MaxRunSeconds > 0 {
@@ -278,69 +400,161 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		cmd.Stderr = errFile
 	}
 	if err := cmd.Start(); err != nil {
-		r.Error = "start goh: " + err.Error()
-		return r
+		return infra("start", "start goh: "+err.Error())
 	}
 	readEvents(stdout, &r)
 	err = cmd.Wait()
 	r.Seconds = time.Since(start).Seconds()
+	r.Scored = true // the agent ran: from here on the result is its own
 	// Nothing the agent started may outlive its run into grading.
 	stopContainer(agentBox)
 	if ee := (*exec.ExitError)(nil); errors.As(err, &ee) {
 		r.ExitCode = ee.ExitCode()
+	}
+	if ctx.Err() != nil {
+		r.FailureKind = "agent_timeout"
 	}
 	if r.Status == "" {
 		if b, _ := os.ReadFile(filepath.Join(base, "goh-stderr.log")); len(b) > 0 {
 			r.Error = "goh: " + tail(string(b))
 		}
 	}
-	// Clean regrade: the agent's final tree, then the hidden tests on top.
-	if err := copyTree(work, grade); err != nil {
-		r.Error = "regrade copy: " + err.Error()
-		return r
+	r.Usage, r.Children = journalUsage(sessions)
+	candidate, err := snapshotHashes(work)
+	if err != nil {
+		return infra("regrade_copy", err.Error())
 	}
 	hidden := filepath.Join(t.dir, "hidden")
-	if _, err := os.Stat(hidden); err == nil {
-		r.HiddenTampered = differs(hidden, work)
+	hiddenPaths := map[string]bool{}
+	if hs, err := snapshotHashes(hidden); err == nil {
+		for rel := range hs {
+			hiddenPaths[rel] = true
+		}
+	}
+	r.ProtectedChanged = protectedChanges(baseline, candidate, hiddenPaths)
+	for _, c := range r.ProtectedChanged {
+		rel, _, _ := strings.Cut(c, " (")
+		if hiddenPaths[rel] {
+			r.HiddenTampered = true
+		}
+	}
+	// Grade: the candidate's tree with the baseline's test and discovery
+	// files restored, then the hidden tests on top. The grader's own
+	// fixtures and discovery decide the result.
+	if err := copyTree(work, grade); err != nil {
+		return infra("regrade_copy", "regrade copy: "+err.Error())
+	}
+	if err := restoreProtected(pristine, grade, baseline); err != nil {
+		return infra("regrade_copy", err.Error())
+	}
+	if len(hiddenPaths) > 0 {
 		if err := copyTree(hidden, grade); err != nil {
-			r.Error = "hidden tests: " + err.Error()
-			return r
+			return infra("regrade_copy", "hidden tests: "+err.Error())
 		}
 	}
-	var gradeBox string
-	if t.Image != "" {
-		// A fresh container that mounts only the regrade tree.
-		if gradeBox, err = startContainer(t.Image, grade, false); err != nil {
-			r.Error = err.Error()
-			return r
+	gradeOne := func(dir string) (checkResult, checkResult, error) {
+		var box string
+		if t.Image != "" {
+			// A fresh container that mounts only this tree.
+			var err error
+			if box, err = startContainer(t.Image, dir, false); err != nil {
+				return checkResult{}, checkResult{}, err
+			}
+			defer stopContainer(box)
 		}
-		defer stopContainer(gradeBox)
+		f2p := runCheck(box, dir, t.FailToPass, 900, t.FailToPassTests)
+		p2p := checkResult{Kind: checkPassed}
+		if t.PassToPass != "" {
+			p2p = runCheck(box, dir, t.PassToPass, 900, t.PassToPassTests)
+		}
+		return f2p, p2p, nil
 	}
-	code, _ := csh(gradeBox, grade, t.FailToPass, 900)
-	r.FailToPassOK = code == 0
-	r.PassToPassOK = true
-	if t.PassToPass != "" {
-		code, _ = csh(gradeBox, grade, t.PassToPass, 900)
-		r.PassToPassOK = code == 0
+	f2p, p2p, err := gradeOne(grade)
+	if err != nil {
+		return infra("grade_container", err.Error())
 	}
+	if f2p.Kind == checkToolError || p2p.Kind == checkToolError {
+		return infra("grader", "a grading command could not run: "+tail(f2p.Output+p2p.Output))
+	}
+	r.FailToPass, r.PassToPass = f2p, p2p
+	r.FailToPassOK, r.PassToPassOK = f2p.Kind == checkPassed, p2p.Kind == checkPassed
 	r.Resolved = r.FailToPassOK && r.PassToPassOK
 	r.FalseComplete = r.Status == "completed" && !r.Resolved
+	r.FalseVerified = r.Outcome == "verified" && !r.Resolved
+	if len(r.ProtectedChanged) > 0 {
+		// Legitimate test changes are assessed apart: the candidate's own
+		// tree with the hidden tests on top.
+		own := filepath.Join(base, "grade-candidate-tests")
+		if copyTree(work, own) == nil && (len(hiddenPaths) == 0 || copyTree(hidden, own) == nil) {
+			if f, p, err := gradeOne(own); err == nil {
+				ok := f.Kind == checkPassed && p.Kind == checkPassed
+				r.CandidateTestsResolved = &ok
+			}
+		}
+	}
 	return r
 }
 
-// readEvents folds goh's JSON event stream into the result.
+// journalUsage sums reported usage by purpose across every session journal
+// the attempt wrote (children have their own), and counts the children.
+func journalUsage(dir string) (map[string]purposeTokens, int) {
+	out := map[string]purposeTokens{}
+	journals, _ := filepath.Glob(filepath.Join(dir, "*.jsonl"))
+	for _, path := range journals {
+		f, err := os.Open(path)
+		if err != nil {
+			continue
+		}
+		sc := bufio.NewScanner(f)
+		sc.Buffer(make([]byte, 64<<10), 16<<20)
+		for sc.Scan() {
+			var rec struct {
+				Type string `json:"type"`
+				Data struct {
+					Purpose    string `json:"purpose"`
+					Prompt     int    `json:"prompt_tokens"`
+					Completion int    `json:"completion_tokens"`
+					CacheRead  int    `json:"cache_read_tokens"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(sc.Bytes(), &rec) != nil || rec.Type != "usage" {
+				continue
+			}
+			p := out[rec.Data.Purpose]
+			p.Calls++
+			p.Prompt += rec.Data.Prompt
+			p.Completion += rec.Data.Completion
+			p.CacheRead += rec.Data.CacheRead
+			out[rec.Data.Purpose] = p
+		}
+		f.Close()
+	}
+	return out, max(0, len(journals)-1)
+}
+
+// readEvents folds goh's JSON event stream into the result and checks it:
+// every line must parse and the stream must end with exactly one
+// run_finished.
 func readEvents(rd io.Reader, r *Result) {
 	sc := bufio.NewScanner(rd)
 	sc.Buffer(make([]byte, 1<<20), 64<<20)
+	last := ""
 	for sc.Scan() {
 		var e struct {
 			Type string          `json:"type"`
 			Data json.RawMessage `json:"data"`
 		}
-		if json.Unmarshal(sc.Bytes(), &e) != nil {
+		if json.Unmarshal(sc.Bytes(), &e) != nil || e.Type == "" {
+			r.MalformedEvents++
 			continue
 		}
+		last = e.Type
 		switch e.Type {
+		case "run_started":
+			var d struct{ Model, Protocol, Profile string }
+			if json.Unmarshal(e.Data, &d) == nil && r.Model == "" {
+				r.Model, r.Protocol, r.Profile = d.Model, d.Protocol, d.Profile
+			}
 		case "tool_requested":
 			r.ToolCalls++
 		case "assistant_completed":
@@ -357,11 +571,24 @@ func readEvents(rd io.Reader, r *Result) {
 				r.CacheRead += d.Usage.CacheRead
 			}
 		case "run_finished":
+			r.TerminalEvents++
 			var d struct{ Status, Outcome string }
 			if json.Unmarshal(e.Data, &d) == nil {
 				r.Status, r.Outcome = d.Status, d.Outcome
 			}
 		}
+	}
+	switch {
+	case sc.Err() != nil:
+		r.StreamProblem = "stream read error: " + sc.Err().Error()
+	case r.TerminalEvents == 0:
+		r.StreamProblem = "truncated: no run_finished"
+	case r.TerminalEvents > 1:
+		r.StreamProblem = fmt.Sprintf("%d run_finished events", r.TerminalEvents)
+	case last != "run_finished":
+		r.StreamProblem = "events after run_finished"
+	case r.MalformedEvents > 0:
+		r.StreamProblem = fmt.Sprintf("%d malformed event lines", r.MalformedEvents)
 	}
 }
 
@@ -422,72 +649,20 @@ func copyTree(src, dst string) error {
 	})
 }
 
-// differs reports whether any hidden file exists with other content in the
-// agent's tree (the agent edited a file the graders replace).
-func differs(hidden, work string) bool {
-	changed := false
-	filepath.WalkDir(hidden, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		rel, _ := filepath.Rel(hidden, p)
-		a, _ := os.ReadFile(p)
-		b, err := os.ReadFile(filepath.Join(work, rel))
-		if err == nil && string(a) != string(b) {
-			changed = true
-		}
-		return nil
-	})
-	return changed
-}
-
-// dryRun checks each task is well formed: fail_to_pass must fail on the
-// starting tree with hidden tests and pass with the reference solution.
+// dryRun checks each task is well formed, from isolated inputs per stage:
+// on the starting tree (with hidden tests) the fail-to-pass check must fail
+// by a test failure, not a build or setup error; with the reference
+// solution it must pass; and the pass-to-pass tests must pass on both
+// revisions, except the fail-to-pass tests themselves. Copy and setup
+// errors make the task BROKEN. Tests run without network.
 func dryRun(tasks []task) int {
 	bad := 0
 	for _, t := range tasks {
-		tmp, _ := os.MkdirTemp(dryRoot(), "goh-bench-dry-")
-		defer os.RemoveAll(tmp)
-		var box string
-		if t.Image != "" {
-			var err error
-			if box, err = startContainer(t.Image, tmp, true); err != nil {
-				fmt.Printf("%-30s BROKEN container: %v\n", t.ID, err)
-				bad++
-				continue
-			}
-		}
-		src, err := t.sourceTree()
-		if err != nil {
-			fmt.Printf("%-30s BROKEN source: %v\n", t.ID, err)
-			bad++
-			continue
-		}
-		start := filepath.Join(tmp, "start")
-		copyTree(src, start)
-		copyTree(filepath.Join(t.dir, "hidden"), start)
-		for _, s := range t.Setup {
-			csh(box, start, s, 600)
-		}
-		before, _ := csh(box, start, t.FailToPass, 900)
-		ref := filepath.Join(tmp, "reference")
-		copyTree(src, ref)
-		copyTree(filepath.Join(t.dir, "solution"), ref)
-		copyTree(filepath.Join(t.dir, "hidden"), ref)
-		for _, s := range t.Setup {
-			csh(box, ref, s, 600)
-		}
-		after, _ := csh(box, ref, t.FailToPass, 900)
-		p2p := 0
-		if t.PassToPass != "" {
-			p2p, _ = csh(box, ref, t.PassToPass, 900)
-		}
-		stopContainer(box)
-		ok := before != 0 && after == 0 && p2p == 0
+		ok, report := dryRunTask(t)
 		if !ok {
 			bad++
 		}
-		fmt.Printf("%-30s fails-before=%v passes-with-solution=%v pass-to-pass=%v %s\n", t.ID, before != 0, after == 0, p2p == 0, map[bool]string{true: "OK", false: "BROKEN"}[ok])
+		fmt.Printf("%-30s %s %s\n", t.ID, map[bool]string{true: "OK", false: "BROKEN"}[ok], report)
 	}
 	if bad > 0 {
 		return 1
@@ -495,11 +670,146 @@ func dryRun(tasks []task) int {
 	return 0
 }
 
+// dryStage builds one revision (source, overlays, setup) in its own folder
+// and runs check commands in their own network-less container.
+func dryStage(t task, tmp, name string, overlays ...string) (dir string, err error) {
+	src, err := t.sourceTree()
+	if err != nil {
+		return "", fmt.Errorf("source: %w", err)
+	}
+	dir = filepath.Join(tmp, name)
+	if err := copyTree(src, dir); err != nil {
+		return "", fmt.Errorf("copy: %w", err)
+	}
+	for _, o := range overlays {
+		if _, err := os.Stat(o); err != nil {
+			continue
+		}
+		if err := copyTree(o, dir); err != nil {
+			return "", fmt.Errorf("copy %s: %w", filepath.Base(o), err)
+		}
+	}
+	var box string
+	if t.Image != "" {
+		if box, err = startContainer(t.Image, dir, true); err != nil {
+			return "", fmt.Errorf("container: %w", err)
+		}
+		defer stopContainer(box)
+	}
+	for _, s := range t.Setup {
+		if code, out := csh(box, dir, s, 600); code != 0 {
+			return "", fmt.Errorf("setup %q exit %d: %s", s, code, tail(out))
+		}
+	}
+	return dir, nil
+}
+
+func dryCheck(t task, dir, command string, expected []string) (checkResult, error) {
+	var box string
+	if t.Image != "" {
+		var err error
+		if box, err = startContainer(t.Image, dir, false); err != nil {
+			return checkResult{}, fmt.Errorf("container: %w", err)
+		}
+		defer stopContainer(box)
+	}
+	return runCheck(box, dir, command, 900, expected), nil
+}
+
+func dryRunTask(t task) (bool, string) {
+	tmp, err := os.MkdirTemp(dryRoot(), "goh-bench-dry-")
+	if err != nil {
+		return false, "temp: " + err.Error()
+	}
+	defer os.RemoveAll(tmp)
+	hidden, solution := filepath.Join(t.dir, "hidden"), filepath.Join(t.dir, "solution")
+	before, err := dryStage(t, tmp, "start", hidden)
+	if err != nil {
+		return false, "baseline " + err.Error()
+	}
+	ref, err := dryStage(t, tmp, "reference", solution, hidden)
+	if err != nil {
+		return false, "reference " + err.Error()
+	}
+	b, err := dryCheck(t, before, t.FailToPass, nil)
+	if err != nil {
+		return false, err.Error()
+	}
+	a, err := dryCheck(t, ref, t.FailToPass, t.FailToPassTests)
+	if err != nil {
+		return false, err.Error()
+	}
+	var problems []string
+	// The baseline must fail on a test assertion: a build error or a
+	// missing test would let any change look like a fix.
+	if b.Kind != checkTestFailure {
+		problems = append(problems, "fail-to-pass on baseline: "+b.Kind+" (want test_failure)")
+	}
+	if a.Kind != checkPassed {
+		problems = append(problems, "fail-to-pass with solution: "+a.Kind+strings.Join(a.Missing, ","))
+	}
+	failing := b.Failed()
+	for _, want := range t.FailToPassTests {
+		if lookupTest(b.Tests, want) != "fail" {
+			problems = append(problems, "expected failing test "+want+" did not fail on baseline ("+orNone(lookupTest(b.Tests, want))+")")
+		}
+	}
+	p2pCount := 0
+	if t.PassToPass != "" {
+		pb, err := dryCheck(t, before, t.PassToPass, nil)
+		if err != nil {
+			return false, err.Error()
+		}
+		pa, err := dryCheck(t, ref, t.PassToPass, t.PassToPassTests)
+		if err != nil {
+			return false, err.Error()
+		}
+		if pa.Kind != checkPassed {
+			problems = append(problems, "pass-to-pass with solution: "+pa.Kind)
+		}
+		// Pass-to-pass identities: passing with the solution must also pass
+		// on the baseline, except the tests the fix is meant to change.
+		expectedFail := map[string]bool{}
+		for _, f := range failing {
+			expectedFail[f] = true
+		}
+		for _, name := range pa.Passed() {
+			if expectedFail[name] {
+				continue
+			}
+			switch pb.Tests[name] {
+			case "pass":
+				p2pCount++
+			case "":
+				if pb.Structured {
+					problems = append(problems, "pass-to-pass test "+name+" does not exist on baseline")
+				}
+			default:
+				problems = append(problems, "pass-to-pass test "+name+" is "+pb.Tests[name]+" on baseline")
+			}
+		}
+		if !pb.Structured && pb.Exit != 0 && b.Kind == checkTestFailure && len(failing) == 0 {
+			// No identities and a broad command that also runs the failing
+			// test: only aggregate grading is possible.
+			problems = append(problems, "pass-to-pass fails on baseline and its tests cannot be identified")
+		}
+	}
+	grading := "aggregate"
+	if len(t.FailToPassTests) > 0 {
+		grading = "identity"
+	}
+	report := fmt.Sprintf("grading=%s baseline=%s(failing=%d) solution=%s pass-to-pass-identities=%d", grading, b.Kind, len(failing), a.Kind, p2pCount)
+	if len(problems) > 0 {
+		report += " · " + strings.Join(problems, "; ")
+	}
+	return len(problems) == 0, report
+}
+
 func summarize(rs []Result) string {
 	type agg struct {
-		n, resolved, falseDone, budget int
-		seconds                        float64
-		prompt, output, cache, calls   int
+		n, scored, resolved, falseDone, falseVerified, budget, infra, identity int
+		seconds                                                                []float64
+		prompt, output, cache, calls, auxPrompt, auxOutput                     int
 	}
 	by := map[string]*agg{}
 	var names []string
@@ -511,26 +821,62 @@ func summarize(rs []Result) string {
 			names = append(names, r.Arm)
 		}
 		a.n++
+		if !r.Scored {
+			a.infra++
+			continue
+		}
+		a.scored++
+		if r.Grading == "identity" {
+			a.identity++
+		}
 		if r.Resolved {
 			a.resolved++
 		}
 		if r.FalseComplete {
 			a.falseDone++
 		}
+		if r.FalseVerified {
+			a.falseVerified++
+		}
 		if r.Status == "budget_exhausted" {
 			a.budget++
 		}
-		a.seconds += r.Seconds
+		a.seconds = append(a.seconds, r.Seconds)
 		a.prompt += r.PromptTokens
 		a.output += r.OutputTokens
 		a.cache += r.CacheRead
 		a.calls += r.ToolCalls
+		for purpose, u := range r.Usage {
+			if purpose != "turn" {
+				a.auxPrompt += u.Prompt
+				a.auxOutput += u.Completion
+			}
+		}
+	}
+	pct := func(x, n int) string {
+		if n == 0 {
+			return "n/a"
+		}
+		return fmt.Sprintf("%d/%d (%.0f%%)", x, n, 100*float64(x)/float64(n))
+	}
+	quantile := func(xs []float64, q float64) float64 {
+		if len(xs) == 0 {
+			return 0
+		}
+		s := append([]float64(nil), xs...)
+		sort.Float64s(s)
+		return s[min(len(s)-1, int(q*float64(len(s)-1)+0.5))]
 	}
 	var b strings.Builder
-	b.WriteString("| Arm | Runs | Resolved | False completions | Budget stops | Avg tool calls | Avg seconds | Input tokens | Cached | Output tokens |\n|---|---|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("Resolution counts scored attempts (the agent ran and was graded); reliability counts every scheduled attempt, so infrastructure failures lower it but not resolution. False verification: goh reported `verified` but the grader failed.\n\n")
+	b.WriteString("| Arm | Scheduled | Infra errors | Resolved (scored) | Reliability (all) | False completions | False verification | Budget stops | Identity-graded | Avg tool calls | p50 s | p95 s | Input tokens | Cached | Output tokens | Aux/child input | Aux/child output |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, n := range names {
 		a := by[n]
-		fmt.Fprintf(&b, "| %s | %d | %d (%.0f%%) | %d | %d | %.1f | %.0f | %d | %d | %d |\n", n, a.n, a.resolved, 100*float64(a.resolved)/float64(a.n), a.falseDone, a.budget, float64(a.calls)/float64(a.n), a.seconds/float64(a.n), a.prompt, a.cache, a.output)
+		calls := 0.0
+		if a.scored > 0 {
+			calls = float64(a.calls) / float64(a.scored)
+		}
+		fmt.Fprintf(&b, "| %s | %d | %d | %s | %s | %d | %d | %d | %d | %.1f | %.0f | %.0f | %d | %d | %d | %d | %d |\n", n, a.n, a.infra, pct(a.resolved, a.scored), pct(a.resolved, a.n), a.falseDone, a.falseVerified, a.budget, a.identity, calls, quantile(a.seconds, .5), quantile(a.seconds, .95), a.prompt, a.cache, a.output, a.auxPrompt, a.auxOutput)
 	}
 	return b.String()
 }

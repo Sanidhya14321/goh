@@ -1,7 +1,6 @@
 package report
 
 import (
-	"encoding/csv"
 	"io"
 	"sort"
 	"strconv"
