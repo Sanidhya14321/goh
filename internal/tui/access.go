@@ -7,18 +7,33 @@ import (
 	"github.com/Sanidhya14321/goh/internal/sandbox"
 )
 
-// sessionAccess is the access level chosen in this interactive session
-// (Shift+Tab, the approval shortcut or /access). It outlives one chat
-// screen: the launcher passes it on to the next chat (another agent, a new
-// session), so switching agents does not reset it.
-var sessionAccess core.AccessLevel
+// sessionAccess is the access level chosen for one chat session (Shift+Tab,
+// the approval shortcut or /access "This session only"). It is bound to that
+// session's journal: rebuilding the same chat (another agent, a picker
+// closed, settings) keeps it, while a new session, another session or
+// another workspace starts from the saved folder levels again.
+var sessionAccess struct {
+	level   core.AccessLevel
+	session string
+}
 
-// SessionAccess is the level chosen in this session, "" when none was.
-func SessionAccess() core.AccessLevel { return sessionAccess }
+// SessionAccessFor is the level chosen for session, "" when none was or it
+// was chosen for another session.
+func SessionAccessFor(session string) core.AccessLevel {
+	if session == "" || session != sessionAccess.session {
+		return ""
+	}
+	return sessionAccess.level
+}
 
 // SetSessionAccessLevel records a level chosen outside the chat screen
-// (the /access picker).
-func SetSessionAccessLevel(level core.AccessLevel) { sessionAccess = level }
+// (the /access picker) for session; "" clears it.
+func SetSessionAccessLevel(level core.AccessLevel, session string) {
+	sessionAccess.level, sessionAccess.session = level, session
+	if level == "" {
+		sessionAccess.session = ""
+	}
+}
 
 // accessLevel is the level that applies at the project root now.
 func (m *model) accessLevel() core.AccessLevel {
@@ -35,7 +50,9 @@ func (m *model) setAccess(level core.AccessLevel) {
 		return
 	}
 	m.a.SetSessionAccess(level)
-	sessionAccess = level
+	if m.a.Store != nil {
+		SetSessionAccessLevel(level, m.a.Store.ID)
+	}
 	m.status = "Access: " + level.Label() + " for this session · " + accessNote(level)
 }
 

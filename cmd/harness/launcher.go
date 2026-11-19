@@ -188,14 +188,15 @@ func chatFirst(args []string) error {
 			command = append(command, "--agent="+*agent)
 		}
 		command = append(command, connected...)
-		if level := tui.SessionAccess(); level != "" {
-			command = append(command, "--access="+string(level))
-		}
 		if chatModel != "" {
 			command = append(command, "--model="+chatModel)
 		}
 		if sessionOverride || sessionID != "" || !skipChooser {
 			command = append(command, "--session="+sessionID)
+			// A session-only access level follows only its own session.
+			if level := tui.SessionAccessFor(sessionID); level != "" {
+				command = append(command, "--access="+string(level))
+			}
 		}
 		notice := info
 		if actionErr != nil {
@@ -233,6 +234,21 @@ func chatFirst(args []string) error {
 				headline, fix = "Chat can't open this folder.", tui.FixWorkspace
 				problem = "goh's saved keys live inside " + displayPath(currentProject(project)) + ", so it can't be the project."
 				help = "Press Enter to choose a project folder. Next time, run goh from inside a project (cd ~/code/app && goh)."
+			case errors.Is(err, session.ErrNotFound):
+				headline, fix = "This session no longer exists.", tui.FixSessions
+				help = "Press Enter to choose another session or start a new one (the picker's first row)."
+			case errors.Is(err, session.ErrBusy) || errors.Is(err, session.ErrSessionOpen):
+				headline, fix = "This session is open in another GoHarness.", tui.FixSessions
+				help = "Close the other window, or press Enter to choose another session. Nothing was changed."
+			case errors.Is(err, session.ErrDamaged):
+				headline, fix = "This session's journal is damaged.", tui.FixSessions
+				help = "Nothing was changed. Recover its readable part with goh sessions salvage ID, or press Enter to choose another session."
+			case strings.Contains(err.Error(), "uncertain tool effects"):
+				headline, fix = "This session has tool effects whose outcome is unknown.", tui.FixSessions
+				help = "Inspect the project, then resume with goh chat --session ID --acknowledge-uncertain, or press Enter to choose another session."
+			case strings.Contains(err.Error(), "belongs to project"):
+				headline, fix = "This session belongs to another project.", tui.FixSessions
+				help = "Press Enter to choose a session; it opens in its own project."
 			case fresh:
 				problem = "No model provider is connected yet."
 			}
@@ -297,7 +313,7 @@ func chatFirst(args []string) error {
 			if workspace == "" {
 				workspace = currentProject(project)
 			}
-			info, actionErr = chooseAccess(workspace, nav.Backdrop)
+			info, actionErr = chooseAccess(workspace, nav.Session, nav.Backdrop)
 		case "workspace":
 			draft = nav.Draft
 			var chosen string
@@ -334,6 +350,10 @@ func chatFirst(args []string) error {
 				sessionID = selected
 				if selected == "" {
 					project = workspace
+				} else if recorded, err := session.ProjectOf(cfg.SessionDir, selected); err == nil {
+					// The session runs in the project it recorded, which
+					// may be another workspace than the current one.
+					project = recorded
 				}
 			}
 		case "undo", "redo", "revert":

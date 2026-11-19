@@ -12,11 +12,11 @@ import (
 // chooseAccess is /access: pick a level, then where it applies (this
 // session, the project, or one folder inside it). It returns a notice for
 // the next chat screen.
-func chooseAccess(project, backdrop string) (string, error) {
+func chooseAccess(project, sessionID, backdrop string) (string, error) {
 	if r, err := filepath.EvalSymlinks(project); err == nil {
 		project = r
 	}
-	current := tui.SessionAccess()
+	current := tui.SessionAccessFor(sessionID)
 	if current == "" {
 		current = core.AccessAsk
 		if r, ok := core.AccessFor(core.SavedAccess(), project); ok {
@@ -44,13 +44,16 @@ func chooseAccess(project, backdrop string) (string, error) {
 	}
 	switch scope {
 	case "session":
-		tui.SetSessionAccessLevel(level)
+		if sessionID == "" {
+			return "", errors.New("no chat session is open; choose a level for the project or a folder instead")
+		}
+		tui.SetSessionAccessLevel(level, sessionID)
 		return "Access: " + level.Label() + " for this session.", nil
 	case "project":
 		if err := core.SaveFolderAccess(project, level); err != nil {
 			return "", err
 		}
-		tui.SetSessionAccessLevel("") // the saved level applies from now on
+		tui.SetSessionAccessLevel("", "") // the saved level applies from now on
 		return "Access: " + level.Label() + " saved for " + displayPath(project) + ".", nil
 	}
 	folder, ok, err := tui.ChooseWorkspace(tui.WorkspaceChooser{

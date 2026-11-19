@@ -13,15 +13,19 @@ import (
 // Shift+Tab cycles the session's access level, says what it means, and the
 // footer shows it; the level is remembered for the next chat screen.
 func TestShiftTabCyclesAccess(t *testing.T) {
-	t.Cleanup(func() { sessionAccess = "" })
+	t.Cleanup(func() { SetSessionAccessLevel("", "") })
 	m := fuzzModel(t)
 	if !strings.Contains(m.View().Content, "Access: Ask") {
 		t.Fatal("footer does not show the access level")
 	}
 	for _, want := range []core.AccessLevel{core.AccessEdits, core.AccessAuto, core.AccessFull, core.AccessAsk} {
 		m.Update(tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift})
-		if m.a.ProjectAccess() != want || SessionAccess() != want {
-			t.Fatalf("got %s / %s, want %s", m.a.ProjectAccess(), SessionAccess(), want)
+		if m.a.ProjectAccess() != want || SessionAccessFor(m.a.Store.ID) != want {
+			t.Fatalf("got %s / %s, want %s", m.a.ProjectAccess(), SessionAccessFor(m.a.Store.ID), want)
+		}
+		// Review P1: the session-only level belongs to this session only.
+		if SessionAccessFor("another-session") != "" || SessionAccessFor("") != "" {
+			t.Fatal("session access leaked to another session")
 		}
 		if !strings.Contains(m.status, want.Label()) || !strings.Contains(m.View().Content, "Access: "+want.Label()) {
 			t.Fatalf("level %s not shown: %q", want, m.status)
@@ -32,7 +36,7 @@ func TestShiftTabCyclesAccess(t *testing.T) {
 // "a" in an edit approval allows it and switches the session to Auto-edit;
 // it is not offered for requests no ordinary level covers.
 func TestApprovalAllowAllRaisesAccess(t *testing.T) {
-	t.Cleanup(func() { sessionAccess = "" })
+	t.Cleanup(func() { SetSessionAccessLevel("", "") })
 	m := fuzzModel(t)
 	response := make(chan core.Decision, 1)
 	m.pending = &permissionMsg{request: core.Permission{Tool: "create_file", Preview: "Create a.go"}, response: response}

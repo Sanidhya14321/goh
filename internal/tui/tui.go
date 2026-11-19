@@ -1248,6 +1248,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 const (
 	FixConnect   = "connect"   // add a provider
 	FixWorkspace = "workspace" // choose a project folder
+	FixSessions  = "sessions"  // choose another session (the requested one cannot open)
 )
 
 // setupStep is what Enter does on a blocked chat: the navigation and how
@@ -1256,6 +1257,8 @@ func (m *model) setupStep() (action, label string) {
 	switch {
 	case m.fix == FixWorkspace:
 		return FixWorkspace, "choose a project folder"
+	case m.fix == FixSessions:
+		return FixSessions, "choose another session"
 	case m.a != nil:
 		return "provider", "fix the provider"
 	default:

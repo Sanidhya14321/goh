@@ -133,6 +133,9 @@ func (m *model) View() tea.View {
 	if m.fix == FixWorkspace {
 		modelName = "No project folder open"
 	}
+	if m.fix == FixSessions {
+		modelName = "Session unavailable"
+	}
 	if project == "" {
 		project, _ = os.Getwd()
 	}
