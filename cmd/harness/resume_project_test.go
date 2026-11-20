@@ -97,3 +97,12 @@ func TestFlagGiven(t *testing.T) {
 		t.Fatal("flagGiven")
 	}
 }
+
+// Follow-up review: contradictory session selectors are refused.
+func TestConflictingResumeSelectors(t *testing.T) {
+	sessions := t.TempDir()
+	err := run([]string{"resume", "20260101T000000-aaaaaaaaaaaaaaaaaaaaaaaa", "--session-dir", sessions, "--session", "20260101T000000-bbbbbbbbbbbbbbbbbbbbbbbb", "--prompt", "x"})
+	if err == nil || !strings.Contains(err.Error(), "two sessions") {
+		t.Fatal(err)
+	}
+}

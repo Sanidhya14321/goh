@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"fmt"
 	"context"
 	"encoding/json"
 	"os"
@@ -347,5 +348,43 @@ func TestInterruptedVerifierIsPending(t *testing.T) {
 	}
 	if st, err := a.Run(context.Background(), "again"); st != "failed" || err == nil || !strings.Contains(err.Error(), "acknowledge") || modelCalls != 2 {
 		t.Fatalf("next run admitted: %s %v", st, err)
+	}
+}
+
+// Follow-up review: with the token allowance spent, a large tool result
+// does not buy a compaction (summary) call before the run stops.
+func TestBudgetCheckedBeforeCompaction(t *testing.T) {
+	a, root := testAgent(t)
+	os.WriteFile(filepath.Join(root, "small.txt"), []byte("small\n"), 0o600)
+	os.WriteFile(filepath.Join(root, "big.txt"), []byte(strings.Repeat("data line number with some words\n", 6000)), 0o600)
+	a.Config.ContextWindow = 131072
+	a.Config.CompactionThreshold = 5
+	a.Config.MaxRunTokens = 100
+	turns, summaries := 0, 0
+	_ = summaries
+	a.Provider = modelFunc(func(_ context.Context, h []core.Message, tools []core.Tool, _ func(string)) (core.Reply, error) {
+		if tools == nil {
+			summaries++
+			return core.Reply{Message: core.Message{Role: "assistant", Content: "summary"}, Finish: "stop", Usage: &core.Usage{Prompt: 10, Completion: 1, Total: 11}}, nil
+		}
+		turns++
+		path := "small.txt"
+		if turns >= 3 {
+			path = "big.txt"
+		}
+		r := answer(toolCall(fmt.Sprint("r", turns), "read_file", map[string]any{"path": path}))
+		r.Usage = &core.Usage{Completion: 34, Total: 34} // no prompt count: the size estimate stays conservative
+		return r, nil
+	})
+	compactions := 0
+	a.Emit = func(e core.Event) {
+		// Only compaction after the third turn spent the allowance counts.
+		if (e.Type == "context_compacted" || e.Type == "context_compaction_skipped") && turns >= 3 {
+			compactions++
+		}
+	}
+	status, err := a.Run(context.Background(), "read them")
+	if status != "budget_exhausted" || compactions != 0 {
+		t.Fatalf("status %s, turns %d, summary calls %d, compactions %d (%v)", status, turns, summaries, compactions, err)
 	}
 }

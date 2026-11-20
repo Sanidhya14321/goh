@@ -408,7 +408,14 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	projectSet := false
 	f.Visit(func(v *flag.Flag) { projectSet = projectSet || v.Name == "project" })
 	// boundSession is the session named on the command line, as --session or
-	// as the positional ID of resume and compact.
+	// as the positional ID of resume and compact. Two different selectors
+	// are refused before anything is read from either session's project.
+	if resumeID != "" && *selectedSession != "" && *selectedSession != resumeID {
+		return fmt.Errorf("goh %s was given two sessions (%s and --session %s); name one", command, resumeID, *selectedSession)
+	}
+	if resumeID != "" && *continueLast {
+		return fmt.Errorf("goh %s was given a session ID and --continue; use one", command)
+	}
 	boundSession := *selectedSession
 	if boundSession == "" {
 		boundSession = resumeID

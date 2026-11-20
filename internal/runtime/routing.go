@@ -105,6 +105,11 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 	if reply.Model == "" {
 		reply.Model = primaryConfig.Model
 	}
+	if reply.Usage == nil {
+		// The provider reported nothing: token budgets cannot count this
+		// call, which run_finished says (usage_missing_calls).
+		a.usageMissing++
+	}
 	if reply.Usage != nil {
 		// Durable usage for every model call (turns, summaries, titles,
 		// children), charged to the model that served it; never replayed.

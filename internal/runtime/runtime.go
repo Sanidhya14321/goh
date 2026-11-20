@@ -115,8 +115,9 @@ type Agent struct {
 	projectGuidance string
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
-	// runTokens counts model tokens (input+output) used by this run.
-	runTokens int
+	// runTokens counts model tokens (input+output) used by this run;
+	// usageMissing counts model calls whose provider reported no usage.
+	runTokens, usageMissing int
 	// bytesPerToken converts request bytes to estimated tokens; 0 means not
 	// calibrated yet (one token per byte). capAdapts counts the requests
 	// this run resent after a provider stated its per-request cap.
@@ -578,7 +579,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.operation, a.titleSource = "run", prompt
 	a.resetOutcome(true)
 	a.toolCalls = 0
-	a.runTokens, a.capAdapts = 0, 0
+	a.runTokens, a.capAdapts, a.usageMissing = 0, 0, 0
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.externalConnected = false
@@ -704,6 +705,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	for turn := 0; turn < a.Config.MaxTurns; turn++ {
 		if e := ctx.Err(); e != nil {
 			return "cancelled", e
+		}
+		if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+			// Checked before compaction too: a summary is a model call.
+			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
 		}
 		if e := a.compact(ctx, defs); e != nil {
 			return "budget_exhausted", e
@@ -1501,6 +1506,9 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds(), "run_id": a.runID}
 	if a.operation != "" {
 		d["operation"] = a.operation
+	}
+	if a.usageMissing > 0 {
+		d["usage_missing_calls"] = a.usageMissing
 	}
 	if status == "completed" || a.verifyFailed {
 		d["outcome"] = a.outcome()
