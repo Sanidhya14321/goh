@@ -241,3 +241,38 @@ func TestCaptureWaitsForAnotherProcess(t *testing.T) {
 		t.Fatal("lock left behind")
 	}
 }
+
+// Follow-up review: a capture waiting behind another in the same process
+// gives up when its context ends; a live holder's lock is never taken over.
+func TestLockWaitIsCancellableAndLiveHolderKept(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	project, data := t.TempDir(), t.TempDir()
+	write(t, project, "a.txt", "one\n")
+	s, err := Open(data, project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	savedBeat, savedStale := lockHeartbeat, lockStale
+	lockHeartbeat, lockStale = 20*time.Millisecond, 200*time.Millisecond
+	defer func() { lockHeartbeat, lockStale = savedBeat, savedStale }()
+	unlock, err := s.lockRepo(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 600*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	if _, err := s.Track(ctx); err == nil || time.Since(start) > 3*time.Second {
+		t.Fatalf("waiting capture: %v after %s", err, time.Since(start))
+	}
+	// Past lockStale, but the holder's heartbeat keeps the file fresh.
+	if info, err := os.Stat(filepath.Join(s.gitDir, "snapshot.lock")); err != nil || time.Since(info.ModTime()) > lockStale {
+		t.Fatal("live holder's lock looked stale", err)
+	}
+	unlock()
+	if _, err := s.Track(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -37,8 +37,8 @@ type Store struct {
 	index string
 }
 
-// repoLocks serializes captures and restores of one shadow repository in
-// this process; lockRepo's lock file does so across processes. Private
+// repoLocks holds a one-slot channel per shadow repository, serializing its
+// captures and restores in this process (cancellable, unlike a mutex); lockRepo's lock file does so across processes. Private
 // indexes keep staging apart, but concurrent git processes still write the
 // same object files, which Windows refuses ("Permission denied") while
 // another process has one open.
@@ -239,37 +239,64 @@ func (s *Store) Restore(ctx context.Context, tree string) (before string, change
 }
 
 // lockRepo takes the shadow repository for one capture or restore: an
-// in-process mutex, then a lock file shared with other processes, waiting
-// for the current holder. A lock file older than ten minutes was left by a
-// process that died and is taken over.
+// in-process slot, then a lock file shared with other processes, waiting for
+// the current holder. Both waits end when ctx does. The holder refreshes the
+// lock file's time while it works, so only a file left by a process that died
+// (untouched for two minutes) is taken over.
 func (s *Store) lockRepo(ctx context.Context) (func(), error) {
-	m, _ := repoLocks.LoadOrStore(s.gitDir, &sync.Mutex{})
-	mu := m.(*sync.Mutex)
-	mu.Lock()
+	slot, _ := repoLocks.LoadOrStore(s.gitDir, make(chan struct{}, 1))
+	sem := slot.(chan struct{})
+	select {
+	case sem <- struct{}{}:
+	case <-ctx.Done():
+		return nil, fmt.Errorf("another snapshot of this project is in progress: %w", ctx.Err())
+	}
+	release := func() { <-sem }
 	path := filepath.Join(s.gitDir, "snapshot.lock")
 	for {
 		f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 		if err == nil {
 			fmt.Fprintf(f, "%d\n", os.Getpid())
 			f.Close()
-			return func() { os.Remove(path); mu.Unlock() }, nil
+			stop := make(chan struct{})
+			beat := lockHeartbeat
+			go func() { // heartbeat: a live holder never looks abandoned
+				t := time.NewTicker(beat)
+				defer t.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case now := <-t.C:
+						os.Chtimes(path, now, now)
+					}
+				}
+			}()
+			return func() { close(stop); os.Remove(path); release() }, nil
 		}
 		if !errors.Is(err, os.ErrExist) {
-			mu.Unlock()
+			release()
 			return nil, err
 		}
-		if info, statErr := os.Stat(path); statErr == nil && time.Since(info.ModTime()) > 10*time.Minute {
+		if info, statErr := os.Stat(path); statErr == nil && time.Since(info.ModTime()) > lockStale {
 			os.Remove(path)
 			continue
 		}
 		select {
 		case <-ctx.Done():
-			mu.Unlock()
+			release()
 			return nil, fmt.Errorf("another snapshot of this project is in progress: %w", ctx.Err())
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
 }
+
+// Lock file timing: the holder touches it every lockHeartbeat; one untouched
+// for lockStale was left by a process that died.
+var (
+	lockHeartbeat = 20 * time.Second
+	lockStale     = 2 * time.Minute
+)
 
 func (s *Store) restore(ctx context.Context, tree string) (before string, changes []Change, err error) {
 	if _, err := s.run(ctx, nil, "cat-file", "-e", tree+"^{tree}"); err != nil {
