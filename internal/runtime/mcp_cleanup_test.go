@@ -52,3 +52,33 @@ func TestMCPStartWithUncertainCleanupStaysPending(t *testing.T) {
 		t.Fatal("the start must stay an uncertain effect")
 	}
 }
+
+// restartUncertain reports a restart whose cleanup could not be confirmed.
+type restartUncertain struct{}
+
+func (restartUncertain) Definitions() []core.Tool {
+	return []core.Tool{core.NewTool("mcp__s__t", "tool", map[string]any{"type": "object"})}
+}
+func (restartUncertain) Has(n string) bool                      { return n == "mcp__s__t" }
+func (restartUncertain) Validate(string, json.RawMessage) error { return nil }
+func (restartUncertain) Execute(context.Context, string, json.RawMessage) tools.Result {
+	return tools.Result{Error: true, Content: `{"status":"cleanup_incomplete","error":"MCP server s ` + core.MCPRestartFailed + `: cleanup_incomplete"}`}
+}
+
+// Follow-up review: a reconnect whose cleanup is uncertain ends the run as
+// cleanup_incomplete with the call left pending, never failed_and_stopped.
+func TestMCPRestartWithUncertainCleanupStops(t *testing.T) {
+	a, _ := testAgent(t)
+	a.Grants["mcp__s__t"] = true
+	a.ExternalFactory = func() External { return restartUncertain{} }
+	a.Provider = scripted([]core.Call{toolCall("m1", "mcp__s__t", map[string]any{})})
+	status, _ := a.Run(context.Background(), "use it")
+	if status != "cleanup_incomplete" || len(a.Store.Pending()) == 0 {
+		t.Fatalf("status %s pending %v", status, a.Store.Pending())
+	}
+	for _, r := range a.Store.Records() {
+		if strings.Contains(string(r.Data), "failed_and_stopped") {
+			t.Fatal("uncertain restart journaled as stopped")
+		}
+	}
+}

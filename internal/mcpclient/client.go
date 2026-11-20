@@ -465,9 +465,21 @@ func (m *Manager) Execute(ctx context.Context, name string, args json.RawMessage
 		// A new call to a server that dropped: restart it first. The call
 		// that failed earlier is never repeated.
 		if e := m.reconnect(ctx, b); e != nil {
+			var cleanup *CleanupError
+			if errors.As(e, &cleanup) {
+				// The old or new process could not be confirmed stopped: an
+				// uncertain effect, not a clean failure.
+				out, _ := json.Marshal(map[string]string{"status": "cleanup_incomplete", "error": fmt.Sprintf("MCP server %s %s: %v", b.server, core.MCPRestartFailed, e)})
+				return tools.Result{Content: string(out), Error: true}
+			}
 			return fail(fmt.Errorf("MCP server %s %s: %w", b.server, core.MCPRestartFailed, e))
 		}
 		if b, e = m.get(name); e != nil {
+			return fail(e)
+		}
+		// The restarted server may describe the tool differently: validate
+		// against the binding it just published.
+		if e := m.Validate(name, args); e != nil {
 			return fail(e)
 		}
 	}

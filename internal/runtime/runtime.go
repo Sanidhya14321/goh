@@ -1540,6 +1540,12 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 // any start still open after a call belongs to a restart, which has either
 // initialized or failed and stopped by the time Execute returns.
 func (a *Agent) settleRestarts(res tools.Result) error {
+	var settled struct {
+		Status string `json:"status"`
+	}
+	if json.Unmarshal([]byte(res.Content), &settled) == nil && settled.Status == "cleanup_incomplete" {
+		return nil // uncertain: the restart stays pending and the run stops on this result
+	}
 	failed := res.Error && strings.Contains(res.Content, core.MCPRestartFailed)
 	for _, call := range a.mcpStarts {
 		if a.readyIntegrations[call.ID] || !strings.HasPrefix(call.Function.Name, "mcp_start:") {
