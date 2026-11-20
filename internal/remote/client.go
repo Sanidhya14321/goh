@@ -106,8 +106,16 @@ func serverError(resp *http.Response) error {
 	if e.Error == "" {
 		e.Error = resp.Status
 	}
-	return fmt.Errorf("server: %s", oneLine(e.Error))
+	return &StatusError{Code: resp.StatusCode, Message: "server: " + oneLine(e.Error)}
 }
+
+// StatusError is a refusal from the server with its HTTP status.
+type StatusError struct {
+	Code    int
+	Message string
+}
+
+func (e *StatusError) Error() string { return e.Message }
 
 func oneLine(s string) string {
 	s = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
@@ -130,6 +138,16 @@ func (c *Client) Info(ctx context.Context) (localapi.Info, error) {
 }
 
 // Sessions lists the server project's sessions, newest first.
+// Latest returns the server's most recently active session ("" when none),
+// or an error from a server that predates the endpoint.
+func (c *Client) Latest(ctx context.Context) (string, error) {
+	var out struct {
+		Session string `json:"session"`
+	}
+	err := c.call(ctx, http.MethodGet, "/v1/sessions/latest", nil, &out, http.StatusOK)
+	return out.Session, err
+}
+
 func (c *Client) Sessions(ctx context.Context) ([]session.Info, error) {
 	var all []session.Info
 	after := ""
@@ -274,13 +292,36 @@ func (c *Client) Run(ctx context.Context, sessionID, prompt string, acknowledge 
 				h.Emit(e)
 			}
 		case frame.Input != nil:
-			reply, err := c.answer(ctx, frame.Input.Kind, frame.Input.Data, h)
-			if err != nil {
-				return "failed", err
-			}
 			path := "/v1/runs/" + url.PathEscape(currentRunID()) + "/inputs/" + url.PathEscape(frame.Input.ID)
-			if err := c.call(context.Background(), http.MethodPost, path, reply, nil, http.StatusNoContent); err != nil {
-				inputErr = err // keep reading: the terminal event follows
+			for attempt := 0; ; attempt++ {
+				reply, err := c.answer(ctx, frame.Input.Kind, frame.Input.Data, h)
+				if err != nil {
+					return "failed", err
+				}
+				if attempt == 3 {
+					// Three rejected answers: dismiss or deny, which the
+					// server always accepts, so its run never waits on us.
+					reply = map[string]any{"allow": false}
+					if frame.Input.Kind == "question" {
+						reply = map[string]any{"dismiss": true}
+					}
+				}
+				err = c.call(context.Background(), http.MethodPost, path, reply, nil, http.StatusNoContent)
+				var status *StatusError
+				if err != nil && errors.As(err, &status) && status.Code == http.StatusBadRequest && attempt < 3 && ctx.Err() == nil {
+					// The server rejected the answer and still waits for
+					// one: say why and ask again.
+					if h.Emit != nil {
+						h.Emit(core.Event{Version: 1, RunID: currentRunID(), Type: "error", Data: map[string]any{"message": "The server rejected that answer: " + status.Message + ". Answer again."}})
+					}
+					continue
+				}
+				if err != nil {
+					// A settled or cancelled challenge (404) or a lost
+					// server: keep reading, the terminal event follows.
+					inputErr = err
+				}
+				break
 			}
 		}
 	}

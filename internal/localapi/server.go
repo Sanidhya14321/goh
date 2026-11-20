@@ -81,6 +81,7 @@ func New(config core.Config, project, token string) (*Server, error) {
 	s := &Server{config: config, project: project, token: sha256.Sum256([]byte(token)), routes: http.NewServeMux()}
 	s.routes.HandleFunc("GET /v1/info", s.info)
 	s.routes.HandleFunc("GET /v1/sessions", s.list)
+	s.routes.HandleFunc("GET /v1/sessions/latest", s.latest)
 	s.routes.HandleFunc("POST /v1/sessions", s.create)
 	s.routes.HandleFunc("POST /v1/sessions/{session}/run", s.prompt)
 	s.routes.HandleFunc("POST /v1/runs/{run}/inputs/{input}", s.submit)
@@ -194,6 +195,21 @@ func (s *Server) list(w http.ResponseWriter, r *http.Request) {
 		page = append(page, info)
 	}
 	respond(w, http.StatusOK, map[string]any{"sessions": page, "next_after": next})
+}
+
+// latest names this project's most recently active session, by the same
+// rule as goh chat --continue (latest journal activity).
+func (s *Server) latest(w http.ResponseWriter, r *http.Request) {
+	id, err := session.Latest(s.config.SessionDir, s.project)
+	if errors.Is(err, session.ErrNoSession) {
+		respond(w, http.StatusOK, map[string]any{"session": ""})
+		return
+	}
+	if err != nil {
+		problem(w, http.StatusInternalServerError, "cannot list sessions")
+		return
+	}
+	respond(w, http.StatusOK, map[string]any{"session": id})
 }
 
 func (s *Server) create(w http.ResponseWriter, r *http.Request) {

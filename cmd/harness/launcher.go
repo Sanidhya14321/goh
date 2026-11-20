@@ -142,6 +142,18 @@ func withoutStartupFlags(args []string) []string {
 // keepsStartupFlags reports whether the startup session flags still apply
 // after a navigation: only when no session has opened yet and the user is
 // setting up a provider, after which the requested session should open.
+// chatScopedRoute reports whether the chat's route came from its own flags
+// (--config, --endpoint, --base-url, --protocol): a /models choice then
+// belongs to this chat, whatever saved provider its URL happens to match.
+func chatScopedRoute(args []string) bool {
+	for _, f := range []string{"config", "endpoint", "base-url", "protocol"} {
+		if flagGiven(args, f) {
+			return true
+		}
+	}
+	return false
+}
+
 // flagGiven reports whether args set the named flag (-name, --name, with or
 // without =value).
 func flagGiven(args []string, name string) bool {
@@ -413,7 +425,7 @@ func chatFirst(args []string) error {
 			// The choice is saved on the provider, so it stays for new chats.
 			draft = nav.Draft
 			var override string
-			override, info, actionErr = chooseModel(nav.Config, flagGiven(args, "config"), nav.Backdrop)
+			override, info, actionErr = chooseModel(nav.Config, chatScopedRoute(args), nav.Backdrop)
 			if override != "" {
 				chatModel = override
 			} else if actionErr == nil && info != "" && info != modelListCancelled {

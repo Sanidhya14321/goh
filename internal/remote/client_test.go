@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -242,5 +243,72 @@ func TestStaleInputReplyKeepsTerminalEvent(t *testing.T) {
 	}})
 	if status != "cancelled" {
 		t.Fatalf("status %q err %v", status, err)
+	}
+}
+
+// Follow-up review: attach --continue picks the latest activity, like the
+// local CLI, not the newest created session.
+func TestLatestIsMostRecentlyActive(t *testing.T) {
+	client, _ := server(t)
+	ctx := context.Background()
+	older, err := client.Create(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond) // IDs carry a second-resolution timestamp
+	newer, err := client.Create(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := client.Latest(ctx); got != newer {
+		t.Fatalf("latest %s want %s", got, newer)
+	}
+	time.Sleep(20 * time.Millisecond)
+	if status, err := client.Run(ctx, older, "hello", false, Handlers{}); status != "completed" {
+		t.Fatal(status, err)
+	}
+	if got, _ := client.Latest(ctx); got != older {
+		t.Fatalf("latest %s want the recently active %s", got, older)
+	}
+}
+
+// Follow-up review: a rejected answer (400, still pending) is asked again
+// instead of leaving the server's run waiting; a stale one (404) is not.
+func TestRejectedAnswerIsAskedAgain(t *testing.T) {
+	var replies atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/run"):
+			io.Copy(io.Discard, r.Body)
+			w.Header().Set("X-Harness-Run-ID", "run1")
+			w.WriteHeader(http.StatusOK)
+			fl := w.(http.Flusher)
+			fmt.Fprintln(w, `{"input":{"id":"q1","kind":"question","data":{"questions":[{"question":"Pick","options":[{"label":"red"}]}]}}}`)
+			fl.Flush()
+			for i := 0; i < 100 && replies.Load() < 2; i++ {
+				time.Sleep(20 * time.Millisecond)
+			}
+			fmt.Fprintln(w, `{"event":{"version":1,"run_id":"run1","sequence":2,"type":"run_finished","data":{"status":"completed"}}}`)
+			fl.Flush()
+		case strings.Contains(r.URL.Path, "/inputs/"):
+			if replies.Add(1) == 1 {
+				http.Error(w, `{"error":"answer must be one of the options"}`, http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		}
+	}))
+	defer srv.Close()
+	client, err := New(srv.URL, token)
+	if err != nil {
+		t.Fatal(err)
+	}
+	asked := 0
+	status, err := client.Run(context.Background(), "s", "hi", false, Handlers{Ask: func(context.Context, core.QuestionRequest) (core.QuestionReply, error) {
+		asked++
+		return core.QuestionReply{Answers: [][]string{{"red"}}}, nil
+	}})
+	if status != "completed" || asked != 2 || replies.Load() != 2 {
+		t.Fatalf("status %q asked %d replies %d err %v", status, asked, replies.Load(), err)
 	}
 }

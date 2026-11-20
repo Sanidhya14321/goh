@@ -66,12 +66,20 @@ func runAttach(args []string) error {
 	}
 	id := *sessionID
 	if *continueLast {
-		list, err := client.Sessions(ctx)
-		if err != nil {
-			return err
-		}
-		if latest := newestSession(list); latest != "" {
-			id = latest
+		// The latest activity, as goh chat --continue picks; a server
+		// without the endpoint falls back to the newest created.
+		if latest, err := client.Latest(ctx); err == nil {
+			if latest != "" {
+				id = latest
+			}
+		} else {
+			list, err := client.Sessions(ctx)
+			if err != nil {
+				return err
+			}
+			if latest := newestSession(list); latest != "" {
+				id = latest
+			}
 		}
 	}
 	if id == "" {

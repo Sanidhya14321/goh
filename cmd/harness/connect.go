@@ -1037,11 +1037,27 @@ func changeProviderKey(name, backdrop string) (string, error) {
 
 // testProvider checks that the provider answers with its saved key.
 func testProvider(name string) string {
+	var result string
+	// Behind a screen that owns the keys: Esc cancels the test there.
+	err := tui.WithProgress("Testing "+name, "", func(parent context.Context) error {
+		result = testProviderWith(parent, name)
+		return nil
+	})
+	if errors.Is(err, tui.ErrCancelled) {
+		return "Connection test cancelled."
+	}
+	if err != nil {
+		return err.Error()
+	}
+	return result
+}
+
+func testProviderWith(parent context.Context, name string) string {
 	e, cfg, err := findEntry(name)
 	if err != nil {
 		return err.Error()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 30*time.Second)
 	defer cancel()
 	if e.Protocol == core.ChatGPTProtocol {
 		models, err := core.ListChatGPTModels(ctx)
