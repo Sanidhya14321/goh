@@ -943,6 +943,7 @@ func summarize(rs []Result) string {
 		n, scored, resolved, falseDone, falseVerified, budget, infra, identity int
 		seconds                                                                []float64
 		prompt, output, cache, calls, auxPrompt, auxOutput                     int
+		childPrompt, estimated                                                 int
 	}
 	by := map[string]*agg{}
 	var names []string
@@ -975,15 +976,26 @@ func summarize(rs []Result) string {
 			a.budget++
 		}
 		a.seconds = append(a.seconds, r.Seconds)
-		a.prompt += r.PromptTokens
-		a.output += r.OutputTokens
-		a.cache += r.CacheRead
 		a.calls += r.ToolCalls
-		for purpose, u := range r.Usage {
-			if purpose != "turn" {
-				a.auxPrompt += u.Prompt
-				a.auxOutput += u.Completion
+		if len(r.Usage) > 0 {
+			// The durable totals from every session journal (top-level
+			// turns, children, compaction, titles, fallbacks) are the
+			// authoritative cost; the event stream sees only the top level.
+			for purpose, u := range r.Usage {
+				a.prompt += u.Prompt
+				a.output += u.Completion
+				a.cache += u.CacheRead
+				if purpose != "turn" {
+					a.auxPrompt += u.Prompt
+					a.auxOutput += u.Completion
+				}
 			}
+			a.childPrompt += max(0, journalTurnPrompt(r)-r.PromptTokens)
+		} else {
+			a.prompt += r.PromptTokens
+			a.output += r.OutputTokens
+			a.cache += r.CacheRead
+			a.estimated++
 		}
 	}
 	pct := func(x, n int) string {
@@ -1001,18 +1013,22 @@ func summarize(rs []Result) string {
 		return s[min(len(s)-1, int(q*float64(len(s)-1)+0.5))]
 	}
 	var b strings.Builder
-	b.WriteString("Resolution counts scored attempts (the agent ran and was graded); reliability counts every scheduled attempt, so infrastructure failures lower it but not resolution. False verification: goh reported `verified` but the grader failed.\n\n")
-	b.WriteString("| Arm | Scheduled | Infra errors | Resolved (scored) | Reliability (all) | False completions | False verification | Budget stops | Identity-graded | Avg tool calls | p50 s | p95 s | Input tokens | Cached | Output tokens | Aux/child input | Aux/child output |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	b.WriteString("Resolution counts scored attempts (the agent ran and was graded); reliability counts every scheduled attempt, so infrastructure failures lower it but not resolution. False verification: goh reported `verified` but the grader failed. Token totals come from every session journal the attempt wrote (top-level turns, subagents, compaction, titles, fallbacks); \"Runs without journal usage\" fell back to the top-level event stream.\n\n")
+	b.WriteString("| Arm | Scheduled | Infra errors | Resolved (scored) | Reliability (all) | False completions | False verification | Budget stops | Identity-graded | Avg tool calls | p50 s | p95 s | Input tokens | Cached | Output tokens | Aux input | Aux output | Child turn input | Runs without journal usage |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, n := range names {
 		a := by[n]
 		calls := 0.0
 		if a.scored > 0 {
 			calls = float64(a.calls) / float64(a.scored)
 		}
-		fmt.Fprintf(&b, "| %s | %d | %d | %s | %s | %d | %d | %d | %d | %.1f | %.0f | %.0f | %d | %d | %d | %d | %d |\n", n, a.n, a.infra, pct(a.resolved, a.scored), pct(a.resolved, a.n), a.falseDone, a.falseVerified, a.budget, a.identity, calls, quantile(a.seconds, .5), quantile(a.seconds, .95), a.prompt, a.cache, a.output, a.auxPrompt, a.auxOutput)
+		fmt.Fprintf(&b, "| %s | %d | %d | %s | %s | %d | %d | %d | %d | %.1f | %.0f | %.0f | %d | %d | %d | %d | %d | %d | %d |\n", n, a.n, a.infra, pct(a.resolved, a.scored), pct(a.resolved, a.n), a.falseDone, a.falseVerified, a.budget, a.identity, calls, quantile(a.seconds, .5), quantile(a.seconds, .95), a.prompt, a.cache, a.output, a.auxPrompt, a.auxOutput, a.childPrompt, a.estimated)
 	}
 	return b.String()
 }
+
+// journalTurnPrompt is the prompt tokens of turns across all journals,
+// children included (the event stream reports only the top level's).
+func journalTurnPrompt(r Result) int { return r.Usage["turn"].Prompt }
 
 func asExit(err error, target **exec.ExitError) bool { return errors.As(err, target) }
 

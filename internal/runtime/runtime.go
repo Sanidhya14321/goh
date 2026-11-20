@@ -1077,7 +1077,8 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 	}
 	if name == "submit_evidence" && a.Config.Experiment(core.ExperimentSubmissionEvidence) {
 		_, e := parseEvidence(b)
-		return "Record submission evidence", false, e
+		// It changes run state, so it never joins a parallel read batch.
+		return "Record submission evidence", true, e
 	}
 	if name == "recall_observation" && a.Config.Experiment(core.ExperimentRecoverableCompression) {
 		return "Recall a masked tool result from this session", false, nil
@@ -1328,7 +1329,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 			view, masked = maskObservations(a.History, cut)
 		}
 		if masked > 0 && a.Config.Experiment(core.ExperimentRecoverableCompression) {
-			view = withRecallIDs(view)
+			view = withRecallIDs(view, a.History)
 		}
 		size := a.estimate(a.withTaskContext(view), defs)
 		method := "observation_masking"

@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -90,36 +91,82 @@ func TestSubmissionEvidenceGate(t *testing.T) {
 	}
 }
 
-// recoverable-compression: masked receipts carry a recall id and the exact
-// output comes back from this session's journal, in bounded pages.
+// recoverable-compression: masked receipts carry a recall id bound to the
+// exact recorded result, pages are lossless UTF-8 and bounded, and a reused
+// provider call id cannot resolve to another result.
 func TestRecallMaskedObservation(t *testing.T) {
 	a, _ := testAgent(t)
 	a.Config.Experiments = []string{core.ExperimentRecoverableCompression}
-	big := strings.Repeat("line of output\n", 1000)
+	big := strings.Repeat("ab€", 3000) // 3-byte runes cross page boundaries
 	call := toolCall("k1", "read_file", map[string]any{"path": "x"})
 	for _, m := range []core.Message{{Role: "user", Content: "go"}, {Role: "assistant", ToolCalls: []core.Call{call}}, {Role: "tool", ToolCallID: "k1", Content: big}} {
 		a.commit(m)
 	}
 	view, n := maskObservations(append(a.History, core.Message{Role: "user", Content: "next"}), len(a.History))
-	view = withRecallIDs(view)
-	if n == 0 || !strings.Contains(view[len(view)-2].Content, `"recall_id":"k1"`) {
+	view = withRecallIDs(view, a.History)
+	id := recallID("k1", big)
+	if n == 0 || !strings.Contains(view[len(view)-2].Content, `"recall_id":"`+id+`"`) {
 		t.Fatalf("receipt %s", view[len(view)-2].Content)
 	}
-	r := a.executeRecall(json.RawMessage(`{"id":"k1","offset":8192}`))
-	var page struct {
-		Content string `json:"content"`
-		Total   int    `json:"total_bytes"`
-		More    bool   `json:"more"`
+	var got strings.Builder
+	offset := 0
+	for pages := 0; ; pages++ {
+		r := a.executeRecall(json.RawMessage(fmt.Sprintf(`{"id":%q,"offset":%d}`, id, offset)))
+		var page struct {
+			Content string `json:"content"`
+			Next    int    `json:"next_offset"`
+			More    bool   `json:"more"`
+		}
+		if r.Error || json.Unmarshal([]byte(r.Content), &page) != nil || pages > 10 {
+			t.Fatal(r.Content)
+		}
+		got.WriteString(page.Content)
+		if !page.More {
+			break
+		}
+		offset = page.Next
 	}
-	json.Unmarshal([]byte(r.Content), &page)
-	if r.Error || page.Total != len(big) || page.Content != big[8192:] || page.More {
-		t.Fatalf("second page: %+v", page.More)
+	if got.String() != big {
+		t.Fatal("pages lost or changed bytes")
 	}
-	json.Unmarshal([]byte(a.executeRecall(json.RawMessage(`{"id":"k1"}`)).Content), &page)
-	if page.Content != big[:8192] || !page.More {
-		t.Fatal("first page")
+	if r := a.executeRecall(json.RawMessage(fmt.Sprintf(`{"id":%q,"offset":9223372036854775807}`, id))); r.Error || !strings.Contains(r.Content, `"content":""`) {
+		t.Fatalf("huge offset: %+v", r)
 	}
-	if r := a.executeRecall(json.RawMessage(`{"id":"other"}`)); !r.Error {
-		t.Fatal("recalled an unknown id")
+	// The provider reuses k1 for a later, different result: the old receipt
+	// still resolves to the old content only.
+	a.commit(core.Message{Role: "assistant", ToolCalls: []core.Call{call}})
+	a.commit(core.Message{Role: "tool", ToolCallID: "k1", Content: "newer output"})
+	r := a.executeRecall(json.RawMessage(fmt.Sprintf(`{"id":%q}`, id)))
+	if r.Error || strings.Contains(r.Content, "newer output") {
+		t.Fatalf("receipt resolved to another result: %s", r.Content)
+	}
+	if r := a.executeRecall(json.RawMessage(`{"id":"k1"}`)); !r.Error {
+		t.Fatal("a bare call id resolved")
+	}
+}
+
+// Follow-up review: two submit_evidence calls in one reply run serially;
+// the first is recorded, the second is told it already is (race-free).
+func TestEvidenceCallsInOneReply(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, _ := testAgent(t)
+	a.Config.Experiments = []string{core.ExperimentSubmissionEvidence}
+	a.Grants["create_file"] = true
+	ev := func(id string) core.Call {
+		return toolCall(id, "submit_evidence", map[string]any{"intended_behavior": "x", "sources_inspected": []string{}, "test_scope": "none", "checks_run": []map[string]string{}, "unresolved_gaps": []string{}})
+	}
+	a.Provider = scripted(
+		[]core.Call{toolCall("c", "create_file", map[string]any{"path": "w.txt", "content": "x\n"})},
+		[]core.Call{ev("e1"), ev("e2")},
+	)
+	a.Run(context.Background(), "go")
+	recorded := 0
+	for _, r := range a.Store.Records() {
+		if r.Type == "submission_evidence" {
+			recorded++
+		}
+	}
+	if recorded != 1 {
+		t.Fatalf("records %d", recorded)
 	}
 }

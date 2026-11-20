@@ -1,10 +1,14 @@
 package runtime
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
@@ -55,6 +59,12 @@ func (a *Agent) executeEvidence(b json.RawMessage) tools.Result {
 	e, err := parseEvidence(b)
 	if err != nil {
 		return tools.Result{Error: true, Content: err.Error()}
+	}
+	if a.evidenceSubmitted && a.evidenceRevision == a.fingerprint && !a.noFingerprint {
+		// One accepted record per revision; calls run serially (prepare
+		// declares a state change), so the first one wins deterministically.
+		out, _ := json.Marshal(map[string]any{"recorded": false, "revision": a.fingerprint, "note": "evidence for this revision is already recorded"})
+		return tools.Result{Content: string(out)}
 	}
 	ran := map[string]bool{}
 	for _, c := range a.runCommands {
@@ -114,52 +124,81 @@ func recallDefinition() core.Tool {
 
 const recallPage = 8192
 
+// recallID binds a receipt to one exact recorded result: the tool call id
+// (which a provider may reuse across turns) plus a digest of the content.
+func recallID(callID, content string) string {
+	sum := sha256.Sum256([]byte(content))
+	return callID + "#" + hex.EncodeToString(sum[:8])
+}
+
 // executeRecall returns a page of a recorded tool result from this
 // session's journal: the same data the model already saw, under the same
-// session, never another session's or a file it was not shown.
+// session, never another session's or a file it was not shown. A result
+// read from a file that file_rules deny now is not returned.
 func (a *Agent) executeRecall(b json.RawMessage) tools.Result {
 	var args struct {
 		ID     string `json:"id"`
-		Offset int    `json:"offset"`
+		Offset int64  `json:"offset"`
 	}
 	if json.Unmarshal(b, &args) != nil || args.ID == "" || args.Offset < 0 {
 		return tools.Result{Error: true, Content: "recall_observation needs an id"}
 	}
-	content, found := "", false
+	callID, _, _ := strings.Cut(args.ID, "#")
+	content, found, path := "", false, ""
+	paths := map[string]string{} // call id -> path its tool read
 	for _, r := range a.Store.Records() {
-		if r.Type != "message" {
-			continue
-		}
-		var m core.Message
-		if json.Unmarshal(r.Data, &m) == nil && m.Role == "tool" && m.ToolCallID == args.ID && !strings.HasPrefix(m.Content, maskPrefix) {
-			content, found = m.Content, true
+		switch r.Type {
+		case "tool_start":
+			var d struct {
+				ID        string `json:"id"`
+				Arguments struct {
+					Path string `json:"path"`
+				} `json:"arguments"`
+			}
+			if json.Unmarshal(r.Data, &d) == nil {
+				paths[d.ID] = d.Arguments.Path
+			}
+		case "message":
+			var m core.Message
+			if json.Unmarshal(r.Data, &m) == nil && m.Role == "tool" && m.ToolCallID == callID && !strings.HasPrefix(m.Content, maskPrefix) && recallID(m.ToolCallID, m.Content) == args.ID {
+				content, found, path = m.Content, true, paths[m.ToolCallID]
+			}
 		}
 	}
 	if !found {
-		return tools.Result{Error: true, Content: "no recorded tool result with that id in this session"}
+		return tools.Result{Error: true, Content: "no recorded tool result with that recall_id in this session"}
 	}
-	end := min(len(content), args.Offset+recallPage)
-	if args.Offset > len(content) {
-		args.Offset = len(content)
+	if path != "" && a.Tools != nil && a.Tools.Denied(filepath.ToSlash(path)) {
+		return tools.Result{Error: true, Content: "that result came from a file your file_rules now deny"}
 	}
-	page := strings.ToValidUTF8(content[args.Offset:end], "")
-	out, _ := json.Marshal(map[string]any{"id": args.ID, "offset": args.Offset, "total_bytes": len(content), "more": end < len(content), "content": page})
+	// Clamp before any arithmetic, then keep pages on UTF-8 boundaries so
+	// nothing is lost or replaced between pages.
+	start := int(min(args.Offset, int64(len(content))))
+	for start < len(content) && !utf8.RuneStart(content[start]) {
+		start++
+	}
+	end := min(len(content), start+recallPage)
+	for end < len(content) && end > start && !utf8.RuneStart(content[end]) {
+		end--
+	}
+	out, _ := json.Marshal(map[string]any{"id": args.ID, "offset": start, "next_offset": end, "total_bytes": len(content), "more": end < len(content), "content": content[start:end]})
 	return tools.Result{Content: string(out)}
 }
 
 // withRecallIDs adds the recall id to masked receipts in view (only under
-// the experiment; the baseline receipts are unchanged).
-func withRecallIDs(view []core.Message) []core.Message {
+// the experiment; the baseline receipts are unchanged). original is the
+// history view was masked from, index for index.
+func withRecallIDs(view, original []core.Message) []core.Message {
 	out := append([]core.Message(nil), view...)
 	for i, m := range out {
-		if m.Role != "tool" || !strings.HasPrefix(m.Content, maskPrefix) {
+		if m.Role != "tool" || !strings.HasPrefix(m.Content, maskPrefix) || i >= len(original) || original[i].ToolCallID != m.ToolCallID {
 			continue
 		}
 		var r map[string]any
 		if json.Unmarshal([]byte(m.Content), &r) != nil {
 			continue
 		}
-		r["recall_id"] = m.ToolCallID
+		r["recall_id"] = recallID(m.ToolCallID, original[i].Content)
 		r["note"] = fmt.Sprint(r["note"]) + " Call recall_observation with recall_id for the exact output."
 		if b, err := json.Marshal(r); err == nil {
 			out[i].Content = string(b)

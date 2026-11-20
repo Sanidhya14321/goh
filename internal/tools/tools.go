@@ -818,6 +818,9 @@ func (e *Engine) denied(rel string) bool {
 	return DeniedPath(e.root, rel, e.DenyPath)
 }
 
+// Denied reports whether a project-relative path is denied by file_rules now.
+func (e *Engine) Denied(rel string) bool { return e.denied(rel) }
+
 // errDenied is returned for direct access to a denied path.
 var errDenied = errors.New("access to this path is denied by the user's file_rules")
 
