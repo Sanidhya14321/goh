@@ -15,6 +15,8 @@
 package main
 
 import (
+	"github.com/Sanidhya14321/goh/internal/sandbox"
+
 	"bufio"
 	"context"
 	"crypto/sha256"
@@ -163,6 +165,7 @@ func main() {
 	attempts := flag.Int("attempts", 1, "attempts per task and arm")
 	flag.BoolVar(&reproducerAudit, "reproducer", false, "also run test files the agent added on the baseline and the candidate, in isolated copies, and record whether they fail before and pass after (evidence only; never changes the grade)")
 	flag.BoolVar(&hostGrading, "host-grading", false, "run tasks that have no image: the agent's shell and grading then run model-edited code on this machine, unsandboxed during grading")
+	flag.BoolVar(&recordIdentities, "record-identities", false, "with -dry-run: save the observed fail-to-pass and pass-to-pass test identities into each valid task.json, so later grading must see those exact tests pass")
 	dry := flag.Bool("dry-run", false, "check that each task's fail-to-pass fails on repo/ and passes with hidden/ reference, without a model")
 	var armSpecs []string
 	flag.Func("arm", `name=extra goh run flags, repeatable (e.g. "base=" or "nocheck=--completion-check=false"); flags are split like shell words but never evaluated`, func(v string) error {
@@ -192,8 +195,10 @@ func main() {
 		switch {
 		case t.Image != "":
 			fmt.Fprintf(os.Stderr, "isolation %-28s container %s (setup with network; agent and grader without)\n", t.ID, t.Image)
+		case hostGrading && !sandbox.Supported():
+			fail(fmt.Errorf("task %s: -host-grading needs goh's native sandbox for the agent's shell, which this system does not have", t.ID))
 		case hostGrading:
-			fmt.Fprintf(os.Stderr, "isolation %-28s HOST: agent shell in goh's sandbox, grading unsandboxed on this machine\n", t.ID)
+			fmt.Fprintf(os.Stderr, "isolation %-28s HOST: agent shell confined by goh's native sandbox (--access auto, shell not granted), grading unsandboxed on this machine\n", t.ID)
 		default:
 			fmt.Fprintf(os.Stderr, "isolation %-28s refused (no image; pass -host-grading)\n", t.ID)
 		}
@@ -386,7 +391,15 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	if err != nil {
 		return infra("copy", err.Error())
 	}
-	args := []string{"run", "--project", work, "--prompt", t.Prompt, "--format", "json", "--allow", "all", "--session-dir", sessions}
+	args := []string{"run", "--project", work, "--prompt", t.Prompt, "--format", "json", "--session-dir", sessions}
+	if t.Image != "" {
+		args = append(args, "--allow", "all") // shell runs in the agent's container
+	} else {
+		// Host mode: every local tool except shell is granted; commands run
+		// only where Auto access confines them to this task in goh's native
+		// sandbox, and otherwise stop for permission.
+		args = append(args, "--access", "auto", "--allow", hostGrants)
+	}
 	if t.MaxRunSeconds > 0 {
 		args = append(args, "--max-run-seconds", fmt.Sprint(t.MaxRunSeconds))
 	}
@@ -450,14 +463,13 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 			r.HiddenTampered = true
 		}
 	}
-	// Grade: the candidate's tree with the baseline's test and discovery
-	// files restored, then the hidden tests on top. The grader's own
-	// fixtures and discovery decide the result.
-	if err := copyTree(work, grade); err != nil {
+	// Grade from the pinned baseline: the pre-run tree plus the
+	// candidate's changes to everything but test and discovery files (and
+	// the hidden tests' paths), then the hidden tests on top. Tests the
+	// candidate added or changed stay out, so the grader's own fixtures and
+	// discovery decide; they are graded separately below.
+	if err := applyCandidate(pristine, work, grade, baseline, candidate, hiddenPaths); err != nil {
 		return infra("regrade_copy", "regrade copy: "+err.Error())
-	}
-	if err := restoreProtected(pristine, grade, baseline); err != nil {
-		return infra("regrade_copy", err.Error())
 	}
 	if len(hiddenPaths) > 0 {
 		if err := copyTree(hidden, grade); err != nil {
@@ -494,7 +506,7 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	r.FalseComplete = r.Status == "completed" && !r.Resolved
 	r.FalseVerified = r.Outcome == "verified" && !r.Resolved
 	if reproducerAudit {
-		r.Reproducer = auditReproducers(t, pristine, grade, baseline, candidate, hiddenPaths, base)
+		r.Reproducer = auditReproducers(t, pristine, work, grade, baseline, candidate, hiddenPaths, base)
 	}
 	if len(r.ProtectedChanged) > 0 {
 		// Legitimate test changes are assessed apart: the candidate's own
@@ -508,6 +520,47 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		}
 	}
 	return r
+}
+
+// hostGrants are the tools granted in host mode: --allow all minus shell.
+const hostGrants = "write_file,create_file,edit_file,apply_patch,todowrite,skill,task,child:write_file,child:create_file,child:edit_file,child:apply_patch,snapshot_undo,snapshot_redo"
+
+// applyCandidate builds the grade tree: a copy of the pre-run baseline with
+// the candidate's added, modified and deleted files applied, except test
+// and discovery files and the hidden tests' paths.
+func applyCandidate(pristine, work, grade string, baseline, candidate map[string]string, hidden map[string]bool) error {
+	if err := copyTree(pristine, grade); err != nil {
+		return err
+	}
+	for rel, sum := range candidate {
+		if testLikePath(rel) || hidden[rel] || baseline[rel] == sum {
+			continue
+		}
+		b, err := os.ReadFile(filepath.Join(work, filepath.FromSlash(rel)))
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(grade, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+			return err
+		}
+		mode := os.FileMode(0o644)
+		if info, err := os.Stat(filepath.Join(work, filepath.FromSlash(rel))); err == nil {
+			mode = info.Mode().Perm()
+		}
+		if err := os.WriteFile(target, b, mode); err != nil {
+			return err
+		}
+	}
+	for rel := range baseline {
+		if _, kept := candidate[rel]; kept || testLikePath(rel) || hidden[rel] {
+			continue
+		}
+		if err := os.Remove(filepath.Join(grade, filepath.FromSlash(rel))); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+	}
+	return nil
 }
 
 // journalUsage sums reported usage by purpose across every session journal
@@ -731,6 +784,52 @@ func dryCheck(t task, dir, command string, expected []string) (checkResult, erro
 	return runCheck(box, dir, command, 900, expected), nil
 }
 
+// recordIdentities saves dry-run identities into task.json (-record-identities).
+var recordIdentities bool
+
+// saveIdentities writes the observed identities into task.json, keeping
+// its other fields and their order.
+func saveIdentities(path string, f2p, p2p []string) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(b, &fields); err != nil {
+		return err
+	}
+	sort.Strings(f2p)
+	sort.Strings(p2p)
+	if p2p == nil {
+		p2p = []string{}
+	}
+	enc := func(v []string) string {
+		out, _ := json.Marshal(v)
+		return string(out)
+	}
+	text := strings.TrimRight(string(b), " \n")
+	if _, ok := fields["fail_to_pass_tests"]; ok {
+		// Already recorded: rewrite the whole object.
+		fields["fail_to_pass_tests"] = json.RawMessage(enc(f2p))
+		fields["pass_to_pass_tests"] = json.RawMessage(enc(p2p))
+		out, err := json.MarshalIndent(fields, "", "  ")
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(path, append(out, '\n'), 0o644)
+	}
+	if !strings.HasSuffix(text, "}") {
+		return errors.New("task.json does not end with an object")
+	}
+	text = strings.TrimSuffix(text, "}")
+	text = strings.TrimRight(text, " \n") + ",\n  \"fail_to_pass_tests\": " + enc(f2p) + ",\n  \"pass_to_pass_tests\": " + enc(p2p) + "\n}\n"
+	var check map[string]any
+	if err := json.Unmarshal([]byte(text), &check); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(text), 0o644)
+}
+
 func dryRunTask(t task) (bool, string) {
 	tmp, err := os.MkdirTemp(dryRoot(), "goh-bench-dry-")
 	if err != nil {
@@ -770,6 +869,7 @@ func dryRunTask(t task) (bool, string) {
 		}
 	}
 	p2pCount := 0
+	var p2pIDs []string
 	if t.PassToPass != "" {
 		pb, err := dryCheck(t, before, t.PassToPass, nil)
 		if err != nil {
@@ -795,6 +895,7 @@ func dryRunTask(t task) (bool, string) {
 			switch pb.Tests[name] {
 			case "pass":
 				p2pCount++
+				p2pIDs = append(p2pIDs, name)
 			case "":
 				if pb.Structured {
 					problems = append(problems, "pass-to-pass test "+name+" does not exist on baseline")
@@ -812,6 +913,23 @@ func dryRunTask(t task) (bool, string) {
 	grading := "aggregate"
 	if len(t.FailToPassTests) > 0 {
 		grading = "identity"
+	}
+	// Fail-to-pass identities: tests that failed on the baseline and pass
+	// with the solution.
+	var f2pIDs []string
+	for _, name := range failing {
+		if a.Tests[name] == "pass" {
+			f2pIDs = append(f2pIDs, name)
+		}
+	}
+	if recordIdentities && len(problems) == 0 {
+		if len(f2pIDs) == 0 {
+			problems = append(problems, "no fail-to-pass test identity observed; cannot record identities")
+		} else if err := saveIdentities(filepath.Join(t.dir, "task.json"), f2pIDs, p2pIDs); err != nil {
+			problems = append(problems, "record identities: "+err.Error())
+		} else {
+			grading = "identity (recorded)"
+		}
 	}
 	report := fmt.Sprintf("grading=%s baseline=%s(failing=%d) solution=%s pass-to-pass-identities=%d", grading, b.Kind, len(failing), a.Kind, p2pCount)
 	if len(problems) > 0 {

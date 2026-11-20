@@ -4,5 +4,7 @@
   "max_tool_calls": 80,
   "prompt": "stats.median in stats.py returns wrong answers for lists with an even number of items and crashes on empty lists. Fix it: even-length lists use the mean of the two middle values, and an empty list raises ValueError.",
   "fail_to_pass": "python3 -m unittest test_median -v",
-  "pass_to_pass": "python3 -m unittest discover -v"
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "fail_to_pass_tests": ["test_median.Median.test_empty","test_median.Median.test_even"],
+  "pass_to_pass_tests": ["test_basic.Basic.test_odd","test_median.Median.test_unsorted_odd"]
 }

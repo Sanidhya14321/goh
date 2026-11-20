@@ -18,12 +18,13 @@ import (
 // Check kinds: what one fail_to_pass or pass_to_pass command established.
 // Only "passed" is a pass; the rest are distinct non-pass results.
 const (
-	checkPassed      = "passed"       // exit 0 and (when identities are known) every expected test passed
-	checkTestFailure = "test_failure" // a test assertion failed
-	checkBuild       = "build_failure"
-	checkNoTests     = "no_tests" // nothing ran, or an expected test was skipped or missing
-	checkTimeout     = "timeout"
-	checkToolError   = "tool_error" // the runner itself failed (container gone, command missing)
+	checkPassed       = "passed"       // exit 0 and (when identities are known) every expected test passed
+	checkTestFailure  = "test_failure" // a test assertion failed
+	checkBuild        = "build_failure"
+	checkNoTests      = "no_tests"     // nothing ran, or an expected test was skipped or missing
+	checkUnrecognized = "unrecognized" // exit 0 but the output names no tests (identity grading needs them)
+	checkTimeout      = "timeout"
+	checkToolError    = "tool_error" // the runner itself failed (container gone, command missing)
 )
 
 // checkResult is one run of a grading command with its observed tests.
@@ -69,6 +70,13 @@ func structuredCommand(command string) string {
 // suffix, so "TestSum" matches "pkg.TestSum").
 func runCheck(box, dir, command string, seconds int, expected []string) checkResult {
 	code, out := csh(box, dir, structuredCommand(command), seconds)
+	return classifyCheck(code, out, expected)
+}
+
+// classifyCheck decides what one grading command established. Only real
+// passes pass: zero tests, skips, expected failures, ambiguous identities
+// and (for identity grading) output with no recognisable tests do not.
+func classifyCheck(code int, out string, expected []string) checkResult {
 	r := checkResult{Exit: code, Output: out}
 	r.Tests, r.Structured = parseTests(out)
 	switch {
@@ -85,9 +93,8 @@ func runCheck(box, dir, command string, seconds int, expected []string) checkRes
 		}
 	}
 	failed := len(r.Failed()) > 0
+	zero := zeroTests.MatchString(out) && len(r.Passed()) == 0
 	switch {
-	case code == 0 && len(r.Missing) == 0 && (!r.Structured || len(r.Passed()) > 0):
-		r.Kind = checkPassed
 	case failed:
 		r.Kind = checkTestFailure
 	case code != 0 && buildFailure(out):
@@ -96,11 +103,22 @@ func runCheck(box, dir, command string, seconds int, expected []string) checkRes
 		r.Kind = checkTestFailure // an unparsed runner: its exit code is the evidence
 	case code != 0:
 		r.Kind = checkBuild
+	case zero:
+		r.Kind = checkNoTests
+	case !r.Structured && len(expected) > 0:
+		r.Kind = checkUnrecognized
+	case len(r.Missing) > 0:
+		r.Kind = checkNoTests // an expected test was skipped, missing, ambiguous or an expected failure
+	case r.Structured && len(r.Passed()) == 0:
+		r.Kind = checkNoTests // tests were listed but none passed (all skipped or expected failures)
 	default:
-		r.Kind = checkNoTests // exit 0, but nothing (or not what was expected) passed
+		r.Kind = checkPassed
 	}
 	return r
 }
+
+// zeroTests finds a runner's report that it ran no tests.
+var zeroTests = regexp.MustCompile(`(?m)(^Ran 0 tests\b|\bno tests ran\b|\bcollected 0 items\b|\[no test files\]|\[no tests to run\]|^NO TESTS RAN)`)
 
 func orNone(s string) string {
 	if s == "" {
@@ -109,16 +127,24 @@ func orNone(s string) string {
 	return s
 }
 
+// lookupTest returns the state of the test want names: an exact identity,
+// or the single test whose identity ends with it. Two candidates make it
+// "ambiguous", which never passes.
 func lookupTest(tests map[string]string, want string) string {
 	if s, ok := tests[want]; ok {
 		return s
 	}
+	found, state := 0, ""
 	for name, s := range tests {
 		if strings.HasSuffix(name, "."+want) || strings.HasSuffix(name, "::"+want) || strings.HasSuffix(name, "/"+want) {
-			return s
+			found++
+			state = s
 		}
 	}
-	return ""
+	if found > 1 {
+		return "ambiguous"
+	}
+	return state
 }
 
 var (
@@ -168,23 +194,27 @@ func parseTests(out string) (map[string]string, bool) {
 			name = m[2]
 		}
 		switch {
-		case m[3] == "ok" || m[3] == "expected failure":
+		case m[3] == "ok":
 			tests[name] = "pass"
+		case m[3] == "expected failure":
+			tests[name] = "xfail" // declared to fail: not a pass
 		case strings.HasPrefix(m[3], "skipped"):
 			tests[name] = "skip"
 		default:
-			tests[name] = "fail"
+			tests[name] = "fail" // FAIL, ERROR, unexpected success
 		}
 	}
 	for _, m := range pytestLineRe.FindAllStringSubmatch(out, -1) {
 		structured = true
 		switch m[1] {
-		case "PASSED", "XFAIL":
+		case "PASSED":
 			tests[m[2]] = "pass"
+		case "XFAIL":
+			tests[m[2]] = "xfail"
 		case "SKIPPED":
 			tests[m[2]] = "skip"
 		default:
-			tests[m[2]] = "fail"
+			tests[m[2]] = "fail" // FAILED, ERROR, XPASS
 		}
 	}
 	return tests, structured

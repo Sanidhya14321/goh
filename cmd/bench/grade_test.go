@@ -154,12 +154,18 @@ func TestRetrievalTelemetry(t *testing.T) {
 	journal := strings.Join([]string{
 		`{"version":1,"type":"tool_start","time":1002000,"data":{"name":"grep","arguments":{"pattern":"x"}}}`,
 		`{"version":1,"type":"tool_result","time":1003000,"data":{"result":{"content":"{\"matches\":[{\"path\":\"pkg/a.go\",\"line\":3}]}"}}}`,
-		`{"version":1,"type":"tool_start","time":1005000,"data":{"name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
-		`{"version":1,"type":"tool_start","time":1006000,"data":{"name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
+		`{"version":1,"type":"tool_start","time":1004000,"data":{"id":"r0","name":"read_file","arguments":{"path":"pkg/b.go"}}}`,
+		`{"version":1,"type":"tool_result","time":1004100,"data":{"id":"r0","result":{"error":true,"content":"no such file"}}}`,
+		`{"version":1,"type":"tool_start","time":1005000,"data":{"id":"r1","name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
+		`{"version":1,"type":"tool_result","time":1005000,"data":{"id":"r1","result":{"content":"package p"}}}`,
+		`{"version":1,"type":"tool_start","time":1006000,"data":{"id":"r2","name":"read_file","arguments":{"path":"pkg/a.go"}}}`,
+		`{"version":1,"type":"tool_result","time":1006000,"data":{"id":"r2","result":{"content":"package p"}}}`,
 	}, "\n") + "\n"
 	os.WriteFile(filepath.Join(dir, "s.jsonl"), []byte(journal), 0o600)
 	s := retrievalTelemetry(dir, []string{"pkg/a.go", "pkg/b.go"}, start)
-	if s.Read != 1 || s.Recall != 0.5 || s.RepeatReads != 1 || s.FirstGoldSecs == nil || *s.FirstGoldSecs != 3 || len(s.Missed) != 1 {
+	// The failed read of pkg/b.go earns nothing; the grep listing reached
+	// pkg/a.go first (3 s).
+	if s.Read != 1 || s.Recall != 0.5 || s.RepeatReads != 1 || s.FirstGoldSecs == nil || *s.FirstGoldSecs != 3 || len(s.Missed) != 1 || s.Missed[0] != "pkg/b.go" {
 		t.Fatalf("%+v", s)
 	}
 }
@@ -174,6 +180,9 @@ func TestReproducerAudit(t *testing.T) {
 	dir := t.TempDir()
 	os.MkdirAll(filepath.Join(dir, "repo"), 0o755)
 	os.WriteFile(filepath.Join(dir, "repo", "calc.py"), []byte("def add(a, b):\n    return a - b\n"), 0o644)
+	// An existing test that also fails before the fix: it must not be
+	// credited to a no-op test the agent adds.
+	os.WriteFile(filepath.Join(dir, "repo", "test_calc.py"), []byte("import unittest, calc\nclass C(unittest.TestCase):\n    def test_existing(self):\n        self.assertEqual(calc.add(1, 1), 2)\n"), 0o644)
 	tk := task{ID: "calc", Prompt: "fix add", FailToPass: `python3 -c "import calc; assert calc.add(2, 3) == 5"`, dir: dir}
 	hostGrading, reproducerAudit = true, true
 	defer func() { hostGrading, reproducerAudit = false, false }()
@@ -202,4 +211,28 @@ func FuzzSplitArgs(f *testing.F) {
 			t.Fatalf("plain words changed: %q -> %q", s, args)
 		}
 	})
+}
+
+// Follow-up review: zero tests, expected failures and ambiguous identities
+// are never passes.
+func TestClassifyNonPasses(t *testing.T) {
+	cases := map[string]struct {
+		out      string
+		expected []string
+		want     string
+	}{
+		"unittest zero":     {"\n----------------------------------------------------------------------\nRan 0 tests in 0.000s\n\nOK\n", nil, checkNoTests},
+		"pytest zero":       {"collected 0 items\n\n=== no tests ran in 0.01s ===\n", nil, checkNoTests},
+		"expected failure":  {"test_a (m.T.test_a) ... expected failure\n\nRan 1 test\n\nOK (expected failures=1)\n", []string{"test_a"}, checkNoTests},
+		"pytest xfail":      {"XFAIL t.py::test_a\n", []string{"test_a"}, checkNoTests},
+		"ambiguous":         {"PASSED a.py::test_x\nPASSED b.py::test_x\n", []string{"test_x"}, checkNoTests},
+		"unrecognized":      {"all good\n", []string{"test_x"}, checkUnrecognized},
+		"aggregate exit 0":  {"all good\n", nil, checkPassed},
+		"exact identity ok": {"PASSED a.py::test_x\nPASSED b.py::test_x\n", []string{"a.py::test_x"}, checkPassed},
+	}
+	for name, c := range cases {
+		if got := classifyCheck(0, c.out, c.expected); got.Kind != c.want {
+			t.Errorf("%s: %s (missing %v), want %s", name, got.Kind, got.Missing, c.want)
+		}
+	}
 }

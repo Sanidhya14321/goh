@@ -4,5 +4,7 @@
   "max_tool_calls": 120,
   "prompt": "Tasks created with TaskList() share each other's items in todo.py. Fix it so each TaskList is independent, and a list passed to TaskList(items) is never modified by later add() calls. Keep the public API unchanged.",
   "fail_to_pass": "python3 -m unittest test_todo_hidden -v",
-  "pass_to_pass": "python3 -m unittest discover -v"
+  "pass_to_pass": "python3 -m unittest discover -v",
+  "fail_to_pass_tests": ["test_todo_hidden.Hidden.test_given_list_copied","test_todo_hidden.Hidden.test_independent"],
+  "pass_to_pass_tests": ["test_todo.T.test_add"]
 }

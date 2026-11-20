@@ -4,5 +4,7 @@
   "max_tool_calls": 80,
   "prompt": "Counter in counter.go is used from many goroutines and loses increments. Make it safe for concurrent use without changing its API.",
   "fail_to_pass": "go test -race -run TestCounterConcurrent ./...",
-  "pass_to_pass": "go test ./..."
+  "pass_to_pass": "go test ./...",
+  "fail_to_pass_tests": ["example.com/task.TestCounterConcurrent"],
+  "pass_to_pass_tests": []
 }

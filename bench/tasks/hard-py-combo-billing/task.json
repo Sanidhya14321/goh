@@ -4,5 +4,7 @@
   "fail_to_pass": "python3 -m unittest tests.test_proration tests.test_rates tests.test_usage -v",
   "pass_to_pass": "python3 -m unittest discover -v",
   "max_run_seconds": 1200,
-  "max_tool_calls": 150
+  "max_tool_calls": 150,
+  "fail_to_pass_tests": ["tests.test_proration.Proration.test_first_day_full_month","tests.test_proration.Proration.test_last_day","tests.test_proration.Proration.test_leap_february","tests.test_proration.Proration.test_rounding","tests.test_rates.Rates.test_rate_per_day","tests.test_usage.Usage.test_utc_days"],
+  "pass_to_pass_tests": ["tests.test_basic.Money.test_round","tests.test_rates.Rates.test_usd_untouched"]
 }

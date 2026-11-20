@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -34,6 +35,7 @@ func retrievalTelemetry(sessions string, gold []string, start time.Time) *retrie
 		want[path.Clean(g)] = true
 	}
 	touched, read := map[string]bool{}, map[string]int{}
+	reads := map[string]string{} // read_file call id -> path, until its result
 	var first *float64
 	journals, _ := filepath.Glob(filepath.Join(sessions, "*.jsonl"))
 	note := func(p string, at int64) {
@@ -66,23 +68,32 @@ func retrievalTelemetry(sessions string, gold []string, start time.Time) *retrie
 			switch rec.Type {
 			case "tool_start":
 				var d struct {
+					ID        string `json:"id"`
 					Name      string `json:"name"`
 					Arguments struct {
 						Path string `json:"path"`
 					} `json:"arguments"`
 				}
 				if json.Unmarshal(rec.Data, &d) == nil && d.Name == "read_file" && d.Arguments.Path != "" {
-					p := path.Clean(filepath.ToSlash(d.Arguments.Path))
-					read[p]++
-					note(p, rec.Time)
+					reads[d.ID] = path.Clean(filepath.ToSlash(d.Arguments.Path))
 				}
 			case "tool_result":
 				var d struct {
+					ID     string `json:"id"`
 					Result struct {
+						Error   bool   `json:"error"`
 						Content string `json:"content"`
 					} `json:"result"`
 				}
-				if json.Unmarshal(rec.Data, &d) != nil {
+				if json.Unmarshal(rec.Data, &d) != nil || d.Result.Error {
+					delete(reads, d.ID)
+					continue // a failed call retrieved nothing
+				}
+				if p, ok := reads[d.ID]; ok {
+					// Credited only once the read succeeded.
+					read[p]++
+					note(p, rec.Time)
+					delete(reads, d.ID)
 					continue
 				}
 				var listed struct {
@@ -126,11 +137,12 @@ func retrievalTelemetry(sessions string, gold []string, start time.Time) *retrie
 }
 
 // auditReproducers runs test files the agent added (not hidden, not in the
-// baseline) on two isolated copies: the pre-run baseline plus those files,
-// and the graded candidate. A test that fails on the baseline by a test
-// failure and passes on the candidate is evidence ("fail_to_pass"). An
-// invalid or missing test is "unknown", never a failure of the fix.
-func auditReproducers(t task, pristine, grade string, baseline, candidate map[string]string, hidden map[string]bool, base string) string {
+// baseline) in two isolated copies: the pre-run baseline plus those files,
+// and the graded candidate plus those files. Only the same test, defined in
+// an added file, observed failing before and passing after is evidence
+// ("fail_to_pass"); other outcomes are "no_signal", "fails_on_candidate"
+// or "unknown", never a failure of the fix.
+func auditReproducers(t task, pristine, work, grade string, baseline, candidate map[string]string, hidden map[string]bool, base string) string {
 	var added []string
 	for rel := range candidate {
 		if _, ok := baseline[rel]; !ok && !hidden[rel] && testLikePath(rel) {
@@ -141,24 +153,39 @@ func auditReproducers(t task, pristine, grade string, baseline, candidate map[st
 		return "none"
 	}
 	sort.Strings(added)
-	before := filepath.Join(base, "reproducer-baseline")
-	if copyTree(pristine, before) != nil {
-		return "unknown: copy failed"
-	}
-	for _, rel := range added {
-		b, err := os.ReadFile(filepath.Join(grade, filepath.FromSlash(rel)))
-		if err != nil {
-			return "unknown: " + err.Error()
-		}
-		target := filepath.Join(before, filepath.FromSlash(rel))
-		os.MkdirAll(filepath.Dir(target), 0o755)
-		if os.WriteFile(target, b, 0o644) != nil {
-			return "unknown: copy failed"
-		}
-	}
 	command := reproducerCommand(added)
 	if command == "" {
 		return "unknown: no runner for " + strings.Join(added, ",")
+	}
+	names := addedTestNames(work, added)
+	if len(names) == 0 {
+		return "unknown: no test functions found in " + strings.Join(added, ",")
+	}
+	prepare := func(name, from string) (string, error) {
+		dir := filepath.Join(base, name)
+		if err := copyTree(from, dir); err != nil {
+			return "", err
+		}
+		for _, rel := range added {
+			b, err := os.ReadFile(filepath.Join(work, filepath.FromSlash(rel)))
+			if err != nil {
+				return "", err
+			}
+			target := filepath.Join(dir, filepath.FromSlash(rel))
+			os.MkdirAll(filepath.Dir(target), 0o755)
+			if err := os.WriteFile(target, b, 0o644); err != nil {
+				return "", err
+			}
+		}
+		return dir, nil
+	}
+	before, err := prepare("reproducer-baseline", pristine)
+	if err != nil {
+		return "unknown: " + err.Error()
+	}
+	after, err := prepare("reproducer-candidate", grade)
+	if err != nil {
+		return "unknown: " + err.Error()
 	}
 	run := func(dir string) checkResult {
 		var box string
@@ -171,16 +198,57 @@ func auditReproducers(t task, pristine, grade string, baseline, candidate map[st
 		}
 		return runCheck(box, dir, command, 600, nil)
 	}
-	b, a := run(before), run(grade)
+	b, a := run(before), run(after)
+	if !b.Structured || !a.Structured {
+		return "unknown: test results not recognised"
+	}
+	signal, fails := false, false
+	for _, n := range names {
+		bs, as := lookupTest(b.Tests, n), lookupTest(a.Tests, n)
+		if bs == "fail" && as == "pass" {
+			return "fail_to_pass"
+		}
+		if as == "fail" {
+			fails = true
+		}
+		if bs == "pass" && as == "pass" {
+			signal = true
+		}
+	}
 	switch {
-	case b.Kind == checkTestFailure && a.Kind == checkPassed:
-		return "fail_to_pass"
-	case b.Kind == checkPassed && a.Kind == checkPassed:
-		return "no_signal" // passes without the fix: not a reproducer
-	case a.Kind == checkTestFailure:
+	case fails:
 		return "fails_on_candidate"
+	case signal:
+		return "no_signal" // passes without the fix: not a reproducer
 	}
 	return "unknown: baseline " + b.Kind + ", candidate " + a.Kind
+}
+
+var (
+	goTestFuncRe = regexp.MustCompile(`(?m)^func (Test\w+)\(`)
+	pyTestFuncRe = regexp.MustCompile(`(?m)^\s+def (test\w*)\(`)
+)
+
+// addedTestNames lists the test functions the added files define, as
+// identity suffixes (Go: TestX; unittest: module...test_x).
+func addedTestNames(work string, added []string) []string {
+	var out []string
+	for _, rel := range added {
+		b, err := os.ReadFile(filepath.Join(work, filepath.FromSlash(rel)))
+		if err != nil {
+			continue
+		}
+		if strings.HasSuffix(rel, ".go") {
+			for _, m := range goTestFuncRe.FindAllSubmatch(b, -1) {
+				out = append(out, string(m[1]))
+			}
+			continue
+		}
+		for _, m := range pyTestFuncRe.FindAllSubmatch(b, -1) {
+			out = append(out, string(m[1]))
+		}
+	}
+	return out
 }
 
 // reproducerCommand runs the added tests: their Go packages, or the Python

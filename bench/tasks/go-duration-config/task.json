@@ -4,5 +4,7 @@
   "max_tool_calls": 80,
   "prompt": "Config.Timeout in config.go only accepts whole seconds like \"30\". Make ParseConfig also accept Go duration strings such as \"1m30s\" and \"500ms\", keep plain integers meaning seconds, and make server.go use the parsed value instead of its hard-coded 30 seconds.",
   "fail_to_pass": "go test -run 'TestTimeout|TestServer' ./...",
-  "pass_to_pass": "go test ./..."
+  "pass_to_pass": "go test ./...",
+  "fail_to_pass_tests": ["example.com/task.TestServerUsesConfig","example.com/task.TestTimeoutForms"],
+  "pass_to_pass_tests": []
 }

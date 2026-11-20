@@ -3,5 +3,7 @@
   "max_run_seconds": 600,
   "max_tool_calls": 80,
   "prompt": "load_rows in report.py splits CSV lines on commas, which breaks quoted fields like \"Smith, Jane\". Make it parse CSV correctly (quoted commas and escaped quotes) and return a list of dicts keyed by the header row.",
-  "fail_to_pass": "python3 -m unittest test_report -v"
+  "fail_to_pass": "python3 -m unittest test_report -v",
+  "fail_to_pass_tests": ["test_report.Report.test_escaped_quote","test_report.Report.test_quoted"],
+  "pass_to_pass_tests": []
 }

@@ -47,16 +47,24 @@ each attempt its own work folder:
 `grader` are infrastructure failures: excluded from resolution, counted against reliability.
 `agent_timeout` and everything after the agent ran are scored.
 
-**Grading policy.** The grade tree is the agent's final tree with the pre-run (post-setup) test and
-discovery files (`*_test.go`, `test_*.py`, `*_test.py`, `conftest.py`, `pytest.ini`, `tox.ini`,
-`testdata/`) restored, and the hidden tests on top, so the grader's own fixtures and discovery decide.
-Changes to those files are listed in `protected_changed` (compared with the actual baseline, deletions
-included) and graded separately as `candidate_tests_resolved`. Each check is classified as `passed`,
-`test_failure`, `build_failure`, `no_tests` (nothing ran, or an expected test was skipped or missing),
+**Grading policy.** The grade tree starts from the pinned pre-run (post-setup) tree. The candidate's
+added, modified and deleted files are applied, except test and discovery files (`*_test.go`,
+`test_*.py`, `*_test.py`, `conftest.py`, `pytest.ini`, `tox.ini`, `testdata/`) and the hidden tests'
+paths, and the hidden tests go on top, so the grader's own fixtures and discovery decide. The
+candidate's changes to those files are listed in `protected_changed` (deletions included) and graded
+separately as `candidate_tests_resolved`. Each check is classified as `passed`, `test_failure`,
+`build_failure`, `no_tests` (zero tests ran, or an expected test was skipped, missing, an expected
+failure or matched ambiguously), `unrecognized` (identity grading, but no tests in the output),
 `timeout` or `tool_error`; only `passed` passes. `go test` runs with `-json`, and `unittest -v` and
-`pytest -rA` output is parsed, so tests are identified. A task may list `fail_to_pass_tests` and
-`pass_to_pass_tests` (identities, matched by suffix); it is then graded `identity`, otherwise
-`aggregate` (exit codes, labelled as such).
+`pytest -rA` output is parsed; expected failures (`expected failure`, `XFAIL`) are not passes and
+unexpected successes are failures. Tasks list `fail_to_pass_tests` and `pass_to_pass_tests`, recorded
+by `--dry-run --record-identities` from the tests that failed on the baseline and passed with the
+solution (and passed on both); they are then graded `identity`, otherwise `aggregate` (exit codes,
+labelled as such). All 36 native tasks carry identities; `gen_hard.py` rewrites `task.json`, so re-record
+after regenerating.
+
+**Host mode** (`-host-grading`) needs goh's native sandbox: the agent runs with `--access auto` and every
+local tool except shell granted, so commands run confined to the task or stop for permission.
 
 ## Task format
 

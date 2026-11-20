@@ -4,5 +4,7 @@
   "max_tool_calls": 120,
   "prompt": "The LRU cache in lru.go evicts the wrong entry: Get does not mark an entry as recently used, and Put on an existing key adds a duplicate. Fix both so the least recently used entry is evicted at capacity.",
   "fail_to_pass": "go test -run TestLRU ./...",
-  "pass_to_pass": "go test ./..."
+  "pass_to_pass": "go test ./...",
+  "fail_to_pass_tests": ["example.com/task.TestLRUEvictsLeastRecent","example.com/task.TestLRUUpdateExisting"],
+  "pass_to_pass_tests": []
 }
