@@ -1,6 +1,6 @@
 # Project status
 
-*Last reviewed: 19 November 2026 · latest tag `v1.0.0-rc.180` plus unreleased changes in the
+*Last reviewed: 20 November 2026 · latest tag `v1.0.0-rc.180` plus unreleased changes in the
 [changelog](../../CHANGELOG.md).*
 
 GoHarness is feature-complete for a 1.0 release candidate. Every milestone passes the gates in
@@ -39,7 +39,7 @@ them. No manual Windows session has been run.
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
-| Benchmark | The 19 container tasks have not passed the stricter dry run; no task lists `gold_files`; no private holdout exists; the research experiments have no live result | Docker daemon was offline; holdout and gold annotations still to write; live arms need model quota ([experiments](../benchmarks/experiments.md)) |
+| Benchmark | The 19 container tasks have not passed the stricter dry run and have no recorded test identities (they grade `aggregate`); no task lists `gold_files`; no private holdout exists; the research experiments have no live result | Docker daemon was offline; holdout and gold annotations still to write; live arms need model quota ([experiments](../benchmarks/experiments.md)) |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |

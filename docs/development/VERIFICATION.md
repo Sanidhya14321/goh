@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: follow-up review fixes (reviewed at `1d0e29b`)
+
+Go 1.27.4, macOS ARM64. `go test -count=1 ./...`, `go test -race ./...`, `go vet ./...` with `GOOS=linux` and `GOOS=windows`, and `env -u NO_COLOR make GO=go e2e` (acceptance plus the TUI, setup, ACP, attach, resume-setup and salvage PTY suites) pass. The race-instrumented attach gate exits 0 with no race reports. The native benchmark dry run passes all 36 tasks, all graded by recorded test identities. Docker was not running, so the 19 container tasks remain unchecked.
+
+- Release blockers: `TestMentionsAndEmptyRunsAreNotChecks` (`echo "go test"`, `printf 'pytest'` and zero-test output do not verify), `TestVerifierThatChangesFiles` (a verifier that keeps rewriting ends `unverified`; an idempotent formatter ends `verified`), `TestInterruptedVerifierIsPending` (the verifier's effect stays pending after cancellation and the next run needs acknowledgement), `TestAccessNeedsEnforceableBoundary` (container and temp-folder overlap ask), `TestFindUnicodeAndLongLines` (İ/ẞ history and a late match in a long line).
+- Grader: `TestClassifyNonPasses` (zero tests, expected failure, XFAIL, ambiguous suffix, unrecognized output), `TestReproducerAudit` (an existing failing test is not credited to a no-op added test), `TestRetrievalTelemetry` (a failed read earns nothing). `--dry-run --record-identities` recorded identities for all 36 native tasks.
+- Research: `TestEvidenceCallsInOneReply` (two calls in one reply, `-race`), `TestRecallMaskedObservation` (lossless pages over 3-byte runes, huge offset, a reused provider call id does not resolve to newer output).
+- P2: `TestLockWaitIsCancellableAndLiveHolderKept` (`-race`, three runs), `TestDirectOpenReconcilesInterruptedTrash`, `TestConflictingResumeSelectors`, `TestBudgetCheckedBeforeCompaction` (fails on the previous code: a summary call after the allowance was spent, 124 of 100 tokens), `TestChildRetryRemovesOnlyItsOwnSpan`, `TestHeldQueueSurvivesSameChatNavigation`, `TestLatestIsMostRecentlyActive`, `TestRejectedAnswerIsAskedAgain`, `TestMCPRestartWithUncertainCleanupStops`.
+- CI gains `attach-race` (Linux, macOS) and `bench-smoke` (offline dry run of two native tasks).
+- Not run: live inference, interactive Windows and editor sessions, Docker-backed tasks.
+
 ## Unreleased: review fixes (verification truth, access, UI state, benchmark integrity)
 
 Implements the code and UI reviews prepared at `8417223`. Go 1.27.4, macOS ARM64.

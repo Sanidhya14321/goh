@@ -103,7 +103,8 @@ goh resume SESSION_ID --prompt 'Now add a regression test'
 ```
 
 Headless runs never wait for input. Exit codes: `0` completed, `1` error, `3` needs permission,
-`4` needs input, `5` budget exhausted, `130` cancelled.
+`4` needs input, `5` budget exhausted, `6` the configured `verify.command` still failed after its
+repair attempts, `130` cancelled.
 
 ## Using the terminal UI
 

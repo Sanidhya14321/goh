@@ -11,8 +11,8 @@ GoHarness result yet: the live comparisons below need model quota and have not b
 | `--experiment submission-evidence` | When changed work is about to finish, the model is asked once for `submit_evidence`: intended behaviour, sources inspected, test scope, checks run with their results, and unresolved gaps. The record is journaled (`submission_evidence`) against the current revision and checked against the commands this run actually executed. It replaces the one-time completion reminder, not the configured `verify`. | `TestSubmissionEvidenceGate`: asked exactly once; a claimed `go test ./...` that never ran is named back to the model; the record carries the current fingerprint |
 | `--experiment recoverable-compression` | Masked tool results carry a `recall_id`; `recall_observation` returns the exact original output in 8 KiB pages from this session's journal. Only results recorded in this session, under the same access and retention as the journal. | `TestRecallMaskedObservation`: receipt ids, exact pages, unknown ids refused |
 | `--experiment retrieval-expansion` | `repo_map` with a query adds up to 10 files that reference the first five matching symbols, with provenance (`references X`, defined in Y), from a lexical index cached by content digest. Ignore and deny rules apply as for `repo_map`. | `TestRepoMapRelatedExpansion` (references found, stale entries dropped after an edit, off by default). `BenchmarkRepoMapQuery`, 256 files: 8.41 ms base, 8.63 ms with expansion warm (+2.7%), 9.03 ms cold (+7.4%) |
-| `gold_files` in `task.json` (benchmark only) | Retrieval recall, seconds to the first gold file, files touched and repeat reads, computed from the session journals. Never shown to the agent. | `TestRetrievalTelemetry` |
-| `goh-bench -reproducer` | Test files the agent added run on an isolated copy of the pre-run baseline and on the graded candidate: `fail_to_pass` (evidence), `no_signal`, `fails_on_candidate` or `unknown`. Recorded only; it never changes the grade. | `TestReproducerAudit` |
+| `gold_files` in `task.json` (benchmark only) | Retrieval recall, seconds to the first gold file, files touched and repeat reads, computed from the session journals; a read counts only when its result succeeded. Never shown to the agent. | `TestRetrievalTelemetry` (a failed read earns nothing) |
+| `goh-bench -reproducer` | Test files the agent added run on an isolated copy of the pre-run baseline and on the graded candidate (each plus the added files). Only a test defined in an added file, observed failing before and passing after, is `fail_to_pass`; otherwise `no_signal`, `fails_on_candidate` or `unknown`. Recorded only; it never changes the grade. | `TestReproducerAudit` (an existing failing test is not credited to a no-op added test) |
 
 Before `retrieval-expansion`, `repo_map` itself was fixed: ignored files no longer use up its scan
 budget, and files whose path matches the query are read first (`TestRepoMapCoverage`; the
@@ -43,7 +43,8 @@ when estimating uncertainty: with 19 real tasks, a difference of one or two task
 
 - **Live runs.** All comparisons above; they spend model quota and wait on the user's go-ahead.
 - **Container tasks.** The 19 Docker-backed tasks could not be dry-run: the Docker daemon was not
-  running. The 36 native tasks pass the stricter dry run.
+  running, so they still grade `aggregate`. The 36 native tasks pass the stricter dry run and carry
+  recorded test identities (`identity` grading).
 - **Gold files and private holdout.** No task lists `gold_files` yet, and the original Go/Python
   holdout with reviewed alternate solutions and partial fixes is not written. Both are needed
   before the retrieval and evidence arms can be judged.

@@ -67,6 +67,49 @@ jobs:
       - run: python3 scripts/e2e/test_attach.py
       - run: python3 scripts/e2e/test_resume_setup.py
       - run: python3 scripts/e2e/test_salvage.py
+  attach-race:
+    # The attached chat with a race-instrumented goh, against the scripted
+    # local model: fails on a nonzero attached or server exit, or on any
+    # race report.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Race-instrumented attach
+        shell: bash
+        run: |
+          set -eu
+          dir=$(mktemp -d)
+          mkdir -p "$dir/bin" "$dir/scripts/e2e"
+          go build -race -o "$dir/bin/goh" ./cmd/harness
+          go build -o "$dir/bin/scripted-model" ./cmd/scripted-model
+          cp scripts/e2e/test_attach.py scripts/e2e/vtscreen.py "$dir/scripts/e2e/"
+          GORACE="log_path=$dir/race exitcode=99" python3 "$dir/scripts/e2e/test_attach.py"
+          if ls "$dir"/race.* >/dev/null 2>&1; then cat "$dir"/race.*; exit 1; fi
+  bench-smoke:
+    # Offline benchmark gate: the grader validates two native tasks (with
+    # their recorded test identities) without a model, Docker or network.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - name: Native dry run
+        run: |
+          go build -o "$RUNNER_TEMP/goh-bench" ./cmd/bench
+          "$RUNNER_TEMP/goh-bench" --tasks bench/tasks --only go-counter-race,py-cart-discount --dry-run
   install:
     # One-command installers against a local release-layout server, natively.
     strategy:
