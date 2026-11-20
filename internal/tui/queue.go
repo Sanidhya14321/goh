@@ -169,3 +169,31 @@ func (m *model) submitQueued() (tea.Model, tea.Cmd) {
 	m.input, m.inputCursor = draft, cursor
 	return model, cmd
 }
+
+// parked holds queued prompts while their chat is rebuilt (a picker or
+// settings closed): they come back, in order and still held, only to the
+// same session.
+var parked struct {
+	session, reason string
+	queue           []string
+}
+
+func parkQueue(session string, queue []string, reason string) {
+	parked.session, parked.queue, parked.reason = session, append([]string(nil), queue...), reason
+	if len(queue) == 0 {
+		parked.session = ""
+	}
+}
+
+func unparkQueue(session string) ([]string, string) {
+	if session == "" || parked.session != session {
+		parked.session, parked.queue, parked.reason = "", nil, ""
+		return nil, ""
+	}
+	q, reason := parked.queue, parked.reason
+	if reason == "" && len(q) > 0 {
+		reason = "the chat was reopened"
+	}
+	parked.session, parked.queue, parked.reason = "", nil, ""
+	return q, reason
+}

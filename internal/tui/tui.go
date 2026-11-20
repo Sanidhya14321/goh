@@ -72,7 +72,10 @@ type model struct {
 	// childPartial is each subagent's streamed text since its last other
 	// event, as the pieces appended to the log (parallel children
 	// interleave), so a child's retry retracts only its own text.
-	childPartial map[string][]string
+	childPartial map[string][]logSpan
+	// logTrimmed counts bytes cut from the front of log, so a span's
+	// absolute position stays valid after trimming.
+	logTrimmed int
 	// inputWidth is the composer's text width at the last render, so Up and
 	// Down move by displayed rows.
 	inputWidth int
@@ -297,11 +300,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				}
 				json.Unmarshal(b, &delta)
 				text := Safe(delta.Text)
-				m.log += text
 				if m.childPartial == nil {
-					m.childPartial = map[string][]string{}
+					m.childPartial = map[string][]logSpan{}
 				}
-				m.childPartial[d.TaskID] = append(m.childPartial[d.TaskID], text)
+				m.childPartial[d.TaskID] = append(m.childPartial[d.TaskID], logSpan{at: m.logTrimmed + len(m.log), text: text})
+				m.log += text
 			case "stream_retry", "assistant_reset":
 				// The child's attempt was abandoned: retract only its text.
 				m.dropChildPartial(d.TaskID)
@@ -460,7 +463,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.durationMS = d.Duration
 		}
 		if len(m.log) > 128<<10 {
-			m.log = m.log[len(m.log)-(128<<10):]
+			m.trimLog()
 		}
 		return m, m.wait()
 	case editorDoneMsg:
@@ -525,7 +528,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.log += "(the configured servers offer no prompts)\n"
 		}
 		if len(m.log) > 128<<10 {
-			m.log = m.log[len(m.log)-(128<<10):]
+			m.trimLog()
 		}
 		return m, m.wait()
 	case jobStoppedMsg:
@@ -890,7 +893,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					m.log += "/" + name + " — " + Safe(set[name].Description) + "\n"
 				}
 				if len(m.log) > 128<<10 {
-					m.log = m.log[len(m.log)-(128<<10):]
+					m.trimLog()
 				}
 				return m, nil
 			}
@@ -927,7 +930,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					m.log += Safe(info.Name) + " — " + Safe(info.Description) + "\n"
 				}
 				if len(m.log) > 128<<10 {
-					m.log = m.log[len(m.log)-(128<<10):]
+					m.trimLog()
 				}
 				return m, nil
 			}
@@ -938,7 +941,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					m.log += "(empty)\n"
 				}
 				if len(m.log) > 128<<10 {
-					m.log = m.log[len(m.log)-(128<<10):]
+					m.trimLog()
 				}
 				return m, nil
 			}
@@ -1230,9 +1233,13 @@ func Run(a *agent.Agent, notice, draft string) error {
 		}
 	}
 	if len(m.log) > 128<<10 {
-		m.log = m.log[len(m.log)-(128<<10):]
+		m.trimLog()
 	}
 	m.restoreLastRun()
+	if a.Store != nil {
+		// Prompts held when this same chat was left for a picker or settings.
+		m.queue, m.queueHeld = unparkQueue(a.Store.ID)
+	}
 	if notice != "" {
 		m.log += "\n[notice] " + Safe(notice) + "\n"
 		m.status = "Action needs attention"
@@ -1296,6 +1303,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	a.Approve = oldApprove
 	a.Ask = oldAsk
 	if e == nil && m.navigation != "" {
+		parkQueue(a.Store.ID, m.queue, m.queueHeld)
 		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content, Draft: m.input, BeforeTurn: m.forkBefore, RevertPrompt: m.revertPrompt, RevertOccurrence: m.revertOccurrence}
 	}
 	return e
@@ -1384,16 +1392,46 @@ func (m *model) requestRewind(action string) tea.Cmd {
 
 // dropPartialReply removes the streamed text of an abandoned reply, with any
 // reasoning shown after it, from the transcript.
-// dropChildPartial removes one subagent's provisional text from the log,
-// newest piece first, leaving the parent's and other children's text alone.
+// logSpan is text appended to log at an absolute position (logTrimmed
+// included).
+type logSpan struct {
+	at   int
+	text string
+}
+
+// trimLog keeps the transcript bounded, remembering how much was cut.
+func (m *model) trimLog() {
+	if over := len(m.log) - (128 << 10); over > 0 {
+		m.log = m.log[over:]
+		m.logTrimmed += over
+	}
+}
+
+// dropChildPartial removes one subagent's provisional text from exactly the
+// places it was appended, newest first, and shifts every later span; the
+// parent's and other children's text is never touched, even when equal.
 func (m *model) dropChildPartial(task string) {
 	pieces := m.childPartial[task]
+	delete(m.childPartial, task)
 	for i := len(pieces) - 1; i >= 0; i-- {
-		if at := strings.LastIndex(m.log, pieces[i]); at >= 0 && pieces[i] != "" {
-			m.log = m.log[:at] + m.log[at+len(pieces[i]):]
+		p := pieces[i]
+		at := p.at - m.logTrimmed
+		if at < 0 || at+len(p.text) > len(m.log) || m.log[at:at+len(p.text)] != p.text {
+			continue // trimmed away, or not where it was written
+		}
+		m.log = m.log[:at] + m.log[at+len(p.text):]
+		for id, spans := range m.childPartial {
+			for j := range spans {
+				if spans[j].at > p.at {
+					spans[j].at -= len(p.text)
+				}
+			}
+			m.childPartial[id] = spans
+		}
+		if m.partialStart > at {
+			m.partialStart -= len(p.text)
 		}
 	}
-	delete(m.childPartial, task)
 }
 
 func (m *model) dropPartialReply() {

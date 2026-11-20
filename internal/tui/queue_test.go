@@ -199,3 +199,41 @@ func TestFindUnicodeAndLongLines(t *testing.T) {
 		t.Fatal(at, end)
 	}
 }
+
+// Follow-up review: a child's retry removes its own text at the place it
+// was written, not an equal string elsewhere (a queued prompt's preview).
+func TestChildRetryRemovesOnlyItsOwnSpan(t *testing.T) {
+	m := &model{width: 80, height: 24, active: true, events: make(chan tea.Msg, 8)}
+	child := func(task, kind string, data any) core.Event {
+		return core.Event{Type: "subagent_event", Data: map[string]any{"task_id": task, "event": core.Event{Type: kind, Data: data}}}
+	}
+	m.Update(child("a", "assistant_updated", map[string]any{"text": "fix it"}))
+	m.log += "\n[queued] fix it\n" // the same words in the user's queued prompt
+	m.Update(child("b", "assistant_updated", map[string]any{"text": "B text"}))
+	m.Update(child("a", "stream_retry", map[string]any{"attempt": 1}))
+	if !strings.Contains(m.log, "[queued] fix it") || strings.HasPrefix(m.log, "fix it") || !strings.Contains(m.log, "B text") {
+		t.Fatalf("log %q", m.log)
+	}
+	// The other child's span still points at its own text.
+	m.Update(child("b", "stream_retry", map[string]any{"attempt": 1}))
+	if strings.Contains(m.log, "B text") || !strings.Contains(m.log, "[queued] fix it") {
+		t.Fatalf("log %q", m.log)
+	}
+}
+
+// Follow-up review: held prompts survive leaving the same chat for a picker
+// and coming back; another session does not get them.
+func TestHeldQueueSurvivesSameChatNavigation(t *testing.T) {
+	parkQueue("s1", []string{"one", "two"}, "the configured verification failed")
+	if q, _ := unparkQueue("s2"); q != nil {
+		t.Fatal("another session got the held prompts")
+	}
+	parkQueue("s1", []string{"one", "two"}, "the configured verification failed")
+	q, reason := unparkQueue("s1")
+	if len(q) != 2 || q[0] != "one" || reason == "" {
+		t.Fatal(q, reason)
+	}
+	if q, _ := unparkQueue("s1"); q != nil {
+		t.Fatal("held prompts restored twice")
+	}
+}
