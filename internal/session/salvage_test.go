@@ -179,3 +179,27 @@ func TestReconcileInterruptedTrash(t *testing.T) {
 		t.Fatal("intent left behind")
 	}
 }
+
+// Follow-up review: opening a session directly also settles an interrupted
+// trash, so its title is back before the journal is used.
+func TestDirectOpenReconcilesInterruptedTrash(t *testing.T) {
+	dir := t.TempDir()
+	store, err := New(dir, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	id := store.ID
+	store.Close()
+	SetTitle(dir, id, "keep me")
+	os.MkdirAll(trashDir(dir), 0o700)
+	writeMoveIntent(dir, id, "trash")
+	os.Rename(filepath.Join(dir, id+".meta.json"), filepath.Join(trashDir(dir), id+".meta.json"))
+	s, err := Open(dir, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+	if m, _ := ReadMeta(dir, id); m.Title != "keep me" {
+		t.Fatal("direct open left the title in the trash")
+	}
+}

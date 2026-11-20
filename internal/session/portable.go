@@ -158,6 +158,7 @@ func ForkBefore(dir, id string, beforeTurn int) (*Store, string, error) {
 	if beforeTurn < 0 {
 		return nil, "", errors.New("fork turn must be positive, or zero for the full session")
 	}
+	reconcileMoves(dir)
 	source, err := Open(dir, id)
 	if err != nil {
 		return nil, "", err

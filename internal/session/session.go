@@ -70,6 +70,7 @@ func OpenReadOnly(dir, id, project string) (*Store, error) {
 	if !validID.MatchString(id) {
 		return nil, errors.New("invalid session ID")
 	}
+	reconcileMoves(dir) // an interrupted trash or restore is settled first
 	f, err := openJournal(dir, id, os.O_RDONLY)
 	if err != nil {
 		return nil, err
@@ -189,6 +190,9 @@ func open(dir, id, project string) (*Store, error) {
 	if !validID.MatchString(id) {
 		return nil, errors.New("invalid session ID")
 	}
+	// Every entry point settles interrupted trash and restore moves first,
+	// so a session never opens with its title or artifacts left behind.
+	reconcileMoves(dir)
 	// O_NOFOLLOW prevents replacing the journal with a symlink into another path.
 	f, err := openJournal(dir, id, os.O_RDWR)
 	if err != nil {

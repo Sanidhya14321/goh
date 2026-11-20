@@ -177,6 +177,7 @@ func Trash(dir, id string) error {
 	if !validID.MatchString(id) {
 		return errors.New("invalid session ID")
 	}
+	reconcileMoves(dir)
 	journal := filepath.Join(dir, id+".jsonl")
 	f, err := os.OpenFile(journal, os.O_RDWR|platform.NoFollow|platform.NonBlock, 0)
 	if err != nil {
@@ -262,6 +263,7 @@ func Restore(dir, id string) error {
 	if !validID.MatchString(id) {
 		return errors.New("invalid session ID")
 	}
+	reconcileMoves(dir)
 	src := filepath.Join(trashDir(dir), id+".jsonl")
 	if _, err := os.Lstat(src); err != nil {
 		return fmt.Errorf("session %s is not in the trash", id)
