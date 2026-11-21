@@ -42,9 +42,6 @@ when estimating uncertainty: with 19 real tasks, a difference of one or two task
 ## Not done yet
 
 - **Live runs.** All comparisons above; they spend model quota and wait on the user's go-ahead.
-- **Container tasks.** The 19 Docker-backed tasks could not be dry-run: the Docker daemon was not
-  running, so they still grade `aggregate`. The 36 native tasks pass the stricter dry run and carry
-  recorded test identities (`identity` grading).
 - **Gold files and private holdout.** No task lists `gold_files` yet, and the original Go/Python
   holdout with reviewed alternate solutions and partial fixes is not written. Both are needed
   before the retrieval and evidence arms can be judged.

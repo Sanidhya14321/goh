@@ -376,3 +376,33 @@ func parseArms(specs []string) ([]arm, error) {
 	}
 	return out, nil
 }
+
+// abortedPackages lists Go packages whose test binary panicked or died (go test
+// -json output), so tests after the panic never ran.
+func abortedPackages(out string) map[string]bool {
+	pkgs := map[string]bool{}
+	sc := bufio.NewScanner(strings.NewReader(out))
+	sc.Buffer(make([]byte, 64<<10), 16<<20)
+	for sc.Scan() {
+		line := sc.Bytes()
+		if len(line) == 0 || line[0] != '{' {
+			continue
+		}
+		var e struct{ Action, Package, Output string }
+		if json.Unmarshal(line, &e) == nil && e.Action == "output" && e.Package != "" && (strings.HasPrefix(e.Output, "panic: ") || strings.HasPrefix(e.Output, "fatal error: ")) {
+			pkgs[e.Package] = true
+		}
+	}
+	return pkgs
+}
+
+// inPackage reports whether a test identity (package + "." + test) belongs
+// to one of pkgs.
+func inPackage(name string, pkgs map[string]bool) bool {
+	for p := range pkgs {
+		if strings.HasPrefix(name, p+".") {
+			return true
+		}
+	}
+	return false
+}

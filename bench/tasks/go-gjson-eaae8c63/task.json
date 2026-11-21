@@ -16,5 +16,7 @@
   "source_commit": "eaae8c63338d6d71ea606b788243ca1c5b39a068",
   "source_files": [
     "gjson.go"
-  ]
+  ],
+  "fail_to_pass_tests": ["github.com/tidwall/gjson.TestPlus53BitInts"],
+  "pass_to_pass_tests": ["github.com/tidwall/gjson.TestBasic","github.com/tidwall/gjson.TestByteSafety","github.com/tidwall/gjson.TestEmoji","github.com/tidwall/gjson.TestEscapePath","github.com/tidwall/gjson.TestIsArrayIsObject","github.com/tidwall/gjson.TestManyRecursion","github.com/tidwall/gjson.TestManyVariousPathCounts","github.com/tidwall/gjson.TestParseAny","github.com/tidwall/gjson.TestPath","github.com/tidwall/gjson.TestRandomData","github.com/tidwall/gjson.TestRandomValidStrings","github.com/tidwall/gjson.TestTimeResult"]
 }

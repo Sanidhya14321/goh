@@ -1,11 +1,14 @@
 # Changelog
 
-GoHarness release candidates, newest first. Dates are commit dates.
+GoHarness releases, newest first. Dates are commit dates.
 Each entry lists user-visible changes; evidence for each is in
-[VERIFICATION.md](docs/development/VERIFICATION.md). No stable release has been published yet.
+[VERIFICATION.md](docs/development/VERIFICATION.md).
 
-## Unreleased
+## 1.0.0 — 2026-11-21
 
+First stable release: everything since rc.180 below.
+
+- **All 55 benchmark tasks are graded by test identity:** the 19 container tasks pass the stricter dry run (with Docker) and carry recorded fail-to-pass and pass-to-pass tests. The dry run no longer rejects a task whose failing Go test panics or crashes its test binary on the starting tree; tests that never ran there are left out of the pass-to-pass identities and stay covered by the aggregate check.
 - **Follow-up review fixes (reviewed at `1d0e29b`):**
   - A command that only *mentions* a test runner (`echo "go test"`) is no longer a check, and a test run that reports zero tests does not verify anything. The configured verifier is now a journaled effect: if it is interrupted or its cleanup is uncertain, the run stops and resuming needs `--acknowledge-uncertain`. A verifier that rewrites files is run once more; if it keeps changing them, the outcome is `unverified`.
   - Automatic shell access asks when the boundary cannot be enforced: with `sandbox.container` set (below Full access), or when the project is inside a writable temporary folder.

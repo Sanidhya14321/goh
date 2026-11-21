@@ -8,7 +8,18 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
-## Unreleased: follow-up review fixes (reviewed at `1d0e29b`)
+## 1.0.0: container benchmark tasks and release gates
+
+- Docker (Colima) running: the 19 container tasks were dry-run. 15 passed at once; 4 were rejected
+  because their failing test panicked (`go-gjson-eaae8c63`, `go-semver-441ff8e5`,
+  `go-gotoml-79f82e3c`) or hit a fatal stack overflow (`go-cast-1b425f31`) on the starting tree,
+  aborting the test binary so later tests never ran (reproduced by hand in `golang:1.23`). After
+  the fix (`TestAbortedPackages`), all 19 pass and `-dry-run -record-identities` stored their
+  identities: all 55 tasks now grade `identity`.
+- `go vet ./...` and `go test -count=1 ./...` pass; CI for the release commit and the tag's
+  release workflow are the remaining gates.
+
+## 1.0.0: follow-up review fixes (reviewed at `1d0e29b`)
 
 Go 1.27.4, macOS ARM64. `go test -count=1 ./...`, `go test -race ./...`, `go vet ./...` with `GOOS=linux` and `GOOS=windows`, and `env -u NO_COLOR make GO=go e2e` (acceptance plus the TUI, setup, ACP, attach, resume-setup and salvage PTY suites) pass. The race-instrumented attach gate exits 0 with no race reports. The native benchmark dry run passes all 36 tasks, all graded by recorded test identities. Docker was not running, so the 19 container tasks remain unchecked.
 
@@ -19,7 +30,7 @@ Go 1.27.4, macOS ARM64. `go test -count=1 ./...`, `go test -race ./...`, `go vet
 - CI gains `attach-race` (Linux, macOS) and `bench-smoke` (offline dry run of two native tasks).
 - Not run: live inference, interactive Windows and editor sessions, Docker-backed tasks.
 
-## Unreleased: review fixes (verification truth, access, UI state, benchmark integrity)
+## 1.0.0: review fixes (verification truth, access, UI state, benchmark integrity)
 
 Implements the code and UI reviews prepared at `8417223`. Go 1.27.4, macOS ARM64.
 
@@ -33,20 +44,20 @@ Implements the code and UI reviews prepared at `8417223`. Go 1.27.4, macOS ARM64
 - CI on push (run 44551523967): unit tests on Linux, macOS and Windows, terminal suites on Linux and macOS, installers on all three and vulncheck all pass. The first push (run 44549862681) failed `TestAccessIsScopedToFolders` on Linux and Windows: its stricter `web/vendor` folder now makes Auto ask where the sandbox cannot keep a nested folder read-only, as intended; the test now pins that capability, and `TestAutoKeepsStricterSubfoldersUnwritable` covers both backends.
 - Not run: live inference (experiment arms), an interactive Windows session (LSP drive/UNC URIs are unit-tested natively in CI, not against a Windows language server), README screenshots (not refreshed).
 
-## Unreleased: access levels, live status line, latency
+## 1.0.0: access levels, live status line, latency
 
 - Latency, measured live over ChatGPT (`gpt-6.2-sol`). goh's own share of a request is about 30 ms (token 1 ms, TLS 29 ms); the service took 1.5–1.8 s to the first byte and 2.4–3.1 s to the first word for a bare "hi" at every reasoning effort. In goh's repository, `goh run hi` spent 1.5 s before the request and 1.15 s after the reply walking ignored folders for the change fingerprint (`TestFingerprintHonoursRootGitignore`, which fails without the fix). After the fix: 0.08 s before the request, 3.1 s end to end (was 7.0 s).
 - Prompt cache: replaying three captured agent requests, a `session_id` header gave cache hits on 3 of 4 follow-ups against 0 of 6 without it. A live 10-turn `goh run` then hit on 5 of 9 follow-up turns (was 1 of 9), up to 21,760 of 22,170 tokens (`TestResponsesSessionHeader`). Requesting reasoning summaries without an effort was tried and dropped: the summary arrived 0.07 s before the answer.
 - Access levels: `TestAccessLevels` (each level against edits, commands, network and subagent edits), `TestAccessIsScopedToFolders` (deepest saved folder wins, patches reaching outside ask, commands confined to the granting folder, session level replaces only the project's own), `TestAccessKeepsSafetyRules` (no sandbox means commands ask under Auto; ask/deny rules and the loop guard win under Full), `TestAutoAccessCommandsAreSandboxed` (a real sandboxed command writes inside its folder and cannot write beside it; found that the sandbox compared `/var` and `/private/var` paths unresolved), `TestAutoEditRunsReadOnlyCommands`, `TestReadOnlyCommand` (33 commands each way), `TestShiftTabCyclesAccess`, `TestApprovalAllowAllRaisesAccess`.
 - Status line: `TestToolCallProgress` (Responses, Chat Completions and Anthropic streams report the tool, its size and the path once complete) and `TestActivityLabels`. Live chat: "Waiting for gpt-6.2-sol · 15s" then "Writing page.html · 265 tokens (41/s)"; the file was created at Auto-edit without a prompt (`"source": "access", "level": "edits"`).
 
-## Unreleased: real-project A/B, overload retries
+## 1.0.0: real-project A/B, overload retries
 
 - `goh-bench` on the 19 real-project tasks, check vs `--completion-check=false`, `gpt-6.2-sol`, containerised ([report](../benchmarks/real-ab-unreleased.md)). On the 13 tasks both arms finished: 10 resolved and 3 false completions each, the same tasks. The selected-tests reminder never fired, because the model ran `go test ./...` after every `-run`.
 - Five runs ended on in-stream `server_is_overloaded`, which goh did not retry. Fixed: `TestBusyStreamErrors` (OpenAI Responses, Chat Completions and Anthropic overload codes are `ErrBusy`; usage limits, rate-limit codes and empty errors are not; messages are never shown; credential-shaped Anthropic types are dropped) and `TestBusyProviderIsRetriedAfterAPause` (two failures then success; persistent failure gives up after three retries waiting 5, 10 and 20 s, each announced as `provider_retry`).
 - Three runs hit the plan's `subscription_sharing_usage_limit_exceeded`; those stop at once, as intended.
 
-## Unreleased: live ChatGPT checks after re-sign-in
+## 1.0.0: live ChatGPT checks after re-sign-in
 
 The 12 Nov sign-in had been revoked; it was removed with `goh auth logout` and a new one made with `goh auth login` (model `gpt-6.2-sol`). All live, over the ChatGPT plan:
 
@@ -57,29 +68,29 @@ The 12 Nov sign-in had been revoked; it was removed with `goh auth logout` and a
 - Reasoning summaries: with `effort: high` the service echoed `summary: detailed` and streamed `reasoning_summary_text.delta`; goh relayed the text unchanged (one heading per summary part, e.g. "**Counting roots below 2000**", which is all the service sends). An easy question produced no reasoning and so no summary.
 - Prompt cache: three identical 7.6k-token requests with one `prompt_cache_key` reported `cached_tokens` 0, 0, 7552; goh's usage showed `cache_read_tokens: 7552`. In a 10-turn tool run with `todowrite` updates (task state sent at the end of each request), turn 8 read 6656 cached tokens, covering the system prompt and the first file read across two task-list changes. Hits are sparse when requests are a few seconds apart, which is the service's cache warming, not a changed prefix.
 
-## Unreleased: Linux keychain, product name
+## 1.0.0: Linux keychain, product name
 
 - Linux Secret Service: `TestOSStoreRoundTrip` (`GOH_OS_STORE_TEST=1`) passed in a Debian bookworm ARM64 container with `gnome-keyring` unlocked in a D-Bus session and `secret-tool` from `libsecret-tools`: binary-unsafe bytes written, read back, replaced and deleted.
 - `TestLSPInitializeQueriesUTF16SyncAndDiagnostics` checks that `initialize` names `goh`; the web-fetch test checks the `goh/` User-Agent.
 - CI note: one Windows run (44125517188) failed `TestRealClangd` (a second start approval during a 37 s clangd warm-up) and `TestParentChildCancellationUnderLoad` (a child shell did not start within 30 s). The next Windows run passed both unchanged. Recorded as runner-load timing; not reproduced.
 
-## Unreleased: completion check for name-filtered tests
+## 1.0.0: completion check for name-filtered tests
 
 `go test -race ./internal/runtime`. `TestTestScope` classifies 22 commands across Go, pytest, unittest, Jest, npm, Cargo, Maven and Gradle (including `grep` of a test command, which is not a test run). `TestCompletionCheckSelectedTests`: one reminder after `go test -run` alone or followed by a build; none after a full run, with or without a filtered run first, or after a non-test check. Not yet measured on the benchmark: the ChatGPT sign-in used for benchmark runs has been revoked.
 
-## Unreleased: package managers, SBOM, provenance
+## 1.0.0: package managers, SBOM, provenance
 
 - `scripts/packaging.sh` on a local `make release` (1.0.0-pkgtest): `ruby -c` accepts the formula and the Scoop manifest is valid JSON.
 - Homebrew, `homebrew/brew` container (Linux ARM64): installed from a temporary tap with `file://` URLs; `brew test` passed; `goh version` printed 1.0.0-pkgtest from `…/Cellar/goh/1.0.0-pkgtest/bin/goh`; `goh upgrade` answered `goh was installed with Homebrew; upgrade it with: brew upgrade goh`. On this Mac, Homebrew fetched and verified the binary but refused to install because the Command Line Tools are out of date (a host issue). CI now runs `scripts/test_brew.sh` on macOS and a real Scoop install on Windows.
 - SBOM: `cyclonedx-gomod@v1.10.0 app` wrote CycloneDX 1.6 with 26 components.
 - `TestPackageManagerOwnedCopies`: Homebrew and Scoop paths on each platform; goh's own install folders are not mistaken for them.
 
-## Unreleased: live failover and remote MCP
+## 1.0.0: live failover and remote MCP
 
 - **Failover:** `goh run` with the primary route at a closed local port and `fallback_profiles: ["groq"]` (saved Groq key, `qwen/qwen3.8-27b`): two `provider_retry` events, `provider_failover` (`reason: connection`, `to: groq`), `model_route` with `failover: true`, and Groq streamed `FAILOVER_OK`. Two `goh resume` turns, then `goh compact`: `provider_failover` with `purpose: compaction`, then `context_compacted`.
 - **Remote MCP:** DeepWiki's public server (`https://mcp.deepwiki.com/mcp`, streamable HTTP, no auth; serverInfo DeepWiki 4.0.2) with `--allow mcp_start:deepwiki,mcp__deepwiki__read_wiki_structure`. The server started, `read_wiki_structure` for `charmbracelet/bubbletea` returned its page list, and an unknown repository came back as the server's own message. A call with a wrong argument was refused by goh's schema check before it was sent (`missing property 'repoName'`).
 
-## Unreleased: live language servers (gopls, pyright, typescript-language-server)
+## 1.0.0: live language servers (gopls, pyright, typescript-language-server)
 
 The compiled `goh run` driven by the scripted model through all six `lsp` operations (`documentSymbol`, `hover`, `goToDefinition`, `findReferences`, `workspaceSymbol`, `diagnostics`) on a small project per language, with `--allow lsp,lsp_start:NAME`:
 
@@ -93,7 +104,7 @@ The compiled `goh run` driven by the scripted model through all six `lsp` operat
 - gopls first answered `no views` to every position query: the `go` command was not on the test's `PATH` (a shell function on this Mac), so gopls could not load the module. With the toolchain on `PATH` everything passed. Users see the same symptom without `go`; gopls's own `No active builds contain …` diagnostic is passed through.
 - The rust-analyzer stub exited before `initialize`, and goh said only `LSP connection closed: EOF`. A start failure now ends with the server's last two error lines (escape sequences removed, at most 300 bytes): `…; the server said: help: run 'rustup default stable' …`. `TestLSPStartFailureIncludesServerError` covers it.
 
-## Unreleased: one terminal program per interactive session
+## 1.0.0: one terminal program per interactive session
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all six terminal suites. Linux ARM64 container: all six terminal suites.
 
@@ -103,7 +114,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - SIGTERM to a hosted chat exits 0 with the terminal restored. The first version handed the waiting chat an error, and the launcher then opened a standalone provider picker that nothing could answer; found by `test_tui.py` `termination`.
 - Unit tests: `TestHostCarriesKeysAcrossScreensAndDropsStaleMessages` (fails when message tagging is disabled: a closed screen's timer reached the next screen), `TestHostQuitInsideBatchClosesScreen`, `TestHostDialogBackdropFollowsChatResize` (fails without the live backdrop), `TestOwnMessage`.
 
-## Unreleased: CI back to green, credential boundary through symlinks
+## 1.0.0: CI back to green, credential boundary through symlinks
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; all five terminal suites; `govulncheck ./...` (v1.9.0, for darwin, linux and windows): no vulnerabilities; v1.1.4 panicked on the Linux build in CI (`unexpected expr: *ast.KeyValueExpr`). Linux ARM64 in a `python:3.12-bookworm` container (Colima): all five terminal suites passed with the cross-built binary.
 
@@ -111,7 +122,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - The same layout passed on macOS, which exposed a real gap: `CheckProjectCredentialBoundary` compared the symlink-resolved project (`/private/var/…`) with the unresolved, not-yet-created key folder (`/var/…`), so the check was skipped. `TestCredentialBoundaryResolvesSymlinkedHome` fails without the fix.
 - Windows: `TestCheckRoute` expected "not running at"; `errors.Is(err, syscall.ECONNREFUSED)` does not match Winsock's `WSAECONNREFUSED`, now `platform.ConnectionRefused`. `TestHomeFolderIsRefusedWithAFolderFix` read the runner's real profile because `USERPROFILE` was not isolated.
 
-## Unreleased: small per-request caps (Groq free tier)
+## 1.0.0: small per-request caps (Groq free tier)
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; `test_tui.py`, `test_setup.py`, `test_acp.py`, `test_attach.py` and `test_resume_setup.py` all passed.
 
@@ -131,7 +142,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
   - **After, with `openai/gpt-oss-20b`:** the cap was learned once per run ("The provider accepts at most 8000 tokens per request…"). Later requests stayed under it through summaries and re-fetches, and the model searched the saved page with `read_artifact` `pattern`.
   - **Not answered:** the 20B model never gave the answer within 290 s. It used wrong regexes, re-fetched the page and called `search` on artifact IDs, all while waiting 15–30 s on per-minute 429s. `openai/gpt-oss-120b` had used its daily quota: Groq's 429 said "try again in 28m", which led to the quota-reset fix.
 
-## Unreleased: end-to-end audit with real-world prompts
+## 1.0.0: end-to-end audit with real-world prompts
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make acceptance`; `test_tui.py` (25 scenarios), `test_setup.py`, `test_acp.py`, `test_attach.py` and `test_resume_setup.py` all passed.
 
@@ -142,14 +153,14 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - TUI in a PTY (110×40): Python source with `# TODO` and `**kwargs` is shown verbatim; grep and glob results are lines; the reply after tool output is a separate paragraph.
 - New tests, each confirmed to fail without its fix where checked: `TestToolOutputRendersVerbatim`, `TestListingResultsAreReadable`, `TestJSONAPIsErrorsAndRedirectDestination`, LSP file-wide cases in `TestLSPAdmissionFailureAndBounds`, `TestPatchPreviewShowsChangeDeepInLongFile`, `TestShellPreviewKeepsHeadAndTail`, `TestRetryDelayWaitsOutRateLimits`, `TestStreamErrorCodes`, `TestRejectedOutputIsResampled`, `TestHeadlessRunSkipsUnapprovedMCPServer`, `TestPatchArgumentAlias`, `TestDroppedStreamIsInterrupted`.
 
-## Unreleased: project browser and folder trust
+## 1.0.0: project browser and folder trust
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make e2e` all passed.
 
 - PTY, the user's real home (nothing chosen): started in `~`, the browser explains the home folder and lists its folders with project tags; `Desk` + Tab lists `~/Desktop` (goh tagged `git · Go · make`); `goh` + Enter shows the trust question; typing `~/Desktop/g` completes to three folders.
 - `test_setup.py` now starts in an untrusted project: it opens the folder, answers the trust question and checks `workspaces.json` before the provider welcome. `TestWorkspacesTrustAndRecency`, `TestWorkspaceBrowserOpensAndTrusts`, `TestWorkspacesCommand`.
 
-## Unreleased: home-folder setup loop, saved /models choice, terminal colors
+## 1.0.0: home-folder setup loop, saved /models choice, terminal colors
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make e2e` all passed.
 
@@ -158,7 +169,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - Default theme: the first chat frame has no background sequences (was 34 `48;2;10;10;10` and 4 panel sequences) and is 982 bytes instead of 2455; only the selected picker row uses a background. `theme_light` still renders its own background.
 - `test_tui.py` previously ran goh with the caller's real home folder; it now uses a private one.
 
-## Unreleased: type-ahead across screens, setup screen, docs history
+## 1.0.0: type-ahead across screens, setup screen, docs history
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make e2e` all passed.
 
@@ -166,7 +177,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - `TestEnterOnBlockedChatOpensSetup`; the setup screen was rendered at 40×12 and 100×24.
 - A first attempt word-wrapped every terminal row; `formatter_approval` then failed deterministically because the approval preview no longer fit at 80×24 and needed scrolling. Word wrapping is now limited to the setup screen, and the suite passes.
 
-## Unreleased: cleanup, CLI errors and repository layout
+## 1.0.0: cleanup, CLI errors and repository layout
 
 Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and windows; `go test -race ./...`; `make e2e` (acceptance plus `scripts/e2e/` TUI, setup, ACP, attach and resume-setup suites) all passed.
 
@@ -176,7 +187,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt` clean; `go vet` for darwin, linux and win
 - Dead code found with `golang.org/x/tools/cmd/deadcode` (with and without tests, for each OS) was removed; `licenses/` matches `go list -m all` exactly; a link check over all Markdown outside `research/` found no broken links.
 - The README demo (`scripted-model` plus `goh run --config config.example.json`) was run as written.
 
-## Unreleased: third review fixes, onboarding and approval layout
+## 1.0.0: third review fixes, onboarding and approval layout
 
 Local, macOS ARM64, Go 1.27.4: `gofmt`, `go vet`, `go test -race ./...`, Linux and Windows cross-builds, `make acceptance`, `scripts/test_tui.py` (25 PTY scenarios), `test_setup.py`, `test_resume_setup.py`, `test_attach.py` and `test_acp.py` all passed.
 
@@ -185,7 +196,7 @@ Local, macOS ARM64, Go 1.27.4: `gofmt`, `go vet`, `go test -race ./...`, Linux a
 - The review's `goh serve` ReadTimeout finding was a false positive: a probe and `TestRunOutlivesServerReadTimeout` show the request context survives the server's read deadline, so no change was made.
 - PTY scripts updated for the new first run: the welcome picker, Enter-while-blocked opening the picker with the draft kept, and Esc from a key form returning to the picker.
 
-## Unreleased: /connect provider catalog
+## 1.0.0: /connect provider catalog
 
 - Provider manager: `TestProviderRegistry` and `TestProviderRegistryRefusals` cover listing a hand-configured provider, saving and switching three providers including ChatGPT, removing the active one, refusing a provider an agent uses, refusing commented settings, and keeping unrelated settings. `TestProvidersEndToEnd` covers two providers keeping their own keys through `goh providers list/use/remove`, where removing a provider deletes its key. Also `TestChatGPTSavesAsAProvider`, `TestProviderManagerKeys` (two-press remove, Add row), `TestSettingsChoiceField` and `TestWordWrap`.
 - `scripts/test_setup.py` (PTY) now runs setup through the manager:

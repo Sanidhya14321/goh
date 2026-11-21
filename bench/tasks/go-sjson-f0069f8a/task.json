@@ -16,5 +16,7 @@
   "source_commit": "f0069f8aa5171ab0fd2ca44b76c8ea243ead411d",
   "source_files": [
     "sjson.go"
-  ]
+  ],
+  "fail_to_pass_tests": ["github.com/tidwall/sjson.TestIssue99"],
+  "pass_to_pass_tests": ["github.com/tidwall/sjson.TestBasic","github.com/tidwall/sjson.TestDelete","github.com/tidwall/sjson.TestDeleteDotKeyIssue19","github.com/tidwall/sjson.TestDeleteIssue21","github.com/tidwall/sjson.TestIndex","github.com/tidwall/sjson.TestIndexes","github.com/tidwall/sjson.TestIssue36","github.com/tidwall/sjson.TestIssue61","github.com/tidwall/sjson.TestIssue77","github.com/tidwall/sjson.TestIssue97","github.com/tidwall/sjson.TestIssue98","github.com/tidwall/sjson.TestRandomData","github.com/tidwall/sjson.TestSetDotKeyIssue10"]
 }

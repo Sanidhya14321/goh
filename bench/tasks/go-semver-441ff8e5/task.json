@@ -16,5 +16,7 @@
   "source_commit": "441ff8e5c8c464b3b1090ea5300a8e0fc4287e6f",
   "source_files": [
     "version.go"
-  ]
+  ],
+  "fail_to_pass_tests": ["github.com/Masterminds/semver/v3.TestEqual"],
+  "pass_to_pass_tests": ["github.com/Masterminds/semver/v3.TestCoerceString","github.com/Masterminds/semver/v3.TestCollection","github.com/Masterminds/semver/v3.TestCompare","github.com/Masterminds/semver/v3.TestConstraintCheck","github.com/Masterminds/semver/v3.TestConstraintString","github.com/Masterminds/semver/v3.TestConstraintsCheck","github.com/Masterminds/semver/v3.TestConstraintsValidate","github.com/Masterminds/semver/v3.TestGreaterThan","github.com/Masterminds/semver/v3.TestIsX","github.com/Masterminds/semver/v3.TestLessThan","github.com/Masterminds/semver/v3.TestNew","github.com/Masterminds/semver/v3.TestNewConstraint","github.com/Masterminds/semver/v3.TestNewVersion","github.com/Masterminds/semver/v3.TestOriginal","github.com/Masterminds/semver/v3.TestParseConstraint","github.com/Masterminds/semver/v3.TestParts","github.com/Masterminds/semver/v3.TestRewriteRange","github.com/Masterminds/semver/v3.TestStrictNewVersion","github.com/Masterminds/semver/v3.TestTextMarshalConstraints","github.com/Masterminds/semver/v3.TestTextUnmarshalConstraints"]
 }

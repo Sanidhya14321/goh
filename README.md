@@ -5,7 +5,7 @@ scripts and benchmarks, a local HTTP API and an ACP adapter for editors. It runs
 and Windows and works with a ChatGPT sign-in, OpenAI, Anthropic, and any OpenAI-compatible
 endpoint.
 
-> **Status:** release candidate (`v1.0.0-rc.*`). No stable release yet.
+> **Status:** stable (`v1.0.0`).
 
 ![Session view: a verified edit, rendered code and tables, and the session sidebar](docs/images/tui-session.png)
 

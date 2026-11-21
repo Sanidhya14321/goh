@@ -236,3 +236,20 @@ func TestClassifyNonPasses(t *testing.T) {
 		}
 	}
 }
+
+func TestAbortedPackages(t *testing.T) {
+	out := `{"Action":"run","Package":"ex.com/a","Test":"TestPanics"}
+{"Action":"output","Package":"ex.com/a","Test":"TestPanics","Output":"panic: assert failed [recovered]\n"}
+{"Action":"fail","Package":"ex.com/a","Test":"TestPanics"}
+{"Action":"output","Package":"ex.com/b","Output":"fatal error: stack overflow\n"}
+{"Action":"pass","Package":"ex.com/a/sub","Test":"TestOK"}
+{"Action":"output","Package":"ex.com/a/sub","Test":"TestOK","Output":"logged: panic: not at line start\n"}
+`
+	got := abortedPackages(out)
+	if !got["ex.com/a"] || !got["ex.com/b"] || got["ex.com/a/sub"] || len(got) != 2 {
+		t.Fatalf("aborted = %v", got)
+	}
+	if !inPackage("ex.com/a.TestLater", got) || inPackage("ex.com/a/sub.TestOK", got) {
+		t.Fatal("inPackage must match the exact package only")
+	}
+}

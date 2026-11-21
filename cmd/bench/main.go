@@ -888,6 +888,7 @@ func dryRunTask(t task) (bool, string) {
 		for _, f := range failing {
 			expectedFail[f] = true
 		}
+		aborted := abortedPackages(pb.Output)
 		for _, name := range pa.Passed() {
 			if expectedFail[name] {
 				continue
@@ -897,7 +898,12 @@ func dryRunTask(t task) (bool, string) {
 				p2pCount++
 				p2pIDs = append(p2pIDs, name)
 			case "":
-				if pb.Structured {
+				// A panicking fail-to-pass test aborts its Go test binary,
+				// so later tests in that package never run on the
+				// baseline: unverifiable there, not a broken task. They
+				// are left out of the identities; the aggregate
+				// pass-to-pass check still covers them.
+				if pb.Structured && !inPackage(name, aborted) {
 					problems = append(problems, "pass-to-pass test "+name+" does not exist on baseline")
 				}
 			default:
