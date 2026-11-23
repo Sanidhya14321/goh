@@ -419,3 +419,60 @@ func TestReadOnlyCheckStillSeesOutOfBandChanges(t *testing.T) {
 		t.Fatalf("an out-of-band change before a read-only check was missed: %v", lastFinished(t, a))
 	}
 }
+
+// Handoff P1: a check whose failure the shell handles (|| true, a later
+// command after ;, a pipe) returns 0 for the whole command; that outer
+// status is not evidence the check passed.
+func TestHandledCheckFailureIsNotVerification(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for cmd, want := range map[string]string{
+		"test -f missing.txt || true":        OutcomeUnverified,
+		"test -f missing.txt; echo done":     OutcomeUnverified,
+		"test -f missing.txt | cat":          OutcomeUnverified,
+		"test -f missing.txt\necho done":     OutcomeUnverified,
+		"(test -f missing.txt); true":        OutcomeUnverified,
+		"test -f missing.txt":                OutcomeUnverified, // ordinary failure
+		"test -f new.txt":                    OutcomeVerified,   // direct pass
+		"cd . && test -f new.txt":            OutcomeVerified,
+		"echo checking; test -f new.txt":     OutcomeVerified, // the check's status is the command's
+		"test -f new.txt && echo passed":     OutcomeVerified,
+		"test -f new.txt && test -s new.txt": OutcomeVerified,
+	} {
+		t.Run(cmd, func(t *testing.T) {
+			a, _ := testAgent(t)
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			a.Provider = scripted(
+				[]core.Call{toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})},
+				[]core.Call{toolCall("t", "shell", map[string]any{"command": cmd})},
+			)
+			a.Run(context.Background(), "go")
+			if d := lastFinished(t, a); d["outcome"] != want {
+				t.Fatalf("outcome %v want %s: %v", d["outcome"], want, d)
+			}
+		})
+	}
+}
+
+func TestCheckStatusAttributable(t *testing.T) {
+	for cmd, want := range map[string]bool{
+		"go test ./...": true, "cd x && go test ./...": true, "go build ./... && go test ./...": true,
+		"cd x; go test ./...": true, "go test ./... && echo ok": true, "echo hi | go test ./...": true,
+		"go test -run 'A|B' ./...": true, "FOO=1 go test ./...": true,
+		"go test ./... || true": false, "go test ./...; echo done": false, "go test ./... | tail -5": false,
+		"go test ./... 2>&1 | tee log": false, "false || go test ./...": false, "(go test ./...)": false,
+		"if go test ./...; then :; fi": false, "go test ./...\necho done": false, "! go test ./...": false,
+		"go test $(go list ./...)": false, "go test ./... &": false, "{ go test ./...; }": false,
+	} {
+		if got := checkStatusAttributable(cmd); got != want {
+			t.Errorf("checkStatusAttributable(%q) = %v want %v", cmd, got, want)
+		}
+	}
+}
+
+func TestCheckStatusAttributableTerminators(t *testing.T) {
+	for cmd, want := range map[string]bool{"go test ./...;": true, "go test ./... 2>&1": true, "go test ./... &>log": true, ";": false, "go test ./... ;; echo": false} {
+		if got := checkStatusAttributable(cmd); got != want {
+			t.Errorf("checkStatusAttributable(%q) = %v want %v", cmd, got, want)
+		}
+	}
+}

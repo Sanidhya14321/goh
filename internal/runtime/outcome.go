@@ -133,6 +133,11 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 	if kind == "" {
 		return // ran fine, but checked nothing
 	}
+	if !checkStatusAttributable(args.Command) {
+		// The shell may have handled a failing check (|| true, a later
+		// command after ;, a pipe): exit 0 is not evidence it passed.
+		return
+	}
 	if kind == "test" && ranNoTests(out.Output) {
 		return // the runner found no tests: nothing was checked
 	}
