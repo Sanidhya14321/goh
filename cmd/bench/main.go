@@ -64,7 +64,55 @@ type task struct {
 		URL    string `json:"url"`
 		Commit string `json:"commit"`
 	} `json:"git,omitempty"`
+	// Answer grades by the final reply, for prompts with nothing to test (a
+	// greeting, a question about the code, a pasted log): each pattern must
+	// match it and no forbidden one may, and with read_only no project file
+	// may change. With fail_to_pass as well, both must pass.
+	Answer *answerSpec `json:"answer,omitempty"`
+	// Category (chat, question, bugfix, feature) and Size (tiny, small,
+	// large, huge: how much the prompt and the code it needs weigh) group
+	// the summary, so a change is judged across the whole prompt range.
+	Category string `json:"category,omitempty"`
+	Size     string `json:"size,omitempty"`
+	// Expect is the efficient path: at most this many model requests and
+	// tool calls. Exceeding it is reported (within_budget), not failed.
+	Expect *struct {
+		Requests  int `json:"requests,omitempty"`
+		ToolCalls int `json:"tool_calls,omitempty"`
+	} `json:"expect,omitempty"`
 	dir string
+}
+
+// answerSpec is an answer-graded task's check. Example is a reference
+// reply that the dry run requires to pass the check.
+type answerSpec struct {
+	Patterns []string `json:"patterns"`
+	Forbid   []string `json:"forbid,omitempty"`
+	ReadOnly bool     `json:"read_only,omitempty"`
+	Example  string   `json:"example"`
+}
+
+// check reports whether reply passes the patterns.
+func (a *answerSpec) check(reply string) (bool, error) {
+	for _, p := range a.Patterns {
+		re, err := regexp.Compile("(?is)" + p)
+		if err != nil {
+			return false, err
+		}
+		if !re.MatchString(reply) {
+			return false, nil
+		}
+	}
+	for _, p := range a.Forbid {
+		re, err := regexp.Compile("(?is)" + p)
+		if err != nil {
+			return false, err
+		}
+		if re.MatchString(reply) {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 var fullCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
@@ -146,6 +194,19 @@ type Result struct {
 	Retrieval  *retrievalStats `json:"retrieval,omitempty"`
 	Reproducer string          `json:"reproducer,omitempty"`
 	Scheduled  time.Time       `json:"scheduled"`
+	// Prompt-range metrics: the task's labels, the prompt's size, model
+	// requests at the top level, time to the first streamed token, the
+	// final reply (answer-graded tasks), and whether the run stayed within
+	// the task's expected requests and tool calls.
+	Category      string  `json:"category,omitempty"`
+	Size          string  `json:"size,omitempty"`
+	PromptBytes   int     `json:"prompt_bytes"`
+	Requests      int     `json:"requests"`
+	FirstToken    float64 `json:"first_token_seconds,omitempty"`
+	FinalReply    string  `json:"final_reply,omitempty"`
+	AnswerOK      *bool   `json:"answer_ok,omitempty"`
+	ProjectWrites int     `json:"project_writes"`
+	WithinBudget  *bool   `json:"within_budget,omitempty"`
 }
 
 // purposeTokens is reported usage for one purpose across every session the
@@ -304,8 +365,8 @@ func loadTasks(dir, only string) ([]task, error) {
 			continue
 		}
 		var t task
-		if err := json.Unmarshal(b, &t); err != nil || t.ID == "" || t.Prompt == "" || t.FailToPass == "" {
-			return nil, fmt.Errorf("%s: task.json needs id, prompt and fail_to_pass", e.Name())
+		if err := json.Unmarshal(b, &t); err != nil || t.ID == "" || t.Prompt == "" || t.FailToPass == "" && t.Answer == nil {
+			return nil, fmt.Errorf("%s: task.json needs id, prompt and fail_to_pass or answer", e.Name())
 		}
 		if len(want) > 0 && !want[t.ID] {
 			continue
@@ -329,7 +390,8 @@ var hostGrading bool
 // the grader's sees only grade/, so nothing the agent leaves running or
 // writes can reach the grade.
 func runTask(t task, goh, arm string, extra []string, attempt int, workRoot string) (r Result) {
-	r = Result{Task: t.ID, Arm: arm, Attempt: attempt, Scheduled: time.Now().UTC(), Grading: "aggregate"}
+	r = Result{Task: t.ID, Arm: arm, Attempt: attempt, Scheduled: time.Now().UTC(), Grading: "aggregate",
+		Category: t.Category, Size: t.Size, PromptBytes: len(t.Prompt)}
 	if len(t.FailToPassTests) > 0 {
 		r.Grading = "identity"
 	}
@@ -424,7 +486,7 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	if err := cmd.Start(); err != nil {
 		return infra("start", "start goh: "+err.Error())
 	}
-	readEvents(stdout, &r)
+	readEvents(stdout, &r, start)
 	err = cmd.Wait()
 	r.Seconds = time.Since(start).Seconds()
 	r.Scored = true // the agent ran: from here on the result is its own
@@ -454,6 +516,34 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	if hs, err := snapshotHashes(hidden); err == nil {
 		for rel := range hs {
 			hiddenPaths[rel] = true
+		}
+	}
+	for rel, h := range candidate {
+		if baseline[rel] != h {
+			r.ProjectWrites++
+		}
+	}
+	for rel := range baseline {
+		if _, ok := candidate[rel]; !ok {
+			r.ProjectWrites++
+		}
+	}
+	if t.Expect != nil {
+		ok := (t.Expect.Requests == 0 || r.Requests <= t.Expect.Requests) && (t.Expect.ToolCalls == 0 || r.ToolCalls <= t.Expect.ToolCalls)
+		r.WithinBudget = &ok
+	}
+	if t.Answer != nil {
+		ok, err := t.Answer.check(r.FinalReply)
+		if err != nil {
+			return infra("grader", "answer pattern: "+err.Error())
+		}
+		ok = ok && (!t.Answer.ReadOnly || r.ProjectWrites == 0)
+		r.AnswerOK = &ok
+		if t.FailToPass == "" {
+			r.Grading = "answer"
+			r.Resolved = ok
+			r.FalseComplete = r.Status == "completed" && !ok
+			return r
 		}
 	}
 	r.ProtectedChanged = protectedChanges(baseline, candidate, hiddenPaths)
@@ -502,7 +592,7 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 	}
 	r.FailToPass, r.PassToPass = f2p, p2p
 	r.FailToPassOK, r.PassToPassOK = f2p.Kind == checkPassed, p2p.Kind == checkPassed
-	r.Resolved = r.FailToPassOK && r.PassToPassOK
+	r.Resolved = r.FailToPassOK && r.PassToPassOK && (r.AnswerOK == nil || *r.AnswerOK)
 	r.FalseComplete = r.Status == "completed" && !r.Resolved
 	r.FalseVerified = r.Outcome == "verified" && !r.Resolved
 	if reproducerAudit {
@@ -603,7 +693,7 @@ func journalUsage(dir string) (map[string]purposeTokens, int) {
 // readEvents folds goh's JSON event stream into the result and checks it:
 // every line must parse and the stream must end with exactly one
 // run_finished.
-func readEvents(rd io.Reader, r *Result) {
+func readEvents(rd io.Reader, r *Result, start time.Time) {
 	sc := bufio.NewScanner(rd)
 	sc.Buffer(make([]byte, 1<<20), 64<<20)
 	last := ""
@@ -625,7 +715,23 @@ func readEvents(rd io.Reader, r *Result) {
 			}
 		case "tool_requested":
 			r.ToolCalls++
+		case "assistant_updated":
+			if r.FirstToken == 0 {
+				r.FirstToken = time.Since(start).Seconds()
+			}
 		case "assistant_completed":
+			r.Requests++
+			var reply struct {
+				Message struct {
+					Content string `json:"content"`
+				} `json:"message"`
+			}
+			if json.Unmarshal(e.Data, &reply) == nil && strings.TrimSpace(reply.Message.Content) != "" {
+				r.FinalReply = reply.Message.Content
+				if len(r.FinalReply) > 8192 {
+					r.FinalReply = strings.ToValidUTF8(r.FinalReply[:8192], "")
+				}
+			}
 			var d struct {
 				Usage *struct {
 					Prompt     int `json:"prompt_tokens"`
@@ -831,6 +937,25 @@ func saveIdentities(path string, f2p, p2p []string) error {
 }
 
 func dryRunTask(t task) (bool, string) {
+	if t.Answer != nil {
+		// The reference reply must pass and an empty or evasive one must
+		// not, or the check grades nothing.
+		ok, err := t.Answer.check(t.Answer.Example)
+		if err != nil {
+			return false, "answer pattern: " + err.Error()
+		}
+		if !ok {
+			return false, "answer example does not pass its own check"
+		}
+		for _, evasive := range []string{"", "I could not determine this from the project."} {
+			if pass, _ := t.Answer.check(evasive); pass {
+				return false, fmt.Sprintf("answer check passes the reply %q", evasive)
+			}
+		}
+		if t.FailToPass == "" {
+			return true, "answer check valid"
+		}
+	}
 	tmp, err := os.MkdirTemp(dryRoot(), "goh-bench-dry-")
 	if err != nil {
 		return false, "temp: " + err.Error()
@@ -1028,6 +1153,103 @@ func summarize(rs []Result) string {
 			calls = float64(a.calls) / float64(a.scored)
 		}
 		fmt.Fprintf(&b, "| %s | %d | %d | %s | %s | %d | %d | %d | %d | %.1f | %.0f | %.0f | %d | %d | %d | %d | %d | %d | %d |\n", n, a.n, a.infra, pct(a.resolved, a.scored), pct(a.resolved, a.n), a.falseDone, a.falseVerified, a.budget, a.identity, calls, quantile(a.seconds, .5), quantile(a.seconds, .95), a.prompt, a.cache, a.output, a.auxPrompt, a.auxOutput, a.childPrompt, a.estimated)
+	}
+	b.WriteString(promptRangeTable(rs))
+	return b.String()
+}
+
+// promptRangeTable compares arms per prompt category and size: a change
+// that helps large debugging runs must not make a greeting cost more, and
+// the reverse.
+func promptRangeTable(rs []Result) string {
+	type key struct{ arm, category, size string }
+	type agg struct {
+		n, resolved, requests, tools, input, cached, output, writes, budgeted, within int
+		seconds, firstToken                                                           []float64
+	}
+	by := map[key]*agg{}
+	var keys []key
+	for _, r := range rs {
+		if !r.Scored || r.Category == "" {
+			continue
+		}
+		k := key{r.Arm, r.Category, r.Size}
+		a := by[k]
+		if a == nil {
+			a = &agg{}
+			by[k] = a
+			keys = append(keys, k)
+		}
+		a.n++
+		if r.Resolved {
+			a.resolved++
+		}
+		a.requests += r.Requests
+		a.tools += r.ToolCalls
+		input, cached, output := r.PromptTokens, r.CacheRead, r.OutputTokens
+		if len(r.Usage) > 0 {
+			input, cached, output = 0, 0, 0
+			for _, u := range r.Usage {
+				input += u.Prompt
+				cached += u.CacheRead
+				output += u.Completion
+			}
+		}
+		a.input += input
+		a.cached += cached
+		a.output += output
+		if r.ProjectWrites > 0 && r.Category != "bugfix" && r.Category != "feature" {
+			a.writes++
+		}
+		if r.WithinBudget != nil {
+			a.budgeted++
+			if *r.WithinBudget {
+				a.within++
+			}
+		}
+		a.seconds = append(a.seconds, r.Seconds)
+		if r.FirstToken > 0 {
+			a.firstToken = append(a.firstToken, r.FirstToken)
+		}
+	}
+	if len(keys) == 0 {
+		return ""
+	}
+	order := map[string]int{"chat": 0, "question": 1, "bugfix": 2, "feature": 3, "tiny": 0, "small": 1, "large": 2, "huge": 3}
+	sort.Slice(keys, func(i, j int) bool {
+		a, b := keys[i], keys[j]
+		if a.category != b.category {
+			return order[a.category] < order[b.category]
+		}
+		if a.size != b.size {
+			return order[a.size] < order[b.size]
+		}
+		return a.arm < b.arm
+	})
+	median := func(xs []float64) float64 {
+		if len(xs) == 0 {
+			return 0
+		}
+		s := append([]float64(nil), xs...)
+		sort.Float64s(s)
+		return s[len(s)/2]
+	}
+	var b strings.Builder
+	b.WriteString("\n## By prompt category and size\n\nPer scored attempt: model requests, tool calls, input tokens (cached share) and output tokens; first token is the time to the first streamed reply text. Within budget: the run stayed within the task's expected requests and tool calls. Unwanted writes: question or chat runs that changed project files.\n\n")
+	b.WriteString("| Category | Size | Arm | Attempts | Resolved | Requests | Tool calls | Input tokens | Cached | Output tokens | p50 s | p50 first token s | Within budget | Unwanted writes |\n|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
+	for _, k := range keys {
+		a := by[k]
+		n := float64(a.n)
+		within := "n/a"
+		if a.budgeted > 0 {
+			within = fmt.Sprintf("%d/%d", a.within, a.budgeted)
+		}
+		cached := 0.0
+		if a.input > 0 {
+			cached = 100 * float64(a.cached) / float64(a.input)
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %d | %d/%d | %.1f | %.1f | %.0f | %.0f%% | %.0f | %.1f | %.1f | %s | %d |\n", k.category, k.size, k.arm, a.n, a.resolved, a.n,
+			float64(a.requests)/n, float64(a.tools)/n, float64(a.input)/n, cached, float64(a.output)/n, median(a.seconds), median(a.firstToken), within, a.writes)
 	}
 	return b.String()
 }

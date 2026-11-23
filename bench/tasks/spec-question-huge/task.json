@@ -1,0 +1,20 @@
+{
+  "category": "question",
+  "size": "huge",
+  "prompt": "Which file sets the default wait before the first webhook redelivery, and what is that wait?",
+  "answer": {
+    "patterns": [
+      "webhook_sender\\.go",
+      "2\\.75\\s*s|2,?750\\s*(ms|milliseconds)"
+    ],
+    "read_only": true,
+    "example": "svc13/webhook_sender.go sets webhookRetryBackoff to 2750ms (2.75 s), doubling after each failed attempt."
+  },
+  "expect": {
+    "requests": 4,
+    "tool_calls": 4
+  },
+  "id": "spec-question-huge",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60
+}

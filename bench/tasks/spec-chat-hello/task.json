@@ -1,0 +1,19 @@
+{
+  "category": "chat",
+  "size": "tiny",
+  "prompt": "hello",
+  "answer": {
+    "patterns": [
+      "\\b(hi|hello|hey|greetings)\\b"
+    ],
+    "read_only": true,
+    "example": "Hi! What can I help you with?"
+  },
+  "expect": {
+    "requests": 1,
+    "tool_calls": 0
+  },
+  "id": "spec-chat-hello",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60
+}

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 )
 
@@ -54,5 +55,38 @@ func TestRunnerGradesCleanlyAndFlagsFalseCompletion(t *testing.T) {
 	}
 	if s := summarize([]Result{good, lazy, cheat}); s == "" {
 		t.Fatal("empty summary")
+	}
+}
+
+// Answer-graded tasks: every pattern must match (case-insensitive, across
+// lines) and no forbidden one; the per-category table groups by arm.
+func TestAnswerSpecAndPromptRangeTable(t *testing.T) {
+	a := &answerSpec{Patterns: []string{`\b175\b`, `4,?750`}, Forbid: []string{`not sure`}}
+	for reply, want := range map[string]bool{
+		"lateFeeCents: 175 cents/day,\ncapped at 4,750.": true,
+		"175 per day":                      false,
+		"I'm not sure, maybe 175 and 4750": false,
+		"":                                 false,
+	} {
+		if got, err := a.check(reply); err != nil || got != want {
+			t.Errorf("%q: %v %v", reply, got, err)
+		}
+	}
+	if _, err := (&answerSpec{Patterns: []string{"("}}).check("x"); err == nil {
+		t.Error("bad pattern accepted")
+	}
+	yes, no := true, false
+	table := promptRangeTable([]Result{
+		{Arm: "a", Category: "chat", Size: "tiny", Scored: true, Resolved: true, Requests: 1, PromptTokens: 2500, WithinBudget: &yes, Seconds: 2},
+		{Arm: "a", Category: "question", Size: "large", Scored: true, Requests: 5, ToolCalls: 4, PromptTokens: 30000, CacheRead: 15000, WithinBudget: &no, ProjectWrites: 1, Seconds: 30},
+		{Arm: "b", Category: "chat", Size: "tiny", Scored: false},
+	})
+	for _, want := range []string{"| chat | tiny | a | 1 | 1/1 | 1.0 | 0.0 | 2500 | 0% |", "| question | large | a | 1 | 0/1 | 5.0 | 4.0 | 30000 | 50% |", "| 0/1 | 1 |"} {
+		if !strings.Contains(table, want) {
+			t.Errorf("missing %q in\n%s", want, table)
+		}
+	}
+	if strings.Contains(table, "| b |") {
+		t.Error("unscored attempt counted")
 	}
 }

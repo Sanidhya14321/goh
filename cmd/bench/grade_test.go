@@ -106,7 +106,7 @@ func TestReadEventsValidatesStream(t *testing.T) {
 		`{"type":"run_started","data":{"model":"m","protocol":"p"}}` + "\n" + `{"type":"run_finished","data":{"status":"completed"}}` + "\n": "",
 	} {
 		var r Result
-		readEvents(strings.NewReader(in), &r)
+		readEvents(strings.NewReader(in), &r, time.Now())
 		if r.StreamProblem != want {
 			t.Errorf("%q: problem %q want %q", in, r.StreamProblem, want)
 		}

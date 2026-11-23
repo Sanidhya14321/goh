@@ -5,6 +5,8 @@
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,
+  "category": "bugfix",
+  "size": "small",
   "fail_to_pass_tests": ["example.com/invsvc/pricing.TestInvoiceTotalsMatchLines"],
   "pass_to_pass_tests": ["example.com/invsvc/pricing.TestTaxOregon","example.com/invsvc/pricing.TestTaxRoundsHalfUp","example.com/invsvc/store.TestPutGet"]
 }

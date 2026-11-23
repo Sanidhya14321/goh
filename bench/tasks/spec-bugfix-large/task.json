@@ -1,0 +1,16 @@
+{
+  "category": "bugfix",
+  "size": "large",
+  "prompt": "Prorated charges are a day short: a customer who used 15 days of a 30-day period pays for 14, and cancelling on the last day of the period does not charge the full price. Fix it.",
+  "fail_to_pass": "go test ./ledger/",
+  "pass_to_pass": "go test ./...",
+  "expect": {
+    "requests": 8,
+    "tool_calls": 8
+  },
+  "id": "spec-bugfix-large",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60,
+  "fail_to_pass_tests": ["example.com/shop/ledger.TestProrateFullPeriod"],
+  "pass_to_pass_tests": ["example.com/shop/cart.TestSubtotal","example.com/shop/ledger.TestLateFee"]
+}

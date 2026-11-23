@@ -1,0 +1,168 @@
+{
+  "tokenizer": "o200k_base",
+  "captured": "2026-11-23",
+  "agents": {
+    "goh": {
+      "hello": {
+        "exit": 0,
+        "requests": 1,
+        "requests_with_tools": 1,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 8110,
+          "request_tokens": 2278,
+          "tools": 17,
+          "tool_definition_tokens": 2162,
+          "system_tokens": 57
+        },
+        "last": {
+          "request_bytes": 8110,
+          "request_tokens": 2278,
+          "tools": 17,
+          "tool_definition_tokens": 2162,
+          "system_tokens": 57
+        },
+        "side_requests": []
+      },
+      "bigread": {
+        "exit": 0,
+        "requests": 2,
+        "requests_with_tools": 2,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 8165,
+          "request_tokens": 2291,
+          "tools": 17,
+          "tool_definition_tokens": 2162,
+          "system_tokens": 57
+        },
+        "last": {
+          "request_bytes": 8530,
+          "request_tokens": 2404,
+          "tools": 17,
+          "tool_definition_tokens": 2162,
+          "system_tokens": 57,
+          "read_result_bytes": 150,
+          "read_result_tokens": 38,
+          "read_result_lines": 1,
+          "read_result_head": "Error: ledger/ledger.go has 6331 lines (130 KB), more than one result holds; read a line range with start_line and end_line, or grep for what you need",
+          "read_result_tail": "Error: ledger/ledger.go has 6331 lines (130 KB), more than one result holds; read a line range with start_line and end_line, or grep for what you need"
+        },
+        "side_requests": []
+      }
+    },
+    "opencode": {
+      "hello": {
+        "exit": 0,
+        "requests": 2,
+        "requests_with_tools": 1,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 30771,
+          "request_tokens": 7212,
+          "tools": 10,
+          "tool_definition_tokens": 5037,
+          "system_tokens": 2019
+        },
+        "last": {
+          "request_bytes": 30771,
+          "request_tokens": 7212,
+          "tools": 10,
+          "tool_definition_tokens": 5037,
+          "system_tokens": 2019
+        },
+        "side_requests": [
+          {
+            "bytes": 2443,
+            "tokens": 636
+          }
+        ]
+      },
+      "bigread": {
+        "exit": 0,
+        "requests": 3,
+        "requests_with_tools": 2,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 30830,
+          "request_tokens": 7226,
+          "tools": 10,
+          "tool_definition_tokens": 5037,
+          "system_tokens": 2019
+        },
+        "last": {
+          "request_bytes": 88382,
+          "request_tokens": 29031,
+          "tools": 10,
+          "tool_definition_tokens": 5037,
+          "system_tokens": 2019,
+          "read_result_bytes": 53416,
+          "read_result_tokens": 19039,
+          "read_result_lines": 2006,
+          "read_result_head": "<path>/Users/sanidhyavats/Desktop/goh/bin/cap-proj-m9_wytn0/p/ledger/ledger.go</path>\n<type>file</type>\n<content>\n1: package ledger\n2: \n3: // Package ledger hol",
+          "read_result_tail": ": \t}\n1997: \treturn adjusted\n1998: }\n1999: \n2000: // splitGrantInvoice adjusts an amount in cents by the splitGrantInvoice rule.\n\n(Showing lines 1-2000 of 6330. Use offset=2001 to continue.)\n</content>"
+        },
+        "side_requests": [
+          {
+            "bytes": 2502,
+            "tokens": 650
+          }
+        ]
+      }
+    },
+    "claude": {
+      "hello": {
+        "exit": 0,
+        "requests": 1,
+        "requests_with_tools": 1,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 49593,
+          "request_tokens": 12098,
+          "tools": 12,
+          "tool_definition_tokens": 7695,
+          "system_tokens": 1542
+        },
+        "last": {
+          "request_bytes": 49593,
+          "request_tokens": 12098,
+          "tools": 12,
+          "tool_definition_tokens": 7695,
+          "system_tokens": 1542
+        },
+        "side_requests": []
+      },
+      "bigread": {
+        "exit": 0,
+        "requests": 3,
+        "requests_with_tools": 2,
+        "stderr_tail": "",
+        "first": {
+          "request_bytes": 49648,
+          "request_tokens": 12113,
+          "tools": 12,
+          "tool_definition_tokens": 7695,
+          "system_tokens": 1542
+        },
+        "last": {
+          "request_bytes": 166344,
+          "request_tokens": 53629,
+          "tools": 12,
+          "tool_definition_tokens": 7695,
+          "system_tokens": 1542,
+          "read_result_bytes": 104112,
+          "read_result_tokens": 35640,
+          "read_result_lines": 4020,
+          "read_result_head": "1\tpackage ledger\n2\t\n3\t// Package ledger holds the billing arithmetic, all in integer cents.\n4\t\n5\t// matchCouponDeposit adjusts an amount in cents by the matchCo",
+          "read_result_tail": "\n4011\t\t}\n4012\t\tadjusted := cents*9 + units*59\n4013\t\tif adjusted > 2442*units {\n4014\t\t\tadjusted = 2442 * units\n4015\t\t}\n4016\t\tif adjusted%10 == 0 {\n4017\t\t\tadjusted++\n4018\t\t}\n4019\t\treturn adjusted\n4020\t}"
+        },
+        "side_requests": [
+          {
+            "bytes": 146141,
+            "tokens": 47586
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1026,7 +1026,7 @@ def main():
         for path, body in solution.items():
             write(os.path.join(d, "solution"), path, body)
         meta = {"id": t["id"], "prompt": t["prompt"], "fail_to_pass": t["f2p"], "pass_to_pass": t["p2p"],
-                "max_run_seconds": 1200, "max_tool_calls": 150}
+                "max_run_seconds": 1200, "max_tool_calls": 150, "category": "bugfix", "size": "small"}
         open(os.path.join(d, "task.json"), "w").write(json.dumps(meta, indent=2) + "\n")
         print("wrote", t["id"])
 

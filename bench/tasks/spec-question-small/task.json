@@ -1,0 +1,21 @@
+{
+  "category": "question",
+  "size": "small",
+  "prompt": "How much shipping does an order with a $40 subtotal pay, and from what subtotal is shipping free? Name the function that decides it.",
+  "answer": {
+    "patterns": [
+      "7\\.99|799",
+      "\\$?100(\\.00)?\\b|10,?000",
+      "ShippingFee"
+    ],
+    "read_only": true,
+    "example": "ShippingFee charges $7.99 (799 cents) below a $100.00 subtotal (10000 cents) and nothing from $100 up."
+  },
+  "expect": {
+    "requests": 4,
+    "tool_calls": 4
+  },
+  "id": "spec-question-small",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60
+}

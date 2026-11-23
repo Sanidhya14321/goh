@@ -1,0 +1,20 @@
+{
+  "category": "question",
+  "size": "large",
+  "prompt": "In ledger/ledger.go, how is the late fee for an overdue invoice computed: what is charged per day late, and what is the maximum fee? Give both in cents.",
+  "answer": {
+    "patterns": [
+      "\\b175\\b",
+      "4,?750"
+    ],
+    "read_only": true,
+    "example": "lateFeeCents charges 175 cents per day late, capped at 4750 cents."
+  },
+  "expect": {
+    "requests": 4,
+    "tool_calls": 3
+  },
+  "id": "spec-question-large",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60
+}

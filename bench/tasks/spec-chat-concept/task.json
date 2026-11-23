@@ -1,0 +1,20 @@
+{
+  "category": "chat",
+  "size": "small",
+  "prompt": "Without looking at the project: in two sentences, when should I use a Go channel instead of a mutex?",
+  "answer": {
+    "patterns": [
+      "channel",
+      "mutex|lock"
+    ],
+    "read_only": true,
+    "example": "Use a channel to pass ownership of data or signal between goroutines; use a mutex to guard shared state that several goroutines read and write."
+  },
+  "expect": {
+    "requests": 1,
+    "tool_calls": 0
+  },
+  "id": "spec-chat-concept",
+  "max_run_seconds": 600,
+  "max_tool_calls": 60
+}
