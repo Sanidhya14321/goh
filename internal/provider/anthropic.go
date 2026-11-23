@@ -14,7 +14,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
-	"github.com/Sanidhya14321/goh/internal/session"
 )
 
 // This original codec supports the explicit text/client-tool subset of the
@@ -590,7 +589,7 @@ func parseAnthropicStream(r io.Reader, delta func(string), reasoning func(string
 			// Only the error type is read; its message can reflect request data.
 			var detail struct{ Type string }
 			_ = json.Unmarshal(e.Error, &detail)
-			if errorCode.MatchString(detail.Type) && session.RedactSecrets(detail.Type) == detail.Type {
+			if errorCode.MatchString(detail.Type) && core.RedactSecrets(detail.Type) == detail.Type {
 				return markBusy(fmt.Errorf("Anthropic provider stream error (%s)", detail.Type), detail.Type)
 			}
 			return errors.New("Anthropic provider stream error")

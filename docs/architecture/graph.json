@@ -1,0 +1,6693 @@
+{
+ "module": "github.com/Sanidhya14321/goh",
+ "layers": [
+  "entry",
+  "interface",
+  "orchestration",
+  "capabilities",
+  "models",
+  "persistence",
+  "foundation"
+ ],
+ "nodes": [
+  {
+   "id": "cmd/acceptance/main.go",
+   "kind": "file",
+   "package": "cmd/acceptance",
+   "name": "main.go",
+   "purpose": "Runs the CLI acceptance scenarios against the scripted model and checks their journals.",
+   "decls": [
+    "func main",
+    "func verify"
+   ],
+   "lines": 200,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/acceptance",
+   "kind": "package",
+   "layer": "entry",
+   "purpose": "CLI acceptance scenarios against the scripted model.",
+   "files": [
+    "cmd/acceptance/main.go"
+   ],
+   "lines": 200,
+   "fan_out": 1,
+   "fan_in": 0
+  },
+  {
+   "id": "cmd/bench/container.go",
+   "kind": "file",
+   "package": "cmd/bench",
+   "name": "container.go",
+   "purpose": "Starts and stops Docker containers that grade benchmark tasks in isolation.",
+   "decls": [
+    "func gradeEnv",
+    "const cacheVolume",
+    "var cacheEnv",
+    "func startContainer",
+    "func stopContainer",
+    "func csh"
+   ],
+   "lines": 86,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/bench/experiments.go",
+   "kind": "file",
+   "package": "cmd/bench",
+   "name": "experiments.go",
+   "purpose": "Optional benchmark audits: reproducer tests and retrieval telemetry.",
+   "decls": [
+    "var reproducerAudit",
+    "type retrievalStats",
+    "func retrievalTelemetry",
+    "func auditReproducers",
+    "func addedTestNames",
+    "func reproducerCommand"
+   ],
+   "lines": 278,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/bench/grade.go",
+   "kind": "file",
+   "package": "cmd/bench",
+   "name": "grade.go",
+   "purpose": "Grades a benchmark attempt by running hidden fail-to-pass and pass-to-pass tests.",
+   "decls": [
+    "type checkResult",
+    "method Failed",
+    "method Passed",
+    "method with",
+    "var goTestCmd",
+    "func structuredCommand",
+    "func runCheck",
+    "func classifyCheck"
+   ],
+   "lines": 408,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/bench/main.go",
+   "kind": "file",
+   "package": "cmd/bench",
+   "name": "main.go",
+   "purpose": "goh-bench runner: prepares task trees, runs the agent, regrades cleanly and writes reports.",
+   "decls": [
+    "type task",
+    "var fullCommit",
+    "method sourceTree",
+    "type Result",
+    "type purposeTokens",
+    "func main",
+    "func writeManifest",
+    "func fail"
+   ],
+   "lines": 1051,
+   "uses": [
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/bench",
+   "kind": "package",
+   "layer": "entry",
+   "purpose": "goh-bench: benchmark runner with hidden tests and clean regrading.",
+   "files": [
+    "cmd/bench/container.go",
+    "cmd/bench/experiments.go",
+    "cmd/bench/grade.go",
+    "cmd/bench/main.go"
+   ],
+   "lines": 1823,
+   "fan_out": 2,
+   "fan_in": 0
+  },
+  {
+   "id": "cmd/harness/access.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "access.go",
+   "purpose": "The /access picker: choose an access level and where it applies.",
+   "decls": [
+    "func chooseAccess"
+   ],
+   "lines": 80,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/acp.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "acp.go",
+   "purpose": "Starts ACP mode so an editor can drive goh over stdio.",
+   "decls": [
+    "func runACP"
+   ],
+   "lines": 66,
+   "uses": [
+    "internal/acp",
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/acp_unix.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "acp_unix.go",
+   "purpose": "Makes inherited stdio pipes pollable for cancellable ACP reads.",
+   "decls": [
+    "func acpStream"
+   ],
+   "lines": 41,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/agents.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "agents.go",
+   "purpose": "`goh agents`: lists built-in, configured and project agents.",
+   "decls": [
+    "func listAgents",
+    "func writeAgents"
+   ],
+   "lines": 67,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/attach.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "attach.go",
+   "purpose": "`goh run --file`: inlines attached files or turns images into @mentions.",
+   "decls": [
+    "var attachImageExt",
+    "func attachFiles",
+    "func commandPrompt"
+   ],
+   "lines": 102,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/auth_list.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "auth_list.go",
+   "purpose": "`goh auth list`: one row per provider route and where its key comes from.",
+   "decls": [
+    "func writeAuthList"
+   ],
+   "lines": 54,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/changes.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "changes.go",
+   "purpose": "`goh changes`: lists and restores per-edit file checkpoints.",
+   "decls": [
+    "func changes"
+   ],
+   "lines": 111,
+   "uses": [
+    "internal/rewind",
+    "internal/session",
+    "internal/snapshots"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/chatgpt_auth.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "chatgpt_auth.go",
+   "purpose": "`goh auth login/logout/store`: ChatGPT sign-in and the credential store choice.",
+   "decls": [
+    "const authUsage",
+    "func chatGPTAuth",
+    "func authStore"
+   ],
+   "lines": 145,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/completion.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "completion.go",
+   "purpose": "Shell completion scripts for bash, zsh and fish.",
+   "decls": [
+    "var subcommands",
+    "var sessionIDArgs",
+    "const idsCommand",
+    "func writeCompletion",
+    "func zshQuote",
+    "func fishQuote"
+   ],
+   "lines": 89,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/config_show.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "config_show.go",
+   "purpose": "`goh config`: prints the effective configuration with secrets redacted.",
+   "decls": [
+    "func runConfigShow",
+    "func writeConfig",
+    "func redactConfig"
+   ],
+   "lines": 90,
+   "uses": [
+    "internal/core",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/connect.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "connect.go",
+   "purpose": "Provider setup flows: /connect, /providers, /models, keys, ChatGPT sign-in, model lists.",
+   "decls": [
+    "func openBrowser",
+    "const defaultWindow",
+    "var protocolChoices",
+    "var protocolHelp",
+    "func connectOptions",
+    "func userSettings",
+    "type keyRejection",
+    "method Error"
+   ],
+   "lines": 1240,
+   "uses": [
+    "internal/core",
+    "internal/platform",
+    "internal/provider",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/export_alias.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "export_alias.go",
+   "purpose": "`goh export` and `goh import`: top-level aliases for session portability.",
+   "decls": [
+    "func exportAlias",
+    "func latestHere"
+   ],
+   "lines": 74,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/launcher.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "launcher.go",
+   "purpose": "The interactive loop: runs the chat, and on every navigation opens a picker and restarts the chat.",
+   "decls": [
+    "func settingsText",
+    "func editConfiguration",
+    "func currentProject",
+    "func displayPath",
+    "func chooseWorkspace",
+    "func picksWorkspace",
+    "var startupFlags",
+    "func withoutStartupFlags"
+   ],
+   "lines": 525,
+   "uses": [
+    "internal/core",
+    "internal/rewind",
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/main.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "main.go",
+   "purpose": "Entry point and command dispatch; builds the session and agent for chat, run and headless modes.",
+   "decls": [
+    "var version",
+    "var commandGroups",
+    "var commandHelp",
+    "var usage",
+    "func main",
+    "type exitError",
+    "method Error",
+    "const exitFailedVerification"
+   ],
+   "lines": 1010,
+   "uses": [
+    "internal/core",
+    "internal/formatters",
+    "internal/mcpclient",
+    "internal/runtime",
+    "internal/sandbox",
+    "internal/session",
+    "internal/tools",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/mcp_list.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "mcp_list.go",
+   "purpose": "`goh mcp list`: configured MCP servers with URLs redacted.",
+   "decls": [
+    "func runMCP",
+    "func writeMCP",
+    "func redactURL"
+   ],
+   "lines": 87,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/memory.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "memory.go",
+   "purpose": "`goh memory`: inspects and edits the project memory ledger.",
+   "decls": [
+    "func runMemory"
+   ],
+   "lines": 92,
+   "uses": [
+    "internal/core",
+    "internal/memory"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/model_cache.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "model_cache.go",
+   "purpose": "Keeps provider model lists for five minutes so /models opens instantly.",
+   "decls": [
+    "const modelListTTL",
+    "type cachedModels",
+    "var modelCache",
+    "func modelCacheKey",
+    "func cachedModelList",
+    "func storeModelList",
+    "func forgetModelLists"
+   ],
+   "lines": 61,
+   "uses": [
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/models.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "models.go",
+   "purpose": "`goh models`: prints the models the configured provider offers.",
+   "decls": [
+    "func listModels",
+    "func originOf",
+    "func indexAfterHost"
+   ],
+   "lines": 100,
+   "uses": [
+    "internal/core",
+    "internal/provider"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/pickers.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "pickers.go",
+   "purpose": "Agent choices for /agents and Tab cycling.",
+   "decls": [
+    "func agentOptions",
+    "func nextAgent"
+   ],
+   "lines": 41,
+   "uses": [
+    "internal/core",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/pr.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "pr.go",
+   "purpose": "`goh pr N`: checks out a pull request with gh, then opens the chat.",
+   "decls": [
+    "var prRef",
+    "func runPR"
+   ],
+   "lines": 35,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/remote_attach.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "remote_attach.go",
+   "purpose": "`goh attach`: the terminal UI connected to a running `goh serve`.",
+   "decls": [
+    "func runAttach",
+    "type ackGate",
+    "method take",
+    "func attachedAgent",
+    "func reloadAttached",
+    "func newestSession"
+   ],
+   "lines": 198,
+   "uses": [
+    "internal/core",
+    "internal/localapi",
+    "internal/remote",
+    "internal/runtime",
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/salvage_offer.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "salvage_offer.go",
+   "purpose": "Offers to recover a damaged session journal interactively.",
+   "decls": [
+    "func interactive",
+    "func offerSalvage"
+   ],
+   "lines": 34,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/serve.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "serve.go",
+   "purpose": "`goh serve`: runs the local HTTP API that `goh attach` talks to.",
+   "decls": [
+    "func serve"
+   ],
+   "lines": 99,
+   "uses": [
+    "internal/core",
+    "internal/localapi"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/sessions.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "sessions.go",
+   "purpose": "`goh sessions`: list, show, prune, trash and restore saved sessions.",
+   "decls": [
+    "func sessions",
+    "func pruneSessions",
+    "func configuredSessionDir"
+   ],
+   "lines": 273,
+   "uses": [
+    "internal/core",
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/sessions_table.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "sessions_table.go",
+   "purpose": "Human-readable session table output.",
+   "decls": [
+    "func writeSessionTable"
+   ],
+   "lines": 45,
+   "uses": [
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/snapshots.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "snapshots.go",
+   "purpose": "`goh snapshots`: whole-project snapshots per run, diff and restore.",
+   "decls": [
+    "const snapshotsUsage",
+    "type runSnap",
+    "func snapshotRuns",
+    "func runSnapshots",
+    "func lastRestoreBefore"
+   ],
+   "lines": 198,
+   "uses": [
+    "internal/projectsnap",
+    "internal/runtime",
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/stats.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "stats.go",
+   "purpose": "`goh stats`: token and tool totals from local journals.",
+   "decls": [
+    "func stats",
+    "func applyPrices",
+    "func writeModelRows",
+    "func writeToolRows",
+    "func projectFilter"
+   ],
+   "lines": 126,
+   "uses": [
+    "internal/core",
+    "internal/session",
+    "internal/tui"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/uninstall.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "uninstall.go",
+   "purpose": "`goh uninstall`: removes the binary and, optionally, its data.",
+   "decls": [
+    "func runUninstall",
+    "func uninstallTargets",
+    "func isLinkTo"
+   ],
+   "lines": 121,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/upgrade.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "upgrade.go",
+   "purpose": "`goh upgrade`: downloads and verifies a newer release.",
+   "decls": [
+    "const releaseRepo",
+    "func runUpgrade",
+    "func sameVersion",
+    "func allowedSource",
+    "func fetch",
+    "func latestTag",
+    "func releaseArtifact",
+    "func expectedDigest"
+   ],
+   "lines": 314,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/workspaces.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "workspaces.go",
+   "purpose": "`goh workspaces`: trusted project folders, newest first.",
+   "decls": [
+    "func runWorkspaces"
+   ],
+   "lines": 38,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness/worktree.go",
+   "kind": "file",
+   "package": "cmd/harness",
+   "name": "worktree.go",
+   "purpose": "`goh worktree NAME`: opens the chat in a sibling Git worktree.",
+   "decls": [
+    "var worktreeName",
+    "func runWorktree",
+    "func isWorktreeOf",
+    "func currentBranch",
+    "func gitTop",
+    "func sameDir"
+   ],
+   "lines": 110,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "cmd/harness",
+   "kind": "package",
+   "layer": "entry",
+   "purpose": "The goh binary: command dispatch, provider setup and the interactive launcher loop.",
+   "files": [
+    "cmd/harness/access.go",
+    "cmd/harness/acp.go",
+    "cmd/harness/acp_unix.go",
+    "cmd/harness/agents.go",
+    "cmd/harness/attach.go",
+    "cmd/harness/auth_list.go",
+    "cmd/harness/changes.go",
+    "cmd/harness/chatgpt_auth.go",
+    "cmd/harness/completion.go",
+    "cmd/harness/config_show.go",
+    "cmd/harness/connect.go",
+    "cmd/harness/export_alias.go",
+    "cmd/harness/launcher.go",
+    "cmd/harness/main.go",
+    "cmd/harness/mcp_list.go",
+    "cmd/harness/memory.go",
+    "cmd/harness/model_cache.go",
+    "cmd/harness/models.go",
+    "cmd/harness/pickers.go",
+    "cmd/harness/pr.go",
+    "cmd/harness/remote_attach.go",
+    "cmd/harness/salvage_offer.go",
+    "cmd/harness/serve.go",
+    "cmd/harness/sessions.go",
+    "cmd/harness/sessions_table.go",
+    "cmd/harness/snapshots.go",
+    "cmd/harness/stats.go",
+    "cmd/harness/uninstall.go",
+    "cmd/harness/upgrade.go",
+    "cmd/harness/workspaces.go",
+    "cmd/harness/worktree.go"
+   ],
+   "lines": 5666,
+   "fan_out": 17,
+   "fan_in": 0
+  },
+  {
+   "id": "cmd/scripted-model/main.go",
+   "kind": "file",
+   "package": "cmd/scripted-model",
+   "name": "main.go",
+   "purpose": "A local scripted model server (OpenAI-compatible) for deterministic tests.",
+   "decls": [
+    "type step",
+    "var scriptSteps",
+    "var scriptIndex",
+    "func main",
+    "func serve"
+   ],
+   "lines": 215,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "cmd/scripted-model",
+   "kind": "package",
+   "layer": "entry",
+   "purpose": "Deterministic local model server for tests.",
+   "files": [
+    "cmd/scripted-model/main.go"
+   ],
+   "lines": 215,
+   "fan_out": 1,
+   "fan_in": 0
+  },
+  {
+   "id": "internal/acp/mcp.go",
+   "kind": "file",
+   "package": "internal/acp",
+   "name": "mcp.go",
+   "purpose": "Merges MCP servers an editor passes over ACP with configured ones.",
+   "decls": [
+    "var serverName",
+    "func mergeMCP"
+   ],
+   "lines": 86,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/acp/server.go",
+   "kind": "file",
+   "package": "internal/acp",
+   "name": "server.go",
+   "purpose": "ACP v1 JSON-RPC server over stdio: sessions, prompts and cancellation.",
+   "decls": [
+    "const maxFrame",
+    "type message",
+    "type server",
+    "func Serve",
+    "method send",
+    "method result",
+    "method fail",
+    "func validID"
+   ],
+   "lines": 356,
+   "uses": [
+    "internal/core",
+    "internal/mcpclient",
+    "internal/runtime",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/acp/turn.go",
+   "kind": "file",
+   "package": "internal/acp",
+   "name": "turn.go",
+   "purpose": "Runs one ACP prompt turn and maps runtime events to ACP updates and permission requests.",
+   "decls": [
+    "type turn",
+    "type toolCall",
+    "type permissionRequest",
+    "func textBlock",
+    "func toolContent",
+    "method update",
+    "func toolKind",
+    "method newCall"
+   ],
+   "lines": 332,
+   "uses": [
+    "internal/core",
+    "internal/mcpclient",
+    "internal/provider",
+    "internal/runtime",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/acp",
+   "kind": "package",
+   "layer": "interface",
+   "purpose": "Agent Client Protocol server for editors.",
+   "files": [
+    "internal/acp/mcp.go",
+    "internal/acp/server.go",
+    "internal/acp/turn.go"
+   ],
+   "lines": 774,
+   "fan_out": 6,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/commands/builtin.go",
+   "kind": "file",
+   "package": "internal/commands",
+   "name": "builtin.go",
+   "purpose": "Built-in slash commands that custom command files can override.",
+   "decls": [
+    "var Builtins",
+    "func WithBuiltins"
+   ],
+   "lines": 45,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/commands/commands.go",
+   "kind": "file",
+   "package": "internal/commands",
+   "name": "commands.go",
+   "purpose": "Expands custom command templates ($ARGUMENTS, files) into prompts.",
+   "decls": [
+    "const MaxTemplate",
+    "const MaxPrompt",
+    "var namePattern",
+    "var placeholders",
+    "var reserved",
+    "func IsCommand",
+    "func Expand",
+    "func Validate"
+   ],
+   "lines": 250,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/commands/discover.go",
+   "kind": "file",
+   "package": "internal/commands",
+   "name": "discover.go",
+   "purpose": "Finds Markdown command files in the project and user folders.",
+   "decls": [
+    "var commandDirs",
+    "type Skipped",
+    "func Discover",
+    "func readCommandFile",
+    "func Merge"
+   ],
+   "lines": 123,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/commands",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Custom slash commands from Markdown files.",
+   "files": [
+    "internal/commands/builtin.go",
+    "internal/commands/commands.go",
+    "internal/commands/discover.go"
+   ],
+   "lines": 418,
+   "fan_out": 1,
+   "fan_in": 2
+  },
+  {
+   "id": "internal/core/access.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "access.go",
+   "purpose": "Access levels (Ask, Auto, Full) and which folders they apply to.",
+   "decls": [
+    "type AccessLevel",
+    "var AccessLevels",
+    "func ParseAccessLevel",
+    "method Rank",
+    "method Label",
+    "method Describe",
+    "method Next",
+    "type FolderAccess"
+   ],
+   "lines": 190,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/agentfiles.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "agentfiles.go",
+   "purpose": "Reads project agent definitions from Markdown files.",
+   "decls": [
+    "var agentDirs",
+    "type SkippedAgentFile",
+    "method WithProjectAgents",
+    "func readAgentFile"
+   ],
+   "lines": 122,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/chatgpt_auth.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "chatgpt_auth.go",
+   "purpose": "ChatGPT OAuth (PKCE) sign-in, token renewal and the sign-in lock.",
+   "decls": [
+    "var ErrChatGPTLogin",
+    "type chatGPTTokens",
+    "type chatGPTAccount",
+    "func chatGPTPath",
+    "var ErrChatGPTDamaged",
+    "const chatGPTAccountFile",
+    "func readChatGPTAccount",
+    "func saveChatGPTAccount"
+   ],
+   "lines": 643,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/core/chatgpt_window.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "chatgpt_window.go",
+   "purpose": "Context window sizes for ChatGPT models from the model catalog, cached.",
+   "decls": [
+    "const DefaultChatGPTWindow",
+    "const windowCacheTTL",
+    "type windowCache",
+    "func ChatGPTContextWindow"
+   ],
+   "lines": 60,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/config.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "config.go",
+   "purpose": "The Config type, defaults, loading, validation and every setting.",
+   "decls": [
+    "type MCPConfig",
+    "type CommandConfig",
+    "type LSPConfig",
+    "type ModelPrice",
+    "type FormatterConfig",
+    "type HookConfig",
+    "type VerifyConfig",
+    "type SandboxConfig"
+   ],
+   "lines": 579,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/core/credential_source.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "credential_source.go",
+   "purpose": "Says where a provider's credential would come from, without reading it.",
+   "decls": [
+    "method CredentialSource"
+   ],
+   "lines": 34,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/credential_store.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "credential_store.go",
+   "purpose": "Seals saved secrets with a key kept in the OS keychain, or keeps private files.",
+   "decls": [
+    "var openSecretStore",
+    "func credentialDir",
+    "func CredentialStore",
+    "func CredentialStoreName",
+    "func inKeychain",
+    "func osStore",
+    "func dataKey",
+    "func sealer"
+   ],
+   "lines": 325,
+   "uses": [
+    "internal/secretstore"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/core/fileblock.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "fileblock.go",
+   "purpose": "Frames attached file contents inside prompts and strips them again.",
+   "decls": [
+    "func FileBlock",
+    "func StripFileBlocks",
+    "func fileBlockEnd"
+   ],
+   "lines": 65,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/formatter_detect.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "formatter_detect.go",
+   "purpose": "Detects well-known formatters when formatter_auto is on.",
+   "decls": [
+    "var knownFormatters",
+    "method WithDetectedFormatters"
+   ],
+   "lines": 70,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/jsonc.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "jsonc.go",
+   "purpose": "Reads JSON with comments and trailing commas.",
+   "decls": [
+    "func StripJSONC",
+    "func HasJSONCSyntax"
+   ],
+   "lines": 102,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/keybinds.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "keybinds.go",
+   "purpose": "Default key bindings and user overrides.",
+   "decls": [
+    "var DefaultKeybinds",
+    "var reservedKeys",
+    "var keyPattern",
+    "type Keymap",
+    "func ResolveKeymap",
+    "var ThemeNames",
+    "method ValidateTheme"
+   ],
+   "lines": 120,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/lsp_detect.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "lsp_detect.go",
+   "purpose": "Detects well-known language servers when lsp_auto is on.",
+   "decls": [
+    "var knownLSP",
+    "method WithDetectedLSP"
+   ],
+   "lines": 65,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/product.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "product.go",
+   "purpose": "Product name and version constants.",
+   "decls": [
+    "const ProductName",
+    "var ProductVersion"
+   ],
+   "lines": 9,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/profiles.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "profiles.go",
+   "purpose": "Named model and agent profiles and how they resolve into a config.",
+   "decls": [
+    "type ModelProfile",
+    "type AgentProfile",
+    "var profileName",
+    "method Resolve",
+    "method applyEnvironment"
+   ],
+   "lines": 134,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/provider_catalog.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "provider_catalog.go",
+   "purpose": "Known providers (OpenAI, Anthropic, Groq, OpenRouter...) and their defaults.",
+   "decls": [
+    "type ProviderPreset",
+    "var ProviderCatalog",
+    "func FindPreset",
+    "func PresetForRoute",
+    "method Apply",
+    "method ChatModel",
+    "method NeedsKey"
+   ],
+   "lines": 85,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/providers.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "providers.go",
+   "purpose": "Connected providers as named profiles with their own route; edits user settings.",
+   "decls": [
+    "type ProviderEntry",
+    "type ProviderSettings",
+    "const UnsavedProviderName",
+    "method Title",
+    "method Route",
+    "func presetFor",
+    "func deref",
+    "method Providers"
+   ],
+   "lines": 450,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/question.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "question.go",
+   "purpose": "Types for questions the agent asks the user.",
+   "decls": [
+    "type QuestionOption",
+    "type Question",
+    "type QuestionRequest",
+    "type QuestionReply"
+   ],
+   "lines": 19,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/reasoning.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "reasoning.go",
+   "purpose": "Context hooks for streamed reasoning text and provider retry notices.",
+   "decls": [
+    "type reasoningKey",
+    "func WithReasoning",
+    "func ReasoningSink",
+    "type retryKey",
+    "type RetryNotice",
+    "func WithRetryNotices",
+    "func RetryNotifier",
+    "type toolProgressKey"
+   ],
+   "lines": 63,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/redact.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "redact.go",
+   "purpose": "Masks well-known secret formats in shared output and provider errors.",
+   "decls": [
+    "var secretPatterns",
+    "var privateKeyBlock",
+    "func RedactSecrets"
+   ],
+   "lines": 29,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/routing.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "routing.go",
+   "purpose": "Protocol and endpoint resolution; which credential a route may use.",
+   "decls": [
+    "method EffectiveProtocol",
+    "method CredentialEnvironment",
+    "method ValidateProtocol",
+    "method ValidateModelRoles",
+    "method SetProviderRoute",
+    "method overlayProfile",
+    "method WithModelRole",
+    "method ValidateFallbackProfiles"
+   ],
+   "lines": 150,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/shellrules.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "shellrules.go",
+   "purpose": "Glob rules that allow, ask or deny shell commands.",
+   "decls": [
+    "type ShellRule",
+    "var shellOperators",
+    "method ValidateShellRules",
+    "method ShellDecision",
+    "method lastShellRule",
+    "func HasShellOperator",
+    "var commandWrappers",
+    "var shells"
+   ],
+   "lines": 227,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/todo.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "todo.go",
+   "purpose": "The Todo type for session task lists.",
+   "decls": [
+    "type Todo"
+   ],
+   "lines": 9,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/types.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "types.go",
+   "purpose": "Shared message, tool call, tool, event and permission types.",
+   "decls": [
+    "type Call",
+    "type Message",
+    "type Image",
+    "method DataURL",
+    "type Tool",
+    "func NewTool",
+    "type Usage",
+    "type Reply"
+   ],
+   "lines": 130,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core/user_settings.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "user_settings.go",
+   "purpose": "Reads and writes user settings and saved provider keys.",
+   "decls": [
+    "func WriteUserConfig",
+    "func writePrivate",
+    "method credentialPath",
+    "method ProviderKey",
+    "method SaveProviderKey",
+    "var ErrProjectHoldsKeys",
+    "func CheckProjectCredentialBoundary",
+    "func resolveExisting"
+   ],
+   "lines": 192,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/core/workspaces.go",
+   "kind": "file",
+   "package": "internal/core",
+   "name": "workspaces.go",
+   "purpose": "Trusted workspace folders and the recent list.",
+   "decls": [
+    "type Workspace",
+    "const maxWorkspaces",
+    "func workspacesPath",
+    "func Workspaces",
+    "func IsTrustedWorkspace",
+    "func OpenWorkspace",
+    "func saveWorkspaces",
+    "func ForgetWorkspace"
+   ],
+   "lines": 159,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/core",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": "Shared types, configuration, providers, credentials and access rules.",
+   "files": [
+    "internal/core/access.go",
+    "internal/core/agentfiles.go",
+    "internal/core/chatgpt_auth.go",
+    "internal/core/chatgpt_window.go",
+    "internal/core/config.go",
+    "internal/core/credential_source.go",
+    "internal/core/credential_store.go",
+    "internal/core/fileblock.go",
+    "internal/core/formatter_detect.go",
+    "internal/core/jsonc.go",
+    "internal/core/keybinds.go",
+    "internal/core/lsp_detect.go",
+    "internal/core/product.go",
+    "internal/core/profiles.go",
+    "internal/core/provider_catalog.go",
+    "internal/core/providers.go",
+    "internal/core/question.go",
+    "internal/core/reasoning.go",
+    "internal/core/redact.go",
+    "internal/core/routing.go",
+    "internal/core/shellrules.go",
+    "internal/core/todo.go",
+    "internal/core/types.go",
+    "internal/core/user_settings.go",
+    "internal/core/workspaces.go"
+   ],
+   "lines": 4031,
+   "fan_out": 2,
+   "fan_in": 16
+  },
+  {
+   "id": "internal/formatters/formatters.go",
+   "kind": "file",
+   "package": "internal/formatters",
+   "name": "formatters.go",
+   "purpose": "Resolves and validates configured code formatters.",
+   "decls": [
+    "type Entry",
+    "var validName",
+    "var validEnv",
+    "func Validate",
+    "func Discover",
+    "func Matching",
+    "method Arguments"
+   ],
+   "lines": 142,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/formatters",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Configured code formatters.",
+   "files": [
+    "internal/formatters/formatters.go"
+   ],
+   "lines": 142,
+   "fan_out": 1,
+   "fan_in": 3
+  },
+  {
+   "id": "internal/ignore/ignore.go",
+   "kind": "file",
+   "package": "internal/ignore",
+   "name": "ignore.go",
+   "purpose": ".gitignore rule matching.",
+   "decls": [
+    "type rule",
+    "type Matcher",
+    "const maxRules",
+    "method Add",
+    "method Ignored",
+    "method match",
+    "func matchSegments"
+   ],
+   "lines": 131,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/ignore",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": ".gitignore matching.",
+   "files": [
+    "internal/ignore/ignore.go"
+   ],
+   "lines": 131,
+   "fan_out": 0,
+   "fan_in": 2
+  },
+  {
+   "id": "internal/localapi/server.go",
+   "kind": "file",
+   "package": "internal/localapi",
+   "name": "server.go",
+   "purpose": "`goh serve` HTTP API: sessions, runs, event streams, approvals and answers.",
+   "decls": [
+    "type Server",
+    "type run",
+    "type pendingInput",
+    "type inputReply",
+    "type inputFrame",
+    "func New",
+    "type Info",
+    "method info"
+   ],
+   "lines": 418,
+   "uses": [
+    "internal/core",
+    "internal/mcpclient",
+    "internal/runtime",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/localapi",
+   "kind": "package",
+   "layer": "interface",
+   "purpose": "HTTP API behind `goh serve`.",
+   "files": [
+    "internal/localapi/server.go"
+   ],
+   "lines": 418,
+   "fan_out": 4,
+   "fan_in": 2
+  },
+  {
+   "id": "internal/lspclient/client.go",
+   "kind": "file",
+   "package": "internal/lspclient",
+   "name": "client.go",
+   "purpose": "Language server manager: starts servers, syncs files, answers lsp tool calls.",
+   "decls": [
+    "const maxFile",
+    "const maxResult",
+    "var operationTimeout",
+    "var serverName",
+    "var fileWide",
+    "var operations",
+    "var capabilities",
+    "type arguments"
+   ],
+   "lines": 685,
+   "uses": [
+    "internal/core",
+    "internal/platform",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/lspclient/edit_errors.go",
+   "kind": "file",
+   "package": "internal/lspclient",
+   "name": "edit_errors.go",
+   "purpose": "Collects language-server errors for files the agent just edited.",
+   "decls": [
+    "const maxEditErrors",
+    "const editErrorTimeout",
+    "method EditErrors",
+    "type diagnostic",
+    "func diagnosticItems"
+   ],
+   "lines": 83,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/lspclient/process.go",
+   "kind": "file",
+   "package": "internal/lspclient",
+   "name": "process.go",
+   "purpose": "Language server process lifecycle and stderr capture.",
+   "decls": [
+    "type process",
+    "type tailBuffer",
+    "const stderrTail",
+    "var escapeSequence",
+    "method Write",
+    "method lastLines",
+    "method startError",
+    "func startProcess"
+   ],
+   "lines": 159,
+   "uses": [
+    "internal/core",
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/lspclient/rpc.go",
+   "kind": "file",
+   "package": "internal/lspclient",
+   "name": "rpc.go",
+   "purpose": "JSON-RPC framing and request tracking for language servers.",
+   "decls": [
+    "const maxFrame",
+    "type rpcMessage",
+    "type rpcError",
+    "method Error",
+    "type rpcClient",
+    "func newRPC",
+    "func readFrame",
+    "method readLoop"
+   ],
+   "lines": 373,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/lspclient",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Language server client.",
+   "files": [
+    "internal/lspclient/client.go",
+    "internal/lspclient/edit_errors.go",
+    "internal/lspclient/process.go",
+    "internal/lspclient/rpc.go"
+   ],
+   "lines": 1300,
+   "fan_out": 3,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/mcpclient/client.go",
+   "kind": "file",
+   "package": "internal/mcpclient",
+   "name": "client.go",
+   "purpose": "MCP client: starts stdio servers, lists tools, calls them, reconnects.",
+   "decls": [
+    "const maxFrame",
+    "const maxResult",
+    "const callTimeout",
+    "var component",
+    "var ErrPermission",
+    "type binding",
+    "type Manager",
+    "const maxReconnects"
+   ],
+   "lines": 794,
+   "uses": [
+    "internal/core",
+    "internal/platform",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/mcpclient/prompts.go",
+   "kind": "file",
+   "package": "internal/mcpclient",
+   "name": "prompts.go",
+   "purpose": "Lists and fetches MCP prompt templates.",
+   "decls": [
+    "type PromptInfo",
+    "const maxPromptText",
+    "method Prompts",
+    "method GetPrompt"
+   ],
+   "lines": 87,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/mcpclient/remote.go",
+   "kind": "file",
+   "package": "internal/mcpclient",
+   "name": "remote.go",
+   "purpose": "Remote (HTTP) MCP servers with header auth.",
+   "decls": [
+    "func checkRemoteURL",
+    "func remoteClient",
+    "type headerTransport",
+    "method RoundTrip"
+   ],
+   "lines": 77,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/mcpclient/resources.go",
+   "kind": "file",
+   "package": "internal/mcpclient",
+   "name": "resources.go",
+   "purpose": "Tools to list and read MCP resources.",
+   "decls": [
+    "func IsResourceTool",
+    "func resourceDefinitions",
+    "type resourceArgs",
+    "func decodeResourceArgs",
+    "method executeResource"
+   ],
+   "lines": 133,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/mcpclient",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Model Context Protocol client.",
+   "files": [
+    "internal/mcpclient/client.go",
+    "internal/mcpclient/prompts.go",
+    "internal/mcpclient/remote.go",
+    "internal/mcpclient/resources.go"
+   ],
+   "lines": 1091,
+   "fan_out": 3,
+   "fan_in": 3
+  },
+  {
+   "id": "internal/memory/ledger.go",
+   "kind": "file",
+   "package": "internal/memory",
+   "name": "ledger.go",
+   "purpose": "Project memory: notes with file evidence, recalled by lexical match.",
+   "decls": [
+    "type Evidence",
+    "type Note",
+    "type Ledger",
+    "func New",
+    "method directoryRoot",
+    "method read",
+    "method List",
+    "method update"
+   ],
+   "lines": 374,
+   "uses": [
+    "internal/platform",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/memory",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Project memory ledger.",
+   "files": [
+    "internal/memory/ledger.go"
+   ],
+   "lines": 374,
+   "fan_out": 2,
+   "fan_in": 2
+  },
+  {
+   "id": "internal/platform/env.go",
+   "kind": "file",
+   "package": "internal/platform",
+   "name": "env.go",
+   "purpose": "The filtered environment child processes receive.",
+   "decls": [
+    "var safeEnvNames",
+    "var safeEnvPrefixes",
+    "func SetEnvPassthrough",
+    "func ChildEnv",
+    "func ChildEnvMap",
+    "func filterEnv",
+    "func envAllowed"
+   ],
+   "lines": 106,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/platform/platform.go",
+   "kind": "file",
+   "package": "internal/platform",
+   "name": "platform.go",
+   "purpose": "Platform-neutral declarations (lock errors).",
+   "decls": [
+    "var ErrLocked"
+   ],
+   "lines": 8,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/platform/platform_unix.go",
+   "kind": "file",
+   "package": "internal/platform",
+   "name": "platform_unix.go",
+   "purpose": "Unix file locks, process groups and safe open flags.",
+   "decls": [
+    "func TryLock",
+    "func NewGroup",
+    "func TerminateGroup",
+    "func KillGroup",
+    "func GroupExited",
+    "func StopGroup",
+    "func SyncDir",
+    "func PrivateFile"
+   ],
+   "lines": 103,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/platform",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": "OS specifics: locks, process groups, child environment.",
+   "files": [
+    "internal/platform/env.go",
+    "internal/platform/platform.go",
+    "internal/platform/platform_unix.go"
+   ],
+   "lines": 217,
+   "fan_out": 0,
+   "fan_in": 12
+  },
+  {
+   "id": "internal/projectsnap/projectsnap.go",
+   "kind": "file",
+   "package": "internal/projectsnap",
+   "name": "projectsnap.go",
+   "purpose": "Whole-project snapshots in a private shadow Git repository; diff and restore.",
+   "decls": [
+    "type Store",
+    "var repoLocks",
+    "var treeID",
+    "var ErrNoGit",
+    "func Open",
+    "method run",
+    "method withPrivateIndex",
+    "method Track"
+   ],
+   "lines": 439,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/projectsnap",
+   "kind": "package",
+   "layer": "persistence",
+   "purpose": "Whole-project snapshots in a shadow Git repository.",
+   "files": [
+    "internal/projectsnap/projectsnap.go"
+   ],
+   "lines": 439,
+   "fan_out": 1,
+   "fan_in": 3
+  },
+  {
+   "id": "internal/provider/anthropic.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "anthropic.go",
+   "purpose": "Anthropic Messages API adapter with SSE streaming, tools and thinking.",
+   "decls": [
+    "var anthropicToolName",
+    "type anthropicRequest",
+    "type anthropicThinking",
+    "type anthropicOutput",
+    "type anthropicText",
+    "type anthropicCache",
+    "type anthropicMessage",
+    "type anthropicTool"
+   ],
+   "lines": 888,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/chat.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "chat.go",
+   "purpose": "OpenAI Chat Completions adapter: streaming, retries, rate-limit waits.",
+   "decls": [
+    "const maxResponse",
+    "var ErrConnection",
+    "var ErrInterrupted",
+    "var ErrRejectedOutput",
+    "var errorIdentifier",
+    "func streamError",
+    "type FinishError",
+    "method Error"
+   ],
+   "lines": 521,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/completion_json.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "completion_json.go",
+   "purpose": "Fallback for providers that reject streaming options or return plain JSON.",
+   "decls": [
+    "func rejectsStreamOptions",
+    "func rejectsParam",
+    "func parseJSONCompletion"
+   ],
+   "lines": 98,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/errors.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "errors.go",
+   "purpose": "Classifies provider HTTP and stream errors without leaking bodies.",
+   "decls": [
+    "type HTTPError",
+    "method Error",
+    "method TooLarge",
+    "func classifyHTTP",
+    "var ErrBusy",
+    "var busyCodes",
+    "type busyError",
+    "method Is"
+   ],
+   "lines": 141,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/models.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "models.go",
+   "purpose": "Lists a provider's models and context windows.",
+   "decls": [
+    "func ModelsURL",
+    "type ModelInfo",
+    "var ErrKeyRejected",
+    "func ListModels",
+    "func ListModelInfo",
+    "func keyStatus",
+    "func CheckKey"
+   ],
+   "lines": 183,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/progress.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "progress.go",
+   "purpose": "Reports progress of a tool call while it is still streaming.",
+   "decls": [
+    "type toolTracker",
+    "const progressHeadBytes",
+    "var targetField",
+    "method start",
+    "method add",
+    "func firstLineOf"
+   ],
+   "lines": 59,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/responses.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "responses.go",
+   "purpose": "OpenAI Responses API adapter, including the ChatGPT endpoint.",
+   "decls": [
+    "const toolNamespace",
+    "func responsesRoute",
+    "func encodeResponses",
+    "func validResponsesReasoning",
+    "type responsesResult",
+    "func parseResponsesReasoning",
+    "func parseResponsesStream",
+    "func decodeResponses"
+   ],
+   "lines": 361,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider",
+   "kind": "package",
+   "layer": "models",
+   "purpose": "Model adapters: Anthropic, OpenAI Chat Completions and Responses (incl. ChatGPT).",
+   "files": [
+    "internal/provider/anthropic.go",
+    "internal/provider/chat.go",
+    "internal/provider/completion_json.go",
+    "internal/provider/errors.go",
+    "internal/provider/models.go",
+    "internal/provider/progress.go",
+    "internal/provider/responses.go"
+   ],
+   "lines": 2251,
+   "fan_out": 1,
+   "fan_in": 4
+  },
+  {
+   "id": "internal/remote/client.go",
+   "kind": "file",
+   "package": "internal/remote",
+   "name": "client.go",
+   "purpose": "Client for `goh serve`, used by `goh attach`.",
+   "decls": [
+    "type Client",
+    "var ErrUncertain",
+    "func New",
+    "method do",
+    "method call",
+    "func serverError",
+    "type StatusError",
+    "method Error"
+   ],
+   "lines": 383,
+   "uses": [
+    "internal/core",
+    "internal/localapi",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/remote",
+   "kind": "package",
+   "layer": "interface",
+   "purpose": "Client for `goh serve`.",
+   "files": [
+    "internal/remote/client.go"
+   ],
+   "lines": 383,
+   "fan_out": 3,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/rewind/rewind.go",
+   "kind": "file",
+   "package": "internal/rewind",
+   "name": "rewind.go",
+   "purpose": "Turn-level undo and redo built on per-edit checkpoints.",
+   "decls": [
+    "const originRecord",
+    "type origin",
+    "type Result",
+    "func snapshotDir",
+    "type turnState",
+    "func lastTurn",
+    "func userPrompts",
+    "func turnFrom"
+   ],
+   "lines": 338,
+   "uses": [
+    "internal/session",
+    "internal/snapshots"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/rewind",
+   "kind": "package",
+   "layer": "persistence",
+   "purpose": "Turn-level undo and redo on per-edit checkpoints.",
+   "files": [
+    "internal/rewind/rewind.go"
+   ],
+   "lines": 338,
+   "fan_out": 2,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/runtime/access.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "access.go",
+   "purpose": "Applies access levels: confinement, read-only commands, sandbox decisions.",
+   "decls": [
+    "func canonical",
+    "func within",
+    "func tempOverlap",
+    "const readOnlyConfine",
+    "method SetAccess",
+    "method SetSessionAccess",
+    "method ProjectAccess",
+    "method projectRoot"
+   ],
+   "lines": 271,
+   "uses": [
+    "internal/core",
+    "internal/sandbox",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/agent_mention.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "agent_mention.go",
+   "purpose": "Turns @agent mentions in a prompt into subagent hints.",
+   "decls": [
+    "method subagentNames",
+    "method withAgentMentions"
+   ],
+   "lines": 46,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/auto_title.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "auto_title.go",
+   "purpose": "Names a session after its first run.",
+   "decls": [
+    "const titlePrompt",
+    "method maybeAutoTitle"
+   ],
+   "lines": 62,
+   "uses": [
+    "internal/core",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/change_tools.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "change_tools.go",
+   "purpose": "Tools to list and restore file checkpoints from inside a chat.",
+   "decls": [
+    "var snapshotIDPattern",
+    "method changeDefinitions",
+    "func parseChange",
+    "method prepareChange",
+    "method executeChange",
+    "func isChangeTool"
+   ],
+   "lines": 153,
+   "uses": [
+    "internal/core",
+    "internal/formatters",
+    "internal/snapshots",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/compact.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "compact.go",
+   "purpose": "Manual /compact entry points.",
+   "decls": [
+    "method CompactWith",
+    "method Compact"
+   ],
+   "lines": 52,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/compaction_evidence.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "compaction_evidence.go",
+   "purpose": "Keeps key observations from turns that compaction removes.",
+   "decls": [
+    "func compactionEvidence"
+   ],
+   "lines": 101,
+   "uses": [
+    "internal/core",
+    "internal/session",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/effort.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "effort.go",
+   "purpose": "Changes reasoning effort for later turns.",
+   "decls": [
+    "method SetReasoningEffort"
+   ],
+   "lines": 19,
+   "uses": [
+    "internal/provider"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/experiments.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "experiments.go",
+   "purpose": "Research-only tools (evidence submission, observation recall).",
+   "decls": [
+    "func submitEvidenceDefinition",
+    "type evidenceRecord",
+    "func parseEvidence",
+    "method executeEvidence",
+    "const evidencePrompt",
+    "method needsEvidence",
+    "func recallDefinition",
+    "const recallPage"
+   ],
+   "lines": 220,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/fetch_artifact.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "fetch_artifact.go",
+   "purpose": "Keeps large or excerpted fetched pages as searchable artifacts.",
+   "decls": [
+    "const fetchArtifactMin",
+    "method retainFetchedPage",
+    "func fetchArtifactNote"
+   ],
+   "lines": 82,
+   "uses": [
+    "internal/tools",
+    "internal/webfetch"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/file_mentions.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "file_mentions.go",
+   "purpose": "Attaches files named with @path in a prompt.",
+   "decls": [
+    "func mentionText",
+    "func mentions",
+    "method pathDenied",
+    "method withFileMentions"
+   ],
+   "lines": 118,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/formatting.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "formatting.go",
+   "purpose": "Edits with checkpoints and formatters: snapshot, write, format, report.",
+   "decls": [
+    "method snapshotDirectory",
+    "func boundedResult",
+    "method executeMutation",
+    "method runFormatter"
+   ],
+   "lines": 212,
+   "uses": [
+    "internal/core",
+    "internal/formatters",
+    "internal/snapshots",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/grant_scope.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "grant_scope.go",
+   "purpose": "What a 'for this session' approval covers (command prefix, origin).",
+   "decls": [
+    "var codeRunners",
+    "func runsArbitrary",
+    "func GrantScope"
+   ],
+   "lines": 77,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/hooks.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "hooks.go",
+   "purpose": "Runs user hooks before and after tools and when runs finish.",
+   "decls": [
+    "const hookOutputLimit",
+    "const hookExitBlock",
+    "type hookOutcome",
+    "method matchingHooks",
+    "method runHook",
+    "method preToolHooks",
+    "method postToolHooks",
+    "method runFinishedHooks"
+   ],
+   "lines": 214,
+   "uses": [
+    "internal/core",
+    "internal/platform",
+    "internal/sandbox",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/images.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "images.go",
+   "purpose": "Attaches images named in a prompt.",
+   "decls": [
+    "var imageTypes",
+    "method promptImages",
+    "func imageMagicMatches",
+    "func withoutImages"
+   ],
+   "lines": 130,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/masking.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "masking.go",
+   "purpose": "Shrinks old tool results to receipts so context stays small.",
+   "decls": [
+    "const maskMinBytes",
+    "const maskPrefix",
+    "func maskObservations",
+    "var readOnlyTools",
+    "type receipt",
+    "func maskReceipt",
+    "const excerptNote",
+    "func shrinkLargeResults"
+   ],
+   "lines": 169,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/mcp_prompts.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "mcp_prompts.go",
+   "purpose": "Lists and expands MCP prompts as slash commands.",
+   "decls": [
+    "type PromptSource",
+    "method MCPPrompts",
+    "method ListMCPPrompts",
+    "method expandMCPPrompt"
+   ],
+   "lines": 100,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/memory.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "memory.go",
+   "purpose": "The memory_recall tool.",
+   "decls": [
+    "func memoryDefinition",
+    "method memoryQuery",
+    "method recallMemory"
+   ],
+   "lines": 59,
+   "uses": [
+    "internal/core",
+    "internal/memory",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/outcome.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "outcome.go",
+   "purpose": "Tracks whether a run changed files and whether a check verified them.",
+   "decls": [
+    "var fileChangeTools",
+    "var effectTools",
+    "type Evidence",
+    "method resetOutcome",
+    "method markChanged",
+    "method trackOutcome",
+    "method noticeUntrackedChanges",
+    "method mayHaveChanged"
+   ],
+   "lines": 465,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/pinned.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "pinned.go",
+   "purpose": "Carries earlier user instructions forward through compaction.",
+   "decls": [
+    "const pinnedMarker",
+    "func pinnedInstructions",
+    "func total"
+   ],
+   "lines": 64,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/plan_exit.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "plan_exit.go",
+   "purpose": "Lets the read-only plan agent ask to switch to build mode.",
+   "decls": [
+    "func planExitDefinition",
+    "func parsePlanExit",
+    "method preparePlanExit",
+    "method executePlanExit"
+   ],
+   "lines": 55,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/policy.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "policy.go",
+   "purpose": "Which tools exist in each mode and which the plan agent may use.",
+   "decls": [
+    "method isPlan",
+    "method allowedInPlan",
+    "method checkMode",
+    "method localDefinitions"
+   ],
+   "lines": 62,
+   "uses": [
+    "internal/core",
+    "internal/webfetch",
+    "internal/websearch"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/project_snapshot.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "project_snapshot.go",
+   "purpose": "Records whole-project snapshots at run start and end (opt-in).",
+   "decls": [
+    "func ProjectSnapshotDir",
+    "method recordProjectSnapshot"
+   ],
+   "lines": 37,
+   "uses": [
+    "internal/projectsnap"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/question.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "question.go",
+   "purpose": "The question tool and validation of the user's answers.",
+   "decls": [
+    "var ErrNeedsInput",
+    "var ErrQuestionDismissed",
+    "func questionDefinition",
+    "func parseQuestion",
+    "method executeQuestion",
+    "func ValidateQuestionReply"
+   ],
+   "lines": 144,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/readonly.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "readonly.go",
+   "purpose": "Recognizes shell commands that only read.",
+   "decls": [
+    "var readOnlyPrograms",
+    "var readOnlyGit",
+    "var refusedFlags",
+    "var refusedFor",
+    "func readOnlyCommand",
+    "func readOnlySegment",
+    "func splitShell"
+   ],
+   "lines": 190,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/recall_replay.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "recall_replay.go",
+   "purpose": "Rechecks recalled memory against live files before reuse.",
+   "decls": [
+    "const withdrawnNote",
+    "method revalidateRecalls"
+   ],
+   "lines": 72,
+   "uses": [
+    "internal/core",
+    "internal/memory",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/repeat.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "repeat.go",
+   "purpose": "Stops a model that repeats the same call.",
+   "decls": [
+    "const repeatLimit",
+    "const repeatStopped",
+    "method checkRepeat",
+    "func callKey"
+   ],
+   "lines": 67,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/request_cap.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "request_cap.go",
+   "purpose": "Token estimates and fitting requests to a provider's cap.",
+   "decls": [
+    "method estimate",
+    "method contentTokens",
+    "method ratio",
+    "method tokensFor",
+    "method bytesFor",
+    "method anchorValid",
+    "type tokenAnchor",
+    "const minRatioSample"
+   ],
+   "lines": 138,
+   "uses": [
+    "internal/core",
+    "internal/provider"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/routing.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "routing.go",
+   "purpose": "Model calls with failover, cooldowns and busy retries.",
+   "decls": [
+    "method modelForRole",
+    "method completeWithFailover",
+    "method completeRoutes",
+    "const providerCooldown",
+    "func cooldownKey",
+    "method startCooldown",
+    "method coolingDown",
+    "method now"
+   ],
+   "lines": 277,
+   "uses": [
+    "internal/core",
+    "internal/provider"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/runtime.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "runtime.go",
+   "purpose": "The agent loop: prompts, model turns, tool dispatch, permissions, compaction, journaling.",
+   "decls": [
+    "const systemPrompt",
+    "type Model",
+    "type External",
+    "type Agent",
+    "func ID",
+    "func New",
+    "method event",
+    "method commit"
+   ],
+   "lines": 1757,
+   "uses": [
+    "internal/commands",
+    "internal/core",
+    "internal/formatters",
+    "internal/lspclient",
+    "internal/provider",
+    "internal/session",
+    "internal/skills",
+    "internal/tools",
+    "internal/webfetch",
+    "internal/websearch"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/sandbox_policy.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "sandbox_policy.go",
+   "purpose": "Builds the sandbox policy (writable and protected folders).",
+   "decls": [
+    "func sandboxPolicy"
+   ],
+   "lines": 58,
+   "uses": [
+    "internal/core",
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/session_changes.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "session_changes.go",
+   "purpose": "Lists this session's file checkpoints and their diffs.",
+   "decls": [
+    "type Checkpoint",
+    "var ErrNoCheckpoints",
+    "method Checkpoints",
+    "method CheckpointDiff"
+   ],
+   "lines": 59,
+   "uses": [
+    "internal/snapshots"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/skill.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "skill.go",
+   "purpose": "The skill tool: loads a skill's instructions on demand.",
+   "decls": [
+    "method skillDefinition",
+    "func skillName",
+    "method prepareSkill",
+    "method executeSkill"
+   ],
+   "lines": 65,
+   "uses": [
+    "internal/core",
+    "internal/skills",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/subagents.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "subagents.go",
+   "purpose": "The task tool: runs bounded child agents.",
+   "decls": [
+    "const maxTasksPerRun",
+    "const maxChildTurns",
+    "const childTimeout",
+    "type taskArguments",
+    "type childIdentity",
+    "method taskDefinition",
+    "func parseTask",
+    "method childConfiguration"
+   ],
+   "lines": 351,
+   "uses": [
+    "internal/core",
+    "internal/session",
+    "internal/structured",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/todo.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "todo.go",
+   "purpose": "The todowrite tool and project guidance framing.",
+   "decls": [
+    "const maxTodos",
+    "const maxTodoBytes",
+    "type todoUpdate",
+    "func todoDefinition",
+    "func parseTodos",
+    "method prepareTodos",
+    "method executeTodos",
+    "method taskContext"
+   ],
+   "lines": 136,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/user_shell.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "user_shell.go",
+   "purpose": "Runs a `!command` the user typed.",
+   "decls": [
+    "method RunShell"
+   ],
+   "lines": 97,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime/verify.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "verify.go",
+   "purpose": "Runs the configured verify command and repair attempts.",
+   "decls": [
+    "const OutcomeFailedVerification",
+    "method verifyAndMaybeRepair",
+    "method runVerifier",
+    "method outputTail"
+   ],
+   "lines": 196,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/runtime",
+   "kind": "package",
+   "layer": "orchestration",
+   "purpose": "The agent loop: model turns, tools, permissions, compaction, verification.",
+   "files": [
+    "internal/runtime/access.go",
+    "internal/runtime/agent_mention.go",
+    "internal/runtime/auto_title.go",
+    "internal/runtime/change_tools.go",
+    "internal/runtime/compact.go",
+    "internal/runtime/compaction_evidence.go",
+    "internal/runtime/effort.go",
+    "internal/runtime/experiments.go",
+    "internal/runtime/fetch_artifact.go",
+    "internal/runtime/file_mentions.go",
+    "internal/runtime/formatting.go",
+    "internal/runtime/grant_scope.go",
+    "internal/runtime/hooks.go",
+    "internal/runtime/images.go",
+    "internal/runtime/masking.go",
+    "internal/runtime/mcp_prompts.go",
+    "internal/runtime/memory.go",
+    "internal/runtime/outcome.go",
+    "internal/runtime/pinned.go",
+    "internal/runtime/plan_exit.go",
+    "internal/runtime/policy.go",
+    "internal/runtime/project_snapshot.go",
+    "internal/runtime/question.go",
+    "internal/runtime/readonly.go",
+    "internal/runtime/recall_replay.go",
+    "internal/runtime/repeat.go",
+    "internal/runtime/request_cap.go",
+    "internal/runtime/routing.go",
+    "internal/runtime/runtime.go",
+    "internal/runtime/sandbox_policy.go",
+    "internal/runtime/session_changes.go",
+    "internal/runtime/skill.go",
+    "internal/runtime/subagents.go",
+    "internal/runtime/todo.go",
+    "internal/runtime/user_shell.go",
+    "internal/runtime/verify.go"
+   ],
+   "lines": 6375,
+   "fan_out": 16,
+   "fan_in": 4
+  },
+  {
+   "id": "internal/sandbox/container.go",
+   "kind": "file",
+   "package": "internal/sandbox",
+   "name": "container.go",
+   "purpose": "Runs commands inside a Docker container.",
+   "decls": [
+    "var containerName",
+    "func wrapContainer"
+   ],
+   "lines": 45,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/sandbox/sandbox.go",
+   "kind": "file",
+   "package": "internal/sandbox",
+   "name": "sandbox.go",
+   "purpose": "Sandbox policy and the platform-neutral wrapper.",
+   "decls": [
+    "type Policy",
+    "const helperArg",
+    "var ErrUnsupported",
+    "func Wrap",
+    "func resolve",
+    "func TempDirs",
+    "func encodePolicy",
+    "func decodePolicy"
+   ],
+   "lines": 124,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/sandbox/sandbox_darwin.go",
+   "kind": "file",
+   "package": "internal/sandbox",
+   "name": "sandbox_darwin.go",
+   "purpose": "macOS sandbox-exec profiles.",
+   "decls": [
+    "const sandboxExec",
+    "func HelperMain",
+    "func wrap",
+    "func profile",
+    "func quote",
+    "func Supported",
+    "func NestedRestrictionsEnforced"
+   ],
+   "lines": 74,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/sandbox",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": "Command sandboxing (sandbox-exec, Landlock, containers).",
+   "files": [
+    "internal/sandbox/container.go",
+    "internal/sandbox/sandbox.go",
+    "internal/sandbox/sandbox_darwin.go"
+   ],
+   "lines": 243,
+   "fan_out": 0,
+   "fan_in": 5
+  },
+  {
+   "id": "internal/secretstore/secretstore.go",
+   "kind": "file",
+   "package": "internal/secretstore",
+   "name": "secretstore.go",
+   "purpose": "OS credential store interface and helper-program runner.",
+   "decls": [
+    "const Service",
+    "var service",
+    "const MaxSecret",
+    "type Store",
+    "var validName",
+    "func checkName",
+    "func Open",
+    "const helperTimeout"
+   ],
+   "lines": 98,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/secretstore/store_darwin.go",
+   "kind": "file",
+   "package": "internal/secretstore",
+   "name": "store_darwin.go",
+   "purpose": "macOS Keychain via the security tool.",
+   "decls": [
+    "const securityTool",
+    "type keychain",
+    "func open",
+    "method Name",
+    "method Get",
+    "method Set",
+    "method Delete"
+   ],
+   "lines": 63,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/secretstore",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": "OS credential stores (Keychain, Secret Service, DPAPI).",
+   "files": [
+    "internal/secretstore/secretstore.go",
+    "internal/secretstore/store_darwin.go"
+   ],
+   "lines": 161,
+   "fan_out": 0,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/session/compaction.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "compaction.go",
+   "purpose": "Compaction records and their integrity receipts.",
+   "decls": [
+    "type Compaction",
+    "type CompactionReceipt",
+    "type CompactionEvidence",
+    "method SealReceipt",
+    "method VerifyReceipt",
+    "method identities"
+   ],
+   "lines": 85,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/export_file.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "export_file.go",
+   "purpose": "Writes exports to a new private file atomically.",
+   "decls": [
+    "func WriteExportFile"
+   ],
+   "lines": 45,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/html.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "html.go",
+   "purpose": "HTML transcript export.",
+   "decls": [
+    "const htmlHead",
+    "method WriteHTMLTranscript"
+   ],
+   "lines": 98,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/latest.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "latest.go",
+   "purpose": "Finds the latest session for a project.",
+   "decls": [
+    "var ErrNoSession",
+    "func Latest"
+   ],
+   "lines": 36,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/session/meta.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "meta.go",
+   "purpose": "Session titles and metadata beside the journal.",
+   "decls": [
+    "type Meta",
+    "const maxTitle",
+    "func metaPath",
+    "func sidecars",
+    "func ReadMeta",
+    "type limited",
+    "method Read",
+    "func CleanTitle"
+   ],
+   "lines": 294,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/portable.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "portable.go",
+   "purpose": "Portable JSON export, import and fork.",
+   "decls": [
+    "const PortableFormat",
+    "const PortableVersion",
+    "const maxExportBytes",
+    "type Portable",
+    "func portableRecords",
+    "func repairToolArguments",
+    "func Export",
+    "func Import"
+   ],
+   "lines": 404,
+   "uses": [
+    "internal/core",
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/preview.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "preview.go",
+   "purpose": "Reads a bounded preview of a session for pickers.",
+   "decls": [
+    "const previewBytes",
+    "type PreviewInfo",
+    "func Preview",
+    "func previewExcerpt",
+    "type tailRun",
+    "func latestRunInTail"
+   ],
+   "lines": 170,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/redact.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "redact.go",
+   "purpose": "Forwards to core's secret redaction for transcript and export writers.",
+   "decls": [
+    "func RedactSecrets"
+   ],
+   "lines": 8,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/salvage.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "salvage.go",
+   "purpose": "Lists sessions, detects damaged journals and salvages them.",
+   "decls": [
+    "type Damaged",
+    "func ListAll",
+    "func ProjectOf",
+    "func readHeader",
+    "type SalvageReport",
+    "func Salvage",
+    "func readPrefix",
+    "func readBoundedLine"
+   ],
+   "lines": 213,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/session.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "session.go",
+   "purpose": "The durable journal: open, lock, append (fsync per record), records.",
+   "decls": [
+    "const Version",
+    "func validVersion",
+    "const maxRecordBytes",
+    "var validID",
+    "type Record",
+    "type Info",
+    "type Store",
+    "var ErrReadOnly"
+   ],
+   "lines": 429,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/stats.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "stats.go",
+   "purpose": "Token and tool statistics from journals.",
+   "decls": [
+    "type ModelUsage",
+    "method Estimate",
+    "type Stats",
+    "type ToolUsage",
+    "func CollectStats"
+   ],
+   "lines": 163,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/transcript.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "transcript.go",
+   "purpose": "Markdown transcript export.",
+   "decls": [
+    "method WriteTranscript",
+    "type transcriptWriter",
+    "method add",
+    "method code"
+   ],
+   "lines": 105,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session/user_turns.go",
+   "kind": "file",
+   "package": "internal/session",
+   "name": "user_turns.go",
+   "purpose": "Lists user turns for revert and timeline.",
+   "decls": [
+    "type UserTurn",
+    "func isUserRecord",
+    "func userRecordContent",
+    "method RecentUserTurns"
+   ],
+   "lines": 55,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/session",
+   "kind": "package",
+   "layer": "persistence",
+   "purpose": "Durable session journal, exports and statistics.",
+   "files": [
+    "internal/session/compaction.go",
+    "internal/session/export_file.go",
+    "internal/session/html.go",
+    "internal/session/latest.go",
+    "internal/session/meta.go",
+    "internal/session/portable.go",
+    "internal/session/preview.go",
+    "internal/session/redact.go",
+    "internal/session/salvage.go",
+    "internal/session/session.go",
+    "internal/session/stats.go",
+    "internal/session/transcript.go",
+    "internal/session/user_turns.go"
+   ],
+   "lines": 2105,
+   "fan_out": 2,
+   "fan_in": 7
+  },
+  {
+   "id": "internal/skills/catalog.go",
+   "kind": "file",
+   "package": "internal/skills",
+   "name": "catalog.go",
+   "purpose": "Discovers local Markdown skills.",
+   "decls": [
+    "const MaxSkillBytes",
+    "const MaxSkills",
+    "const MaxEntries",
+    "type Info",
+    "type Diagnostic",
+    "type entry",
+    "type Catalog",
+    "type Loaded"
+   ],
+   "lines": 315,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/skills/frontmatter.go",
+   "kind": "file",
+   "package": "internal/skills",
+   "name": "frontmatter.go",
+   "purpose": "Minimal frontmatter parser for skills.",
+   "decls": [
+    "func parse",
+    "func scalar"
+   ],
+   "lines": 118,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/skills",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Local Markdown skills.",
+   "files": [
+    "internal/skills/catalog.go",
+    "internal/skills/frontmatter.go"
+   ],
+   "lines": 433,
+   "fan_out": 1,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/snapshots/snapshots.go",
+   "kind": "file",
+   "package": "internal/snapshots",
+   "name": "snapshots.go",
+   "purpose": "Per-edit file checkpoints outside the project; restore with conflict checks.",
+   "decls": [
+    "type Entry",
+    "type Record",
+    "type Change",
+    "type Manager",
+    "func Open",
+    "func contained",
+    "method Close",
+    "method ready"
+   ],
+   "lines": 876,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/snapshots",
+   "kind": "package",
+   "layer": "persistence",
+   "purpose": "Per-edit file checkpoints.",
+   "files": [
+    "internal/snapshots/snapshots.go"
+   ],
+   "lines": 876,
+   "fan_out": 1,
+   "fan_in": 3
+  },
+  {
+   "id": "internal/structured/output.go",
+   "kind": "file",
+   "package": "internal/structured",
+   "name": "output.go",
+   "purpose": "Validates structured JSON output against a schema.",
+   "decls": [
+    "const MaxSchema",
+    "const MaxOutput",
+    "type denyLoader",
+    "method Load",
+    "func decode",
+    "func Compile",
+    "func Validate"
+   ],
+   "lines": 157,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/structured",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Structured JSON output validation.",
+   "files": [
+    "internal/structured/output.go"
+   ],
+   "lines": 157,
+   "fan_out": 0,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/testutil/fifo_unix.go",
+   "kind": "file",
+   "package": "internal/testutil",
+   "name": "fifo_unix.go",
+   "purpose": "Test helper: named pipes.",
+   "decls": [
+    "func Mkfifo"
+   ],
+   "lines": 14,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/testutil/lsp.go",
+   "kind": "file",
+   "package": "internal/testutil",
+   "name": "lsp.go",
+   "purpose": "Test helper: a scripted language server.",
+   "decls": [
+    "func RunLSP"
+   ],
+   "lines": 179,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/testutil/platform.go",
+   "kind": "file",
+   "package": "internal/testutil",
+   "name": "platform.go",
+   "purpose": "Test helpers for platform differences.",
+   "decls": [
+    "func UnixModes",
+    "func RequireUnixShell",
+    "func TempDir"
+   ],
+   "lines": 31,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/testutil",
+   "kind": "package",
+   "layer": "foundation",
+   "purpose": "Test helpers.",
+   "files": [
+    "internal/testutil/fifo_unix.go",
+    "internal/testutil/lsp.go",
+    "internal/testutil/platform.go"
+   ],
+   "lines": 224,
+   "fan_out": 0,
+   "fan_in": 0
+  },
+  {
+   "id": "internal/tools/artifacts.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "artifacts.go",
+   "purpose": "Retained output artifacts: save, page through and search.",
+   "decls": [
+    "var artifactName",
+    "type artifactArgs",
+    "const maxPatternLine",
+    "func decodeArtifact",
+    "method SaveArtifact",
+    "method prepareArtifact",
+    "method readArtifact",
+    "func artifactMatches"
+   ],
+   "lines": 249,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/canonical.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "canonical.go",
+   "purpose": "Case-insensitive path spelling and file-rule checks.",
+   "decls": [
+    "func CanonicalRel",
+    "func storedNames",
+    "func FoldName",
+    "func FoldsNames",
+    "func DeniedPath"
+   ],
+   "lines": 150,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/changes.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "changes.go",
+   "purpose": "Which paths a tool call will change, before it runs.",
+   "decls": [
+    "method MutationPaths",
+    "method FileDigest",
+    "func quoteArgument",
+    "method RunCommand"
+   ],
+   "lines": 105,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/changestamp_darwin.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "changestamp_darwin.go",
+   "purpose": "macOS change stamp (inode ctime) for the project fingerprint.",
+   "decls": [
+    "func changeStamp"
+   ],
+   "lines": 20,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/diffpreview.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "diffpreview.go",
+   "purpose": "Unified diff previews for approvals.",
+   "decls": [
+    "const diffContext",
+    "const maxPreviewLine",
+    "func diffPreview",
+    "func boundedDiff",
+    "type diffOp",
+    "type hunk",
+    "func diffLines",
+    "func safeLine"
+   ],
+   "lines": 257,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/fingerprint.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "fingerprint.go",
+   "purpose": "Project fingerprint: a stat walk that detects changes made outside tools.",
+   "decls": [
+    "const fingerprintLimit",
+    "var cacheDirs",
+    "method Fingerprint"
+   ],
+   "lines": 94,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/flexible_edit.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "flexible_edit.go",
+   "purpose": "Fallback matching when an edit's old text is not found exactly.",
+   "decls": [
+    "func flexibleReplace",
+    "func splitLines",
+    "func firstIndent",
+    "func nearLines",
+    "func matchLines"
+   ],
+   "lines": 131,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/generated.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "generated.go",
+   "purpose": "Refuses edits to generated files.",
+   "decls": [
+    "const generatedHeaderLimit",
+    "method protectGenerated",
+    "func generatedHeader"
+   ],
+   "lines": 48,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/glob.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "glob.go",
+   "purpose": "The glob tool and its bounded matcher.",
+   "decls": [
+    "const globLimit",
+    "const globAlternatives",
+    "const globPatternBytes",
+    "type globProgram",
+    "func compileGlob",
+    "func normalizeClassNegation",
+    "func expandBraces",
+    "method matches"
+   ],
+   "lines": 276,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/ignore_walk.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "ignore_walk.go",
+   "purpose": "Applies .gitignore while walking the project.",
+   "decls": [
+    "type ignoreFilter",
+    "func newIgnoreFilter",
+    "method load",
+    "method skip"
+   ],
+   "lines": 67,
+   "uses": [
+    "internal/ignore"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/job_registry.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "job_registry.go",
+   "purpose": "Records background jobs so orphans can be cleaned up after a crash.",
+   "decls": [
+    "type registryEntry",
+    "type registryFile",
+    "type OrphanJob",
+    "method registryDir",
+    "method saveRegistry",
+    "method OrphanedJobs",
+    "method StopOrphan"
+   ],
+   "lines": 127,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/jobs.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "jobs.go",
+   "purpose": "Background jobs: start, read output, stop.",
+   "decls": [
+    "type job",
+    "method Write",
+    "type jobTable",
+    "func jobDefinitions",
+    "type jobArgs",
+    "func decodeJob",
+    "func isJobTool",
+    "method prepareJob"
+   ],
+   "lines": 365,
+   "uses": [
+    "internal/platform",
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/line_edit.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "line_edit.go",
+   "purpose": "Experimental line-range edits.",
+   "decls": [
+    "func lineEdit",
+    "func stringsTrimRight"
+   ],
+   "lines": 48,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/patch.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "patch.go",
+   "purpose": "The apply_patch tool: patch grammar, preview and atomic apply.",
+   "decls": [
+    "const maxPatchFiles",
+    "const maxPatchTotal",
+    "type patchArguments",
+    "type patchLine",
+    "type patchHunk",
+    "type patchOperation",
+    "type patchChange",
+    "func decodePatch"
+   ],
+   "lines": 670,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/process.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "process.go",
+   "purpose": "Shell execution with output capture, artifacts and timeouts.",
+   "decls": [
+    "const maxArtifact",
+    "const MaxArtifact",
+    "type captureWriter",
+    "method Write",
+    "method text",
+    "method shell"
+   ],
+   "lines": 246,
+   "uses": [
+    "internal/platform",
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/related.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "related.go",
+   "purpose": "Experimental: files that reference matched symbols.",
+   "decls": [
+    "type relatedRef",
+    "type refEntry",
+    "var identifierRe",
+    "method identifiers",
+    "method relatedFiles"
+   ],
+   "lines": 107,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/repomap.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "repomap.go",
+   "purpose": "The repo_map tool: a symbol map of the project.",
+   "decls": [
+    "const mapMaxFile",
+    "const mapMaxBytes",
+    "const mapMaxFiles",
+    "const mapMaxSymbols",
+    "const mapCacheEntries",
+    "const mapMaxResult",
+    "type mapArgs",
+    "type mapSymbol"
+   ],
+   "lines": 383,
+   "uses": [
+    "internal/platform"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/repomap_langs.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "repomap_langs.go",
+   "purpose": "Per-language declaration patterns for repo_map.",
+   "decls": [
+    "type declRule",
+    "var langRules",
+    "func mapSupported",
+    "var cKeywords",
+    "func regexSymbols",
+    "func mapLanguage"
+   ],
+   "lines": 141,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/shell_unix.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "shell_unix.go",
+   "purpose": "Unix shell command construction.",
+   "decls": [
+    "func shellCommand"
+   ],
+   "lines": 7,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tools/tools.go",
+   "kind": "file",
+   "package": "internal/tools",
+   "name": "tools.go",
+   "purpose": "Tool engine: definitions and dispatch for file, search and shell tools.",
+   "decls": [
+    "const MaxFile",
+    "const MaxInline",
+    "const maxFiles",
+    "type Definition",
+    "type Result",
+    "type Engine",
+    "type args",
+    "func New"
+   ],
+   "lines": 887,
+   "uses": [
+    "internal/platform",
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tools",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Built-in tools: files, search, patch, shell, jobs, artifacts.",
+   "files": [
+    "internal/tools/artifacts.go",
+    "internal/tools/canonical.go",
+    "internal/tools/changes.go",
+    "internal/tools/changestamp_darwin.go",
+    "internal/tools/diffpreview.go",
+    "internal/tools/fingerprint.go",
+    "internal/tools/flexible_edit.go",
+    "internal/tools/generated.go",
+    "internal/tools/glob.go",
+    "internal/tools/ignore_walk.go",
+    "internal/tools/job_registry.go",
+    "internal/tools/jobs.go",
+    "internal/tools/line_edit.go",
+    "internal/tools/patch.go",
+    "internal/tools/process.go",
+    "internal/tools/related.go",
+    "internal/tools/repomap.go",
+    "internal/tools/repomap_langs.go",
+    "internal/tools/shell_unix.go",
+    "internal/tools/tools.go"
+   ],
+   "lines": 4378,
+   "fan_out": 3,
+   "fan_in": 9
+  },
+  {
+   "id": "internal/tui/access.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "access.go",
+   "purpose": "Access level switching inside the chat (Shift+Tab).",
+   "decls": [
+    "var sessionAccess",
+    "func SessionAccessFor",
+    "func SetSessionAccessLevel",
+    "method accessLevel",
+    "method setAccess",
+    "func accessNote",
+    "method cycleAccess",
+    "func coveringLevel"
+   ],
+   "lines": 143,
+   "uses": [
+    "internal/core",
+    "internal/sandbox"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/activity.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "activity.go",
+   "purpose": "What a run is doing now, for the status line.",
+   "decls": [
+    "type activity",
+    "method track",
+    "method label",
+    "method counts"
+   ],
+   "lines": 128,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/changes.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "changes.go",
+   "purpose": "/changes panel: file checkpoints and diffs.",
+   "decls": [
+    "method openChanges",
+    "method changesUpdate"
+   ],
+   "lines": 75,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/composer.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "composer.go",
+   "purpose": "The input box: editing, cursor and grapheme handling.",
+   "decls": [
+    "func graphemeStarts",
+    "func dropLastGrapheme",
+    "method insertInput",
+    "method deleteInput",
+    "method moveCursor",
+    "func visualRows",
+    "func cellsBetween",
+    "method inputLineEnd"
+   ],
+   "lines": 290,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/copy.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "copy.go",
+   "purpose": "/copy picker for recent messages.",
+   "decls": [
+    "const maxCopyChoices",
+    "method openCopyPicker",
+    "method copyUpdate"
+   ],
+   "lines": 62,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/details.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "details.go",
+   "purpose": "Tool output markers and the /details modes.",
+   "decls": [
+    "func toolResultLines",
+    "func fetchedPageLines",
+    "func itoa",
+    "type detailsMode",
+    "func withDetails",
+    "method toggleDetails",
+    "method displayLog",
+    "func lastLineIsToolOutput"
+   ],
+   "lines": 133,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/editor.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "editor.go",
+   "purpose": "Hands the draft to $EDITOR and back.",
+   "decls": [
+    "type editorDoneMsg",
+    "func editorCommand",
+    "func normalizeEdited",
+    "method openEditor",
+    "method applyEditor",
+    "func splitWords"
+   ],
+   "lines": 139,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/effort.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "effort.go",
+   "purpose": "/effort for this session.",
+   "decls": [
+    "method setEffort"
+   ],
+   "lines": 47,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/export.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "export.go",
+   "purpose": "/export panel.",
+   "decls": [
+    "type exportPanel",
+    "type exportDoneMsg",
+    "method openExport",
+    "method exportUpdate",
+    "method exportView",
+    "func exportsHTML"
+   ],
+   "lines": 148,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/file_completion.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "file_completion.go",
+   "purpose": "@file completion with a cached project index.",
+   "decls": [
+    "type projectFile",
+    "type fileIndexMsg",
+    "const fileIndexTTL",
+    "type fileCompletion",
+    "func scanProjectFiles",
+    "func fileMatches",
+    "func subsequence",
+    "method openFileCompletion"
+   ],
+   "lines": 311,
+   "uses": [
+    "internal/ignore"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/find.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "find.go",
+   "purpose": "/find across the transcript.",
+   "decls": [
+    "type findState",
+    "method startFind",
+    "method showMatch",
+    "method findKey",
+    "method addEarlierMatches",
+    "func foldIndex",
+    "func matchExcerpt"
+   ],
+   "lines": 204,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/fork.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "fork.go",
+   "purpose": "/fork picker.",
+   "decls": [
+    "type forkOptionsMsg",
+    "method openFork",
+    "method forkUpdate"
+   ],
+   "lines": 55,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/fuzzy.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "fuzzy.go",
+   "purpose": "Fuzzy matching for pickers.",
+   "decls": [
+    "func fuzzyScore",
+    "func rankFuzzy"
+   ],
+   "lines": 62,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/host.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "host.go",
+   "purpose": "One shared Bubble Tea program that shows each screen in turn.",
+   "decls": [
+    "var host",
+    "var ErrHostEnded",
+    "func StartHost",
+    "func hosted",
+    "func showHosted",
+    "func Suspended",
+    "type backdropSetter",
+    "type hostModel"
+   ],
+   "lines": 325,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/jobs.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "jobs.go",
+   "purpose": "/jobs panel for background jobs.",
+   "decls": [
+    "type jobStoppedMsg",
+    "method openJobs",
+    "method jobsUpdate",
+    "func contextBackground",
+    "func runningJobs",
+    "func jobStatusLines",
+    "const jobsFooter"
+   ],
+   "lines": 161,
+   "uses": [
+    "internal/runtime",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/layout.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "layout.go",
+   "purpose": "Chat layout and View: header, transcript window, sidebar, composer, footer.",
+   "decls": [
+    "func paint",
+    "func cell",
+    "func fitHints",
+    "func canvas",
+    "method View",
+    "method wrapReview",
+    "method reviewRows",
+    "method visibleRows"
+   ],
+   "lines": 610,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/markdown.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "markdown.go",
+   "purpose": "Transcript rendering: Markdown, code fences, wrapping.",
+   "decls": [
+    "type transcriptRow",
+    "func fenceOpening",
+    "func fenceCloses",
+    "func fenceContext",
+    "func closeFence",
+    "func plainInline",
+    "func transcriptRows",
+    "func bracketTag"
+   ],
+   "lines": 508,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/mouse.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "mouse.go",
+   "purpose": "Mouse wheel scrolling.",
+   "decls": [
+    "func mouseMode",
+    "func blankView",
+    "func wheelAsKey",
+    "method cancelRun"
+   ],
+   "lines": 54,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/options.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "options.go",
+   "purpose": "Generic option picker used by most selection screens.",
+   "decls": [
+    "type Option",
+    "type optionPicker",
+    "method matches",
+    "method Init",
+    "method Update",
+    "method View",
+    "func overlayView",
+    "func SelectOption"
+   ],
+   "lines": 221,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/palette.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "palette.go",
+   "purpose": "The command palette.",
+   "decls": [
+    "type paletteEntry",
+    "var paletteEntries",
+    "method allPaletteEntries",
+    "method paletteEntries",
+    "method paletteKey",
+    "method paletteView"
+   ],
+   "lines": 245,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/park_view.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "park_view.go",
+   "purpose": "Keeps the chat screen across a navigation and restores it.",
+   "decls": [
+    "type parkedViewState",
+    "var parkedView",
+    "method parkView",
+    "method unparkView"
+   ],
+   "lines": 70,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/program.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "program.go",
+   "purpose": "Runs a screen as a program and carries typed keys across screen changes.",
+   "decls": [
+    "var typeAhead",
+    "func addTypeAhead",
+    "func takeTypeAhead",
+    "func runProgram",
+    "type settler",
+    "method Init",
+    "method Update",
+    "method View"
+   ],
+   "lines": 146,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/progress.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "progress.go",
+   "purpose": "Loading screen with Esc to cancel.",
+   "decls": [
+    "var ErrCancelled",
+    "type progressDone",
+    "type progressScreen",
+    "method Init",
+    "method Update",
+    "method View",
+    "func WithProgress"
+   ],
+   "lines": 85,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/providers.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "providers.go",
+   "purpose": "/providers manager screen.",
+   "decls": [
+    "type ProviderRow",
+    "type providerManager",
+    "var providerKeys",
+    "method Init",
+    "method onAdd",
+    "method Update",
+    "method View",
+    "func ManageProviders"
+   ],
+   "lines": 189,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/questions.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "questions.go",
+   "purpose": "Answering the agent's questions inside the chat.",
+   "decls": [
+    "type questionResponse",
+    "type questionMsg",
+    "type questionState",
+    "method questionKey",
+    "method followQuestionCursor",
+    "method questionCursorRow",
+    "method questionCursorVisible",
+    "method finish"
+   ],
+   "lines": 239,
+   "uses": [
+    "internal/core",
+    "internal/runtime"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/queue.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "queue.go",
+   "purpose": "Prompts queued while a run is active, parked across navigation.",
+   "decls": [
+    "const maxQueued",
+    "type queuedSubmitMsg",
+    "method activeKey",
+    "func firstLine",
+    "method afterRun",
+    "method holdReason",
+    "method unqueueLast",
+    "method submitQueued"
+   ],
+   "lines": 199,
+   "uses": [
+    "internal/commands"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/rename.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "rename.go",
+   "purpose": "/rename.",
+   "decls": [
+    "method renameSession"
+   ],
+   "lines": 32,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/run_result.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "run_result.go",
+   "purpose": "The last run's outcome from the journal.",
+   "decls": [
+    "func lastRunFromRecords",
+    "type runResult",
+    "func parseRunResult",
+    "method failedVerification",
+    "method label",
+    "method failureLine",
+    "method restoreLastRun"
+   ],
+   "lines": 130,
+   "uses": [
+    "internal/core",
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/select.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "select.go",
+   "purpose": "Session picker with previews.",
+   "decls": [
+    "type previewBatch",
+    "type chooser",
+    "method loadBatch",
+    "method Init",
+    "method matches",
+    "method Update",
+    "method View",
+    "func SelectSession"
+   ],
+   "lines": 421,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/settings.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "settings.go",
+   "purpose": "Settings form.",
+   "decls": [
+    "type SettingsField",
+    "method help",
+    "func wordWrap",
+    "method cycle",
+    "type settingsForm",
+    "method Init",
+    "method insert",
+    "method Update"
+   ],
+   "lines": 425,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/snapshots.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "snapshots.go",
+   "purpose": "Whole-project snapshot listing in chat.",
+   "decls": [
+    "method showSnapshots"
+   ],
+   "lines": 79,
+   "uses": [
+    "internal/projectsnap",
+    "internal/runtime"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/spinner.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "spinner.go",
+   "purpose": "Spinner, status line and footer text.",
+   "decls": [
+    "var Version",
+    "type spinMsg",
+    "var spinFrames",
+    "func spinTick",
+    "func humanTokens",
+    "func humanDuration",
+    "method statusLine",
+    "func shortPath"
+   ],
+   "lines": 185,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/status.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "status.go",
+   "purpose": "/status panel.",
+   "decls": [
+    "type statusPanel",
+    "method openStatus",
+    "method statusKey",
+    "method statusView",
+    "func failoverStatus",
+    "func oneLine",
+    "func guidanceStatus",
+    "func checkpointMode"
+   ],
+   "lines": 278,
+   "uses": [
+    "internal/core",
+    "internal/formatters"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/syntax.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "syntax.go",
+   "purpose": "Lexical syntax highlighting for code panels.",
+   "decls": [
+    "func highlightCode"
+   ],
+   "lines": 71,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/tables.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "tables.go",
+   "purpose": "Markdown table rendering.",
+   "decls": [
+    "func tableCells",
+    "func tableAlignment",
+    "func renderTable"
+   ],
+   "lines": 169,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/theme.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "theme.go",
+   "purpose": "Themes and colors.",
+   "decls": [
+    "type palette",
+    "var themes",
+    "var themeDescriptions",
+    "var currentTheme",
+    "const defaultTheme",
+    "var onAccent",
+    "func applyTheme",
+    "func init"
+   ],
+   "lines": 98,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/thinking.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "thinking.go",
+   "purpose": "Reasoning text and /thinking.",
+   "decls": [
+    "const thinkMark",
+    "const maxReasoning",
+    "method addReasoning",
+    "method flushReasoning",
+    "func withThinking",
+    "method toggleThinking"
+   ],
+   "lines": 65,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/timeline.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "timeline.go",
+   "purpose": "/timeline and revert to a turn.",
+   "decls": [
+    "type timelinePanel",
+    "method openTimeline",
+    "method timelineUpdate",
+    "method timelineView",
+    "method revertFrom"
+   ],
+   "lines": 138,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/timestamps.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "timestamps.go",
+   "purpose": "/timestamps.",
+   "decls": [
+    "const stampMark",
+    "func stampLine",
+    "func withStamps",
+    "func userPromptTimes",
+    "func popTime",
+    "method toggleTimestamps"
+   ],
+   "lines": 77,
+   "uses": [
+    "internal/session"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/tool_output.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "tool_output.go",
+   "purpose": "Readable tool call and result lines; compact fetched pages.",
+   "decls": [
+    "func historyToolParts",
+    "func historyToolText",
+    "func toolResultLog",
+    "func fetchedPage",
+    "func shortURL",
+    "func toolArgumentText",
+    "func toolResultText",
+    "func listingText"
+   ],
+   "lines": 383,
+   "uses": [
+    "internal/core"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/tui.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "tui.go",
+   "purpose": "The chat model: event handling, slash commands, permissions, history loading, Run.",
+   "decls": [
+    "type ChatNavigation",
+    "method Error",
+    "type permissionMsg",
+    "type mcpPromptsMsg",
+    "type doneMsg",
+    "type model",
+    "func Safe",
+    "method Init"
+   ],
+   "lines": 1747,
+   "uses": [
+    "internal/commands",
+    "internal/core",
+    "internal/provider",
+    "internal/runtime",
+    "internal/session",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/tui/workspace.go",
+   "kind": "file",
+   "package": "internal/tui",
+   "name": "workspace.go",
+   "purpose": "Workspace folder browser.",
+   "decls": [
+    "type WorkspaceChooser",
+    "func ChooseWorkspace",
+    "type workspaceRow",
+    "type workspacePicker",
+    "method browse",
+    "func isDir",
+    "method firstSelectable",
+    "method allowed"
+   ],
+   "lines": 432,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/tui",
+   "kind": "package",
+   "layer": "interface",
+   "purpose": "Bubble Tea terminal UI: chat, pickers, panels.",
+   "files": [
+    "internal/tui/access.go",
+    "internal/tui/activity.go",
+    "internal/tui/changes.go",
+    "internal/tui/composer.go",
+    "internal/tui/copy.go",
+    "internal/tui/details.go",
+    "internal/tui/editor.go",
+    "internal/tui/effort.go",
+    "internal/tui/export.go",
+    "internal/tui/file_completion.go",
+    "internal/tui/find.go",
+    "internal/tui/fork.go",
+    "internal/tui/fuzzy.go",
+    "internal/tui/host.go",
+    "internal/tui/jobs.go",
+    "internal/tui/layout.go",
+    "internal/tui/markdown.go",
+    "internal/tui/mouse.go",
+    "internal/tui/options.go",
+    "internal/tui/palette.go",
+    "internal/tui/park_view.go",
+    "internal/tui/program.go",
+    "internal/tui/progress.go",
+    "internal/tui/providers.go",
+    "internal/tui/questions.go",
+    "internal/tui/queue.go",
+    "internal/tui/rename.go",
+    "internal/tui/run_result.go",
+    "internal/tui/select.go",
+    "internal/tui/settings.go",
+    "internal/tui/snapshots.go",
+    "internal/tui/spinner.go",
+    "internal/tui/status.go",
+    "internal/tui/syntax.go",
+    "internal/tui/tables.go",
+    "internal/tui/theme.go",
+    "internal/tui/thinking.go",
+    "internal/tui/timeline.go",
+    "internal/tui/timestamps.go",
+    "internal/tui/tool_output.go",
+    "internal/tui/tui.go",
+    "internal/tui/workspace.go"
+   ],
+   "lines": 9579,
+   "fan_out": 10,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/webfetch/client.go",
+   "kind": "file",
+   "package": "internal/webfetch",
+   "name": "client.go",
+   "purpose": "The webfetch tool: safe HTTP fetch, limits, redirects, bounded results.",
+   "decls": [
+    "const MaxResponse",
+    "const maxURL",
+    "const maxRedirects",
+    "type arguments",
+    "type Client",
+    "var ErrPrivateAddress",
+    "func New",
+    "func NewAllowingPrivate"
+   ],
+   "lines": 372,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/webfetch/html.go",
+   "kind": "file",
+   "package": "internal/webfetch",
+   "name": "html.go",
+   "purpose": "HTML to Markdown or text: main content, no page chrome.",
+   "decls": [
+    "const maxHTMLTokens",
+    "const maxHTMLDepth",
+    "const maxConverted",
+    "type renderer",
+    "type position",
+    "method raw",
+    "method trailingNewlines",
+    "method emit"
+   ],
+   "lines": 586,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/webfetch",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Web page fetching and HTML conversion.",
+   "files": [
+    "internal/webfetch/client.go",
+    "internal/webfetch/html.go"
+   ],
+   "lines": 958,
+   "fan_out": 2,
+   "fan_in": 1
+  },
+  {
+   "id": "internal/websearch/websearch.go",
+   "kind": "file",
+   "package": "internal/websearch",
+   "name": "websearch.go",
+   "purpose": "The websearch tool against a SearXNG endpoint.",
+   "decls": [
+    "func Definition",
+    "func CheckURL",
+    "type args",
+    "func parse",
+    "func Prepare",
+    "func Search",
+    "func clip"
+   ],
+   "lines": 137,
+   "uses": [
+    "internal/core",
+    "internal/tools"
+   ],
+   "curated": true
+  },
+  {
+   "id": "internal/websearch",
+   "kind": "package",
+   "layer": "capabilities",
+   "purpose": "Web search through SearXNG.",
+   "files": [
+    "internal/websearch/websearch.go"
+   ],
+   "lines": 137,
+   "fan_out": 2,
+   "fan_in": 1
+  }
+ ],
+ "edges": [
+  {
+   "from": "cmd/acceptance",
+   "to": "cmd/acceptance/main.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/acceptance",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/bench",
+   "to": "cmd/bench/container.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/bench",
+   "to": "cmd/bench/experiments.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/bench",
+   "to": "cmd/bench/grade.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/bench",
+   "to": "cmd/bench/main.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/bench",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "container.go"
+   ]
+  },
+  {
+   "from": "cmd/bench",
+   "to": "internal/sandbox",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/access.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/acp.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/acp_unix.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/agents.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/attach.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/auth_list.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/changes.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/chatgpt_auth.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/completion.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/config_show.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/connect.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/export_alias.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/launcher.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/main.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/mcp_list.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/memory.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/model_cache.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/models.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/pickers.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/pr.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/remote_attach.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/salvage_offer.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/serve.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/sessions.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/sessions_table.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/snapshots.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/stats.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/uninstall.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/upgrade.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/workspaces.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "cmd/harness/worktree.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/acp",
+   "kind": "imports",
+   "files": [
+    "acp.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "acp.go",
+    "agents.go",
+    "attach.go",
+    "auth_list.go",
+    "chatgpt_auth.go",
+    "config_show.go",
+    "connect.go",
+    "launcher.go",
+    "main.go",
+    "mcp_list.go",
+    "memory.go",
+    "models.go",
+    "pickers.go",
+    "remote_attach.go",
+    "serve.go",
+    "sessions.go",
+    "stats.go",
+    "uninstall.go",
+    "workspaces.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/formatters",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/localapi",
+   "kind": "imports",
+   "files": [
+    "remote_attach.go",
+    "serve.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/mcpclient",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/memory",
+   "kind": "imports",
+   "files": [
+    "memory.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "connect.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/projectsnap",
+   "kind": "imports",
+   "files": [
+    "snapshots.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/provider",
+   "kind": "imports",
+   "files": [
+    "connect.go",
+    "models.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/remote",
+   "kind": "imports",
+   "files": [
+    "remote_attach.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/rewind",
+   "kind": "imports",
+   "files": [
+    "changes.go",
+    "launcher.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/runtime",
+   "kind": "imports",
+   "files": [
+    "main.go",
+    "remote_attach.go",
+    "snapshots.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/sandbox",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "changes.go",
+    "config_show.go",
+    "export_alias.go",
+    "launcher.go",
+    "main.go",
+    "remote_attach.go",
+    "salvage_offer.go",
+    "sessions.go",
+    "sessions_table.go",
+    "snapshots.go",
+    "stats.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/snapshots",
+   "kind": "imports",
+   "files": [
+    "changes.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "attach.go",
+    "main.go"
+   ]
+  },
+  {
+   "from": "cmd/harness",
+   "to": "internal/tui",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "agents.go",
+    "auth_list.go",
+    "chatgpt_auth.go",
+    "connect.go",
+    "launcher.go",
+    "main.go",
+    "mcp_list.go",
+    "model_cache.go",
+    "pickers.go",
+    "remote_attach.go",
+    "sessions.go",
+    "sessions_table.go",
+    "snapshots.go",
+    "stats.go"
+   ]
+  },
+  {
+   "from": "cmd/scripted-model",
+   "to": "cmd/scripted-model/main.go",
+   "kind": "contains"
+  },
+  {
+   "from": "cmd/scripted-model",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "main.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/acp/mcp.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/acp/server.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/acp/turn.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "mcp.go",
+    "server.go",
+    "turn.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/mcpclient",
+   "kind": "imports",
+   "files": [
+    "server.go",
+    "turn.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/provider",
+   "kind": "imports",
+   "files": [
+    "turn.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/runtime",
+   "kind": "imports",
+   "files": [
+    "server.go",
+    "turn.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "server.go"
+   ]
+  },
+  {
+   "from": "internal/acp",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "turn.go"
+   ]
+  },
+  {
+   "from": "internal/commands",
+   "to": "internal/commands/builtin.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/commands",
+   "to": "internal/commands/commands.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/commands",
+   "to": "internal/commands/discover.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/commands",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "builtin.go",
+    "commands.go",
+    "discover.go"
+   ]
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/access.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/agentfiles.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/chatgpt_auth.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/chatgpt_window.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/config.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/credential_source.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/credential_store.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/fileblock.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/formatter_detect.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/jsonc.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/keybinds.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/lsp_detect.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/product.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/profiles.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/provider_catalog.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/providers.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/question.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/reasoning.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/redact.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/routing.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/shellrules.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/todo.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/types.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/user_settings.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/core/workspaces.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "chatgpt_auth.go",
+    "config.go",
+    "user_settings.go"
+   ]
+  },
+  {
+   "from": "internal/core",
+   "to": "internal/secretstore",
+   "kind": "imports",
+   "files": [
+    "credential_store.go"
+   ]
+  },
+  {
+   "from": "internal/formatters",
+   "to": "internal/formatters/formatters.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/formatters",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "formatters.go"
+   ]
+  },
+  {
+   "from": "internal/ignore",
+   "to": "internal/ignore/ignore.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/localapi",
+   "to": "internal/localapi/server.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/localapi",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "server.go"
+   ]
+  },
+  {
+   "from": "internal/localapi",
+   "to": "internal/mcpclient",
+   "kind": "imports",
+   "files": [
+    "server.go"
+   ]
+  },
+  {
+   "from": "internal/localapi",
+   "to": "internal/runtime",
+   "kind": "imports",
+   "files": [
+    "server.go"
+   ]
+  },
+  {
+   "from": "internal/localapi",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "server.go"
+   ]
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/lspclient/client.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/lspclient/edit_errors.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/lspclient/process.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/lspclient/rpc.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "client.go",
+    "process.go"
+   ]
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "client.go",
+    "process.go"
+   ]
+  },
+  {
+   "from": "internal/lspclient",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/mcpclient/client.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/mcpclient/prompts.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/mcpclient/remote.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/mcpclient/resources.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "client.go",
+    "prompts.go",
+    "remote.go",
+    "resources.go"
+   ]
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/mcpclient",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "client.go",
+    "resources.go"
+   ]
+  },
+  {
+   "from": "internal/memory",
+   "to": "internal/memory/ledger.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/memory",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "ledger.go"
+   ]
+  },
+  {
+   "from": "internal/memory",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "ledger.go"
+   ]
+  },
+  {
+   "from": "internal/platform",
+   "to": "internal/platform/env.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/platform",
+   "to": "internal/platform/platform.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/platform",
+   "to": "internal/platform/platform_unix.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/projectsnap",
+   "to": "internal/projectsnap/projectsnap.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/projectsnap",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "projectsnap.go"
+   ]
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/anthropic.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/chat.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/completion_json.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/errors.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/models.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/progress.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/provider/responses.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "anthropic.go",
+    "chat.go",
+    "completion_json.go",
+    "models.go",
+    "progress.go",
+    "responses.go"
+   ]
+  },
+  {
+   "from": "internal/remote",
+   "to": "internal/remote/client.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/remote",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/remote",
+   "to": "internal/localapi",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/remote",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/rewind",
+   "to": "internal/rewind/rewind.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/rewind",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "rewind.go"
+   ]
+  },
+  {
+   "from": "internal/rewind",
+   "to": "internal/snapshots",
+   "kind": "imports",
+   "files": [
+    "rewind.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/access.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/agent_mention.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/auto_title.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/change_tools.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/compact.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/compaction_evidence.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/effort.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/experiments.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/fetch_artifact.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/file_mentions.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/formatting.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/grant_scope.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/hooks.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/images.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/masking.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/mcp_prompts.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/memory.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/outcome.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/pinned.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/plan_exit.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/policy.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/project_snapshot.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/question.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/readonly.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/recall_replay.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/repeat.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/request_cap.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/routing.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/runtime.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/sandbox_policy.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/session_changes.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/skill.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/subagents.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/todo.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/user_shell.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/runtime/verify.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/commands",
+   "kind": "imports",
+   "files": [
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "auto_title.go",
+    "change_tools.go",
+    "compaction_evidence.go",
+    "experiments.go",
+    "file_mentions.go",
+    "formatting.go",
+    "grant_scope.go",
+    "hooks.go",
+    "images.go",
+    "masking.go",
+    "mcp_prompts.go",
+    "memory.go",
+    "outcome.go",
+    "pinned.go",
+    "plan_exit.go",
+    "policy.go",
+    "question.go",
+    "recall_replay.go",
+    "repeat.go",
+    "request_cap.go",
+    "routing.go",
+    "runtime.go",
+    "sandbox_policy.go",
+    "skill.go",
+    "subagents.go",
+    "todo.go",
+    "user_shell.go",
+    "verify.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/formatters",
+   "kind": "imports",
+   "files": [
+    "change_tools.go",
+    "formatting.go",
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/lspclient",
+   "kind": "imports",
+   "files": [
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/memory",
+   "kind": "imports",
+   "files": [
+    "memory.go",
+    "recall_replay.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "hooks.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/projectsnap",
+   "kind": "imports",
+   "files": [
+    "project_snapshot.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/provider",
+   "kind": "imports",
+   "files": [
+    "effort.go",
+    "request_cap.go",
+    "routing.go",
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/sandbox",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "hooks.go",
+    "sandbox_policy.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "auto_title.go",
+    "compaction_evidence.go",
+    "runtime.go",
+    "subagents.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/skills",
+   "kind": "imports",
+   "files": [
+    "runtime.go",
+    "skill.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/snapshots",
+   "kind": "imports",
+   "files": [
+    "change_tools.go",
+    "formatting.go",
+    "session_changes.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/structured",
+   "kind": "imports",
+   "files": [
+    "subagents.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "change_tools.go",
+    "compaction_evidence.go",
+    "experiments.go",
+    "fetch_artifact.go",
+    "file_mentions.go",
+    "formatting.go",
+    "hooks.go",
+    "memory.go",
+    "outcome.go",
+    "plan_exit.go",
+    "question.go",
+    "recall_replay.go",
+    "runtime.go",
+    "skill.go",
+    "subagents.go",
+    "todo.go",
+    "user_shell.go",
+    "verify.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/webfetch",
+   "kind": "imports",
+   "files": [
+    "fetch_artifact.go",
+    "policy.go",
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/runtime",
+   "to": "internal/websearch",
+   "kind": "imports",
+   "files": [
+    "policy.go",
+    "runtime.go"
+   ]
+  },
+  {
+   "from": "internal/sandbox",
+   "to": "internal/sandbox/container.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/sandbox",
+   "to": "internal/sandbox/sandbox.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/sandbox",
+   "to": "internal/sandbox/sandbox_darwin.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/secretstore",
+   "to": "internal/secretstore/secretstore.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/secretstore",
+   "to": "internal/secretstore/store_darwin.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/compaction.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/export_file.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/html.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/latest.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/meta.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/portable.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/preview.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/redact.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/salvage.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/session.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/stats.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/transcript.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/session/user_turns.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "compaction.go",
+    "html.go",
+    "portable.go",
+    "preview.go",
+    "redact.go",
+    "transcript.go",
+    "user_turns.go"
+   ]
+  },
+  {
+   "from": "internal/session",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "export_file.go",
+    "meta.go",
+    "portable.go",
+    "salvage.go",
+    "session.go",
+    "stats.go"
+   ]
+  },
+  {
+   "from": "internal/skills",
+   "to": "internal/skills/catalog.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/skills",
+   "to": "internal/skills/frontmatter.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/skills",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "catalog.go"
+   ]
+  },
+  {
+   "from": "internal/snapshots",
+   "to": "internal/snapshots/snapshots.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/snapshots",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "snapshots.go"
+   ]
+  },
+  {
+   "from": "internal/structured",
+   "to": "internal/structured/output.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/testutil",
+   "to": "internal/testutil/fifo_unix.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/testutil",
+   "to": "internal/testutil/lsp.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/testutil",
+   "to": "internal/testutil/platform.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/artifacts.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/canonical.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/changes.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/changestamp_darwin.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/diffpreview.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/fingerprint.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/flexible_edit.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/generated.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/glob.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/ignore_walk.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/job_registry.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/jobs.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/line_edit.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/patch.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/process.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/related.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/repomap.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/repomap_langs.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/shell_unix.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/tools/tools.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/ignore",
+   "kind": "imports",
+   "files": [
+    "ignore_walk.go"
+   ]
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/platform",
+   "kind": "imports",
+   "files": [
+    "artifacts.go",
+    "job_registry.go",
+    "jobs.go",
+    "patch.go",
+    "process.go",
+    "repomap.go",
+    "tools.go"
+   ]
+  },
+  {
+   "from": "internal/tools",
+   "to": "internal/sandbox",
+   "kind": "imports",
+   "files": [
+    "jobs.go",
+    "process.go",
+    "tools.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/access.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/activity.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/changes.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/composer.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/copy.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/details.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/editor.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/effort.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/export.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/file_completion.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/find.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/fork.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/fuzzy.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/host.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/jobs.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/layout.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/markdown.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/mouse.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/options.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/palette.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/park_view.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/program.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/progress.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/providers.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/questions.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/queue.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/rename.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/run_result.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/select.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/settings.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/snapshots.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/spinner.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/status.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/syntax.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/tables.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/theme.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/thinking.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/timeline.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/timestamps.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/tool_output.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/tui.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tui/workspace.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/commands",
+   "kind": "imports",
+   "files": [
+    "queue.go",
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "access.go",
+    "activity.go",
+    "effort.go",
+    "find.go",
+    "questions.go",
+    "run_result.go",
+    "status.go",
+    "theme.go",
+    "tool_output.go",
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/formatters",
+   "kind": "imports",
+   "files": [
+    "status.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/ignore",
+   "kind": "imports",
+   "files": [
+    "file_completion.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/projectsnap",
+   "kind": "imports",
+   "files": [
+    "snapshots.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/provider",
+   "kind": "imports",
+   "files": [
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/runtime",
+   "kind": "imports",
+   "files": [
+    "jobs.go",
+    "questions.go",
+    "snapshots.go",
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/sandbox",
+   "kind": "imports",
+   "files": [
+    "access.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/session",
+   "kind": "imports",
+   "files": [
+    "export.go",
+    "rename.go",
+    "run_result.go",
+    "select.go",
+    "timestamps.go",
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/tui",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "jobs.go",
+    "tui.go"
+   ]
+  },
+  {
+   "from": "internal/webfetch",
+   "to": "internal/webfetch/client.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/webfetch",
+   "to": "internal/webfetch/html.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/webfetch",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/webfetch",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "client.go"
+   ]
+  },
+  {
+   "from": "internal/websearch",
+   "to": "internal/websearch/websearch.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/websearch",
+   "to": "internal/core",
+   "kind": "imports",
+   "files": [
+    "websearch.go"
+   ]
+  },
+  {
+   "from": "internal/websearch",
+   "to": "internal/tools",
+   "kind": "imports",
+   "files": [
+    "websearch.go"
+   ]
+  }
+ ]
+}

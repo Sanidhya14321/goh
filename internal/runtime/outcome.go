@@ -112,7 +112,11 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 			a.verifiedAfterChange = false
 			a.evidence = nil
 		}
-	} else if a.noticeUntrackedChanges() {
+	} else if !(c.Function.Name == "shell" && readOnlyCommand(args.Command)) && a.noticeUntrackedChanges() {
+		// A command recognized as read-only (the recognizer that also lets
+		// it run without asking) skips the project walk; changes from
+		// background jobs are still noticed at the next writing command and
+		// when the run ends.
 		return // the command changed files, so it did not check them
 	}
 	if c.Function.Name != "shell" || r.Error {

@@ -388,3 +388,34 @@ func TestBudgetCheckedBeforeCompaction(t *testing.T) {
 		t.Fatalf("status %s, turns %d, summary calls %d, compactions %d (%v)", status, turns, summaries, compactions, err)
 	}
 }
+
+// A read-only check skips the project walk, but a change made behind the
+// agent's back before it (a background job, another program) is still noticed
+// when the run ends, so the run is not reported as verified.
+func TestReadOnlyCheckStillSeesOutOfBandChanges(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, root := testAgent(t)
+	a.Grants["create_file"], a.Grants["shell"] = true, true
+	turn := 0
+	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
+		turn++
+		switch turn {
+		case 1:
+			return answer(toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})), nil
+		case 2:
+			// Something else writes to the project before the check runs.
+			if err := os.WriteFile(filepath.Join(root, "other.txt"), []byte("changed elsewhere\n"), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			return answer(toolCall("t", "shell", map[string]any{"command": "test -f new.txt"})), nil
+		}
+		return answer(), nil
+	})
+	a.Run(context.Background(), "go")
+	if !readOnlyCommand("test -f new.txt") {
+		t.Fatal("precondition: the check must be recognized as read-only")
+	}
+	if got := lastFinished(t, a)["outcome"]; got == OutcomeVerified {
+		t.Fatalf("an out-of-band change before a read-only check was missed: %v", lastFinished(t, a))
+	}
+}

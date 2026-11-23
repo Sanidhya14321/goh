@@ -42,6 +42,16 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   "Agent: build" after Esc, a label that may already be on screen and need not be redrawn) did not
   reproduce on this machine and is independent of these changes.
 
+## Unreleased: architecture graph and timing
+
+- Graph: 30 packages, 219 files, 87 internal import edges; every file and package has a curated purpose.
+- Timings (this machine): chat frame with a 120 KiB transcript 0.5–1.0 ms; journal open plus
+  `agent.New` on the largest local session 4–8 ms; `goh run` start to request 15–45 ms. Live
+  ChatGPT (two runs per setting, one-word prompt): first token 2.4–3.6 s at the default effort and
+  2.4–2.7 s at `low`. Tool schemas: 20 tools, about 9.5 KB per request.
+- `TestReadOnlyCheckStillSeesOutOfBandChanges` covers skipping the change scan after read-only
+  commands. `go vet ./...`, `go test ./...`, `make acceptance` and all six PTY suites pass.
+
 ## Unreleased: navigation continuity and where slow runs spend their time
 
 - Measured in a PTY (`/models` then Esc, scripted model, 100×30): opening the picker takes 10–15 ms

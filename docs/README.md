@@ -4,6 +4,7 @@
 | --- | --- |
 | [User guide](USER_GUIDE.md) | Everything `goh` does and every setting |
 | [Architecture](ARCHITECTURE.md) | How the code is organised and how a prompt flows through it |
+| [Architecture graph](architecture/graph.json) | Generated graph of every package and file, its purpose and imports (`python3 scripts/archgraph/archgraph.py`; purposes in `architecture/purposes.json`) |
 | [Changelog](../CHANGELOG.md) | What changed in each release |
 | [Benchmarks](benchmarks/README.md) | Agent results on hidden-test tasks, plus microbenchmarks |
 

@@ -13,7 +13,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
-	"github.com/Sanidhya14321/goh/internal/session"
 )
 
 const toolNamespace = "goharness"
@@ -321,7 +320,7 @@ func responsesStreamError(raw string) error {
 	// Both fields come from the provider and end up in events and the
 	// journal: keep the code to an identifier, and strip control characters
 	// and credential-shaped text from a bounded message.
-	if !errorCode.MatchString(code) || session.RedactSecrets(code) != code {
+	if !errorCode.MatchString(code) || core.RedactSecrets(code) != code {
 		code = ""
 	}
 	msg = strings.Map(func(r rune) rune {
@@ -330,7 +329,7 @@ func responsesStreamError(raw string) error {
 		}
 		return r
 	}, msg)
-	msg = session.RedactSecrets(strings.Join(strings.Fields(msg), " "))
+	msg = core.RedactSecrets(strings.Join(strings.Fields(msg), " "))
 	if r := []rune(msg); len(r) > 300 {
 		msg = string(r[:300]) + "…"
 	}
