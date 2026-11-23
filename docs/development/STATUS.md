@@ -44,6 +44,8 @@ them. No manual Windows session has been run.
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
 | MCP | No OAuth for remote MCP servers | Needs a real OAuth MCP server to build against |
 | Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
+| Providers | A fallback's stated request cap is only used to skip that fallback; its request is not shrunk to fit it. `max_run_tokens` is checked between requests, so one request can finish above it | The primary keeps cap learning; per-route compaction would be a larger change |
+| Verification | A check inside a pipeline, after `\|\|`, followed by another command, or using a redirect such as `2>&1` does not count as verification even when it passed | Its exit status cannot be tied to the check from the command text; run the check on its own or use `verify` |
 | Attach | `goh attach` works only with a loopback `goh serve` | Remote servers are out of scope |
 | CI | On Windows runners, `TestRealClangd` and `TestParentChildCancellationUnderLoad` failed together in 3 of 8 runs on 17 Nov and again on 19 Nov (run 44553177409): clangd took over 15 s to initialize and six PowerShell children took over 30 s to start while other packages ran | Runner load. Both tests now allow a slower start-up (45 s LSP operations in the clangd test, 120 s child start on Windows) without loosening the cancellation and approval checks they measure; watch whether they recur |
 

@@ -8,6 +8,28 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: correctness follow-up (memory, routes, usage, verification, approvals)
+
+- Each fix has a regression that fails on the previous code (checked by reverting or stubbing the
+  fix): `TestCompactionSummaryOmitsRecallBodies` (six cases, manual and automatic, evidence changed
+  before or after compaction, deleted, memory off; a scripted model echoes its whole input, and the
+  note body reached the summary in every case), `TestLargeRecallResultIsNotExcerpted`,
+  `TestRecallObservationRefusesProjectNotes`, `TestCompactionStatusFollowsCause` (provider 401 was
+  `budget_exhausted` through both entry points), `TestFallbackRefusalPreservesPrimaryWindow` (primary
+  1,048,576 became 50,000), `TestSameModelFallbackDoesNotCalibratePrimary`,
+  `TestInterruptedAttemptUsageCountsBeforeRetry` (60 tokens against a 50 limit: one request, one
+  discarded usage record, no tool run), `TestInterruptedAttemptsRecordedWithAndWithoutUsage`,
+  `TestChildUsageAggregatedOnce`, `TestShellOperationStartsWithOwnCounters`,
+  `TestImageHistoryBoundedByRequestBytes` (four 3 MiB images were all resent),
+  `TestHandledCheckFailureIsNotVerification` (four handled-failure forms were `verified`),
+  `TestApprovalAfterResizeRequiresEveryLineSeen` (a command line was approved without ever being on
+  screen). Also `TestFreshNoteRecallableAfterCompaction`, `TestPrimaryRefusalTeachesPrimary`,
+  `TestPreResponseErrorThenFallbackUsage`, `TestSmallImageHistoryUnchanged`,
+  `TestOversizedRequestErrorIsActionable`, `TestCheckStatusAttributable`,
+  `TestCheckStatusAttributableTerminators`, `TestContextMeterOmitsDenominatorForFallback`.
+- `go vet ./...`, `go test ./...`, `go test -race ./internal/runtime ./internal/tui` and
+  `make acceptance` pass. PTY suites and live providers were not run for this change.
+
 ## Unreleased: readable webfetch pages and transcript prose
 
 - Reproduced on `0c71fed` with a code-host repository fixture

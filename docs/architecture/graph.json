@@ -1868,15 +1868,15 @@
    "purpose": "OpenAI Chat Completions adapter: streaming, retries, rate-limit waits.",
    "decls": [
     "const maxResponse",
+    "const MaxRequestBytes",
     "var ErrConnection",
     "var ErrInterrupted",
     "var ErrRejectedOutput",
     "var errorIdentifier",
     "func streamError",
-    "type FinishError",
-    "method Error"
+    "type FinishError"
    ],
-   "lines": 521,
+   "lines": 524,
    "uses": [
     "internal/core"
    ],
@@ -1996,7 +1996,7 @@
     "internal/provider/progress.go",
     "internal/provider/responses.go"
    ],
-   "lines": 2251,
+   "lines": 2254,
    "fan_out": 1,
    "fan_in": 4
   },
@@ -2150,6 +2150,21 @@
    "curated": true
   },
   {
+   "id": "internal/runtime/check_status.go",
+   "kind": "file",
+   "package": "internal/runtime",
+   "name": "check_status.go",
+   "purpose": "Decides whether a shell command's exit status belongs to the checks it runs.",
+   "decls": [
+    "func checkStatusAttributable",
+    "var shellKeywords",
+    "func shellList"
+   ],
+   "lines": 162,
+   "uses": [],
+   "curated": true
+  },
+  {
    "id": "internal/runtime/compact.go",
    "kind": "file",
    "package": "internal/runtime",
@@ -2159,7 +2174,7 @@
     "method CompactWith",
     "method Compact"
    ],
-   "lines": 52,
+   "lines": 53,
    "uses": [],
    "curated": true
   },
@@ -2211,7 +2226,7 @@
     "func recallDefinition",
     "const recallPage"
    ],
-   "lines": 220,
+   "lines": 226,
    "uses": [
     "internal/core",
     "internal/tools"
@@ -2328,11 +2343,14 @@
     "var imageTypes",
     "method promptImages",
     "func imageMagicMatches",
-    "func withoutImages"
+    "func withoutImages",
+    "const requestImageMargin",
+    "func boundImageHistory"
    ],
-   "lines": 130,
+   "lines": 201,
    "uses": [
-    "internal/core"
+    "internal/core",
+    "internal/provider"
    ],
    "curated": true
   },
@@ -2352,7 +2370,7 @@
     "const excerptNote",
     "func shrinkLargeResults"
    ],
-   "lines": 169,
+   "lines": 178,
    "uses": [
     "internal/core"
    ],
@@ -2411,7 +2429,7 @@
     "method noticeUntrackedChanges",
     "method mayHaveChanged"
    ],
-   "lines": 465,
+   "lines": 470,
    "uses": [
     "internal/core",
     "internal/tools"
@@ -2535,12 +2553,14 @@
    "kind": "file",
    "package": "internal/runtime",
    "name": "recall_replay.go",
-   "purpose": "Rechecks recalled memory against live files before reuse.",
+   "purpose": "Rechecks recalled memory before replay; keeps note text out of summaries.",
    "decls": [
     "const withdrawnNote",
-    "method revalidateRecalls"
+    "method revalidateRecalls",
+    "func withoutRecallBodies",
+    "func recallReceipt"
    ],
-   "lines": 72,
+   "lines": 109,
    "uses": [
     "internal/core",
     "internal/memory",
@@ -2598,14 +2618,14 @@
    "decls": [
     "method modelForRole",
     "method completeWithFailover",
+    "method recordUsage",
+    "method chargeFailed",
+    "var errRunTokens",
+    "method tokenBudgetErr",
     "method completeRoutes",
-    "const providerCooldown",
-    "func cooldownKey",
-    "method startCooldown",
-    "method coolingDown",
-    "method now"
+    "const providerCooldown"
    ],
-   "lines": 277,
+   "lines": 365,
    "uses": [
     "internal/core",
     "internal/provider"
@@ -2628,7 +2648,7 @@
     "method event",
     "method commit"
    ],
-   "lines": 1757,
+   "lines": 1802,
    "uses": [
     "internal/commands",
     "internal/core",
@@ -2713,7 +2733,7 @@
     "func parseTask",
     "method childConfiguration"
    ],
-   "lines": 351,
+   "lines": 352,
    "uses": [
     "internal/core",
     "internal/session",
@@ -2738,7 +2758,7 @@
     "method executeTodos",
     "method taskContext"
    ],
-   "lines": 136,
+   "lines": 137,
    "uses": [
     "internal/core",
     "internal/tools"
@@ -2754,7 +2774,7 @@
    "decls": [
     "method RunShell"
    ],
-   "lines": 97,
+   "lines": 98,
    "uses": [
     "internal/core",
     "internal/tools"
@@ -2790,6 +2810,7 @@
     "internal/runtime/agent_mention.go",
     "internal/runtime/auto_title.go",
     "internal/runtime/change_tools.go",
+    "internal/runtime/check_status.go",
     "internal/runtime/compact.go",
     "internal/runtime/compaction_evidence.go",
     "internal/runtime/effort.go",
@@ -2823,7 +2844,7 @@
     "internal/runtime/user_shell.go",
     "internal/runtime/verify.go"
    ],
-   "lines": 6375,
+   "lines": 6802,
    "fan_out": 16,
    "fan_in": 4
   },
@@ -4071,10 +4092,10 @@
     "func canvas",
     "method View",
     "method wrapReview",
-    "method reviewRows",
-    "method visibleRows"
+    "method noteReviewWidth",
+    "method reviewRows"
    ],
-   "lines": 610,
+   "lines": 631,
    "uses": [],
    "curated": true
   },
@@ -4553,7 +4574,7 @@
     "func Safe",
     "method Init"
    ],
-   "lines": 1747,
+   "lines": 1754,
    "uses": [
     "internal/commands",
     "internal/core",
@@ -4633,7 +4654,7 @@
     "internal/tui/tui.go",
     "internal/tui/workspace.go"
    ],
-   "lines": 9579,
+   "lines": 9607,
    "fan_out": 10,
    "fan_in": 1
   },
@@ -5684,6 +5705,11 @@
   },
   {
    "from": "internal/runtime",
+   "to": "internal/runtime/check_status.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/runtime",
    "to": "internal/runtime/compact.go",
    "kind": "contains"
   },
@@ -5935,6 +5961,7 @@
    "kind": "imports",
    "files": [
     "effort.go",
+    "images.go",
     "request_cap.go",
     "routing.go",
     "runtime.go"
