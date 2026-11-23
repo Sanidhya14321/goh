@@ -104,15 +104,15 @@
    "purpose": "goh-bench runner: prepares task trees, runs the agent, regrades cleanly and writes reports.",
    "decls": [
     "type task",
+    "type answerSpec",
+    "method check",
     "var fullCommit",
     "method sourceTree",
     "type Result",
     "type purposeTokens",
-    "func main",
-    "func writeManifest",
-    "func fail"
+    "func main"
    ],
-   "lines": 1051,
+   "lines": 1273,
    "uses": [
     "internal/sandbox"
    ],
@@ -129,7 +129,7 @@
     "cmd/bench/grade.go",
     "cmd/bench/main.go"
    ],
-   "lines": 1823,
+   "lines": 2045,
    "fan_out": 2,
    "fan_in": 0
   },
@@ -759,7 +759,7 @@
     "func main",
     "func serve"
    ],
-   "lines": 215,
+   "lines": 214,
    "uses": [
     "internal/core"
    ],
@@ -773,7 +773,7 @@
    "files": [
     "cmd/scripted-model/main.go"
    ],
-   "lines": 215,
+   "lines": 214,
    "fan_out": 1,
    "fan_in": 0
   },
@@ -1854,7 +1854,7 @@
     "type anthropicMessage",
     "type anthropicTool"
    ],
-   "lines": 888,
+   "lines": 885,
    "uses": [
     "internal/core"
    ],
@@ -1876,7 +1876,7 @@
     "func streamError",
     "type FinishError"
    ],
-   "lines": 524,
+   "lines": 527,
    "uses": [
     "internal/core"
    ],
@@ -1976,10 +1976,28 @@
     "func parseResponsesStream",
     "func decodeResponses"
    ],
-   "lines": 361,
+   "lines": 362,
    "uses": [
     "internal/core"
    ],
+   "curated": true
+  },
+  {
+   "id": "internal/provider/tool_results.go",
+   "kind": "file",
+   "package": "internal/provider",
+   "name": "tool_results.go",
+   "purpose": "Renders tool results as plain text for the wire: main output verbatim, one line of fields.",
+   "decls": [
+    "func ToolResultText",
+    "func decodeObject",
+    "func compactFields",
+    "func grepLines",
+    "func stringList",
+    "func joinNonEmpty"
+   ],
+   "lines": 153,
+   "uses": [],
    "curated": true
   },
   {
@@ -1994,9 +2012,10 @@
     "internal/provider/errors.go",
     "internal/provider/models.go",
     "internal/provider/progress.go",
-    "internal/provider/responses.go"
+    "internal/provider/responses.go",
+    "internal/provider/tool_results.go"
    ],
-   "lines": 2254,
+   "lines": 2408,
    "fan_out": 1,
    "fan_in": 4
   },
@@ -2482,9 +2501,10 @@
     "method isPlan",
     "method allowedInPlan",
     "method checkMode",
-    "method localDefinitions"
+    "method localDefinitions",
+    "var unadvertisedTools"
    ],
-   "lines": 62,
+   "lines": 82,
    "uses": [
     "internal/core",
     "internal/webfetch",
@@ -2844,9 +2864,36 @@
     "internal/runtime/user_shell.go",
     "internal/runtime/verify.go"
    ],
-   "lines": 6802,
+   "lines": 6822,
    "fan_out": 16,
    "fan_in": 4
+  },
+  {
+   "id": "internal/sandbox/cache_env.go",
+   "kind": "file",
+   "package": "internal/sandbox",
+   "name": "cache_env.go",
+   "purpose": "Points build and package caches of sandboxed commands at a private temporary folder.",
+   "decls": [
+    "var cacheVars",
+    "func withSandboxCaches"
+   ],
+   "lines": 49,
+   "uses": [],
+   "curated": true
+  },
+  {
+   "id": "internal/sandbox/cache_unix.go",
+   "kind": "file",
+   "package": "internal/sandbox",
+   "name": "cache_unix.go",
+   "purpose": "Checks that the sandbox cache folder is a private directory this user owns.",
+   "decls": [
+    "func privateDir"
+   ],
+   "lines": 19,
+   "uses": [],
+   "curated": true
   },
   {
    "id": "internal/sandbox/container.go",
@@ -2878,7 +2925,7 @@
     "func encodePolicy",
     "func decodePolicy"
    ],
-   "lines": 124,
+   "lines": 128,
    "uses": [],
    "curated": true
   },
@@ -2907,11 +2954,13 @@
    "layer": "foundation",
    "purpose": "Command sandboxing (sandbox-exec, Landlock, containers).",
    "files": [
+    "internal/sandbox/cache_env.go",
+    "internal/sandbox/cache_unix.go",
     "internal/sandbox/container.go",
     "internal/sandbox/sandbox.go",
     "internal/sandbox/sandbox_darwin.go"
    ],
-   "lines": 243,
+   "lines": 315,
    "fan_out": 0,
    "fan_in": 5
   },
@@ -3764,7 +3813,7 @@
     "type args",
     "func New"
    ],
-   "lines": 887,
+   "lines": 948,
    "uses": [
     "internal/platform",
     "internal/sandbox"
@@ -3798,7 +3847,7 @@
     "internal/tools/shell_unix.go",
     "internal/tools/tools.go"
    ],
-   "lines": 4378,
+   "lines": 4439,
    "fan_out": 3,
    "fan_in": 9
   },
@@ -3837,7 +3886,7 @@
     "method label",
     "method counts"
    ],
-   "lines": 128,
+   "lines": 131,
    "uses": [
     "internal/core"
    ],
@@ -4095,7 +4144,7 @@
     "method noteReviewWidth",
     "method reviewRows"
    ],
-   "lines": 631,
+   "lines": 678,
    "uses": [],
    "curated": true
   },
@@ -4185,7 +4234,7 @@
     "method parkView",
     "method unparkView"
    ],
-   "lines": 70,
+   "lines": 73,
    "uses": [],
    "curated": true
   },
@@ -4401,10 +4450,10 @@
     "func spinTick",
     "func humanTokens",
     "func humanDuration",
-    "method statusLine",
-    "func shortPath"
+    "func liveDuration",
+    "method statusLine"
    ],
-   "lines": 185,
+   "lines": 198,
    "uses": [],
    "curated": true
   },
@@ -4574,7 +4623,7 @@
     "func Safe",
     "method Init"
    ],
-   "lines": 1754,
+   "lines": 1815,
    "uses": [
     "internal/commands",
     "internal/core",
@@ -4654,7 +4703,7 @@
     "internal/tui/tui.go",
     "internal/tui/workspace.go"
    ],
-   "lines": 9607,
+   "lines": 9734,
    "fan_out": 10,
    "fan_in": 1
   },
@@ -5622,6 +5671,11 @@
   },
   {
    "from": "internal/provider",
+   "to": "internal/provider/tool_results.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/provider",
    "to": "internal/core",
    "kind": "imports",
    "files": [
@@ -6059,6 +6113,16 @@
     "policy.go",
     "runtime.go"
    ]
+  },
+  {
+   "from": "internal/sandbox",
+   "to": "internal/sandbox/cache_env.go",
+   "kind": "contains"
+  },
+  {
+   "from": "internal/sandbox",
+   "to": "internal/sandbox/cache_unix.go",
+   "kind": "contains"
   },
   {
    "from": "internal/sandbox",

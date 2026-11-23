@@ -4,38 +4,46 @@ GoHarness releases, newest first. Dates are commit dates.
 Each entry lists user-visible changes; evidence for each is in
 [VERIFICATION.md](docs/development/VERIFICATION.md).
 
-## Unreleased
+## 1.1.0 — 2026-11-23
 
-- **Correctness follow-up (memory, routes, usage, verification, approvals):**
-  - A compaction summary no longer carries project-note text. `memory_recall` results reach the summarizer (automatic and `/compact`) as a short receipt, an oversized recall result is replaced by a receipt instead of a raw excerpt, and `recall_observation` refuses recall results. A note that was stale, or became stale after compaction, could come back as summary prose; notes stay available through `memory_recall`, which rechecks their evidence. The journal keeps the original result.
-  - Compaction reports why it failed: a provider error (for example 401), a journal error or cancellation is `failed`/`cancelled` with the cause kept; only lack of room is `budget_exhausted`.
-  - A fallback route's request cap no longer shrinks the primary's window, and fallback usage no longer calibrates the primary's token estimate (routes can share a model name at different endpoints). A fallback that refuses a request as too large is not sent the same request again; the run stops with its refusal, and later turns skip it while the request exceeds the cap it stated. `assistant_completed` carries `fallback` (the profile) when a fallback served the reply, and the sidebar meter then shows the token count without the primary's window.
-  - Usage a provider reports for a reply that was then discarded (interrupted stream, refused output) is recorded (`"discarded": true` in the `usage` record) and counted against `max_run_tokens` before a retry or fallback is sent; once the limit is reached no further request is made (`budget_exhausted`). A child task's unreported usage is reported by its parent, and `!command` and `/compact` start with their own counters instead of the previous run's.
-  - Earlier image attachments are not resent when they would push the request over the 16 MiB limit: the current prompt's images are kept and older ones become a path note in the request only. A request that still exceeds the limit fails before sending with a message that suggests `/compact` or fewer images.
-  - A shell command whose exit status does not belong to the check it runs (`go test ./... || true`, `pytest; echo done`, `go test ./... | tail`, subshells and control keywords) no longer marks a run `verified`. A check alone, joined with `&&`, or last after `;` still does.
-  - An approval preview that is rewrapped at a new width (a resize, or switching layouts) starts its review from the top again; previously progress counted in rows at the old width could let a command be approved with part of it never shown.
+Fewer tokens and faster runs for every kind of prompt, from `hello` to debugging a 6,000-line file,
+measured on a new prompt-range benchmark: 18% fewer input tokens and 19% less time per task, hard bug
+fixes 37k → 20k tokens, nothing solved before left unsolved ([results](docs/BENCHMARKS.md)).
 
-- **Fetched pages read like the page:** `webfetch` converts HTML from the main content when the markup identifies it (a code host's rendered README, a single `<main>` or `<article>`), drops navigation, banners, footers, hidden elements, empty links and empty list items, and collapses blank lines outside preformatted text, in both `markdown` and `text` formats. A repository page that came back as several screens of site navigation now starts with its title and README. `html` format is unchanged.
-- **Fetch results are one line in chat:** a successful fetch shows its address, HTTP status, size, and truncation or artifact; `/details` now cycles through output shown, the same with a short preview of each fetched page, and one line per result. Errors stay visible; shell and file output is unchanged. Resumed sessions show tool calls and results the same way as live turns.
-- **Replies render cleanly:** a paragraph that starts with a link is ordinary prose (it was dimmed like a notice), links show their label and address, emphasis, strike, code spans and escapes lose their markers correctly (`**kwargs` and `2 * 3` stay literal), and prose wraps between words by display width, breaking only tokens wider than the terminal. Code panels, tables and approval diffs are unchanged. A code block a message leaves open ends with that message (live and resumed), and a fence closes only on a run of its own character at least as long (a ```` block can show ``` lines).
-- **Follow-up review fixes:**
-  - Markdown export redacts each tool block whole before splitting it into indented lines; a multiline private key in tool output (raw imported or legacy content, or the JSON envelope) was exported with only its first line masked.
-  - `webfetch` chooses the main content with the same visibility rules it renders with (a hidden or navigation `<main>` is not a candidate) and keeps headers, footers and notes inside `<main>`/`<article>`. Fetch previews shorten long lines before applying their size budget; trimming a long transcript cuts at a line start, so collapsed previews stay hidden, and keeps an open code block's opening. Very long tokens are broken in one pass.
-  - A reopened chat shows the journaled conversation (its recent 256 KiB) instead of the compacted model context.
-  - A fetched page that the result only excerpts is kept whole as an artifact (previously only the excerpt was kept); the result is re-bounded to 64 KiB after the artifact metadata is added, and `artifact_note`/`artifact_bytes` say exactly what the artifact holds (whole text, conversion-limited text, or its first 1 MiB).
-  - `read_artifact` with `pattern` lists each match once across pages and always advances (`next_offset`, new `eof`), even when one match line exceeds `limit`.
-  - Snapshot restore removes files whose names start with two dots (`..config`); they were treated as outside the project.
-  - Waiting for the ChatGPT sign-in lock stops when the request is cancelled.
-- **Architecture graph:** `scripts/archgraph/archgraph.py` writes `docs/architecture/graph.json`, a graph of every package and file (curated one-line purposes in `docs/architecture/purposes.json`), their layers and imports; it names files that lack a purpose. Secret masking moved to `internal/core`, so model adapters no longer import the session journal. Shell commands recognized as read-only no longer trigger the project change scan (50–80 ms each on this repository).
-- **Leaving the chat and coming back is seamless:** opening `/models`, `/agents`, `/settings`, `/providers` or switching agents used to rebuild the chat screen from the journal: scroll position, `/details`, thinking, timestamps and sidebar toggles, and the last run's time and tokens were reset. The screen is now kept and shown again as it was when the chat reopens on the same unchanged session.
-- **`/models` opens at once the second time:** model lists are kept for five minutes per provider route (never the key) instead of being fetched again behind a loading screen; adding, switching or re-keying a provider clears them.
-- **Rate limits are named:** a provider's HTTP 429 shows as "Rate limited by the provider (requests or tokens per minute); waiting Ns" instead of "Provider busy", since these waits (up to 30 s per attempt) are where slow runs on free tiers spend their time.
-- **Repository sweep for the same bug classes:**
-  - Folders whose names start with two dots are inside their parent: a GoHarness state folder such as `..goh-state` in the project no longer counts as a project change, the sandbox no longer hides a project that lives in a `..`-named folder, the home folder is shortened to `~` for such paths, and snapshot cleanup of empty folders compares paths, not string prefixes.
-  - `read_artifact` text pages end on character boundaries, so paging with `next_offset` never splits or loses a character, and a page always advances.
-  - Feedback from a `post_tool` hook that exits 2 is shortened to fit beside a large tool result instead of being dropped silently.
-  - A hook stopped because the run was cancelled says so instead of reporting a timeout.
-  - Truncated MCP tool descriptions, pinned instructions, repeated-call and change-tool approval previews, path headers in diff previews and secret-store error messages no longer end in half a character.
+**Faster and cheaper**
+- Tool results reach the model as plain text instead of JSON escaped twice (14% fewer input tokens per request).
+- Fewer tools are offered with every request (21 → 17 in a default setup) and their descriptions are shorter.
+  `search`, `create_file` and the snapshot tools stay callable but are not offered; `skill` only when skills exist.
+- `go test`, npm and pip work in the Auto-access sandbox: their caches go to a private temporary folder, so the
+  first test run no longer fails and gets retried.
+- Reading a whole file over 64 KB returns its length and how to read it instead of an error; a line range that
+  is too large returns the lines that fit. `total_lines` no longer counts a final newline as an extra line.
+
+**Terminal**
+- Each reply ends with a dim line: model, time, tokens in and out. The sidebar splits tokens in and out under a
+  context bar.
+- The running timer counts in tenths of a second, shown once.
+- Unverified changes show in amber; approval key hints never split a key from its label; an approval review
+  restarts from the top after a resize.
+- A fetched page is one line in chat; `/details` cycles through output, page previews, or one line per result.
+- Replies render cleanly: links, emphasis, word wrapping, and code blocks closed with their message.
+- The chat screen is kept while `/models`, `/agents`, `/settings` or `/providers` is open; model lists are
+  cached for five minutes; HTTP 429 shows as "Rate limited".
+- The provider you selected stays active when two saved providers share a route.
+
+**Correctness**
+- Compaction summaries no longer carry project-note text, and a failed compaction reports its real cause.
+- A fallback route no longer changes the primary's window or token estimate; usage from discarded attempts
+  counts toward `max_run_tokens` before any retry.
+- Older images are not resent when they would push a request over the 16 MiB limit.
+- A check whose failure the shell swallowed (`|| true`, `; echo done`, `| tail`) no longer counts as verified.
+- `webfetch` converts a page's main content and keeps an excerpted page whole as an artifact.
+- Markdown export masks multiline secrets; names starting with two dots (`..config`) are inside their folder;
+  text is never cut mid-character; the ChatGPT sign-in wait can be cancelled; hook feedback is kept.
+
+**Benchmarks**
+- `goh-bench` grades answers as well as tests and reports results by prompt category and size; seven
+  prompt-range tasks and `bench/tools/compare.py` are added. All results are in `docs/BENCHMARKS.md`.
 
 ## 1.0.0 — 2026-11-21
 
@@ -62,7 +70,7 @@ First stable release: everything since rc.180 below.
 - **Runtime fixes:** a first request under the hard limit is no longer refused because of the soft compaction trigger; repeating `/compact` on a short chat is a no-op; failed fallback routes cool down like the primary; a failed MCP start whose process cannot be confirmed stopped stays an uncertain effect; `replace_all` checks the result size before allocating; snapshot capture and restore use private Git indexes and serialized restores; LSP keeps Windows drive and UNC paths and follows incremental sync; salvage never reads an oversized corrupt line whole; interrupted trash/restore moves are reconciled; `repo_map` honours `.gitignore` and reads query-named files first.
 - **Chat and composer:** Backspace and ←/→ move by grapheme (👍🏽, accents, flags); ↑/↓ follow wrapped rows before history; free-text questions take typing at once; a subagent's retry removes only its own abandoned text; `/find` also lists earlier matching turns from the journal; long shell output names its retained artifact; the header and `/status` name the model that actually served a turn after a fallback; the compact layout leads with workspace, local/attached scope and access; key hints follow your bindings; model lists load behind a screen where Esc cancels; `/models` in a `--config` chat stays with that chat; tiny pickers show the highlighted option; `goh chat --help` prints usage first; standalone `goh settings` says "Exit settings". ACP tells the editor which question needs an answer and when verification failed.
 - **Benchmark integrity (`goh-bench`):** grades by observed test results (`go test -json`, `unittest -v`, `pytest -rA`) with distinct `test_failure`, `build_failure`, `no_tests`, `timeout` and `tool_error`; the dry run requires a test failure (not a build error) on the starting tree and checks pass-to-pass tests on both revisions, which exposed two hard tasks whose starting tree did not compile (fixed). Grading restores the pre-run test files and compares protected files with the real baseline; arms are parsed without shell evaluation and interleaved; every run gets a fresh folder and a manifest; the summary separates resolution, reliability and false verification and counts auxiliary and child tokens.
-- **Research prototypes (opt-in):** `--experiment submission-evidence`, `recoverable-compression` and `retrieval-expansion`, plus benchmark-only retrieval telemetry and a reproducer audit. See [experiments](docs/benchmarks/experiments.md); no live comparison has been run yet.
+- **Research prototypes (opt-in):** `--experiment submission-evidence`, `recoverable-compression` and `retrieval-expansion`, plus benchmark-only retrieval telemetry and a reproducer audit. See [experiments](docs/BENCHMARKS.md); no live comparison has been run yet.
 - **Access levels:** Ask (default), Auto-edit, Auto and Full access say how much goh does without asking. Shift+Tab cycles the level for the session (also mid-run); `/access` saves one for the project or for a single folder inside it, so one folder can have full access while the rest still asks; `--access` sets it for `goh run`/`goh chat`. Auto-edit makes edits in the folder and runs commands that only read inside the project; Auto also runs every command from the folder inside the OS sandbox, writing only there and in temporary folders (where there is no sandbox, as on Windows, commands still ask); Full access asks for nothing. `a` in an approval allows it and raises the level so similar requests stop asking. Ask/deny rules and the loop guard always win. Shift+Tab used to repeat Tab (previous agent).
 - **Live status line:** instead of "Working", a run shows what it is doing: waiting for the model, thinking, "Writing web/index.html · 1.8k tokens (42/s)" while a tool call streams in (all three provider formats), "Running npm test · 12s", plus the step and tool counts.
 - **Faster turns in large projects:** goh fingerprints the project at the start of each run and after every edit and command, to notice changes. It ignored the project root's `.gitignore`, so in a repository with large ignored folders each fingerprint walked them (1.07 s in goh's own tree, 74k files) and then gave up at its 20,000-file limit, which also left change detection off. The root rules now apply (63 ms, and detection works), and a project that is really too large is walked once per run instead of after every step. In this repository a "hi" run went from 7.0 s to 3.1 s end to end.
@@ -72,7 +80,7 @@ First stable release: everything since rc.180 below.
 - **Connecting from a `--config` chat works:** a chat started with `--config FILE` reads only that file, so a provider added with `/connect` (or switched to in `/providers`) was saved but never reached it, and the chat stayed on "waiting for setup". The launcher now passes the new provider's route to that chat; its key is found by route as before. Found by the live ChatGPT terminal check.
 - **`goh auth refresh`** renews the ChatGPT sign-in at once and says plainly if it was revoked; `goh auth status` shows when the access token expires. `status` used to report "saved locally" for a sign-in that could no longer be renewed.
 - goh names itself `goh` with its real version to language servers, MCP servers and editors (ACP), and in the web-fetch User-Agent. It used to send an old development name with version 0.1.0. Saved settings and session files keep their existing names.
-- **Completion check covers name-filtered tests:** when the only tests that passed after a change were picked by name (`go test -run`, `pytest -k`/`::`, `jest -t`, `cargo test NAME` and similar), the run is asked once to run the full tests of what it changed. In the rc.162 real-project benchmark every miss was reported verified: the model's own checks passed while the fix was incomplete or broke an existing test in the same package. Measured on the same 19 tasks with `gpt-6.2-sol`: no change, because that model already runs the full tests after a filtered run ([report](docs/benchmarks/real-ab-unreleased.md)).
+- **Completion check covers name-filtered tests:** when the only tests that passed after a change were picked by name (`go test -run`, `pytest -k`/`::`, `jest -t`, `cargo test NAME` and similar), the run is asked once to run the full tests of what it changed. In the rc.162 real-project benchmark every miss was reported verified: the model's own checks passed while the fix was incomplete or broke an existing test in the same package. Measured on the same 19 tasks with `gpt-6.2-sol`: no change, because that model already runs the full tests after a filtered run ([report](docs/BENCHMARKS.md)).
 - **Package managers:** Homebrew (`brew tap sanidhya14321/goh https://github.com/Sanidhya14321/goh`) and Scoop (`scoop bucket add goh https://github.com/Sanidhya14321/goh`) install stable releases; the formula and manifest are generated from each release's checksums. `goh upgrade` on such a copy names `brew upgrade goh` or `scoop update goh` instead of replacing it. Releases also carry a CycloneDX SBOM and GitHub build provenance. Binaries stay unsigned; the README says what that means for browser downloads.
 - **LSP:** a language server that exits before starting now says why. goh adds the server's last two error lines (for example rustup's "Unknown binary 'rust-analyzer'") instead of only "connection closed: EOF". gopls, pyright and typescript-language-server were verified live.
 - **One terminal program per session:** opening providers, connect, models, agents, settings, the project or session picker, starting a new chat, forking, undo/redo/revert, plan approval and Tab agent switching no longer leave and re-enter the screen and restart the chat program. Every screen is shown inside one program, so there is no flash between screens, keys typed meanwhile go to the next screen, and dialogs are drawn over the live chat, which reflows when the terminal is resized (it used to be a frozen snapshot). `goh setup`, `goh settings` and `goh providers` work the same way. A damaged session's recovery question still appears on the normal terminal.
@@ -159,4 +167,4 @@ None of these were published; `v1.0.0-rc.180` is the first release. In outline:
 | rc.136 – rc.162 | External review fixes, run outcomes, scoped grants, verify/repair, shared budgets, completion check, repository map, benchmark runner and the live benchmark runs |
 | rc.163 – rc.179 | TUI audits, two more external reviews, `goh attach`, Go 1.27.4, the OS credential store |
 
-Every entry in full: [changelog for rc.1 – rc.179](docs/development/history/CHANGELOG-rc1-rc179.md).
+Every entry in full: [changelog for rc.1 – rc.179](https://github.com/Sanidhya14321/goh/blob/v1.0.0/docs/development/history/CHANGELOG-rc1-rc179.md).

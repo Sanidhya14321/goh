@@ -15,7 +15,7 @@ import (
 )
 
 // Research prototypes (core.Experiment*). Each is off by default and leaves
-// the default behaviour untouched; see docs/benchmarks for how to compare an
+// the default behaviour untouched; see docs/BENCHMARKS.md for how to compare an
 // arm with the baseline.
 
 // --- submission-evidence -------------------------------------------------

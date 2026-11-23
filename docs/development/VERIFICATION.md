@@ -8,101 +8,19 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
-## Unreleased: correctness follow-up (memory, routes, usage, verification, approvals)
+## 1.1.0
 
-- Each fix has a regression that fails on the previous code (checked by reverting or stubbing the
-  fix): `TestCompactionSummaryOmitsRecallBodies` (six cases, manual and automatic, evidence changed
-  before or after compaction, deleted, memory off; a scripted model echoes its whole input, and the
-  note body reached the summary in every case), `TestLargeRecallResultIsNotExcerpted`,
-  `TestRecallObservationRefusesProjectNotes`, `TestCompactionStatusFollowsCause` (provider 401 was
-  `budget_exhausted` through both entry points), `TestFallbackRefusalPreservesPrimaryWindow` (primary
-  1,048,576 became 50,000), `TestSameModelFallbackDoesNotCalibratePrimary`,
-  `TestInterruptedAttemptUsageCountsBeforeRetry` (60 tokens against a 50 limit: one request, one
-  discarded usage record, no tool run), `TestInterruptedAttemptsRecordedWithAndWithoutUsage`,
-  `TestChildUsageAggregatedOnce`, `TestShellOperationStartsWithOwnCounters`,
-  `TestImageHistoryBoundedByRequestBytes` (four 3 MiB images were all resent),
-  `TestHandledCheckFailureIsNotVerification` (four handled-failure forms were `verified`),
-  `TestApprovalAfterResizeRequiresEveryLineSeen` (a command line was approved without ever being on
-  screen). Also `TestFreshNoteRecallableAfterCompaction`, `TestPrimaryRefusalTeachesPrimary`,
-  `TestPreResponseErrorThenFallbackUsage`, `TestSmallImageHistoryUnchanged`,
-  `TestOversizedRequestErrorIsActionable`, `TestCheckStatusAttributable`,
-  `TestCheckStatusAttributableTerminators`, `TestContextMeterOmitsDenominatorForFallback`.
-- `go vet ./...`, `go test ./...`, `go test -race ./internal/runtime ./internal/tui` and
-  `make acceptance` pass. PTY suites and live providers were not run for this change.
-
-## Unreleased: readable webfetch pages and transcript prose
-
-- Reproduced on `0c71fed` with a code-host repository fixture
-  (`internal/webfetch/testdata/github_repo.html`): Markdown conversion kept the skip link, global
-  navigation, empty `[](…)` links, orphan `- ` bullets, a `hidden` error banner, the footer and runs
-  of up to seven blank lines before the README. In chat, a reply starting with `[label](url)` was
-  dimmed with its Markdown shown raw, and prose was hard-wrapped mid-word.
-- New tests: `TestRepositoryPageKeepsTheReadme` (served fixture, `markdown`/`text`, `html` returned
-  byte for byte), `TestPageWithoutMainContentMarkup`, `TestPreformattedBlankLinesSurvive`;
-  `TestFetchedPageIsCompactLiveAndResumed` (scripted model fetches the fixture through the approval
-  path; compact line, each `/details` mode and the leading-link reply checked live and after reopening
-  the journal), `TestFetchErrorsStayVisible`, `TestFetchSummaryNamesTruncationAndArtifact`,
-  `TestInlineMarkdown`, `TestProseWrapsAtWordBoundaries` (widths 24–160, overlong tokens, wide
-  characters, list hang indent, code panels and approval diffs unchanged).
-- `FuzzHTMLConversion` found invalid UTF-8 passing through the new word emitter; fixed and kept as
-  a seed (`testdata/fuzz`); then 60 s without failures.
-- `go vet ./...`, `go test ./...`, `go test -race ./internal/tui ./internal/webfetch`, `make fuzz`,
-  `make acceptance`, and `scripts/e2e/test_tui.py`, `test_resume_setup.py`, `test_attach.py` pass.
-- Follow-up review fixes, each with a regression test that fails on the previous code (checked by
-  reverting the fix): `TestMarkdownTranscriptRedactsMultilineToolSecrets` (raw and truncated keys
-  leaked; envelope case covered), `TestFencesStayInsideTheirMessage`,
-  `TestReopenedChatAfterCompactionShowsJournal`, `TestArtifactSearchPagesEachMatchOnce` (old code
-  returned `next_offset` 0 forever), `TestRestoreHandlesNamesStartingWithTwoDots`. Also
-  `TestMainContentChoiceUsesVisibility`, `TestFetchPreviewShortensLinesBeforeTheBudget`,
-  `TestTrimmedTranscriptKeepsPreviewsHiddenAndFences`, `TestLongTokensAndNarrowTerminals` (200 k
-  cluster token; widths 20 and 32 for the fetch flow live and resumed),
-  `TestExcerptedFetchKeepsTheWholePage`, `TestChatGPTLockWaitIsCancellable`.
-- `gofmt -l`, `go vet ./...`, `go test ./...`, `go test -race` on the seven changed packages,
-  `make fuzz`, `make acceptance`, 45 s of `FuzzHTMLConversion`, and all six PTY suites
-  (`tui setup acp attach resume_setup salvage`) pass. `test_setup.py` passed 4/4 with the changes
-  and 3/3 on a clean `0c71fed` worktree here; the reported failure at line 388 (`wait_for` of
-  "Agent: build" after Esc, a label that may already be on screen and need not be redrawn) did not
-  reproduce on this machine and is independent of these changes.
-
-## Unreleased: architecture graph and timing
-
-- Graph: 30 packages, 219 files, 87 internal import edges; every file and package has a curated purpose.
-- Timings (this machine): chat frame with a 120 KiB transcript 0.5–1.0 ms; journal open plus
-  `agent.New` on the largest local session 4–8 ms; `goh run` start to request 15–45 ms. Live
-  ChatGPT (two runs per setting, one-word prompt): first token 2.4–3.6 s at the default effort and
-  2.4–2.7 s at `low`. Tool schemas: 20 tools, about 9.5 KB per request.
-- `TestReadOnlyCheckStillSeesOutOfBandChanges` covers skipping the change scan after read-only
-  commands. `go vet ./...`, `go test ./...`, `make acceptance` and all six PTY suites pass.
-
-## Unreleased: navigation continuity and where slow runs spend their time
-
-- Measured in a PTY (`/models` then Esc, scripted model, 100×30): opening the picker takes 10–15 ms
-  and returning to the chat 60–80 ms (60 ms is the deliberate key-settling pause), including with a
-  copy of the largest local session (635 KB); no blank frame. Before the change the returning chat
-  was rebuilt (scroll position and toggles reset); after it, the scrolled screen is identical in
-  3/3 runs, and different when the restore is bypassed.
-- A real 82-record run spent 15–31 s per model call after the first few at ~3–4k tokens in and
-  60–200 out on a free-tier hosted model: the provider's per-minute limit (HTTP 429 waits of up to
-  30 s), not harness work. Harness costs measured: journal append with `F_FULLFSYNC` ~3.2 ms
-  (~0.26 s per such run), project fingerprint 50–80 ms on this repository per edit or command.
-- New tests: `TestChatScreenSurvivesNavigation`, `TestModelListCache`, `TestRateLimitRetryStatus`.
-  `go vet ./...`, `go test ./...`, `go test -race ./internal/tui ./cmd/harness`, `make acceptance`
-  and all six PTY suites pass.
-
-## Unreleased: repository sweep for the same bug classes
-
-- Swept `cmd/` and `internal/` for path containment by string prefix, uncancellable waits, byte
-  truncation of strings, caps checked before metadata is added, redaction after splitting, and
-  paging cursors. New tests, each failing on the previous code (checked by reverting the fix):
-  `TestFingerprintSkipsDotDotNamedStateDir`, `TestSandboxNeverHidesAProjectNamedWithTwoDots`,
-  `TestArtifactTextPagesKeepCharactersWhole`, `TestHookFeedbackFitsBesideALargeResult`; plus
-  `TestCancelledHookIsNotReportedAsTimeout`.
-- Reviewed and left unchanged: the other 19 `filepath.Rel` containment checks; polling sleeps
-  (process-group stop grace, LSP settle) and timer selects, which are bounded cleanup or already
-  watch the context; `TryLock` sites that fail at once; whole-string redaction in config, HTML and
-  provider errors; the attach session cursor (`ListAll` sorts by ID); `recall_observation` paging.
-- `gofmt -l`, `go vet ./...`, `go test ./...`, `go test -race` on the touched packages,
-  `make acceptance` and all six PTY suites pass.
+- Gates: `gofmt -l`, `go vet ./...`, `go test ./...`, `go test -race` on runtime and TUI, `make fuzz`,
+  `make acceptance` and all six PTY suites (`tui setup acp attach resume_setup salvage`) pass.
+- Each fix has a regression test that fails without it, among them: recall bodies kept out of compaction summaries, compaction status by cause, fallback caps and
+  calibration kept off the primary, discarded-attempt usage, image request bytes, handled check failures,
+  approval review after resize, plain-text tool results on each wire format, large-file reads and line
+  counts, sandbox caches, the reply line and timer.
+- Measured: live `gpt-6.1-sol` runs of the seven prompt-range tasks (two attempts per build, four builds)
+  and six hard bug fixes before and after; harness requests of goh, OpenCode and Claude Code recorded
+  against a loopback mock. Results in [BENCHMARKS.md](../BENCHMARKS.md).
+- Found by measuring: every sandboxed `go test` failed once on Go's build cache; returning the first 32 KB
+  of a large file raised large-file input 5.7× and was replaced.
 
 ## 1.0.0: container benchmark tasks and release gates
 
@@ -149,7 +67,7 @@ Implements the code and UI reviews prepared at `8417223`. Go 1.27.4, macOS ARM64
 
 ## 1.0.0: real-project A/B, overload retries
 
-- `goh-bench` on the 19 real-project tasks, check vs `--completion-check=false`, `gpt-6.2-sol`, containerised ([report](../benchmarks/real-ab-unreleased.md)). On the 13 tasks both arms finished: 10 resolved and 3 false completions each, the same tasks. The selected-tests reminder never fired, because the model ran `go test ./...` after every `-run`.
+- `goh-bench` on the 19 real-project tasks, check vs `--completion-check=false`, `gpt-6.2-sol`, containerised ([report](../BENCHMARKS.md)). On the 13 tasks both arms finished: 10 resolved and 3 false completions each, the same tasks. The selected-tests reminder never fired, because the model ran `go test ./...` after every `-run`.
 - Five runs ended on in-stream `server_is_overloaded`, which goh did not retry. Fixed: `TestBusyStreamErrors` (OpenAI Responses, Chat Completions and Anthropic overload codes are `ErrBusy`; usage limits, rate-limit codes and empty errors are not; messages are never shown; credential-shaped Anthropic types are dropped) and `TestBusyProviderIsRetriedAfterAPause` (two failures then success; persistent failure gives up after three retries waiting 5, 10 and 20 s, each announced as `provider_retry`).
 - Three runs hit the plan's `subscription_sharing_usage_limit_exceeded`; those stop at once, as intended.
 
@@ -317,4 +235,4 @@ Local, macOS ARM64, Go 1.27.4: `gofmt`, `go vet`, `go test -race ./...`, Linux a
 
 ## Earlier releases
 
-Evidence for rc.1 – rc.179 is in [history/VERIFICATION-rc1-rc179.md](history/VERIFICATION-rc1-rc179.md).
+Evidence for rc.1 – rc.179 is in [history/VERIFICATION-rc1-rc179.md](https://github.com/Sanidhya14321/goh/blob/v1.0.0/docs/development/history/VERIFICATION-rc1-rc179.md).

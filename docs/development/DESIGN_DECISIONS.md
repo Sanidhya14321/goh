@@ -5,7 +5,7 @@ were weighed (papers, open-source harnesses, articles), what was chosen, and the
 delivered it. Vendor figures are marked as such and should be treated with caution.
 
 For the code layout see [ARCHITECTURE.md](../ARCHITECTURE.md); for measured results see
-[benchmarks](../benchmarks/README.md).
+[benchmarks](../BENCHMARKS.md).
 
 ## Tool calling and file editing (RC146)
 
@@ -107,4 +107,4 @@ Sources:
 - [Position: coding benchmarks are misaligned (arXiv:2606.17799)](https://arxiv.org/html/2606.17799): a single pass rate hides process quality.
 - From the review: DeepSWE, Terminal-Bench 2.1 and SWE-Bench Pro on verifier fixes and time budgets.
 
-Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The suite has since grown to 22 basic, 14 hard and 19 real-project tasks; results are in [benchmarks](../benchmarks/README.md).
+Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The suite has since grown to 22 basic, 14 hard and 19 real-project tasks; results are in [benchmarks](../BENCHMARKS.md).

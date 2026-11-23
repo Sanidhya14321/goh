@@ -6,7 +6,7 @@
 | [Architecture](ARCHITECTURE.md) | How the code is organised and how a prompt flows through it |
 | [Architecture graph](architecture/graph.json) | Generated graph of every package and file, its purpose and imports (`python3 scripts/archgraph/archgraph.py`; purposes in `architecture/purposes.json`) |
 | [Changelog](../CHANGELOG.md) | What changed in each release |
-| [Benchmarks](benchmarks/README.md) | Agent results on hidden-test tasks, plus microbenchmarks |
+| [Benchmarks](BENCHMARKS.md) | Every benchmark result, other harnesses compared, and how to run `goh-bench` |
 
 ## Development
 
@@ -15,8 +15,7 @@
 | [Status](development/STATUS.md) | What is not done or not verified yet |
 | [Testing](development/TESTING.md) | Test layers, the gates a change must pass, CI |
 | [Design decisions](development/DESIGN_DECISIONS.md) | Why each component works the way it does, with sources |
-| [Verification log](development/VERIFICATION.md) | Evidence recorded for each release; earlier release candidates are in [history](development/history/) |
-| [Benchmark runner](../bench/README.md) | Running `goh-bench` and adding tasks |
+| [Verification log](development/VERIFICATION.md) | Evidence recorded for each release (rc.1–rc.179 detail is in the `v1.0.0` tag) |
 
 ## Legal and provenance
 

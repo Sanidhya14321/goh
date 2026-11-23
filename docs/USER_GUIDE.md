@@ -245,7 +245,7 @@ Markdown headings, lists, quotes, links (label followed by the address), emphasi
 and tables are rendered; prose wraps between words at the terminal's width. Go, JSON, JavaScript
 and TypeScript are syntax highlighted. Tool output is shown literally. A fetched page shows as one
 line (address, HTTP status, size, truncation, artifact); `/details` cycles through tool output
-shown (the default), the same plus a short preview of each fetched page, and one line per result. The default `terminal` theme uses the terminal's own
+shown (the default), the same plus a short preview of each fetched page, and one line per result. Each reply ends with a dim line: the model, the run's time, and its tokens in and out (in is mostly the instructions and tool definitions sent with every request). The default `terminal` theme uses the terminal's own
 background and text color, so the screen matches the window edge to edge; `dark`, `light` and
 `high-contrast` paint their own background. A session sidebar appears on terminals ≥112 columns. The mouse
 wheel scrolls; set `GOH_NO_MOUSE=1` for native text selection. `NO_COLOR` disables color. Ctrl+L
@@ -311,7 +311,7 @@ completed; text mode prints `Verification failed: …`, JSON has `outcome: faile
 
 `--experiment NAME` (repeatable, or `"experiments": [...]` in the config) turns on a research
 prototype: `submission-evidence`, `recoverable-compression` or `retrieval-expansion`. All are off by
-default; see [experiments](benchmarks/experiments.md).
+default; see [experiments](BENCHMARKS.md).
 
 `run_finished` carries `outcome` (`verified`, `unverified`, `no_changes`, `failed_verification`)
 and, additively, `verification_detail`: `change_tracking` (`known`, or `unknown` when the project
@@ -451,10 +451,15 @@ Approval decides whether a command runs; the sandbox limits what it can do. It a
 commands, `!` commands, background jobs and formatters, not to MCP/LSP servers or hooks.
 
 ```json
-"sandbox": {"enabled": true, "network": false, "writable": ["~/Library/Caches/go-build"]}
+"sandbox": {"enabled": true, "network": false, "writable": ["~/.cargo/registry"]}
 ```
 
 - Writes are allowed only in the project, temp folders and `writable` paths.
+- Build and package caches that live elsewhere point at a private per-user folder in the temporary
+  area (`GOCACHE`, `npm_config_cache`, `PIP_CACHE_DIR`, `XDG_CACHE_HOME`), unless your environment
+  sets them: `go test` works in the sandbox without a retry, later builds reuse that cache, and your
+  own caches cannot be changed by a sandboxed command. To use your own cache instead, set the variable
+  and list its folder in `writable`.
 - GoHarness's own config, credential and session folders are unreadable.
 - `"network": false` (default) blocks network access.
 - macOS uses `sandbox-exec`. Linux uses Landlock (5.13+; network blocking needs 6.7+). On macOS,
@@ -527,27 +532,41 @@ Hitting a budget ends the run as `budget_exhausted` (exit 5).
 
 | Tool | Purpose |
 | --- | --- |
-| `list_files`, `read_file`, `search` | Read the project |
+| `list_files`, `read_file` | Read the project |
 | `glob`, `grep` | Recursive globs (≤100 files) and Go-regex line search (≤100 lines) |
-| `create_file`, `write_file`, `edit_file` | Hash-guarded file changes |
+| `write_file`, `edit_file` | Hash-guarded file changes (`write_file` creates a file or replaces one) |
 | `apply_patch` | Multi-file Add/Update/Delete/Move patches |
 | `shell`, `job_start` | Commands and background jobs |
 | `todowrite` | Session task list (≤1,000 tasks) |
 | `question` | Structured questions to the user |
 | `task` | Child agent |
-| `skill` | Load a skill |
+| `skill` | Load a skill (offered only when skills are installed) |
 | `webfetch`, `websearch` | Web access |
 | `lsp` | Language server queries |
 | `repo_map` | Go signatures and declarations without bodies |
 | `read_artifact` | Read or search (`pattern`) retained shell/formatter output and fetched pages |
-| `snapshot_list`, `snapshot_diff`, `snapshot_undo`, `snapshot_redo` | Checkpoint inspection and restore |
+| `snapshot_list`, `snapshot_diff`, `snapshot_undo`, `snapshot_redo` | Checkpoint inspection and restore (callable, not offered; you use `/undo`, `/redo`, `/changes`, `/snapshots`) |
 | `memory_recall` | Project notes (opt-in) |
+
+`search` (the same as `grep` with a limit), `create_file` (covered by `write_file`) and the snapshot
+tools still work when a model or an older session calls them, but are not offered: every offered
+definition is sent with every request, and models almost never used them (one snapshot call in 453
+benchmark requests).
+
+Tool results reach the model as plain text: the main output verbatim (a file's text, a command's
+output, `path:line: text` matches, one path per line), after one line of the fields that carry
+information (`sha256`, `exit_code`, `artifact_id`, `truncated`, …), and `Error: ` before a failure.
+Sessions, exports and the UI keep the full structured result.
 
 ### File editing
 
 - Paths must be inside the project; absolute paths, escapes, symlinks, special files and non-UTF-8
   content are rejected. Nothing may write inside `.git`.
 - `read_file` returns a SHA-256. Writes and edits to existing files require `expected_sha256`.
+- A file too large for one result (64 KB): reading the whole file returns its line count and size
+  and suggests a line range or `grep`, rather than its first screens, which would be resent with
+  every later request; an explicit line range that is too large returns the whole lines that fit and
+  `next_start_line`.
 - `edit_file` must match `old_text` exactly once unless `replace_all` is set. CRLF, file mode and
   unaffected bytes are preserved.
 - New files never overwrite an existing path.

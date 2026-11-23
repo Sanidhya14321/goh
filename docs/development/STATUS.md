@@ -10,7 +10,7 @@ lists only what is **not** done or **not** verified, so it stays short.
 
 Over the ChatGPT sign-in (`gpt-6.1-sol`, then `gpt-6.2-sol` on 18 Nov): streaming, tool calls, resume, image input, reasoning
 effort and summaries, prompt-cache reads, token expiry and the 401-renewal retry, `goh auth refresh`, plan handoff and end-of-request task state, plus 113 benchmark attempts that exercised the
-full tool loop ([benchmarks](../benchmarks/README.md)). LSP diagnostics and server restart were
+full tool loop ([benchmarks](../BENCHMARKS.md)). LSP diagnostics and server restart were
 verified against real `clangd`, `gopls`, `pyright` and `typescript-language-server`. Over Groq (`chat_completions`): rate-limit waits, the GitHub REST
 API through `webfetch`, and a stdio MCP tool, in real-world prompts (see the end-to-end audit in
 [VERIFICATION.md](VERIFICATION.md)). Failover from a failed route to Groq, for a turn and for compaction, and the DeepWiki remote MCP server were checked live.
@@ -38,7 +38,7 @@ them. No manual Windows session has been run.
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
-| Benchmark | No task lists `gold_files`; no private holdout exists; the research experiments have no live result | Holdout and gold annotations still to write; live arms need model quota ([experiments](../benchmarks/experiments.md)) |
+| Benchmark | No task lists `gold_files`; no private holdout exists; the research experiments have no live result | Holdout and gold annotations still to write; live arms need model quota ([experiments](../BENCHMARKS.md)) |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
@@ -55,4 +55,4 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 ## Next
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
-2. **Benchmark:** add `gold_files` and a private Go/Python holdout, then run the experiment arms ([experiments](../benchmarks/experiments.md)).
+2. **Benchmark:** add `gold_files` and a private Go/Python holdout, then run the experiment arms ([experiments](../BENCHMARKS.md)).

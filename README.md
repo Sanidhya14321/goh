@@ -185,8 +185,7 @@ Run `goh --help` for all commands.
 With `gpt-6.1-sol` over the ChatGPT sign-in, every attempt regraded against hidden tests in a
 clean copy: 22/22 basic tasks, 25/26 hard symptom-described tasks, 8/8 compound three-bug tasks
 and 14/19 real bug fixes from eight Go libraries. Details and per-run reports are in
-[docs/benchmarks](docs/benchmarks/README.md); to run your own, see
-[bench/README.md](bench/README.md).
+[docs/BENCHMARKS.md](docs/BENCHMARKS.md), which also explains how to run your own.
 
 ## Building from source
 
