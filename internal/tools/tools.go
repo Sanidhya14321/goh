@@ -512,6 +512,42 @@ func result(v any) Result {
 	}
 	return Result{Content: string(b)}
 }
+
+// readWindowBytes is how much of a file read_file returns when the whole
+// requested range does not fit in one result.
+const readWindowBytes = 32 << 10
+
+// readWindow returns the first whole lines of b[from:to] (from is the start
+// of line start) that fit, with the file's length and how to read on.
+func readWindow(b []byte, path string, start, from, to, total int) Result {
+	for budget := readWindowBytes; budget >= 1024; budget /= 2 {
+		cut := min(to, from+budget)
+		lines := 0
+		if cut < to {
+			if i := bytes.LastIndexByte(b[from:cut], '\n'); i >= 0 {
+				cut = from + i // end before the newline of the last whole line
+			} else {
+				// One line longer than the window: show its start.
+				for cut > from && !utf8.RuneStart(b[cut]) {
+					cut--
+				}
+			}
+		}
+		lines = bytes.Count(b[from:cut], []byte("\n"))
+		end := start + lines
+		note := fmt.Sprintf("Showing lines %d-%d of %d. Read further with start_line=%d, or grep for what you need.", start, end, total, end+1)
+		if bytes.IndexByte(b[from:cut], '\n') < 0 && cut < to {
+			note = fmt.Sprintf("Line %d is longer than one result; showing its first %d bytes.", start, cut-from)
+		}
+		r := result(map[string]any{"path": path, "content": string(b[from:cut]), "sha256": hash(b), "start_line": start, "end_line": end,
+			"total_lines": total, "truncated": true, "next_start_line": end + 1, "note": note})
+		if !r.Error {
+			return r
+		}
+	}
+	return failure(errors.New("file content is too large to show; read a smaller line range"))
+}
+
 func fileMutation(name string) bool {
 	return name == "create_file" || name == "write_file" || name == "edit_file"
 }
@@ -588,7 +624,15 @@ func (e *Engine) execute(ctx context.Context, name string, raw json.RawMessage) 
 		if err != nil {
 			return failure(err)
 		}
-		total := bytes.Count(b, []byte("\n")) + 1
+		// A final newline ends the last line; it does not start another.
+		total := bytes.Count(b, []byte("\n"))
+		if len(b) > 0 && b[len(b)-1] != '\n' {
+			total++
+		}
+		whole := a.Start == 0 && a.End == 0
+		if total == 0 && whole {
+			return result(map[string]any{"path": a.Path, "content": "", "sha256": hash(b), "total_lines": 0})
+		}
 		if a.Start == 0 {
 			a.Start = 1
 		}
@@ -611,7 +655,24 @@ func (e *Engine) execute(ctx context.Context, name string, raw json.RawMessage) 
 				line++
 			}
 		}
-		return result(map[string]any{"path": a.Path, "content": string(b[startOffset:endOffset]), "sha256": hash(b), "start_line": a.Start, "end_line": a.End, "total_lines": total})
+		if a.End == total {
+			endOffset = len(b) // through the end, final newline included
+		}
+		out := map[string]any{"path": a.Path, "content": string(b[startOffset:endOffset]), "sha256": hash(b), "start_line": a.Start, "end_line": a.End, "total_lines": total}
+		if r := result(out); !r.Error {
+			return r
+		}
+		if whole {
+			// A whole-file read of a file this large is answered with its
+			// size, not its first screens: measured on large-file tasks, a
+			// window of the start stayed in the conversation and was resent
+			// with every later request (5.7x the input tokens), while models
+			// told the length went to grep and a short line range.
+			return failure(fmt.Errorf("%s has %d lines (%d KB), more than one result holds; read a line range with start_line and end_line, or grep for what you need", a.Path, total, len(b)>>10))
+		}
+		// An explicit range that is too large: the lines from start_line
+		// that fit, whole lines only, and how to continue.
+		return readWindow(b, a.Path, a.Start, startOffset, endOffset, total)
 	case "glob":
 		return globFiles(ctx, r, a, e.denied)
 	case "list_files", "search", "grep":
