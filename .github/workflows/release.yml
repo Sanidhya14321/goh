@@ -43,7 +43,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           files=$(find dist -maxdepth 1 -type f | sort)
-          gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md --latest --verify-tag
+          flags=(--latest)
+          if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+            flags=(--prerelease --latest=false)
+          fi
+          gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md "${flags[@]}" --verify-tag
       - name: Package manager manifests
         # Stable versions only, so `brew upgrade` and `scoop update` never
         # move users to a release candidate.
@@ -60,3 +64,10 @@ jobs:
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -m "packaging: goh ${GITHUB_REF_NAME#v}"
           git push origin packaging:main
+
+  refresh-website:
+    needs: publish
+    if: ${{ !contains(github.ref_name, '-') }}
+    uses: ./.github/workflows/refresh-website.yml
+    secrets:
+      GOH_WEBSITE_REFRESH_TOKEN: ${{ secrets.GOH_WEBSITE_REFRESH_TOKEN }}
