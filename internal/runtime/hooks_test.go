@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/testutil"
@@ -144,5 +145,36 @@ func TestValidateHooks(t *testing.T) {
 	}
 	if err := core.ValidateHooks([]core.HookConfig{{Event: "post_tool", Command: "x", Tools: []string{"mcp_*"}, Timeout: 30}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// A hook stopped by cancellation says so; only its own deadline is a timeout.
+func TestCancelledHookIsNotReportedAsTimeout(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, _ := testAgent(t)
+	slow := writeHook(t, t.TempDir(), "slow", "sleep 5")
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(100*time.Millisecond, cancel)
+	o := a.runHook(ctx, core.HookConfig{Event: "pre_tool", Command: slow, Timeout: 30}, "pre_tool", map[string]any{})
+	if o.err == nil || !strings.Contains(o.err.Error(), "cancelled") {
+		t.Fatalf("cancelled hook: %v", o.err)
+	}
+	o = a.runHook(context.Background(), core.HookConfig{Event: "pre_tool", Command: slow, Timeout: 1}, "pre_tool", map[string]any{})
+	if o.err == nil || !strings.Contains(o.err.Error(), "timed out after 1s") {
+		t.Fatalf("hook past its deadline: %v", o.err)
+	}
+}
+
+// Feedback from a post_tool hook reaches the model even next to a result
+// near the inline cap: it is shortened to fit rather than dropped.
+func TestHookFeedbackFitsBesideALargeResult(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	a, _ := testAgent(t)
+	loud := writeHook(t, t.TempDir(), "loud", "printf 'POLICY: do not commit generated files. ' >&2; head -c 20000 /dev/zero | tr '\\0' 'x' >&2; exit 2")
+	a.Config.Hooks = []core.HookConfig{{Event: "post_tool", Command: loud}}
+	big, _ := json.Marshal(map[string]any{"path": "a.txt", "content": strings.Repeat("y", 60<<10)})
+	res := a.postToolHooks(context.Background(), toolCall("c", "read_file", map[string]any{"path": "a.txt"}), tools.Result{Content: string(big)})
+	if len(res.Content) > tools.MaxInline || !strings.Contains(res.Content, "POLICY: do not commit generated files.") || !strings.Contains(res.Content, "shortened to fit") {
+		t.Fatalf("hook feedback lost or result over the cap (%d bytes)", len(res.Content))
 	}
 }

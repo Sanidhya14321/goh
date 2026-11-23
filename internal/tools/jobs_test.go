@@ -205,3 +205,21 @@ func TestFingerprintHonoursRootGitignore(t *testing.T) {
 		t.Fatal("a re-included file's change was not noticed")
 	}
 }
+
+// A state folder whose name starts with two dots is still inside the project
+// and still skipped.
+func TestFingerprintSkipsDotDotNamedStateDir(t *testing.T) {
+	root := testutil.TempDir(t)
+	e, err := New(root, t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := filepath.Join(root, "..goh-state")
+	os.MkdirAll(state, 0o700)
+	e.StateDirs = []string{state}
+	before, _ := e.Fingerprint()
+	os.WriteFile(filepath.Join(state, "journal.jsonl"), []byte("{}"), 0o600)
+	if after, _ := e.Fingerprint(); after != before {
+		t.Fatal("a write to the ..-named state folder counted as a project change")
+	}
+}

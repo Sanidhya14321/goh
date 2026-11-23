@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 )
@@ -33,7 +34,7 @@ func (a *Agent) checkRepeat(ctx context.Context, c core.Call, preview string) (s
 		return "", nil
 	}
 	if len(preview) > 2048 {
-		preview = preview[:2048] + "…"
+		preview = strings.ToValidUTF8(preview[:2048], "") + "…"
 	}
 	d, err := a.Permission(ctx, core.Permission{Tool: "repeated_call",
 		Preview:   fmt.Sprintf("The model has requested this exact %s call %d times in a row. It may be stuck.\n\n%s\n\nAllow it again?", c.Function.Name, a.repeats, preview),

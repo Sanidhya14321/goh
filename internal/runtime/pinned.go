@@ -37,7 +37,7 @@ func pinnedInstructions(history []core.Message) (core.Message, bool) {
 		}
 		if text := strings.TrimSpace(m.Content); text != "" {
 			if len(text) > maxPinnedEach {
-				text = text[:maxPinnedEach] + " […]"
+				text = strings.ToValidUTF8(text[:maxPinnedEach], "") + " […]"
 			}
 			all = append(all, text)
 		}

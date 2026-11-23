@@ -25,7 +25,7 @@ func boundedDiff(path string, before, after []byte, create bool, budget int) str
 	var out strings.Builder
 	header := "--- " + path + "\n+++ " + path + "\n"
 	if len(header) > 2048 {
-		header = header[:2048] + " [path preview truncated]\n"
+		header = strings.ToValidUTF8(header[:2048], "") + " [path preview truncated]\n"
 	}
 	out.WriteString(header)
 	if create {

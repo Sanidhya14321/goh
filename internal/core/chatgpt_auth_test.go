@@ -344,14 +344,40 @@ func TestLogoutClearsCredentialsWhenRevokeFails(t *testing.T) {
 // A second updater waits for the lock instead of failing at once.
 func TestChatGPTLockWaitsForAnotherUpdater(t *testing.T) {
 	isolateConfig(t)
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	go func() { time.Sleep(300 * time.Millisecond); unlock() }()
-	second, err := chatGPTLock()
+	second, err := chatGPTLock(context.Background())
 	if err != nil {
 		t.Fatalf("second updater failed instead of waiting: %v", err)
 	}
 	second()
+}
+
+// Waiting for the lock ends when the caller is cancelled, well before the
+// lock wait limit, and the lock stays with its holder.
+func TestChatGPTLockWaitIsCancellable(t *testing.T) {
+	isolateConfig(t)
+	unlock, err := chatGPTLock(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unlock()
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(150*time.Millisecond, cancel)
+	start := time.Now()
+	if _, err := chatGPTLock(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("waiter not cancelled: %v", err)
+	}
+	if waited := time.Since(start); waited > 5*time.Second {
+		t.Fatalf("cancelled waiter held on for %s", waited)
+	}
+	// Cancellation of a request that renews or reads the token reaches the wait too.
+	expired, cancelNow := context.WithCancel(context.Background())
+	cancelNow()
+	if _, err := RenewChatGPTAccessToken(expired, "old"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("renewal ignored cancellation while waiting: %v", err)
+	}
 }

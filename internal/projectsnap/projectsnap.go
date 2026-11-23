@@ -67,7 +67,7 @@ func Open(dataDir, project string) (*Store, error) {
 	}
 	sum := sha256.Sum256([]byte(abs))
 	s := &Store{git: git, gitDir: filepath.Join(dataDir, hex.EncodeToString(sum[:12])+".git"), project: abs}
-	if rel, err := filepath.Rel(abs, s.gitDir); err == nil && !strings.HasPrefix(rel, "..") {
+	if rel, err := filepath.Rel(abs, s.gitDir); err == nil && !outside(rel) {
 		return nil, errors.New("snapshot storage must be outside the project")
 	}
 	if _, err := os.Stat(filepath.Join(s.gitDir, "HEAD")); err != nil {
@@ -321,7 +321,7 @@ func (s *Store) restore(ctx context.Context, tree string) (before string, change
 			continue
 		}
 		p := filepath.Join(s.project, filepath.FromSlash(c.Path))
-		if rel, err := filepath.Rel(s.project, p); err != nil || strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(s.project, p); err != nil || outside(rel) {
 			continue
 		}
 		if linkedParent(s.project, p) {
@@ -338,6 +338,12 @@ func (s *Store) restore(ctx context.Context, tree string) (before string, change
 		return before, nil, err
 	}
 	return before, changes, nil
+}
+
+// outside reports whether a relative path leaves its base: ".." or a path
+// under it, not a name that merely starts with two dots ("..notes.txt").
+func outside(rel string) bool {
+	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 // linkedParent reports whether any folder between project and p is a symlink.
@@ -401,7 +407,11 @@ func (s *Store) checkUnrecorded(ctx context.Context, before string, changes []Ch
 }
 
 func removeEmptyParents(root, dir string) {
-	for dir != root && strings.HasPrefix(dir, root) {
+	for {
+		rel, err := filepath.Rel(root, dir)
+		if err != nil || rel == "." || outside(rel) {
+			return
+		}
 		if os.Remove(dir) != nil {
 			return
 		}

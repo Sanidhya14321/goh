@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -228,7 +229,7 @@ func SetCredentialStore(choice string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(context.Background()) // a local move; no request to cancel
 	if err != nil {
 		return 0, err
 	}

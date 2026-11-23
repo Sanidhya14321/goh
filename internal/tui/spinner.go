@@ -101,7 +101,7 @@ func (m *model) statusLine() string {
 // when it is wider than width.
 func shortPath(path string, width int) string {
 	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		if rel, err := filepath.Rel(home, path); err == nil && !strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(home, path); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			path = filepath.Join("~", rel)
 		}
 	}

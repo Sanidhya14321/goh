@@ -56,3 +56,94 @@ func TestArtifactIDUsedAsPathGetsHint(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+// Paging a search with next_offset lists every match exactly once and always
+// advances, even when one match line is longer than the limit or a short
+// match follows one that did not fit.
+func TestArtifactSearchPagesEachMatchOnce(t *testing.T) {
+	e, err := New(t.TempDir(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var page strings.Builder
+	want := 0
+	for i := range 60 {
+		switch i % 3 {
+		case 0:
+			page.WriteString("hit " + strings.Repeat("long", 70) + "\n") // cut to 300 bytes, wider than limit 120
+		case 1:
+			page.WriteString("hit short\n")
+		default:
+			page.WriteString("other\n")
+			continue
+		}
+		want++
+	}
+	id, _ := e.SaveArtifact("fetch", page.String())
+	seen := map[string]int{}
+	offset := 0.0
+	for calls := 0; ; calls++ {
+		if calls > want+5 {
+			t.Fatal("search did not advance")
+		}
+		raw, _ := json.Marshal(map[string]any{"id": id, "pattern": "^hit", "limit": 120, "offset": offset})
+		out := decodeEfficiency(t, e.Execute(context.Background(), "read_artifact", raw))
+		for _, line := range strings.Split(strings.TrimSuffix(out["content"].(string), "\n"), "\n") {
+			if at, _, ok := strings.Cut(line, ": "); ok {
+				seen[at]++
+			}
+		}
+		next := out["next_offset"].(float64)
+		if out["eof"] == true {
+			break
+		}
+		if next <= offset {
+			t.Fatalf("next_offset %v did not advance from %v", next, offset)
+		}
+		offset = next
+	}
+	if len(seen) != want {
+		t.Fatalf("listed %d distinct matches, want %d", len(seen), want)
+	}
+	for at, n := range seen {
+		if n != 1 {
+			t.Fatalf("match at %s listed %d times", at, n)
+		}
+	}
+}
+
+// Paging text by next_offset keeps every character whole.
+func TestArtifactTextPagesKeepCharactersWhole(t *testing.T) {
+	e, err := New(t.TempDir(), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := strings.Repeat("aé界😀", 400)
+	id, _ := e.SaveArtifact("fetch", text)
+	for _, limit := range []int{1, 2, 3, 7, 100} {
+		var got strings.Builder
+		offset := 0.0
+		for calls := 0; ; calls++ {
+			if calls > len(text)+2 {
+				t.Fatalf("limit %d: paging did not finish", limit)
+			}
+			raw, _ := json.Marshal(map[string]any{"id": id, "offset": offset, "limit": limit})
+			out := decodeEfficiency(t, e.Execute(context.Background(), "read_artifact", raw))
+			if out["utf8_repaired"] == true {
+				t.Fatalf("limit %d: a page split a character at %v", limit, offset)
+			}
+			got.WriteString(out["content"].(string))
+			if out["eof"] == true {
+				break
+			}
+			if next := out["next_offset"].(float64); next <= offset {
+				t.Fatalf("limit %d: stalled at %v", limit, offset)
+			} else {
+				offset = next
+			}
+		}
+		if got.String() != text {
+			t.Fatalf("limit %d: paged text differs", limit)
+		}
+	}
+}

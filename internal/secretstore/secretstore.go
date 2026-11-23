@@ -72,7 +72,7 @@ func run(name string, input []byte, args ...string) (stdout []byte, code int, er
 	if errors.As(err, &exit) {
 		msg := strings.TrimSpace(errOut.String())
 		if len(msg) > 200 {
-			msg = msg[:200]
+			msg = strings.ToValidUTF8(msg[:200], "")
 		}
 		return out.Bytes(), exit.ExitCode(), fmt.Errorf("%s failed (exit %d): %s", name, exit.ExitCode(), msg)
 	}

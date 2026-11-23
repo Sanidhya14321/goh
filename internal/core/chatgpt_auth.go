@@ -129,7 +129,7 @@ func ChatGPTExpiry() (time.Time, error) {
 // returns the new expiry; an expired or revoked sign-in fails with the
 // same message as a failed automatic renewal.
 func RefreshChatGPT(ctx context.Context) (time.Time, error) {
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(ctx)
 	if err != nil {
 		return time.Time{}, err
 	}
@@ -148,7 +148,9 @@ func RefreshChatGPT(ctx context.Context) (time.Time, error) {
 // chatGPTLockWait bounds how long a sign-in update waits for another.
 var chatGPTLockWait = 20 * time.Second
 
-func chatGPTLock() (func(), error) {
+// chatGPTLock takes the sign-in update lock, waiting for another holder
+// until chatGPTLockWait passes or ctx is cancelled.
+func chatGPTLock(ctx context.Context) (func(), error) {
 	path, err := chatGPTPath("chatgpt.lock")
 	if err != nil {
 		return nil, err
@@ -163,7 +165,8 @@ func chatGPTLock() (func(), error) {
 	// Another process (or a model-list fetch in this one) may be renewing
 	// the token; wait for it rather than failing the request. A renewal
 	// request is bounded at 15 seconds, so this outlasts one.
-	deadline := time.Now().Add(chatGPTLockWait)
+	deadline := time.NewTimer(chatGPTLockWait)
+	defer deadline.Stop()
 	for {
 		err := platform.TryLock(f)
 		if err == nil {
@@ -173,11 +176,15 @@ func chatGPTLock() (func(), error) {
 			f.Close()
 			return nil, err
 		}
-		if time.Now().After(deadline) {
+		select {
+		case <-ctx.Done():
+			f.Close()
+			return nil, fmt.Errorf("stopped waiting for another GoHarness process updating ChatGPT sign-in: %w", ctx.Err())
+		case <-deadline.C:
 			f.Close()
 			return nil, errors.New("another GoHarness process is updating ChatGPT sign-in; try again shortly")
+		case <-time.After(100 * time.Millisecond):
 		}
-		time.Sleep(100 * time.Millisecond)
 	}
 	return func() { _ = f.Close() }, nil
 }
@@ -233,7 +240,7 @@ func ChatGPTAccessToken(ctx context.Context) (string, error) {
 	if time.Until(a.Expires) > 30*time.Second && a.Tokens.Access != "" {
 		return a.Tokens.Access, nil
 	}
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -252,7 +259,7 @@ func ChatGPTAccessToken(ctx context.Context) (string, error) {
 // token (HTTP 401) before its recorded expiry. If another process already
 // renewed it, the newer saved token is returned without a second renewal.
 func RenewChatGPTAccessToken(ctx context.Context, rejected string) (string, error) {
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -309,7 +316,7 @@ func validChatGPTTokens(t chatGPTTokens) bool {
 }
 
 func LogoutChatGPT(ctx context.Context) error {
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(ctx)
 	if err != nil {
 		return err
 	}
@@ -372,7 +379,7 @@ func ChatGPTSignedIn() bool {
 }
 
 func loginChatGPT(ctx context.Context, open func(string) error, fresh bool) (string, error) {
-	unlock, err := chatGPTLock()
+	unlock, err := chatGPTLock(ctx)
 	if err != nil {
 		return "", err
 	}

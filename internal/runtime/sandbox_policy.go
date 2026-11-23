@@ -49,7 +49,7 @@ func sandboxPolicy(c core.Config, project string) *sandbox.Policy {
 	}
 	kept := p.Protected[:0]
 	for _, d := range p.Protected {
-		if rel, err := filepath.Rel(resolved(d), resolved(project)); err != nil || strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(resolved(d), resolved(project)); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			kept = append(kept, d)
 		}
 	}

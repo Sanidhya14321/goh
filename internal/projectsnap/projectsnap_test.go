@@ -276,3 +276,39 @@ func TestLockWaitIsCancellableAndLiveHolderKept(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Names that begin with two dots are ordinary files inside the project.
+func TestRestoreHandlesNamesStartingWithTwoDots(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not installed")
+	}
+	ctx := context.Background()
+	project := t.TempDir()
+	write(t, project, "keep.txt", "base\n")
+	write(t, project, "..config", "original\n")
+	s, err := Open(t.TempDir(), project)
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := s.Track(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, project, "..config", "edited\n")
+	write(t, project, "..notes.txt", "created later\n")
+	write(t, project, "..dir/inner.txt", "created later\n")
+	if _, err := s.Track(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := s.Restore(ctx, first); err != nil {
+		t.Fatal(err)
+	}
+	if read(t, project, "..config") != "original\n" || read(t, project, "..notes.txt") != "<missing>" || read(t, project, "..dir/inner.txt") != "<missing>" {
+		t.Fatalf("restore left ..-named files: config %q notes %q inner %q", read(t, project, "..config"), read(t, project, "..notes.txt"), read(t, project, "..dir/inner.txt"))
+	}
+	for rel, want := range map[string]bool{"..": true, "../x": true, filepath.Join("..", "x"): true, "..x": false, "..x/y": false, "a/..": false} {
+		if outside(rel) != want {
+			t.Errorf("outside(%q) = %v", rel, !want)
+		}
+	}
+}

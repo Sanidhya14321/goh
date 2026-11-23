@@ -36,7 +36,7 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 		if r, err := filepath.EvalSymlinks(d); err == nil {
 			d = r
 		}
-		if rel, err := filepath.Rel(base, d); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+		if rel, err := filepath.Rel(base, d); err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 			skipRel[filepath.ToSlash(rel)] = true
 		}
 	}

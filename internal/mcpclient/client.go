@@ -299,7 +299,7 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		}
 		description := tool.Description
 		if len(description) > 8192 {
-			description = description[:8192]
+			description = strings.ToValidUTF8(description[:8192], "")
 		}
 		discovered[full] = binding{server: name, session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
 	}

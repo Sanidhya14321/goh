@@ -169,6 +169,24 @@ func (e *Engine) readArtifact(ctx context.Context, raw json.RawMessage) Result {
 		return failure(errors.New("artifact offset exceeds retained length"))
 	}
 	end := min(int64(len(data)), offset+int64(a.Limit))
+	if a.Encoding == "text" {
+		// Keep text pages on character boundaries, so paging by next_offset
+		// neither splits nor loses a character; a page always advances.
+		for offset < end && !utf8.RuneStart(data[offset]) {
+			offset++
+		}
+		cut := end
+		for cut > offset && cut < int64(len(data)) && !utf8.RuneStart(data[cut]) {
+			cut--
+		}
+		if cut == offset && end < int64(len(data)) { // a limit smaller than one character
+			cut = end
+			for cut < int64(len(data)) && !utf8.RuneStart(data[cut]) {
+				cut++
+			}
+		}
+		end = cut
+	}
 	part := data[offset:end]
 	content := string(part)
 	repaired := false
@@ -183,13 +201,17 @@ func (e *Engine) readArtifact(ctx context.Context, raw json.RawMessage) Result {
 
 // artifactMatches lists the lines of data from a.Offset on that match a.Pattern,
 // each with its byte offset and cut to maxPatternLine bytes, until a.Limit
-// bytes of matches are listed.
+// bytes of matches are listed. Listing stops at the first match that does not
+// fit, and next_offset is that match's line, so paging lists every match
+// exactly once; the first match is always listed (cut to the limit if
+// needed), so every call advances.
 func artifactMatches(a artifactArgs, data []byte) map[string]any {
 	re := regexp.MustCompile(a.Pattern) // validated in decodeArtifact
 	start := min(a.Offset, int64(len(data)))
 	var b strings.Builder
 	matches, listed := 0, 0
 	next := int64(len(data))
+	full := false
 	for pos := start; pos < int64(len(data)); {
 		end := int64(len(data))
 		if i := bytes.IndexByte(data[pos:], '\n'); i >= 0 {
@@ -203,17 +225,25 @@ func artifactMatches(a artifactArgs, data []byte) map[string]any {
 				text = text[:maxPatternLine]
 			}
 			entry := fmt.Sprintf("%d: %s\n", pos, strings.ToValidUTF8(string(text), "�"))
-			if b.Len()+len(entry) > a.Limit {
-				if next == int64(len(data)) {
-					next = pos
-				}
-			} else {
+			switch {
+			case full:
+			case listed == 0 && len(entry) > a.Limit:
+				entry = strings.ToValidUTF8(entry[:a.Limit], "")
+				b.WriteString(entry)
+				listed++
+				full = true
+				next = end + 1 // past this line, whose start was listed
+			case b.Len()+len(entry) > a.Limit:
+				full = true
+				next = pos
+			default:
 				b.WriteString(entry)
 				listed++
 			}
 		}
 		pos = end + 1
 	}
-	return map[string]any{"id": a.ID, "pattern": a.Pattern, "matches": matches, "listed": listed, "content": b.String(), "next_offset": next, "retained_bytes": len(data), "sha256": hash(data),
-		"scope": "Matching lines as \"byte_offset: line\" (cut to 300 bytes); read a range with offset and limit. Retained session output only."}
+	next = min(next, int64(len(data)))
+	return map[string]any{"id": a.ID, "pattern": a.Pattern, "matches": matches, "listed": listed, "content": b.String(), "next_offset": next, "eof": next == int64(len(data)), "retained_bytes": len(data), "sha256": hash(data),
+		"scope": "Matching lines as \"byte_offset: line\" (cut to 300 bytes); continue from next_offset with the same pattern, or read a range with offset and limit. Retained session output only."}
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/Sanidhya14321/goh/internal/sandbox"
 	"os/exec"
@@ -94,6 +95,9 @@ func (a *Agent) runHook(ctx context.Context, h core.HookConfig, event string, pa
 		_ = platform.KillGroup(cmd.Process.Pid)
 		<-done
 		err = fmt.Errorf("hook timed out after %s", timeout)
+		if !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			err = errors.New("hook stopped: the run was cancelled")
+		}
 		return hookOutcome{exit: -1, stdout: stdout.String(), stderr: stderr.String(), err: err}
 	}
 	out := hookOutcome{stdout: stdout.String(), stderr: stderr.String()}
@@ -156,9 +160,21 @@ func (a *Agent) postToolHooks(ctx context.Context, c core.Call, res tools.Result
 			body = map[string]any{"content": res.Content}
 		}
 		notes, _ := body["hook_feedback"].([]any)
-		body["hook_feedback"] = append(notes, map[string]any{"command": h.Command, "output": feedback})
-		if b, err := json.Marshal(body); err == nil && len(b) <= tools.MaxInline {
-			res.Content = string(b)
+		// The feedback must reach the model: when the result leaves too
+		// little room, the feedback is shortened rather than dropped.
+		for room := len(feedback); ; room /= 2 {
+			text := feedback
+			if room < len(feedback) {
+				text = strings.ToValidUTF8(feedback[:room], "") + " [hook output shortened to fit the result]"
+			}
+			body["hook_feedback"] = append(notes, map[string]any{"command": h.Command, "output": text})
+			if b, err := json.Marshal(body); err == nil && len(b) <= tools.MaxInline {
+				res.Content = string(b)
+				break
+			}
+			if room == 0 {
+				break
+			}
 		}
 	}
 	return res

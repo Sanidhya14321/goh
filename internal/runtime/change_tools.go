@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/formatters"
@@ -85,7 +86,7 @@ func (a *Agent) prepareChange(name string, raw json.RawMessage) (string, bool, e
 	}
 	preview, _ := json.MarshalIndent(changes, "", "  ")
 	if len(preview) > tools.MaxInline {
-		preview = append(preview[:tools.MaxInline-100], []byte("\n[preview truncated; inspect changes diff before approval]")...)
+		preview = append([]byte(strings.ToValidUTF8(string(preview[:tools.MaxInline-100]), "")), []byte("\n[preview truncated; inspect changes diff before approval]")...)
 	}
 	return fmt.Sprintf("%s %s: saved files only, with current-hash conflict checks; multiple files publish individually.\n%s", name, id, preview), true, nil
 }
