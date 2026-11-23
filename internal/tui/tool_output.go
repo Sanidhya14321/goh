@@ -8,7 +8,9 @@ import (
 	"strings"
 )
 
-func historyToolText(raw string) string {
+// historyToolParts splits a journaled tool message into its mark and the
+// tool's own result content.
+func historyToolParts(raw string) (mark, content string) {
 	var envelope struct {
 		Content *string
 		Error   bool
@@ -16,13 +18,124 @@ func historyToolText(raw string) string {
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(&envelope) == nil && envelope.Content != nil && decoder.Decode(new(any)) == io.EOF {
-		mark := "✓ "
 		if envelope.Error {
-			mark = "[error] "
+			return "[error] ", *envelope.Content
 		}
-		return mark + toolResultText(*envelope.Content)
+		return "✓ ", *envelope.Content
 	}
-	return "[result] " + toolResultText(raw)
+	return "[result] ", raw
+}
+
+func historyToolText(raw string) string {
+	mark, content := historyToolParts(raw)
+	return mark + toolResultText(content)
+}
+
+// toolResultLog is one tool result as transcript lines, the same for a live
+// turn and a resumed session. A fetched page is a single line (address,
+// status, size) with a short preview that /details reveals; other output is
+// shown literally (see toolResultLines).
+func toolResultLog(mark, raw string) string {
+	if mark == "✓ " {
+		if summary, preview, ok := fetchedPage(raw); ok {
+			return fetchedPageLines(mark, Safe(summary), Safe(preview))
+		}
+	}
+	content := toolResultText(raw)
+	if len(content) > 2048 {
+		content = strings.ToValidUTF8(content[:2048], "�") + "…"
+	}
+	return toolResultLines(mark, Safe(content))
+}
+
+const (
+	fetchPreviewLines = 12
+	fetchPreviewBytes = 1536
+	fetchLineRunes    = 160
+)
+
+// fetchedPage recognizes a webfetch result and summarizes it.
+func fetchedPage(raw string) (summary, preview string, ok bool) {
+	var page struct {
+		Content    *string `json:"content"`
+		URL        string  `json:"url"`
+		Status     int     `json:"status_code"`
+		Format     string  `json:"format"`
+		Truncated  bool    `json:"truncated"`
+		ArtifactID string  `json:"artifact_id"`
+		Retained   int64   `json:"artifact_bytes"`
+	}
+	if !strings.HasPrefix(strings.TrimSpace(raw), "{") || json.Unmarshal([]byte(raw), &page) != nil || page.Content == nil || page.URL == "" || page.Status == 0 {
+		return "", "", false
+	}
+	content := strings.TrimSpace(*page.Content)
+	summary = fmt.Sprintf("%s · HTTP %d", shortURL(page.URL), page.Status)
+	if content == "" {
+		summary += " · empty page"
+	} else {
+		summary += " · " + byteSize(int64(len(content)))
+		if page.Format != "" {
+			summary += " " + page.Format
+		}
+	}
+	if page.Truncated {
+		summary += " · truncated"
+	}
+	if page.ArtifactID != "" {
+		summary += " · artifact " + page.ArtifactID
+	}
+	var lines []string
+	size, blank, rest := 0, false, 0
+	all := strings.Split(content, "\n")
+	for i, line := range all {
+		line = strings.TrimRight(strings.ReplaceAll(line, "\t", "    "), " ")
+		if line == "" {
+			blank = len(lines) > 0
+			continue
+		}
+		// Shorten first: one long line (minified markup, a data blob) must
+		// not use the whole budget and leave the preview empty.
+		if r := []rune(line); len(r) > fetchLineRunes {
+			line = string(r[:fetchLineRunes]) + "…"
+		}
+		if len(lines) >= fetchPreviewLines || size+len(line) > fetchPreviewBytes {
+			for _, remaining := range all[i:] {
+				if strings.TrimSpace(remaining) != "" {
+					rest++
+				}
+			}
+			break
+		}
+		if blank {
+			lines = append(lines, "")
+			blank = false
+		}
+		lines = append(lines, line)
+		size += len(line)
+	}
+	if rest > 0 {
+		more := "… " + plural(rest, "more line", "more lines")
+		if page.ArtifactID != "" {
+			retained := "page text"
+			if page.Retained > 0 {
+				retained = byteSize(page.Retained) + " of page text"
+			}
+			more += " (" + retained + " in artifact " + page.ArtifactID + ")"
+		}
+		lines = append(lines, more)
+	}
+	return summary, strings.Join(lines, "\n"), true
+}
+
+// shortURL drops what a reader does not need to recognize the page.
+func shortURL(raw string) string {
+	short := strings.TrimPrefix(raw, "https://")
+	short = strings.TrimPrefix(short, "www.")
+	short = strings.TrimSuffix(short, "/")
+	if r := []rune(short); len(r) > 72 {
+		short = string(r[:71]) + "…"
+	}
+	return strings.ReplaceAll(short, "\n", " ")
 }
 
 func toolArgumentText(raw json.RawMessage) string {

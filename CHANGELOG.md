@@ -4,6 +4,29 @@ GoHarness releases, newest first. Dates are commit dates.
 Each entry lists user-visible changes; evidence for each is in
 [VERIFICATION.md](docs/development/VERIFICATION.md).
 
+## Unreleased
+
+- **Fetched pages read like the page:** `webfetch` converts HTML from the main content when the markup identifies it (a code host's rendered README, a single `<main>` or `<article>`), drops navigation, banners, footers, hidden elements, empty links and empty list items, and collapses blank lines outside preformatted text, in both `markdown` and `text` formats. A repository page that came back as several screens of site navigation now starts with its title and README. `html` format is unchanged.
+- **Fetch results are one line in chat:** a successful fetch shows its address, HTTP status, size, and truncation or artifact; `/details` now cycles through output shown, the same with a short preview of each fetched page, and one line per result. Errors stay visible; shell and file output is unchanged. Resumed sessions show tool calls and results the same way as live turns.
+- **Replies render cleanly:** a paragraph that starts with a link is ordinary prose (it was dimmed like a notice), links show their label and address, emphasis, strike, code spans and escapes lose their markers correctly (`**kwargs` and `2 * 3` stay literal), and prose wraps between words by display width, breaking only tokens wider than the terminal. Code panels, tables and approval diffs are unchanged. A code block a message leaves open ends with that message (live and resumed), and a fence closes only on a run of its own character at least as long (a ```` block can show ``` lines).
+- **Follow-up review fixes:**
+  - Markdown export redacts each tool block whole before splitting it into indented lines; a multiline private key in tool output (raw imported or legacy content, or the JSON envelope) was exported with only its first line masked.
+  - `webfetch` chooses the main content with the same visibility rules it renders with (a hidden or navigation `<main>` is not a candidate) and keeps headers, footers and notes inside `<main>`/`<article>`. Fetch previews shorten long lines before applying their size budget; trimming a long transcript cuts at a line start, so collapsed previews stay hidden, and keeps an open code block's opening. Very long tokens are broken in one pass.
+  - A reopened chat shows the journaled conversation (its recent 256 KiB) instead of the compacted model context.
+  - A fetched page that the result only excerpts is kept whole as an artifact (previously only the excerpt was kept); the result is re-bounded to 64 KiB after the artifact metadata is added, and `artifact_note`/`artifact_bytes` say exactly what the artifact holds (whole text, conversion-limited text, or its first 1 MiB).
+  - `read_artifact` with `pattern` lists each match once across pages and always advances (`next_offset`, new `eof`), even when one match line exceeds `limit`.
+  - Snapshot restore removes files whose names start with two dots (`..config`); they were treated as outside the project.
+  - Waiting for the ChatGPT sign-in lock stops when the request is cancelled.
+- **Leaving the chat and coming back is seamless:** opening `/models`, `/agents`, `/settings`, `/providers` or switching agents used to rebuild the chat screen from the journal: scroll position, `/details`, thinking, timestamps and sidebar toggles, and the last run's time and tokens were reset. The screen is now kept and shown again as it was when the chat reopens on the same unchanged session.
+- **`/models` opens at once the second time:** model lists are kept for five minutes per provider route (never the key) instead of being fetched again behind a loading screen; adding, switching or re-keying a provider clears them.
+- **Rate limits are named:** a provider's HTTP 429 shows as "Rate limited by the provider (requests or tokens per minute); waiting Ns" instead of "Provider busy", since these waits (up to 30 s per attempt) are where slow runs on free tiers spend their time.
+- **Repository sweep for the same bug classes:**
+  - Folders whose names start with two dots are inside their parent: a GoHarness state folder such as `..goh-state` in the project no longer counts as a project change, the sandbox no longer hides a project that lives in a `..`-named folder, the home folder is shortened to `~` for such paths, and snapshot cleanup of empty folders compares paths, not string prefixes.
+  - `read_artifact` text pages end on character boundaries, so paging with `next_offset` never splits or loses a character, and a page always advances.
+  - Feedback from a `post_tool` hook that exits 2 is shortened to fit beside a large tool result instead of being dropped silently.
+  - A hook stopped because the run was cancelled says so instead of reporting a timeout.
+  - Truncated MCP tool descriptions, pinned instructions, repeated-call and change-tool approval previews, path headers in diff previews and secret-store error messages no longer end in half a character.
+
 ## 1.0.0 — 2026-11-21
 
 First stable release: everything since rc.180 below.

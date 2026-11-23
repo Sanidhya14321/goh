@@ -241,8 +241,11 @@ composer.
 
 ### Display
 
-Markdown headings, lists, quotes, code panels and tables are rendered. Go, JSON, JavaScript and
-TypeScript are syntax highlighted. The default `terminal` theme uses the terminal's own
+Markdown headings, lists, quotes, links (label followed by the address), emphasis, code panels
+and tables are rendered; prose wraps between words at the terminal's width. Go, JSON, JavaScript
+and TypeScript are syntax highlighted. Tool output is shown literally. A fetched page shows as one
+line (address, HTTP status, size, truncation, artifact); `/details` cycles through tool output
+shown (the default), the same plus a short preview of each fetched page, and one line per result. The default `terminal` theme uses the terminal's own
 background and text color, so the screen matches the window edge to edge; `dark`, `light` and
 `high-contrast` paint their own background. A session sidebar appears on terminals ≥112 columns. The mouse
 wheel scrolls; set `GOH_NO_MOUSE=1` for native text selection. `NO_COLOR` disables color. Ctrl+L
@@ -802,7 +805,11 @@ formatters.
 `webfetch` takes `url`, `format` (`text`, `markdown`, `html`; default markdown) and `timeout`
 (default 30 s, max 120 s). Each request needs approval. It sends no API headers or cookies, follows
 up to five same-origin redirects, accepts UTF-8 text up to 4 MiB, never executes scripts, and
-returns at most 64 KiB. A page over 16 KiB is also saved as a session artifact (`artifact_id` in the
+returns at most 64 KiB. HTML is converted to Markdown or text from the page's main content when the
+markup identifies it (a rendered README, a single `<main>` or `<article>`), otherwise from the whole
+body; navigation, banners, footers, hidden elements, empty links and list items are left out, and
+blank lines are collapsed outside preformatted text. `format: "html"` returns the page unchanged.
+A page over 16 KiB, or one the result only excerpts, is also saved as a session artifact (`artifact_id` in the
 result), which `read_artifact` can search (`pattern`) or read in parts. A small context window can
 then show only the start of a page and still reach the rest. JSON APIs work (the Accept header ends
 with `*/*`). An HTTP error reports

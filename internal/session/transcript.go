@@ -89,6 +89,9 @@ func (w *transcriptWriter) add(parts ...string) {
 }
 
 func (w *transcriptWriter) code(text string) {
+	// Redact the whole block first: a secret spanning lines (a private key)
+	// is only recognizable before the block is split into indented lines.
+	text = RedactSecrets(text)
 	// Indentation keeps literal fence markers in tool output inside the block.
 	for w.err == nil {
 		line, rest, more := strings.Cut(text, "\n")

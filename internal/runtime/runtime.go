@@ -1127,7 +1127,7 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 		return websearch.Search(ctx, a.Config.WebsearchURL, json.RawMessage(c.Function.Arguments), nil)
 	}
 	if c.Function.Name == "webfetch" {
-		return a.retainFetchedPage(a.Web.Fetch(ctx, json.RawMessage(c.Function.Arguments)))
+		return a.retainFetchedPage(a.Web.FetchPage(ctx, json.RawMessage(c.Function.Arguments)))
 	}
 	if c.Function.Name == "lsp" && a.LSP != nil {
 		return a.LSP.Execute(ctx, c.Function.Name, json.RawMessage(c.Function.Arguments))

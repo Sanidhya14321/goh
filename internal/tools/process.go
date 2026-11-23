@@ -18,6 +18,9 @@ import (
 
 const maxArtifact = 1 << 20
 
+// MaxArtifact is the most a retained artifact keeps.
+const MaxArtifact = maxArtifact
+
 // captureWriter drains every byte, retaining only bounded output. The file is
 // private and contains a combined stdout/stderr stream in observed write order.
 type captureWriter struct {

@@ -8,11 +8,11 @@ import (
 
 func TestDetailsToggle(t *testing.T) {
 	log := "\nYou: run tests\n" + toolResultLines("✓ ", Safe("ok  pkg/a\nok  pkg/b\nFAIL pkg/c")) + toolResultLines("", Safe("\x00Rforged"))
-	shown := strings.ReplaceAll(withDetails(log, true), verbatimMark, "")
+	shown := strings.ReplaceAll(withDetails(log, detailsShown), verbatimMark, "")
 	if !strings.Contains(shown, "✓ ok  pkg/a\nok  pkg/b\nFAIL pkg/c") || strings.Contains(shown, "(+2 lines)") || strings.Contains(shown, "\x00") {
 		t.Fatalf("%q", shown)
 	}
-	hidden := strings.ReplaceAll(withDetails(log, false), verbatimMark, "")
+	hidden := strings.ReplaceAll(withDetails(log, detailsHidden), verbatimMark, "")
 	if !strings.Contains(hidden, "✓ ok pkg/a (+2 lines)") || strings.Contains(hidden, "FAIL pkg/c") || strings.Contains(hidden, "\x00") {
 		t.Fatalf("%q", hidden)
 	}
@@ -38,7 +38,7 @@ func TestToolOutputRendersVerbatim(t *testing.T) {
 	code := "def f(*args, **kwargs):\n    # TODO: handle fiscal years\n    return a ** b\n```\n| a | b |\n|---|---|"
 	log := "\nYou: read it\n" + toolResultLines("✓ ", Safe(code)) + "## Reply heading\n"
 	var text []string
-	for _, row := range transcriptRows(withDetails(log, true), 100, "", false) {
+	for _, row := range transcriptRows(withDetails(log, detailsShown), 100, "", false) {
 		text = append(text, row.text)
 	}
 	got := strings.Join(text, "\n")

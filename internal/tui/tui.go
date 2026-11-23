@@ -148,7 +148,7 @@ type model struct {
 	changesPicker        *optionPicker
 	timestamps           bool
 	contextTokens        int
-	hideDetails          bool
+	details              detailsMode
 	hideThinking         bool
 	sessionTitle         string
 	skillNoticeShown     bool
@@ -266,12 +266,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.flushReasoning()
-		if strings.HasPrefix(m.status, "Provider busy") && (v.Type == "assistant_updated" || v.Type == "tool_started" || v.Type == "assistant_completed") {
+		if (strings.HasPrefix(m.status, "Provider busy") || strings.HasPrefix(m.status, "Rate limited")) && (v.Type == "assistant_updated" || v.Type == "tool_started" || v.Type == "assistant_completed") {
 			m.status = "running" // the retry got through
 		}
 		if v.Type == "provider_retry" {
 			if n, ok := v.Data.(core.RetryNotice); ok {
-				m.status = fmt.Sprintf("Provider busy (%s); retrying in %.1fs, attempt %d of %d", Safe(n.Reason), float64(n.DelayMS)/1000, n.Attempt, n.Max)
+				m.status = retryStatus(n)
 			}
 		}
 		if v.Type == "session_titled" {
@@ -282,7 +282,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		}
 		if v.Type != "assistant_updated" && v.Type != "stream_retry" && v.Type != "assistant_reset" {
-			m.partialReply = "" // the reply text so far is final
+			// The reply text so far is final; a code block it left open
+			// ends with it.
+			if m.partialReply != "" {
+				m.log += closeFence(m.partialReply)
+			}
+			m.partialReply = ""
 		}
 		switch v.Type {
 		case "subagent_event":
@@ -333,7 +338,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if m.partialReply == "" {
 				// A reply after tool output starts its own paragraph so it is
 				// not read as more of the output.
-				if strings.HasSuffix(m.log, "\n") && !strings.HasSuffix(m.log, "\n\n") && strings.Contains(m.log[strings.LastIndex(strings.TrimSuffix(m.log, "\n"), "\n")+1:], detailMark) {
+				if strings.HasSuffix(m.log, "\n") && !strings.HasSuffix(m.log, "\n\n") && lastLineIsToolOutput(m.log) {
 					m.log += "\n"
 				}
 				m.partialStart = len(m.log)
@@ -347,11 +352,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				Arguments json.RawMessage `json:"arguments"`
 			}
 			json.Unmarshal(b, &tool)
-			args := Safe(toolArgumentText(tool.Arguments))
-			if len(args) > 256 {
-				args = strings.ToValidUTF8(args[:256], "�") + "…"
-			}
-			m.log += "\n▸ " + Safe(tool.Name) + "  " + args + "\n"
+			m.log += toolCallLine(tool.Name, tool.Arguments)
 		case "tool_finished":
 			b, _ := json.Marshal(v.Data)
 			var tool struct {
@@ -361,15 +362,11 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				} `json:"result"`
 			}
 			json.Unmarshal(b, &tool)
-			content := toolResultText(tool.Result.Content)
-			if len(content) > 2048 {
-				content = strings.ToValidUTF8(content[:2048], "�") + "…"
-			}
 			mark := "✓ "
 			if tool.Result.Error {
 				mark = "[error] "
 			}
-			m.log += toolResultLines(mark, Safe(content))
+			m.log += toolResultLog(mark, tool.Result.Content)
 		case "context_compaction_skipped":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -950,7 +947,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.scrollOffset = 0
 			m.active = true
 			m.status = "running"
-			m.log += stampLine(time.Now()) + "\nYou: " + prompt + "\n"
+			m.log += stampLine(time.Now()) + "\nYou: " + prompt + "\n" + closeFence(prompt+"\n")
 			ctx, cancel := context.WithCancel(context.Background())
 			m.cancel = cancel
 			runDone := make(chan struct{})
@@ -1019,6 +1016,89 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 	}
 	return m, nil
 }
+
+// screenHistoryBytes bounds how much journaled conversation a reopened chat
+// renders; the transcript keeps 128 KiB of it (see trimLog).
+const screenHistoryBytes = 256 << 10
+
+// screenHistory is what a reopened chat shows: the journaled messages, not
+// the model's context, which compaction replaces with a summary. Only the
+// recent end that fits the transcript is returned.
+func screenHistory(a *agent.Agent) []core.Message {
+	if a.Store == nil {
+		return a.History
+	}
+	var messages []core.Message
+	for _, record := range a.Store.Records() {
+		if record.Type != "message" {
+			continue
+		}
+		var message core.Message
+		if json.Unmarshal(record.Data, &message) == nil {
+			messages = append(messages, message)
+		}
+	}
+	if len(messages) == 0 {
+		return a.History
+	}
+	size := 0
+	for i := len(messages) - 1; i >= 0; i-- {
+		size += min(len(messages[i].Content), 4096) + 64
+		for _, call := range messages[i].ToolCalls {
+			size += min(len(call.Function.Arguments), 256) + 64
+		}
+		if size > screenHistoryBytes {
+			return messages[i+1:]
+		}
+	}
+	return messages
+}
+
+// loadHistory writes a resumed conversation the way a live turn writes it.
+func (m *model) loadHistory(history []core.Message, promptTimes map[string][]time.Time) {
+	for _, message := range history {
+		switch message.Role {
+		case "user":
+			if message.Automatic {
+				m.log += "\n[GoHarness] " + Safe(message.Content) + "\n"
+				continue
+			}
+			m.rememberPrompt(message.Content)
+			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n" + closeFence(Safe(message.Content)+"\n")
+		case "assistant":
+			if message.Content != "" && lastLineIsToolOutput(m.log) && !strings.HasSuffix(m.log, "\n\n") {
+				m.log += "\n"
+			}
+			m.log += Safe(message.Content) + closeFence(Safe(message.Content))
+			for _, call := range message.ToolCalls {
+				m.log += toolCallLine(call.Function.Name, json.RawMessage(call.Function.Arguments))
+			}
+		case "tool":
+			m.log += toolResultLog(historyToolParts(message.Content))
+		}
+	}
+}
+
+// retryStatus explains a provider retry. A rate limit (HTTP 429) is the
+// provider holding back this account's requests, not the provider being
+// busy, and its waits are long; saying so tells the user where the time goes.
+func retryStatus(n core.RetryNotice) string {
+	wait := float64(n.DelayMS) / 1000
+	if strings.Contains(n.Reason, "HTTP 429") {
+		return fmt.Sprintf("Rate limited by the provider (requests or tokens per minute); waiting %.0fs, then attempt %d of %d", wait, n.Attempt, n.Max)
+	}
+	return fmt.Sprintf("Provider busy (%s); retrying in %.1fs, attempt %d of %d", Safe(n.Reason), wait, n.Attempt, n.Max)
+}
+
+// toolCallLine is the "▸ name  arguments" line above a tool's result.
+func toolCallLine(name string, arguments json.RawMessage) string {
+	args := Safe(toolArgumentText(arguments))
+	if len(args) > 256 {
+		args = strings.ToValidUTF8(args[:256], "�") + "…"
+	}
+	return "\n▸ " + Safe(name) + "  " + args + "\n"
+}
+
 func terminalRows(text string, width int) []string {
 	text = strings.ReplaceAll(Safe(text), "\t", "    ")
 	rows := strings.Split(ansi.Hardwrap(text, width, true), "\n")
@@ -1206,34 +1286,15 @@ func Run(a *agent.Agent, notice, draft string) error {
 	}
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config), sessionTitle: title}
 	m.insertInput(Safe(draft))
-	var promptTimes map[string][]time.Time
-	if a.Store != nil {
-		promptTimes = userPromptTimes(a.Store.Records())
-	}
-	for _, message := range a.History {
-		switch message.Role {
-		case "user":
-			if message.Automatic {
-				m.log += "\n[GoHarness] " + Safe(message.Content) + "\n"
-				continue
-			}
-			m.rememberPrompt(message.Content)
-			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n"
-		case "assistant":
-			m.log += Safe(message.Content)
-			for _, call := range message.ToolCalls {
-				m.log += "\n[tool] " + Safe(call.Function.Name) + "\n"
-			}
-		case "tool":
-			text := historyToolText(message.Content)
-			if len(text) > 2048 {
-				text = text[:2048] + "…"
-			}
-			m.log += "\n" + toolResultLines("", Safe(text))
+	if !m.unparkView() {
+		var promptTimes map[string][]time.Time
+		if a.Store != nil {
+			promptTimes = userPromptTimes(a.Store.Records())
 		}
-	}
-	if len(m.log) > 128<<10 {
-		m.trimLog()
+		m.loadHistory(screenHistory(a), promptTimes)
+		if len(m.log) > 128<<10 {
+			m.trimLog()
+		}
 	}
 	m.restoreLastRun()
 	if a.Store != nil {
@@ -1304,6 +1365,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	a.Ask = oldAsk
 	if e == nil && m.navigation != "" {
 		parkQueue(a.Store.ID, m.queue, m.queueHeld)
+		m.parkView()
 		return &ChatNavigation{Action: m.navigation, Session: a.Store.ID, Project: a.Store.Project, Config: &a.Config, Backdrop: m.View().Content, Draft: m.input, BeforeTurn: m.forkBefore, RevertPrompt: m.revertPrompt, RevertOccurrence: m.revertOccurrence}
 	}
 	return e
@@ -1401,9 +1463,24 @@ type logSpan struct {
 
 // trimLog keeps the transcript bounded, remembering how much was cut.
 func (m *model) trimLog() {
-	if over := len(m.log) - (128 << 10); over > 0 {
-		m.log = m.log[over:]
-		m.logTrimmed += over
+	over := len(m.log) - (128 << 10)
+	if over <= 0 {
+		return
+	}
+	// Cut at a line start: a line cut through loses its marker, and a
+	// collapsed tool detail or page preview would then show as text.
+	if next := strings.IndexByte(m.log[over:], '\n'); next >= 0 {
+		over += next + 1
+	} else {
+		over = len(m.log)
+	}
+	dropped := m.log[:over]
+	m.log = m.log[over:]
+	m.logTrimmed += over
+	// A code block that began in the dropped part keeps its opening.
+	if fence, _ := fenceContext(dropped); fence != "" {
+		m.log = fence + "\n" + m.log
+		m.logTrimmed -= len(fence) + 1
 	}
 }
 

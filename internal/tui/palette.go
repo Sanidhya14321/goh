@@ -38,7 +38,7 @@ var paletteEntries = []paletteEntry{
 	{"/timestamps", "Show or hide when each prompt was sent"},
 	{"/effort", "Reasoning effort for this session: /effort low|medium|high|off"},
 	{"/thinking", "Show or hide the model's reasoning"},
-	{"/details", "Show or hide tool output previews (long output names its retained artifact)"},
+	{"/details", "Cycle tool details: output shown, plus fetched-page previews, or one line per result"},
 	{"/find", "Search this session, including earlier turns: /find text"},
 	{"/rename", "Rename this session: /rename title (empty resets)"},
 	{"/undo", "Undo the last turn and restore its checkpointed files"},

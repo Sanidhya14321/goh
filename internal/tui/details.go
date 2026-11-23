@@ -8,6 +8,10 @@ import "strings"
 const (
 	summaryMark = "\x00H"
 	detailMark  = "\x00R"
+	// previewMark lines are a fetched page's preview: hidden until /details
+	// asks for previews, because a page is reference material for the model,
+	// not output the user is waiting to read.
+	previewMark = "\x00P"
 	// verbatimMark (WORD JOINER, zero width) survives Safe() and tells the
 	// transcript renderer to show the line as-is: tool output is file and
 	// command text, not Markdown, so "# comment" must not become a heading
@@ -32,6 +36,20 @@ func toolResultLines(mark, content string) string {
 	return b.String()
 }
 
+// fetchedPageLines writes a page result as the same line in both modes plus
+// its preview.
+func fetchedPageLines(mark, summary, preview string) string {
+	var b strings.Builder
+	b.WriteString(summaryMark + mark + summary + "\n")
+	b.WriteString(detailMark + mark + summary + "\n")
+	if preview != "" {
+		for _, line := range strings.Split(preview, "\n") {
+			b.WriteString(previewMark + "  " + line + "\n")
+		}
+	}
+	return b.String()
+}
+
 func itoa(n int) string {
 	if n == 0 {
 		return "0"
@@ -43,38 +61,73 @@ func itoa(n int) string {
 	return string(d)
 }
 
-// withDetails keeps either the full tool output or its summaries.
-func withDetails(log string, show bool) string {
+// detailsMode is what /details shows; it cycles through the three, skipping
+// previews when the transcript has none.
+type detailsMode int
+
+const (
+	detailsShown    detailsMode = iota // tool output; fetched pages as one line
+	detailsPreviews                    // and fetched-page previews
+	detailsHidden                      // one line per result
+)
+
+// withDetails keeps the lines the mode shows and drops the markers.
+func withDetails(log string, mode detailsMode) string {
 	if !strings.Contains(log, summaryMark) {
 		return log
-	}
-	keep, drop := detailMark, summaryMark
-	if !show {
-		keep, drop = summaryMark, detailMark
 	}
 	lines := strings.Split(log, "\n")
 	out := lines[:0]
 	for _, line := range lines {
-		if strings.HasPrefix(line, drop) {
+		var keep bool
+		var content string
+		switch {
+		case strings.HasPrefix(line, summaryMark):
+			keep, content = mode == detailsHidden, line[len(summaryMark):]
+		case strings.HasPrefix(line, detailMark):
+			keep, content = mode != detailsHidden, line[len(detailMark):]
+		case strings.HasPrefix(line, previewMark):
+			keep, content = mode == detailsPreviews, line[len(previewMark):]
+		default:
+			out = append(out, line)
 			continue
 		}
-		if strings.HasPrefix(line, keep) {
-			line = verbatimMark + strings.TrimPrefix(line, keep)
+		if keep {
+			out = append(out, verbatimMark+content)
 		}
-		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
 }
 
 func (m *model) toggleDetails() {
-	m.hideDetails = !m.hideDetails
-	m.status = "Tool details shown"
-	if m.hideDetails {
+	switch m.details {
+	case detailsShown:
+		m.details = detailsHidden
+		if strings.Contains(m.log, previewMark) {
+			m.details = detailsPreviews
+		}
+	case detailsPreviews:
+		m.details = detailsHidden
+	default:
+		m.details = detailsShown
+	}
+	switch m.details {
+	case detailsPreviews:
+		m.status = "Tool details shown, with fetched page previews"
+	case detailsHidden:
 		m.status = "Tool details hidden (one line per result)"
+	default:
+		m.status = "Tool details shown"
 	}
 }
 
 // displayLog is the transcript as rendered (timestamps and details applied).
 func (m *model) displayLog() string {
-	return withThinking(withDetails(withStamps(m.log, m.timestamps), !m.hideDetails), !m.hideThinking)
+	return withThinking(withDetails(withStamps(m.log, m.timestamps), m.details), !m.hideThinking)
+}
+
+// lastLineIsToolOutput reports whether the log ends with a tool result line.
+func lastLineIsToolOutput(log string) bool {
+	last := log[strings.LastIndex(strings.TrimSuffix(log, "\n"), "\n")+1:]
+	return strings.Contains(last, detailMark) || strings.Contains(last, previewMark)
 }

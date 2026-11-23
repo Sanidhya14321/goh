@@ -8,6 +8,70 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: readable webfetch pages and transcript prose
+
+- Reproduced on `0c71fed` with a code-host repository fixture
+  (`internal/webfetch/testdata/github_repo.html`): Markdown conversion kept the skip link, global
+  navigation, empty `[](…)` links, orphan `- ` bullets, a `hidden` error banner, the footer and runs
+  of up to seven blank lines before the README. In chat, a reply starting with `[label](url)` was
+  dimmed with its Markdown shown raw, and prose was hard-wrapped mid-word.
+- New tests: `TestRepositoryPageKeepsTheReadme` (served fixture, `markdown`/`text`, `html` returned
+  byte for byte), `TestPageWithoutMainContentMarkup`, `TestPreformattedBlankLinesSurvive`;
+  `TestFetchedPageIsCompactLiveAndResumed` (scripted model fetches the fixture through the approval
+  path; compact line, each `/details` mode and the leading-link reply checked live and after reopening
+  the journal), `TestFetchErrorsStayVisible`, `TestFetchSummaryNamesTruncationAndArtifact`,
+  `TestInlineMarkdown`, `TestProseWrapsAtWordBoundaries` (widths 24–160, overlong tokens, wide
+  characters, list hang indent, code panels and approval diffs unchanged).
+- `FuzzHTMLConversion` found invalid UTF-8 passing through the new word emitter; fixed and kept as
+  a seed (`testdata/fuzz`); then 60 s without failures.
+- `go vet ./...`, `go test ./...`, `go test -race ./internal/tui ./internal/webfetch`, `make fuzz`,
+  `make acceptance`, and `scripts/e2e/test_tui.py`, `test_resume_setup.py`, `test_attach.py` pass.
+- Follow-up review fixes, each with a regression test that fails on the previous code (checked by
+  reverting the fix): `TestMarkdownTranscriptRedactsMultilineToolSecrets` (raw and truncated keys
+  leaked; envelope case covered), `TestFencesStayInsideTheirMessage`,
+  `TestReopenedChatAfterCompactionShowsJournal`, `TestArtifactSearchPagesEachMatchOnce` (old code
+  returned `next_offset` 0 forever), `TestRestoreHandlesNamesStartingWithTwoDots`. Also
+  `TestMainContentChoiceUsesVisibility`, `TestFetchPreviewShortensLinesBeforeTheBudget`,
+  `TestTrimmedTranscriptKeepsPreviewsHiddenAndFences`, `TestLongTokensAndNarrowTerminals` (200 k
+  cluster token; widths 20 and 32 for the fetch flow live and resumed),
+  `TestExcerptedFetchKeepsTheWholePage`, `TestChatGPTLockWaitIsCancellable`.
+- `gofmt -l`, `go vet ./...`, `go test ./...`, `go test -race` on the seven changed packages,
+  `make fuzz`, `make acceptance`, 45 s of `FuzzHTMLConversion`, and all six PTY suites
+  (`tui setup acp attach resume_setup salvage`) pass. `test_setup.py` passed 4/4 with the changes
+  and 3/3 on a clean `0c71fed` worktree here; the reported failure at line 388 (`wait_for` of
+  "Agent: build" after Esc, a label that may already be on screen and need not be redrawn) did not
+  reproduce on this machine and is independent of these changes.
+
+## Unreleased: navigation continuity and where slow runs spend their time
+
+- Measured in a PTY (`/models` then Esc, scripted model, 100×30): opening the picker takes 10–15 ms
+  and returning to the chat 60–80 ms (60 ms is the deliberate key-settling pause), including with a
+  copy of the largest local session (635 KB); no blank frame. Before the change the returning chat
+  was rebuilt (scroll position and toggles reset); after it, the scrolled screen is identical in
+  3/3 runs, and different when the restore is bypassed.
+- A real 82-record run spent 15–31 s per model call after the first few at ~3–4k tokens in and
+  60–200 out on a free-tier hosted model: the provider's per-minute limit (HTTP 429 waits of up to
+  30 s), not harness work. Harness costs measured: journal append with `F_FULLFSYNC` ~3.2 ms
+  (~0.26 s per such run), project fingerprint 50–80 ms on this repository per edit or command.
+- New tests: `TestChatScreenSurvivesNavigation`, `TestModelListCache`, `TestRateLimitRetryStatus`.
+  `go vet ./...`, `go test ./...`, `go test -race ./internal/tui ./cmd/harness`, `make acceptance`
+  and all six PTY suites pass.
+
+## Unreleased: repository sweep for the same bug classes
+
+- Swept `cmd/` and `internal/` for path containment by string prefix, uncancellable waits, byte
+  truncation of strings, caps checked before metadata is added, redaction after splitting, and
+  paging cursors. New tests, each failing on the previous code (checked by reverting the fix):
+  `TestFingerprintSkipsDotDotNamedStateDir`, `TestSandboxNeverHidesAProjectNamedWithTwoDots`,
+  `TestArtifactTextPagesKeepCharactersWhole`, `TestHookFeedbackFitsBesideALargeResult`; plus
+  `TestCancelledHookIsNotReportedAsTimeout`.
+- Reviewed and left unchanged: the other 19 `filepath.Rel` containment checks; polling sleeps
+  (process-group stop grace, LSP settle) and timer selects, which are bounded cleanup or already
+  watch the context; `TryLock` sites that fail at once; whole-string redaction in config, HTML and
+  provider errors; the attach session cursor (`ListAll` sorts by ID); `recall_observation` paging.
+- `gofmt -l`, `go vet ./...`, `go test ./...`, `go test -race` on the touched packages,
+  `make acceptance` and all six PTY suites pass.
+
 ## 1.0.0: container benchmark tasks and release gates
 
 - Docker (Colima) running: the 19 container tasks were dry-run. 15 passed at once; 4 were rejected
