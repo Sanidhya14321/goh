@@ -504,12 +504,20 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 	rows = append(rows, Safe(sessionID), "", "MODEL", Safe(modelName))
 	if t := humanTokens(m.usage); t != "" {
 		rows = append(rows, t)
+		if m.usageIn+m.usageOut > 0 {
+			// Input is mostly instructions and tool definitions sent with
+			// every request; the split shows where the tokens went.
+			rows = append(rows, "  "+strings.TrimSuffix(humanTokens(m.usageIn), " tokens")+" in · "+strings.TrimSuffix(humanTokens(m.usageOut), " tokens")+" out")
+		}
 	}
 	if m.priced {
 		rows = append(rows, fmt.Sprintf("~$%.4f estimated", m.costUSD))
 	}
 	if line := m.contextLine(); line != "" {
 		rows = append(rows, line)
+		if bar := m.contextBar(20); bar != "" {
+			rows = append(rows, bar)
+		}
 	}
 	if m.a != nil {
 		var tools []string
@@ -585,6 +593,16 @@ func (m *model) contextLine() string {
 	}
 	percent := m.contextTokens * 100 / m.a.Config.ContextWindow
 	return fmt.Sprintf("Context: %d%% of %dk", min(percent, 100), m.a.Config.ContextWindow/1000)
+}
+
+// contextBar draws how full the context window is, width cells wide; empty
+// when the window is unknown (no usage yet, or a fallback served the reply).
+func (m *model) contextBar(width int) string {
+	if m.a == nil || m.contextTokens <= 0 || m.a.Config.ContextWindow <= 0 || m.contextFallback != "" {
+		return ""
+	}
+	filled := min(width, (m.contextTokens*width+m.a.Config.ContextWindow-1)/m.a.Config.ContextWindow)
+	return strings.Repeat("▰", filled) + strings.Repeat("▱", width-filled)
 }
 
 // sidebarColor highlights section headings (all-caps rows).

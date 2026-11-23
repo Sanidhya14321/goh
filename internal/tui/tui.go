@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -98,14 +99,18 @@ type model struct {
 	cancel          context.CancelFunc
 	reviewOffset    int
 	durationMS      int64
-	runStarted      time.Time
-	lastInterrupt   time.Time
-	spinFrame       int
+	// runUsage adds up the current run's model requests for the line
+	// under its reply: tokens in (of them cached) and out.
+	runUsage      struct{ in, out, cached, calls int }
+	runStarted    time.Time
+	lastInterrupt time.Time
+	spinFrame     int
 	// act is what the run is doing now, for the status line.
 	act                  activity
 	ticking              bool
 	todos                []core.Todo
 	usage                int
+	usageIn, usageOut    int // the session\'s reported input and output tokens
 	width, height        int
 	status               string
 	closed               chan struct{}
@@ -446,18 +451,31 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 				// The latest reply's prompt plus output approximates how full
 				// the context window is now.
 				m.contextTokens = d.Usage.Prompt + d.Usage.Completion
+				m.usageIn += d.Usage.Prompt
+				m.usageOut += d.Usage.Completion
+				m.runUsage.in += d.Usage.Prompt
+				m.runUsage.out += d.Usage.Completion
+				m.runUsage.cached += d.Usage.CacheRead
+				m.runUsage.calls++
 			}
 		case "run_started":
 			m.lastRun = nil
+			m.runUsage.in, m.runUsage.out, m.runUsage.cached, m.runUsage.calls = 0, 0, 0, 0
 		case "run_finished":
 			m.fileIndexStale = true
-			m.log += "\n"
 			b, _ := json.Marshal(v.Data)
 			var d struct {
 				Status   string `json:"status"`
 				Duration int64  `json:"duration_ms"`
 			}
 			json.Unmarshal(b, &d)
+			if meta := m.replyMeta(d.Duration); meta != "" {
+				if !strings.HasSuffix(m.log, "\n") {
+					m.log += "\n"
+				}
+				m.log += verbatimMark + meta + "\n"
+			}
+			m.log += "\n"
 			r := parseRunResult(v)
 			m.lastRun = &r
 			m.status = r.label()
@@ -1751,4 +1769,47 @@ func (m *model) stashDraft() {
 	if strings.TrimSpace(m.input) != "" && !strings.HasPrefix(strings.TrimSpace(m.input), "/") {
 		m.stashedDraft = m.input
 	}
+}
+
+// replyMeta is the dim line under a run's reply: which model answered, how
+// long the run took, and the tokens it sent and received. "In" is mostly
+// the instructions and tool definitions every request carries, so a short
+// prompt still costs about as much as they do; the split shows that.
+func (m *model) replyMeta(durationMS int64) string {
+	u := m.runUsage
+	if u.calls == 0 {
+		return "" // a local operation, or the provider reported no usage
+	}
+	model := m.servedModel
+	if model == "" && m.a != nil {
+		model = m.a.Config.Model
+	}
+	parts := []string{}
+	if model != "" {
+		parts = append(parts, Safe(model))
+	}
+	if d := humanDuration(durationMS); d != "" {
+		parts = append(parts, d)
+	}
+	in := groupDigits(u.in) + " in"
+	if u.cached > 0 {
+		in += " (" + groupDigits(u.cached) + " cached)"
+	}
+	parts = append(parts, in, groupDigits(u.out)+" out")
+	if u.calls > 1 {
+		parts = append(parts, fmt.Sprintf("%d requests", u.calls))
+	}
+	return strings.Join(parts, " · ")
+}
+
+// groupDigits writes n with thousands separators: 1551 -> "1,551".
+func groupDigits(n int) string {
+	s := strconv.Itoa(n)
+	if n < 0 {
+		return "-" + groupDigits(-n)
+	}
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }

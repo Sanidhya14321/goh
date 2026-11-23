@@ -22,6 +22,8 @@ type parkedViewState struct {
 	skillNotice  bool
 	durationMS   int64
 	usage        int
+	usageIn      int
+	usageOut     int
 }
 
 var parkedView struct {
@@ -41,7 +43,7 @@ func (m *model) parkView() {
 		log: m.log, logTrimmed: m.logTrimmed, scrollOffset: m.scrollOffset,
 		details: m.details, hideThinking: m.hideThinking, timestamps: m.timestamps,
 		hideSidebar: m.hideSidebar, skillNotice: m.skillNoticeShown,
-		durationMS: m.durationMS, usage: m.usage,
+		durationMS: m.durationMS, usage: m.usage, usageIn: m.usageIn, usageOut: m.usageOut,
 	}
 }
 
@@ -60,6 +62,7 @@ func (m *model) unparkView() bool {
 	m.details, m.hideThinking, m.timestamps, m.hideSidebar = p.details, p.hideThinking, p.timestamps, p.hideSidebar
 	m.skillNoticeShown = p.skillNotice
 	m.durationMS, m.usage = p.durationMS, p.usage // the last run's time and tokens
+	m.usageIn, m.usageOut = p.usageIn, p.usageOut
 	// Prompt history (↑) comes from the journal, as when it is rebuilt.
 	for _, message := range screenHistory(m.a) {
 		if message.Role == "user" && !message.Automatic {
