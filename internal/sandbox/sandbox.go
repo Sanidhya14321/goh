@@ -73,7 +73,11 @@ func Wrap(cmd *exec.Cmd, p *Policy) error {
 			clean.ReadOnly = append(clean.ReadOnly, r)
 		}
 	}
-	return wrap(cmd, clean)
+	if err := wrap(cmd, clean); err != nil {
+		return err
+	}
+	cmd.Env = withSandboxCaches(cmd.Env)
+	return nil
 }
 
 // resolve makes dir absolute with symlinks resolved; missing paths resolve

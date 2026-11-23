@@ -104,3 +104,38 @@ cat .git/config`)
 		}
 	}
 }
+
+// Caches tools keep outside the writable folders (Go's build cache, npm,
+// pip) point inside the temporary area for sandboxed commands, so a cache
+// write succeeds; a value the user set is kept, and the folder is private.
+func TestSandboxedCommandsGetWritableCaches(t *testing.T) {
+	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
+		t.Skip("no native sandbox")
+	}
+	project := t.TempDir()
+	p := &Policy{Writable: append([]string{project}, TempDirs()...)}
+	cmd := exec.Command("/bin/sh", "-c", `mkdir -p "$GOCACHE" && echo x > "$GOCACHE/probe" && echo CACHE_OK "$GOCACHE" "$PIP_CACHE_DIR" "$KEEP"`)
+	cmd.Dir = project
+	cmd.Env = []string{"PATH=/usr/bin:/bin", "KEEP=1", "npm_config_cache=/mine"}
+	if err := Wrap(cmd, p); err != nil {
+		t.Fatal(err)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil && strings.Contains(string(out), "Landlock") {
+		t.Skip("Landlock unavailable")
+	}
+	if err != nil || !strings.Contains(string(out), "CACHE_OK") || !strings.Contains(string(out), "goh-sandbox-cache-") || !strings.HasSuffix(strings.TrimSpace(string(out)), " 1") {
+		t.Fatalf("%v: %s", err, out)
+	}
+	kept := false
+	for _, kv := range cmd.Env {
+		kept = kept || kv == "npm_config_cache=/mine"
+	}
+	if !kept {
+		t.Fatal("user's npm_config_cache replaced")
+	}
+	fields := strings.Fields(string(out))
+	if info, err := os.Lstat(filepath.Dir(fields[1])); err != nil || info.Mode().Perm() != 0o700 {
+		t.Fatalf("cache folder not private: %v %v", info, err)
+	}
+}
