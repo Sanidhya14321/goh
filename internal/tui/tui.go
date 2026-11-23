@@ -148,6 +148,7 @@ type model struct {
 	changesPicker        *optionPicker
 	timestamps           bool
 	contextTokens        int
+	contextFallback      string // fallback profile that served the latest usage; its window is unknown here
 	details              detailsMode
 	hideThinking         bool
 	sessionTitle         string
@@ -413,10 +414,14 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "assistant_completed":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
-				Usage *core.Usage `json:"usage"`
-				Model string      `json:"model"`
+				Usage    *core.Usage `json:"usage"`
+				Model    string      `json:"model"`
+				Fallback string      `json:"fallback"`
 			}
 			json.Unmarshal(b, &d)
+			if d.Usage != nil {
+				m.contextFallback = d.Fallback
+			}
 			if d.Model != "" {
 				m.servedModel = d.Model // after a fallback, not the configured one
 			}

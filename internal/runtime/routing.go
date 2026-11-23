@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -48,7 +49,8 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 	if delta != nil {
 		shown = func(s string) { streamed.WriteString(s); delta(s) }
 	}
-	reply, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
+	reply, served, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
+	a.servedBy = served
 	retryable := func(retry int) bool {
 		if err == nil || ctx.Err() != nil {
 			return false
@@ -64,6 +66,11 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		return errors.Is(err, provider.ErrRejectedOutput) && retry <= 2
 	}
 	for retry := 1; retryable(retry); retry++ {
+		if e := a.tokenBudgetErr(); e != nil {
+			// The discarded attempt's reported usage already spent the run's
+			// budget: another request would only exceed it further.
+			return core.Reply{}, e
+		}
 		busy := errors.Is(err, provider.ErrBusy)
 		if busy {
 			// An overloaded service needs a pause, not an immediate resend.
@@ -80,7 +87,8 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		// to drop the partial text already shown.
 		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error(), "busy": busy})
 		streamed.Reset()
-		reply, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
+		reply, served, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
+		a.servedBy = served
 	}
 	if err != nil {
 		return reply, err
@@ -98,7 +106,9 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 			}
 		}
 	}
-	if purpose == "turn" && reply.Usage != nil && (reply.Model == "" || reply.Model == primaryConfig.Model) {
+	// Calibrate from the primary route only: a fallback may share the model
+	// name at another endpoint with a different tokenizer or accounting.
+	if purpose == "turn" && served == "" && reply.Usage != nil && (reply.Model == "" || reply.Model == primaryConfig.Model) {
 		size, images := requestBytes(history, defs)
 		a.calibrate(size, reply.Usage.Prompt-images*imageTokenEstimate)
 	}
@@ -110,19 +120,64 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		// call, which run_finished says (usage_missing_calls).
 		a.usageMissing++
 	}
-	if reply.Usage != nil {
-		// Durable usage for every model call (turns, summaries, titles,
-		// children), charged to the model that served it; never replayed.
-		u := reply.Usage
-		a.runTokens += max(u.Total, u.Prompt+u.Completion)
-		if e := a.Store.Append("usage", map[string]any{"model": reply.Model, "purpose": purpose, "prompt_tokens": u.Prompt, "completion_tokens": u.Completion, "total_tokens": u.Total, "cache_read_tokens": u.CacheRead, "cache_write_tokens": u.CacheWrite}); e != nil {
-			return core.Reply{}, e
-		}
+	if e := a.recordUsage(purpose, reply.Model, reply.Usage, false); e != nil {
+		return core.Reply{}, e
 	}
 	return reply, nil
 }
 
-func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, error) {
+// recordUsage journals durable usage for one model attempt (turns,
+// summaries, titles, children), charged to the model that served it and
+// never replayed. discarded marks an attempt whose reply was not accepted
+// (an interrupted stream, a refused tool call): billed work, not history.
+func (a *Agent) recordUsage(purpose, model string, u *core.Usage, discarded bool) error {
+	if u == nil {
+		return nil
+	}
+	a.runTokens += max(u.Total, u.Prompt+u.Completion)
+	d := map[string]any{"model": model, "purpose": purpose, "prompt_tokens": u.Prompt, "completion_tokens": u.Completion, "total_tokens": u.Total, "cache_read_tokens": u.CacheRead, "cache_write_tokens": u.CacheWrite}
+	if discarded {
+		d["discarded"] = true
+	}
+	return a.Store.Append("usage", d)
+}
+
+// chargeFailed accounts for an attempt that ended in err, before any retry
+// or fallback is decided. Reported usage is charged; a reply that was being
+// generated (an interrupted stream, a refused output) without usage counts
+// as missing usage. A failure before any response used nothing.
+func (a *Agent) chargeFailed(purpose, model string, r core.Reply, err error) error {
+	if err == nil {
+		return nil
+	}
+	if r.Model != "" {
+		model = r.Model
+	}
+	if r.Usage == nil {
+		if errors.Is(err, provider.ErrInterrupted) || errors.Is(err, provider.ErrRejectedOutput) {
+			a.usageMissing++
+		}
+		return nil
+	}
+	return a.recordUsage(purpose, model, r.Usage, true)
+}
+
+// errRunTokens marks a run stopped at its max_run_tokens limit.
+var errRunTokens = errors.New("run stopped at the max_run_tokens limit")
+
+// tokenBudgetErr reports whether the run's observed usage has reached
+// max_run_tokens. The limit is checked at request boundaries, so a single
+// request can finish above it; no further request is sent once it is hit.
+func (a *Agent) tokenBudgetErr() error {
+	if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+		return fmt.Errorf("%w (%d used of %d)", errRunTokens, a.runTokens, a.Config.MaxRunTokens)
+	}
+	return nil
+}
+
+// completeRoutes returns the reply or error of the route that answered last
+// and that route: the fallback profile name, or "" for the primary.
+func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Model, primaryConfig core.Config, history []core.Message, defs []core.Tool, delta func(string)) (core.Reply, string, error) {
 	from := primaryConfig.Profile
 	var reply core.Reply
 	var err error
@@ -134,8 +189,11 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 		err = provider.ErrConnection
 	} else {
 		reply, err = primary.Complete(ctx, history, defs, delta)
+		if e := a.chargeFailed(purpose, primaryConfig.Model, reply, err); e != nil {
+			return core.Reply{}, "", e
+		}
 		if err == nil || ctx.Err() != nil || !provider.Failoverable(err) {
-			return reply, err
+			return reply, "", err
 		}
 		a.startCooldown(from)
 	}
@@ -170,6 +228,10 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 			a.recordFailover(purpose, from, name, reason, "skipped", "conversation exceeds fallback context window")
 			return core.Reply{}, nil, false
 		}
+		if limit := a.fallbackCaps[cooldownKey(name)]; limit > 0 && a.estimate(history, defs) > limit-min(config.OutputBudget, max(1024, limit/4)) {
+			a.recordFailover(purpose, from, name, reason, "skipped", "conversation exceeds the request cap this fallback stated")
+			return core.Reply{}, nil, false
+		}
 		model := Model(provider.New(config))
 		if a.RoleModelFactory != nil {
 			if model = a.RoleModelFactory(config, "fallback"); model == nil {
@@ -177,10 +239,16 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 				return core.Reply{}, nil, false
 			}
 		}
+		if e := a.tokenBudgetErr(); e != nil {
+			return core.Reply{}, e, true
+		}
 		if e := a.recordFailover(purpose, from, name, reason, "attempting", ""); e != nil {
 			return core.Reply{}, e, true
 		}
 		r, e := model.Complete(ctx, history, defs, delta)
+		if ce := a.chargeFailed(purpose, config.Model, r, e); ce != nil {
+			return core.Reply{}, ce, true
+		}
 		if e == nil {
 			r.Model = config.Model // usage is charged to the model that served it
 			data := map[string]any{"purpose": purpose, "model": config.Model, "profile": name, "protocol": config.EffectiveProtocol(), "context_window": config.ContextWindow, "failover": true, "primary": primaryName}
@@ -189,6 +257,15 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 			}
 			a.event("model_route", data)
 			return r, nil, true
+		}
+		var h *provider.HTTPError
+		if errors.As(e, &h) && h.TooLarge() && h.Limit > 0 {
+			// The cap belongs to this fallback; the primary keeps its own.
+			if a.fallbackCaps == nil {
+				a.fallbackCaps = map[string]int{}
+			}
+			a.fallbackCaps[cooldownKey(name)] = h.Limit
+			e = fmt.Errorf("fallback profile %s refused the request: %w", name, e)
 		}
 		reply, err = r, e
 		if ctx.Err() != nil || !provider.Failoverable(e) {
@@ -200,25 +277,36 @@ func (a *Agent) completeRoutes(ctx context.Context, purpose string, primary Mode
 	}
 	for _, name := range order {
 		if r, e, done := try(name); done {
-			return r, e
+			return r, name, e
 		}
 	}
 	if !cooling && ctx.Err() == nil {
 		// Every fresh route failed: cooling fallbacks may have recovered.
 		for _, name := range cooled {
 			if r, e, done := try(name); done {
-				return r, e
+				return r, name, e
 			}
 		}
 	}
 	if cooling && ctx.Err() == nil {
 		// Last resort: the primary may have recovered.
+		if e := a.tokenBudgetErr(); e != nil {
+			return core.Reply{}, "", e
+		}
 		reply, err = primary.Complete(ctx, history, defs, delta)
+		if e := a.chargeFailed(purpose, primaryConfig.Model, reply, err); e != nil {
+			return core.Reply{}, "", e
+		}
 		if err != nil && provider.Failoverable(err) {
 			a.startCooldown(primaryConfig.Profile)
 		}
+		return reply, "", err
 	}
-	return reply, err
+	// Every route failed; err is the last one's (from names it).
+	if from == primaryConfig.Profile {
+		from = ""
+	}
+	return reply, from, err
 }
 
 // providerCooldown is how long a failed route is skipped while fallbacks exist.

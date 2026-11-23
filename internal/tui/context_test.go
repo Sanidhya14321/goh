@@ -49,3 +49,19 @@ func TestSidebarCostFromConfiguredPrice(t *testing.T) {
 		t.Fatal("cost shown without a price")
 	}
 }
+
+// Handoff P1: usage from a fallback route is not divided by the primary's
+// window; the meter omits the denominator until the primary answers again.
+func TestContextMeterOmitsDenominatorForFallback(t *testing.T) {
+	cfg := core.Defaults()
+	cfg.ContextWindow = 1048576
+	m := &model{a: &agent.Agent{Config: cfg}}
+	m.Update(core.Event{Type: "assistant_completed", Data: map[string]any{"usage": core.Usage{Prompt: 40000, Completion: 1000}, "model": "m", "fallback": "backup"}})
+	if got := m.contextLine(); got != "Context: 41k (fallback backup)" {
+		t.Fatal(got)
+	}
+	m.Update(core.Event{Type: "assistant_completed", Data: map[string]any{"usage": core.Usage{Prompt: 104858, Completion: 0}, "model": "m"}})
+	if got := m.contextLine(); got != "Context: 10% of 1048k" {
+		t.Fatal(got)
+	}
+}

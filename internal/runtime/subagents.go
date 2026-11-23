@@ -271,6 +271,7 @@ func (a *Agent) executeTask(ctx context.Context, raw json.RawMessage) tools.Resu
 	status, runErr := child.Run(runCtx, childPrompt)
 	a.toolCalls += child.toolCalls
 	a.runTokens += child.runTokens
+	a.usageMissing += child.usageMissing // a child's unreported usage stays visible
 	summary := ""
 	for i := len(child.History) - 1; i >= 0; i-- {
 		m := child.History[i]

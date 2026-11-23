@@ -28,6 +28,7 @@ func (a *Agent) Compact(ctx context.Context) (status string, err error) {
 	a.runID = ID()
 	a.operation, a.titleSource = "compact", ""
 	a.resetOutcome(false)
+	a.resetRunCounters()
 	a.noFingerprint = false // a compaction runs no commands
 	status = "failed"
 	started := time.Now()
@@ -46,7 +47,7 @@ func (a *Agent) Compact(ctx context.Context) (status string, err error) {
 		a.event("context_compaction_skipped", map[string]any{"manual": true, "reason": e.Error()})
 		return "completed", nil
 	} else if e != nil {
-		return "budget_exhausted", e
+		return compactionStatus(ctx, e), e
 	}
 	return "completed", nil
 }

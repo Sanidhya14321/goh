@@ -562,6 +562,11 @@ func (m *model) contextLine() string {
 	if m.a == nil || m.contextTokens <= 0 || m.a.Config.ContextWindow <= 0 {
 		return ""
 	}
+	if m.contextFallback != "" {
+		// The primary's window is not the denominator for a fallback's
+		// usage, and the fallback's own window is not known here.
+		return fmt.Sprintf("Context: %dk (fallback %s)", (m.contextTokens+999)/1000, Safe(m.contextFallback))
+	}
 	percent := m.contextTokens * 100 / m.a.Config.ContextWindow
 	return fmt.Sprintf("Context: %d%% of %dk", min(percent, 100), m.a.Config.ContextWindow/1000)
 }

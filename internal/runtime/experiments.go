@@ -146,17 +146,19 @@ func (a *Agent) executeRecall(b json.RawMessage) tools.Result {
 	callID, _, _ := strings.Cut(args.ID, "#")
 	content, found, path := "", false, ""
 	paths := map[string]string{} // call id -> path its tool read
+	names := map[string]string{} // call id -> tool name
 	for _, r := range a.Store.Records() {
 		switch r.Type {
 		case "tool_start":
 			var d struct {
 				ID        string `json:"id"`
+				Name      string `json:"name"`
 				Arguments struct {
 					Path string `json:"path"`
 				} `json:"arguments"`
 			}
 			if json.Unmarshal(r.Data, &d) == nil {
-				paths[d.ID] = d.Arguments.Path
+				paths[d.ID], names[d.ID] = d.Arguments.Path, d.Name
 			}
 		case "message":
 			var m core.Message
@@ -167,6 +169,10 @@ func (a *Agent) executeRecall(b json.RawMessage) tools.Result {
 	}
 	if !found {
 		return tools.Result{Error: true, Content: "no recorded tool result with that recall_id in this session"}
+	}
+	if names[callID] == "memory_recall" {
+		// A journaled note body is unvalidated; recall it afresh instead.
+		return tools.Result{Error: true, Content: "project notes are not replayed from the journal; run memory_recall again, which revalidates their evidence"}
 	}
 	if path != "" && a.Tools != nil && a.Tools.Denied(filepath.ToSlash(path)) {
 		return tools.Result{Error: true, Content: "that result came from a file your file_rules now deny"}

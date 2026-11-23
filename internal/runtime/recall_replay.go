@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/memory"
@@ -69,4 +70,40 @@ func (a *Agent) revalidateRecalls(history []core.Message) []core.Message {
 		out[i] = m
 	}
 	return out
+}
+
+// withoutRecallBodies replaces memory_recall results with a neutral receipt
+// (no note text). Summaries and excerpts are persisted as opaque text that
+// revalidateRecalls cannot recognise later, so a note body must never reach
+// them: a note fresh when summarised can be stale on a later turn. Call and
+// result pairing is kept; the journal keeps the original for audit, and the
+// model can recall the note again through validated memory_recall.
+func withoutRecallBodies(history []core.Message) []core.Message {
+	recallIDs := map[string]bool{}
+	var out []core.Message
+	for i, m := range history {
+		for _, c := range m.ToolCalls {
+			if c.Function.Name == "memory_recall" {
+				recallIDs[c.ID] = true
+			}
+		}
+		if m.Role != "tool" || !recallIDs[m.ToolCallID] || strings.HasPrefix(m.Content, maskPrefix) {
+			continue
+		}
+		if out == nil {
+			out = append([]core.Message(nil), history...)
+		}
+		b, _ := json.Marshal(recallReceipt(m.Content))
+		out[i].Content = string(b)
+	}
+	if out == nil {
+		return history
+	}
+	return out
+}
+
+func recallReceipt(content string) receipt {
+	r := maskReceipt("memory_recall", content)
+	r.Note = "Project-note text omitted; notes are revalidated only through memory_recall. Run memory_recall again if the note is still needed."
+	return r
 }

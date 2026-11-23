@@ -27,6 +27,7 @@ func (a *Agent) RunShell(ctx context.Context, command string) (status string, er
 	a.runID = ID()
 	a.operation, a.titleSource = "user_shell", ""
 	a.resetOutcome(true)
+	a.resetRunCounters()
 	status = "failed"
 	started := time.Now()
 	a.event("run_started", map[string]any{"operation": "user_shell", "project": a.Store.Project})

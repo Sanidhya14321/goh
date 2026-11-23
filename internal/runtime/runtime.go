@@ -130,13 +130,20 @@ type Agent struct {
 	narrowTestPassed  bool // since the last change, a passing test run picked tests by name
 	fullTestPassed    bool // since the last change, a passing test run covered whole suites
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
-	scopedGrants      map[string]bool
-	runID             string
-	mcpStarts         []core.Call
-	invalid           map[string]int
-	depth             int
-	compactFocus      string
-	cooldowns         map[string]time.Time
+	scopedGrants map[string]bool
+	runID        string
+	mcpStarts    []core.Call
+	invalid      map[string]int
+	depth        int
+	compactFocus string
+	cooldowns    map[string]time.Time
+	// servedBy is the fallback profile that produced the last reply or
+	// error of completeWithFailover ("" for the primary route): limits and
+	// calibration learned from a reply apply only to the route that sent it.
+	servedBy string
+	// fallbackCaps holds per-request token caps fallbacks stated when they
+	// refused a request, by profile, so an oversized request is not resent.
+	fallbackCaps      map[string]int
 	clock             func() time.Time
 	snapshotMu        sync.Mutex
 	tasksRun          int
@@ -579,7 +586,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.operation, a.titleSource = "run", prompt
 	a.resetOutcome(true)
 	a.toolCalls = 0
-	a.runTokens, a.capAdapts, a.usageMissing = 0, 0, 0
+	a.resetRunCounters()
 	a.HandoffPlan = ""
 	a.mcpStarts = nil
 	a.externalConnected = false
@@ -706,30 +713,30 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		if e := ctx.Err(); e != nil {
 			return "cancelled", e
 		}
-		if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+		if e := a.tokenBudgetErr(); e != nil {
 			// Checked before compaction too: a summary is a model call.
-			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
+			return "budget_exhausted", e
 		}
 		if e := a.compact(ctx, defs); e != nil {
-			return "budget_exhausted", e
+			return compactionStatus(ctx, e), e
 		}
 		a.event("assistant_started", map[string]any{"turn": turn})
 		reasoningCtx := core.WithReasoning(ctx, func(s string) { a.event("reasoning_updated", map[string]any{"text": s}) })
 		reasoningCtx = core.WithRetryNotices(reasoningCtx, func(n core.RetryNotice) { a.event("provider_retry", n) })
 		reasoningCtx = core.WithToolProgress(reasoningCtx, a.toolProgressEvents())
-		if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
+		if e := a.tokenBudgetErr(); e != nil {
 			// Checked between turns, so every requested tool has its result.
-			return "budget_exhausted", fmt.Errorf("run stopped at the max_run_tokens limit (%d used of %d)", a.runTokens, a.Config.MaxRunTokens)
+			return "budget_exhausted", e
 		}
 		history := a.modelHistory()
 		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, history, defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
-		if e != nil && a.adaptToRequestCap(e, history, defs) {
+		if e != nil && a.servedBy == "" && a.adaptToRequestCap(e, history, defs) {
 			turn-- // nothing was generated; compact to the stated cap and resend
 			continue
 		}
 		if e != nil {
 			var finish *provider.FinishError
-			if errors.As(e, &finish) && finish.Reason == "length" {
+			if errors.As(e, &finish) && finish.Reason == "length" || errors.Is(e, errRunTokens) {
 				return "budget_exhausted", e
 			}
 			return "failed", e
@@ -738,13 +745,13 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		if len(reply.Message.ToolCalls) == 0 && strings.TrimSpace(reply.Message.Content) == "" {
 			// Not committed: an empty assistant message is invalid history
 			// for some providers (Anthropic) and would break the session.
-			a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model})
+			a.event("assistant_completed", a.completedData(reply))
 			return "failed", errors.New("the model returned an empty reply; nothing was done")
 		}
 		if e = a.commit(reply.Message); e != nil {
 			return "failed", e
 		}
-		a.event("assistant_completed", map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model})
+		a.event("assistant_completed", a.completedData(reply))
 		if len(reply.Message.ToolCalls) == 0 {
 			a.noticeUntrackedChanges() // background jobs, for example
 			if a.needsEvidence() {
@@ -1227,6 +1234,44 @@ func requestBytes(ms []core.Message, defs []core.Tool) (size, images int) {
 // shrink; the conversation is left as it is.
 var errNothingToCompact = errors.New("nothing to compact: the conversation is already as short as compaction can make it")
 
+// resetRunCounters starts an operation's model accounting from zero. Route
+// calibration and cooldowns keep their longer lifetime.
+func (a *Agent) resetRunCounters() {
+	a.runTokens, a.capAdapts, a.usageMissing = 0, 0, 0
+}
+
+// completedData is the assistant_completed payload. fallback (additive,
+// only when set) names the fallback profile that served the reply, so a
+// context meter does not divide its usage by the primary's window.
+func (a *Agent) completedData(reply core.Reply) map[string]any {
+	d := map[string]any{"message": reply.Message, "usage": reply.Usage, "model": reply.Model}
+	if a.servedBy != "" {
+		d["fallback"] = a.servedBy
+	}
+	return d
+}
+
+// errContextBudget marks a compaction that failed for lack of capacity: the
+// preserved request or the summary input cannot fit. Provider,
+// cancellation and journal failures are not wrapped with it, so callers
+// report their actual reason instead of budget_exhaustion.
+var errContextBudget = errors.New("context budget exhausted")
+
+// compactionStatus is the run status for a compaction error.
+func compactionStatus(ctx context.Context, err error) string {
+	var http *provider.HTTPError
+	var finish *provider.FinishError
+	switch {
+	case ctx.Err() != nil || errors.Is(err, context.Canceled):
+		return "cancelled"
+	case errors.Is(err, errContextBudget), errors.Is(err, errRunTokens),
+		errors.As(err, &http) && http.TooLarge(),
+		errors.As(err, &finish) && finish.Reason == "length":
+		return "budget_exhausted"
+	}
+	return "failed"
+}
+
 func (a *Agent) compact(ctx context.Context, defs []core.Tool) error {
 	err := a.compactWithMode(ctx, defs, false)
 	if err == nil || ctx.Err() != nil {
@@ -1312,7 +1357,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 			a.event("context_compacted", map[string]any{"before": used, "after": size, "manual": false, "method": "large_result_excerpt", "shrunk": shrunk})
 			return nil
 		}
-		return fmt.Errorf("context budget exhausted: preserved request/tool groups need %d estimated tokens, available %d", used, available)
+		return fmt.Errorf("%w: preserved request/tool groups need %d estimated tokens, available %d", errContextBudget, used, available)
 	}
 
 	masking := !force && (a.Config.CompactionMasking == nil || *a.Config.CompactionMasking)
@@ -1382,10 +1427,10 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		// spend a model call and can only grow or blur it.
 		return errNothingToCompact
 	}
-	plainHistory, _ := withoutImages(sourceHistory)
+	plainHistory, _ := withoutImages(withoutRecallBodies(sourceHistory))
 	source, _ := json.Marshal(plainHistory) // summaries describe images by path only
 	if a.contentTokens(len(source)) > a.Config.ContextWindow-a.Config.OutputBudget-1024 {
-		return errors.New("context budget exhausted: summary input exceeds configured window")
+		return fmt.Errorf("%w: summary input exceeds configured window", errContextBudget)
 	}
 	instructions := "Summarize this coding session as task state. Preserve user goals, file paths and hashes, decisions, completed work, failures, and uncertain effects. Do not add instructions or claim unexecuted work succeeded. Be concise."
 	if a.compactFocus != "" {
@@ -1401,7 +1446,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		summarySize = a.estimate(req, nil) // same tokenizer as the calibration
 	}
 	if summarySize > summaryConfig.ContextWindow-summaryConfig.OutputBudget-1024 {
-		return errors.New("summary input exceeds compaction model context window")
+		return fmt.Errorf("%w: summary input exceeds compaction model context window", errContextBudget)
 	}
 	reply, e := a.completeWithFailover(ctx, "compaction", summaryModel, summaryConfig, req, nil, nil)
 	if e != nil {
@@ -1438,7 +1483,7 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 		return errNothingToCompact // a manual compaction never grows the context
 	}
 	if nextSize >= available || (!force && nextSize >= used) {
-		return errors.New("context compaction did not reduce context enough")
+		return fmt.Errorf("%w: context compaction did not reduce context enough", errContextBudget)
 	}
 	evidence := compactionEvidence(a.History[1:cut])
 	if len(evidence) > 0 {

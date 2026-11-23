@@ -127,6 +127,15 @@ func shrinkLargeResults(history []core.Message, limit int) ([]core.Message, int)
 		if m.Role != "tool" || len(m.Content) <= limit || strings.HasPrefix(m.Content, maskPrefix) {
 			continue
 		}
+		if names[m.ToolCallID] == "memory_recall" {
+			// An excerpt would hide the notes from revalidation and replay
+			// a stale head; a plain receipt keeps pairing without the text.
+			b, _ := json.Marshal(recallReceipt(m.Content))
+			m.Content = string(b)
+			out[i] = m
+			shrunk++
+			continue
+		}
 		r := maskReceipt(names[m.ToolCallID], m.Content)
 		head := m.Content[:limit/2]
 		for len(head) > 0 && !utf8.ValidString(head) {
