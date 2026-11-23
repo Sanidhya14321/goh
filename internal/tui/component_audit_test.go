@@ -311,3 +311,53 @@ func TestPartlyVisibleCommandNeedsScrolling(t *testing.T) {
 		t.Fatalf("approval refused after scrolling through (seen %d of %d, status %q)", m.reviewSeen, m.reviewTotal, m.status)
 	}
 }
+
+// Handoff P1: review rows are counted at the width they were wrapped at.
+// After a resize (or a layout switch) the same row count covers different
+// text, so an approval must still require every line on screen.
+func TestApprovalAfterResizeRequiresEveryLineSeen(t *testing.T) {
+	for _, resize := range [][4]int{{60, 16, 160, 16}, {160, 16, 60, 16}, {120, 16, 52, 16}} {
+		m := fuzzModel(t)
+		m.width, m.height = resize[0], resize[1]
+		var preview strings.Builder
+		preview.WriteString("Command: set -e\n")
+		for i := range 40 {
+			fmt.Fprintf(&preview, "echo marker-%02d %s\n", i, strings.Repeat("p", 70))
+		}
+		response := make(chan core.Decision, 1)
+		m.pending = &permissionMsg{request: core.Permission{Tool: "shell", Preview: preview.String()}, response: response}
+		seen := map[string]bool{}
+		render := func() {
+			content := ansi.Strip(m.View().Content)
+			for i := range 40 {
+				if marker := fmt.Sprintf("marker-%02d", i); strings.Contains(content, marker) {
+					seen[marker] = true
+				}
+			}
+		}
+		render()
+		for range 4 {
+			m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+			render()
+		}
+		m.Update(tea.WindowSizeMsg{Width: resize[2], Height: resize[3]})
+		render()
+		for range 60 {
+			m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+			render()
+			m.Update(tea.KeyPressMsg{Code: 'y', Text: "y"})
+			select {
+			case <-response:
+				for i := range 40 {
+					if marker := fmt.Sprintf("marker-%02d", i); !seen[marker] {
+						t.Fatalf("%v: approved with %s never on screen (seen=%d total=%d off=%d w=%d)", resize, marker, m.reviewSeen, m.reviewTotal, m.reviewOffset, m.reviewWidth)
+					}
+				}
+				goto next
+			default:
+			}
+		}
+		t.Fatalf("%v: approval never accepted after paging through", resize)
+	next:
+	}
+}

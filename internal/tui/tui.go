@@ -62,6 +62,8 @@ type model struct {
 	// reviewSeen is how many rows of the review body, from the top, have
 	// been on screen; reviewTotal is how many it has.
 	reviewSeen, reviewTotal int
+	// reviewWidth is the width reviewSeen was counted at.
+	reviewWidth int
 	// stashedDraft is a draft set aside while a palette command uses the
 	// composer; it returns when that command has run.
 	stashedDraft string
@@ -477,12 +479,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			return m, m.wait()
 		}
 		m.question = &questionState{message: v, selected: map[int]bool{}}
-		m.reviewOffset, m.reviewSeen = 0, 0
+		m.reviewOffset, m.reviewSeen, m.reviewWidth = 0, 0, 0
 		m.question.focusFreeText(m)
 		return m, m.wait()
 	case permissionMsg:
 		m.pending = &v
-		m.reviewOffset, m.reviewSeen = 0, 0
+		m.reviewOffset, m.reviewSeen, m.reviewWidth = 0, 0, 0
 		return m, m.wait()
 	case queuedSubmitMsg:
 		return m.submitQueued()

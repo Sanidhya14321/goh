@@ -404,10 +404,25 @@ func (m *model) wrapReview(text string, width int) []transcriptRow {
 	return m.previewRows
 }
 
+// noteReviewWidth resets review progress when the review is wrapped at a
+// different width (a resize, or a switch between the wide and compact
+// layouts). reviewSeen counts rows, and the same rows cover different text
+// at another width, so progress cannot carry over; the review starts again
+// from the top. A review that fits on screen is seen again at once.
+func (m *model) noteReviewWidth(width int) {
+	if m.reviewWidth != width {
+		if m.reviewWidth != 0 {
+			m.reviewSeen, m.reviewOffset = 0, 0
+		}
+		m.reviewWidth = width
+	}
+}
+
 // reviewRows returns the visible part of an approval preview or question:
 // at most height rows, scrolled by reviewOffset, sized to its content so a
 // short preview leaves room for the conversation above it.
 func (m *model) reviewRows(text string, width, height int) []transcriptRow {
+	m.noteReviewWidth(width)
 	lines := m.wrapReview(text, width)
 	height = min(height, len(lines))
 	m.reviewHeight = height
@@ -465,6 +480,7 @@ func (m *model) visibleRows(text string, width, height int, review bool) []trans
 	end := max(0, len(lines)-offset)
 	start := max(0, end-height)
 	if review {
+		m.noteReviewWidth(width)
 		m.reviewHeight = height
 		start = min(m.reviewOffset, max(0, len(lines)-height))
 		m.reviewOffset = start // overshooting PgDn must not make PgUp feel dead
