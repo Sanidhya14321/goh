@@ -1,16 +1,16 @@
 {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "Terminal coding assistant with tools, sessions, MCP and LSP",
     "homepage": "https://github.com/Sanidhya14321/goh",
     "license": "Apache-2.0",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Sanidhya14321/goh/releases/download/v1.0.0/goh-windows-amd64.exe#/goh.exe",
-            "hash": "c3a3358a4a9fce779d1a0cd9c3acc0d1a999ba9053ca11fdd1f1a5e66b17b225"
+            "url": "https://github.com/Sanidhya14321/goh/releases/download/v1.1.0/goh-windows-amd64.exe#/goh.exe",
+            "hash": "411edbfbee9fd5c63206fb1ac99856fe3e9a06cd3042f973c57f5ce30296f5b7"
         },
         "arm64": {
-            "url": "https://github.com/Sanidhya14321/goh/releases/download/v1.0.0/goh-windows-arm64.exe#/goh.exe",
-            "hash": "f3156f4feac028c6c6b0a49bb7a772c22397048197a314e29b398f09ef65bceb"
+            "url": "https://github.com/Sanidhya14321/goh/releases/download/v1.1.0/goh-windows-arm64.exe#/goh.exe",
+            "hash": "78a3be266fd8cf121fd2cb4b21b57fd18a760b14f70bfc387bec92ed4adc090e"
         }
     },
     "bin": "goh.exe",
