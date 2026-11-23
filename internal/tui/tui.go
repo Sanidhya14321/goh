@@ -1237,7 +1237,7 @@ func (m *model) compactView() tea.View {
 	}
 	reviewRows := []string{}
 	if review != "" {
-		reviewRows = terminalRows(review, width)
+		reviewRows = keyRows(review, " · ", width)
 		if len(reviewRows) >= available {
 			reviewRows = []string{ansi.Truncate(Safe(review), width, "…")}
 		}

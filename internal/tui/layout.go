@@ -315,7 +315,7 @@ func (m *model) View() tea.View {
 	if review != "" {
 		// The conversation stays visible: the approval or question docks
 		// as a panel just above the composer, where the keys are typed.
-		header := terminalRows(review, columns)
+		header := keyRows(review, "  ·  ", columns-2)
 		header = header[:min(len(header), max(1, contentHeight-1))]
 		space := max(1, contentHeight-len(header)-1) // one blank row above the composer
 		// The decision comes first: the whole preview when it fits, with the
@@ -603,6 +603,9 @@ func statusColor(m *model) string {
 		return blue
 	case m.status == "failed" || m.status == "cancelled" || m.lastRun.failedVerification():
 		return red
+	case m.lastRun != nil && m.lastRun.Outcome == "unverified" && strings.HasPrefix(m.status, "completed"):
+		// Changes that no check confirmed are not a green result.
+		return accent
 	case m.status == "completed" || strings.HasPrefix(m.status, "completed ·"):
 		return green
 	}
@@ -628,4 +631,30 @@ func (m *model) anchorScroll(text string, width int) {
 	if after > before {
 		m.scrollOffset += after - before
 	}
+}
+
+// keyRows wraps a line of key hints ("y once  ·  s session  ·  …") between
+// its groups, so a key and its label never split across rows ("PgUp/P",
+// "gDn"); a group wider than the row is wrapped on its own.
+func keyRows(text, sep string, width int) []string {
+	width = max(1, width)
+	var rows []string
+	line := ""
+	for _, group := range strings.Split(text, sep) {
+		switch {
+		case line == "":
+			line = group
+		case ansi.StringWidth(line+sep+group) <= width:
+			line += sep + group
+		default:
+			rows = append(rows, line)
+			line = group
+		}
+		if ansi.StringWidth(line) > width {
+			wrapped := terminalRows(line, width)
+			rows = append(rows, wrapped[:len(wrapped)-1]...)
+			line = wrapped[len(wrapped)-1]
+		}
+	}
+	return append(rows, line)
 }

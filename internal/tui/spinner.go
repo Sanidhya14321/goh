@@ -49,6 +49,19 @@ func humanDuration(ms int64) string {
 	}
 }
 
+// liveDuration is a running timer: tenths of a second under a minute, so
+// the count moves smoothly at the 100 ms redraw instead of jumping a whole
+// second; minutes and whole seconds after that.
+func liveDuration(ms int64) string {
+	switch {
+	case ms < 0:
+		ms = 0
+	case ms >= 60_000:
+		return fmt.Sprintf("%dm %02ds", ms/60_000, (ms%60_000)/1000)
+	}
+	return fmt.Sprintf("%d.%ds", ms/1000, ms%1000/100)
+}
+
 // statusLine is the header line under the title: a spinner and elapsed time
 // while running, the outcome with usage afterwards. Empty fields are omitted.
 func (m *model) statusLine() string {
@@ -74,8 +87,8 @@ func (m *model) statusLine() string {
 			head = "● " + label
 		}
 		parts = append(parts, head)
-		if d := humanDuration(elapsed / 1000 * 1000); d != "" {
-			parts = append(parts, d)
+		if !m.runStarted.IsZero() {
+			parts = append(parts, liveDuration(elapsed))
 		}
 		if c := m.act.counts(); c != "" {
 			parts = append(parts, c)

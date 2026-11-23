@@ -36,3 +36,20 @@ func TestActivityLabels(t *testing.T) {
 		t.Fatalf("counts %q", got)
 	}
 }
+
+// The first wait of a run is timed once, by the run timer; a later phase
+// shows its own time beside the run's.
+func TestPhaseTimerNotRepeated(t *testing.T) {
+	var a activity
+	a.track(core.Event{Type: "run_started"})
+	a.track(core.Event{Type: "assistant_started"})
+	a.since = a.since.Add(-3 * time.Second)
+	a.start = a.start.Add(-3 * time.Second)
+	if got := a.label("m"); got != "Waiting for m" {
+		t.Fatalf("first wait: %q", got)
+	}
+	a.start = a.start.Add(-10 * time.Second) // the run began well before this phase
+	if got := a.label("m"); !strings.HasPrefix(got, "Waiting for m · 3.") {
+		t.Fatalf("later wait: %q", got)
+	}
+}

@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -113,5 +114,38 @@ func TestRetryRemovesPartialReplyFollowedByReasoning(t *testing.T) {
 	m.Update(core.Event{Type: "assistant_updated", Data: map[string]any{"text": "FINAL"}})
 	if strings.Contains(m.log, "DRAFT") || !strings.HasSuffix(m.log, "FINAL") {
 		t.Fatalf("%q", m.log)
+	}
+}
+
+// The running timer counts in tenths of a second from the start, not in
+// whole-second jumps that begin at 1s.
+func TestLiveTimerShowsTenths(t *testing.T) {
+	for _, c := range []struct {
+		ms   int64
+		want string
+	}{{0, "0.0s"}, {340, "0.3s"}, {2_390, "2.3s"}, {59_990, "59.9s"}, {61_000, "1m 01s"}} {
+		if got := liveDuration(c.ms); got != c.want {
+			t.Errorf("liveDuration(%d) = %q, want %q", c.ms, got, c.want)
+		}
+	}
+	m := &model{active: true, runStarted: time.Now().Add(-2350 * time.Millisecond)}
+	if got := m.statusLine(); !strings.Contains(got, "  ·  2.3s") && !strings.Contains(got, "  ·  2.4s") {
+		t.Fatalf("running: %q", got)
+	}
+	m.runStarted = time.Now().Add(-400 * time.Millisecond)
+	if got := m.statusLine(); !strings.Contains(got, "  ·  0.4s") && !strings.Contains(got, "  ·  0.5s") {
+		t.Fatalf("first second hidden: %q", got)
+	}
+}
+
+// Green means a passing or unchanged run; unverified changes are amber,
+// failed verification red.
+func TestOutcomeColors(t *testing.T) {
+	for outcome, want := range map[string]string{"verified": green, "no_changes": green, "unverified": accent, "failed_verification": red} {
+		r := &runResult{Status: "completed", Outcome: outcome}
+		m := &model{lastRun: r, status: r.label()}
+		if got := statusColor(m); got != want {
+			t.Errorf("%s: color %q, want %q", outcome, got, want)
+		}
 	}
 }

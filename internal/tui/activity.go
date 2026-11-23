@@ -18,6 +18,7 @@ type activity struct {
 	target string
 	chars  int
 	since  time.Time // when this phase started
+	start  time.Time // when the run started
 	steps  int       // model requests in this run
 	tools  int       // tools started in this run
 }
@@ -32,7 +33,7 @@ func (a *activity) track(e core.Event) {
 	}
 	switch e.Type {
 	case "run_started":
-		*a = activity{}
+		*a = activity{start: now}
 	case "assistant_started":
 		a.steps++
 		a.tool, a.target, a.chars = "", "", 0
@@ -71,9 +72,11 @@ func (a *activity) track(e core.Event) {
 // label is the activity in words, with how long it has lasted.
 func (a *activity) label(model string) string {
 	elapsed := ""
-	if !a.since.IsZero() {
+	// A phase that began with the run is timed by the run's own timer
+	// beside it; a second copy of the same number is noise.
+	if !a.since.IsZero() && (a.start.IsZero() || a.since.Sub(a.start) >= time.Second) {
 		if s := time.Since(a.since); s >= time.Second {
-			elapsed = " · " + humanDuration(s.Milliseconds()/1000*1000)
+			elapsed = " · " + liveDuration(s.Milliseconds())
 		}
 	}
 	target := a.target

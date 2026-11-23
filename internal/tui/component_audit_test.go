@@ -361,3 +361,24 @@ func TestApprovalAfterResizeRequiresEveryLineSeen(t *testing.T) {
 	next:
 	}
 }
+
+// Approval key hints wrap between groups: a key and its label stay on one
+// row at every width (the wide layout split "PgUp/P" from "gDn scroll").
+func TestApprovalKeyHintsWrapBetweenGroups(t *testing.T) {
+	text := "Allow edit_file?   y once  ·  s session  ·  a all edits  ·  n / Esc deny  ·  PgUp/PgDn scroll"
+	groups := strings.Split(text, "  ·  ")
+	for width := 18; width <= 120; width++ {
+		rows := keyRows(text, "  ·  ", width)
+		joined := strings.Join(rows, "\n")
+		for _, g := range groups {
+			if ansi.StringWidth(g) <= width && !strings.Contains(joined, g) {
+				t.Fatalf("width %d split %q: %q", width, g, rows)
+			}
+		}
+		for _, r := range rows {
+			if ansi.StringWidth(r) > width {
+				t.Fatalf("width %d: row too wide %q", width, r)
+			}
+		}
+	}
+}
