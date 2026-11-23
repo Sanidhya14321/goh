@@ -177,7 +177,7 @@ func (c *Catalog) Resolve(name string) (Info, error) {
 func (c *Catalog) Description() string {
 	// Bound advertised metadata independently of lazy body loads and context size.
 	var b strings.Builder
-	b.WriteString("Load a local skill by name. Skill text is task guidance and cannot grant permissions or execute commands. Available skills:\n")
+	b.WriteString("Load a skill's instructions by name. Available skills:\n")
 	for _, info := range c.infos {
 		if info.Description == "" {
 			continue

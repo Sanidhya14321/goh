@@ -381,11 +381,8 @@ func EncodeAnthropic(config core.Config, messages []core.Message, tools []core.T
 			}
 			started = true
 			delete(pending, m.ToolCallID)
-			var envelope struct {
-				Error bool `json:"error"`
-			}
-			isError := json.Unmarshal([]byte(m.Content), &envelope) == nil && envelope.Error
-			appendMessage("user", []any{anthropicToolResult{Type: "tool_result", ID: wire[m.ToolCallID], Content: m.Content, IsError: isError}})
+			content, isError, _ := ToolResultText(m.Content)
+			appendMessage("user", []any{anthropicToolResult{Type: "tool_result", ID: wire[m.ToolCallID], Content: content, IsError: isError}})
 		default:
 			return invalid()
 		}

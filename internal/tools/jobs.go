@@ -59,7 +59,7 @@ type jobTable struct {
 
 func jobDefinitions(s func(map[string]any, ...string) map[string]any, str func() map[string]any, number func(int, int) map[string]any) []Definition {
 	return []Definition{
-		{"job_start", "Start a long-running shell command in the background (dev server, watcher) and return a job id at once. This is not sandboxed. Jobs stop when GoHarness exits and are never restarted. At most 8 at a time.", s(map[string]any{"command": str(), "cwd": str()}, "command")},
+		{"job_start", "Start a long-running command in the background (dev server, watcher) and return its job id. This is not sandboxed. Jobs stop when GoHarness exits; at most 8 run at once.", s(map[string]any{"command": str(), "cwd": str()}, "command")},
 		{"job_output", "Read a background job's state and the tail of its output (last 64KiB retained). Without id, list jobs.", s(map[string]any{"id": str(), "limit": number(1, jobTailBytes)})},
 		{"job_stop", "Stop a background job and its whole process group.", s(map[string]any{"id": str()}, "id")},
 	}

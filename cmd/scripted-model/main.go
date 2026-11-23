@@ -89,14 +89,13 @@ func serve(w http.ResponseWriter, r *http.Request, scenario string) {
 			hash := ""
 			for _, m := range request.Messages {
 				if m.Role == "tool" {
-					var envelope struct {
-						Content string `json:"content"`
-					}
-					json.Unmarshal([]byte(m.Content), &envelope)
+					// A result arrives as plain text: one line of fields
+					// ({"sha256":...}), then the file's text.
+					head, _, _ := strings.Cut(m.Content, "\n")
 					var read struct {
 						SHA string `json:"sha256"`
 					}
-					json.Unmarshal([]byte(envelope.Content), &read)
+					json.Unmarshal([]byte(head), &read)
 					if read.SHA != "" {
 						hash = read.SHA
 					}

@@ -57,7 +57,8 @@ func encodeResponses(c core.Config, messages []core.Message, tools []core.Tool) 
 				input = append(input, item)
 			}
 		case "tool":
-			input = append(input, map[string]any{"type": "function_call_output", "call_id": m.ToolCallID, "output": m.Content})
+			output, _, _ := ToolResultText(m.Content)
+			input = append(input, map[string]any{"type": "function_call_output", "call_id": m.ToolCallID, "output": output})
 		default:
 			return nil, errors.New("unsupported message role for Responses")
 		}

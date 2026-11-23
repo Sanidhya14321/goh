@@ -31,7 +31,11 @@ func (a *Agent) checkMode(name string) error {
 	return nil
 }
 func (a *Agent) localDefinitions() []core.Tool {
-	defs := []core.Tool{todoDefinition(), a.skillDefinition(), questionDefinition(), webfetch.Definition()}
+	defs := []core.Tool{todoDefinition()}
+	if len(a.Skills.List()) > 0 {
+		defs = append(defs, a.skillDefinition()) // an empty catalog is not worth a tool
+	}
+	defs = append(defs, questionDefinition(), webfetch.Definition())
 	if a.Config.WebsearchURL != "" {
 		defs = append(defs, websearch.Definition())
 	}
@@ -46,6 +50,13 @@ func (a *Agent) localDefinitions() []core.Tool {
 		defs = append(defs, core.NewTool(d.Name, d.Description, d.Schema))
 	}
 	defs = append(defs, a.experimentDefinitions()...)
+	offered := defs[:0]
+	for _, d := range defs {
+		if !unadvertisedTools[d.Function.Name] {
+			offered = append(offered, d)
+		}
+	}
+	defs = offered
 	if !a.isPlan() {
 		return defs
 	}
@@ -60,3 +71,9 @@ func (a *Agent) localDefinitions() []core.Tool {
 	}
 	return reads
 }
+
+// unadvertisedTools stay callable (older sessions and models that know them
+// keep working) but are not offered, because every offered definition is
+// sent with every request. search is grep with a limit; write_file creates a
+// new file as create_file does.
+var unadvertisedTools = map[string]bool{"search": true, "create_file": true}

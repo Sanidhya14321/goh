@@ -46,7 +46,7 @@ func (a *Agent) taskDefinition() core.Tool {
 	}
 	sort.Strings(names)
 	str := map[string]any{"type": "string"}
-	return core.NewTool("task", "Run a bounded child agent with its own durable session and fresh permissions. Types: "+strings.Join(names, ", ")+". general may request approved coding tools; explore is read-only. task_id may continue only a child owned by this session. No recursive/background delegation; parent grants are not inherited. Optional output_schema validates a strict JSON final result without retrying child effects.", map[string]any{"type": "object", "properties": map[string]any{"description": str, "prompt": str, "subagent_type": str, "task_id": str, "command": str, "output_schema": map[string]any{"type": "object"}}, "required": []string{"description", "prompt", "subagent_type"}, "additionalProperties": false})
+	return core.NewTool("task", "Run a child agent on a self-contained subtask and return its final answer. Types: "+strings.Join(names, ", ")+" (explore is read-only; general can edit, with its own approvals). task_id continues an earlier child. output_schema requires a JSON final answer matching it.", map[string]any{"type": "object", "properties": map[string]any{"description": str, "prompt": str, "subagent_type": str, "task_id": str, "command": str, "output_schema": map[string]any{"type": "object"}}, "required": []string{"description", "prompt", "subagent_type"}, "additionalProperties": false})
 }
 func parseTask(raw json.RawMessage) (taskArguments, error) {
 	var args taskArguments

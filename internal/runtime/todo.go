@@ -23,7 +23,7 @@ type todoUpdate struct {
 
 func todoDefinition() core.Tool {
 	item := map[string]any{"type": "object", "properties": map[string]any{"content": map[string]any{"type": "string"}, "status": map[string]any{"type": "string"}, "priority": map[string]any{"type": "string"}}, "required": []string{"content", "status", "priority"}, "additionalProperties": false}
-	return core.NewTool("todowrite", "Replace the ordered session task list. Each item has content, status and priority strings; typical statuses are pending, in_progress, completed and cancelled. An empty array clears the list. This changes session task state, not project files.", map[string]any{"type": "object", "properties": map[string]any{"todos": map[string]any{"type": "array", "items": item, "maxItems": maxTodos}}, "required": []string{"todos"}, "additionalProperties": false})
+	return core.NewTool("todowrite", "Replace the session task list (in order). Statuses: pending, in_progress, completed, cancelled. An empty list clears it.", map[string]any{"type": "object", "properties": map[string]any{"todos": map[string]any{"type": "array", "items": item, "maxItems": maxTodos}}, "required": []string{"todos"}, "additionalProperties": false})
 }
 func parseTodos(raw json.RawMessage) (todoUpdate, error) {
 	var update todoUpdate

@@ -15,7 +15,6 @@ import (
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	api "github.com/Sanidhya14321/goh/internal/provider"
-	"github.com/Sanidhya14321/goh/internal/tools"
 )
 
 // This fixture writes protocol frames independently of the product encoder/parser.
@@ -100,12 +99,14 @@ func TestMixedProtocolChildRoleAndTypedRoundTrip(t *testing.T) {
 		} else {
 			messages := request["messages"].([]any)
 			last := messages[len(messages)-1].(map[string]any)
-			var envelope tools.Result
-			if err := json.Unmarshal([]byte(last["content"].(string)), &envelope); err != nil || envelope.Error {
-				t.Error("child result failed", envelope, err)
+			// Tool results reach the provider as plain text; a failure
+			// starts with "Error: ".
+			content := last["content"].(string)
+			if strings.HasPrefix(content, "Error: ") {
+				t.Error("child result failed", content)
 			}
-			if !strings.Contains(envelope.Content, `"structured_output":{"observed":"local evidence"}`) {
-				t.Error(envelope.Content)
+			if !strings.Contains(content, `"structured_output":{"observed":"local evidence"}`) {
+				t.Error(content)
 			}
 			chatReply(w, nil, "Mixed protocol task complete.")
 		}

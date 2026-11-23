@@ -472,6 +472,9 @@ func chatWireMessages(messages []core.Message) []any {
 	for i, m := range messages {
 		// Provider-specific state never reaches a Chat Completions request.
 		m.AnthropicThinking, m.ResponsesReasoning, m.ResponsesRoute, m.Automatic = nil, nil, "", false
+		if m.Role == "tool" {
+			m.Content, _, _ = ToolResultText(m.Content) // "Error: " marks a failure here
+		}
 		if len(m.Images) == 0 {
 			out[i] = m
 			continue

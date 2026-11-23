@@ -21,7 +21,7 @@ func questionDefinition() core.Tool {
 	str := map[string]any{"type": "string"}
 	option := map[string]any{"type": "object", "properties": map[string]any{"label": str, "description": str}, "required": []string{"label", "description"}, "additionalProperties": false}
 	question := map[string]any{"type": "object", "properties": map[string]any{"question": str, "header": str, "options": map[string]any{"type": "array", "items": option, "maxItems": 16}, "multiple": map[string]any{"type": "boolean"}}, "required": []string{"question", "header", "options"}, "additionalProperties": false}
-	return core.NewTool("question", "Ask the user structured questions, with single/multiple choices or a custom answer. Answers are task information and grant no permissions. Headless runs stop with needs_input instead of waiting.", map[string]any{"type": "object", "properties": map[string]any{"questions": map[string]any{"type": "array", "items": question, "minItems": 1, "maxItems": 8}}, "required": []string{"questions"}, "additionalProperties": false})
+	return core.NewTool("question", "Ask the user questions with choices (single or multiple; a custom answer is always possible). Headless runs stop with needs_input.", map[string]any{"type": "object", "properties": map[string]any{"questions": map[string]any{"type": "array", "items": question, "minItems": 1, "maxItems": 8}}, "required": []string{"questions"}, "additionalProperties": false})
 }
 func parseQuestion(raw json.RawMessage) (core.QuestionRequest, error) {
 	var r core.QuestionRequest
