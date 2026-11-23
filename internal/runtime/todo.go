@@ -105,6 +105,7 @@ func (a *Agent) taskContext() string {
 func (a *Agent) modelHistory() []core.Message { return a.withTaskContext(a.History) }
 func (a *Agent) withTaskContext(history []core.Message) []core.Message {
 	history = a.revalidateRecalls(history)
+	history, _ = boundImageHistory(history)
 	if a.projectGuidance != "" && len(history) > 0 && history[0].Role == "system" {
 		guidance := core.Message{Role: "user", Content: projectGuidancePrefix + a.projectGuidance}
 		history = append([]core.Message{history[0], guidance}, history[1:]...)

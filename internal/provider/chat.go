@@ -26,6 +26,9 @@ import (
 
 const maxResponse = 16 << 20
 
+// MaxRequestBytes is the largest encoded request goh sends to any provider.
+const MaxRequestBytes = maxResponse
+
 var ErrConnection = errors.New("provider connection failed")
 var ErrInterrupted = errors.New("interrupted stream: missing finish or DONE")
 
@@ -145,7 +148,7 @@ func (c *Client) Complete(ctx context.Context, messages []core.Message, tools []
 		return core.Reply{}, e
 	}
 	if len(b) > maxResponse {
-		return core.Reply{}, errors.New("provider request exceeds 16MiB")
+		return core.Reply{}, fmt.Errorf("provider request is %.1f MiB, over goh's 16 MiB request limit; nothing was sent. Run /compact, or attach fewer or smaller images", float64(len(b))/(1<<20))
 	}
 	if c.HTTP == nil {
 		return core.Reply{}, errors.New("provider HTTP client unavailable")

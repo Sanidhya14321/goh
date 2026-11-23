@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/Sanidhya14321/goh/internal/provider"
 )
 
 const (
@@ -127,4 +129,73 @@ func withoutImages(ms []core.Message) ([]core.Message, int) {
 		return ms, 0
 	}
 	return out, count
+}
+
+// requestImageMargin is room left in the encoded request limit for tool
+// definitions and protocol framing, which the projection does not see.
+const requestImageMargin = 1 << 20
+
+// boundImageHistory keeps the encoded request under the provider's byte
+// limit. Token estimates count a fixed allowance per image, which is right
+// for the token dimension, but replaying every earlier attachment's base64
+// data can exceed the transport limit while the token estimate is small.
+// Images on the latest user message are always kept; older image data is
+// dropped newest-last to a path note until the rest fits. The journal and
+// a.History keep every image. Returns the number of images dropped.
+func boundImageHistory(history []core.Message) ([]core.Message, int) {
+	total := 0
+	for _, m := range history {
+		for _, img := range m.Images {
+			total += len(img.Data)
+		}
+	}
+	if total <= provider.MaxRequestBytes/2 {
+		return history, 0 // the text alone would need 8 MiB to matter
+	}
+	plain, _ := withoutImages(history)
+	text, _ := json.Marshal(plain)
+	budget := provider.MaxRequestBytes - requestImageMargin - len(text)
+	current := -1
+	for i := len(history) - 1; i >= 0; i-- {
+		if history[i].Role == "user" && !history[i].Automatic {
+			current = i
+			break
+		}
+	}
+	used := 0
+	if current >= 0 {
+		for _, img := range history[current].Images {
+			used += len(img.Data)
+		}
+	}
+	var out []core.Message
+	dropped := 0
+	for i := len(history) - 1; i >= 0; i-- {
+		m := history[i]
+		if i == current || len(m.Images) == 0 {
+			continue
+		}
+		size := 0
+		for _, img := range m.Images {
+			size += len(img.Data)
+		}
+		if dropped == 0 && used+size <= budget {
+			used += size
+			continue
+		}
+		if out == nil {
+			out = append([]core.Message(nil), history...)
+		}
+		names := make([]string, len(m.Images))
+		for j, img := range m.Images {
+			names[j] = img.Path
+		}
+		dropped += len(m.Images)
+		out[i].Images = nil
+		out[i].Content += "\n[earlier attached images not resent, to fit the provider request size: " + strings.Join(names, ", ") + "]"
+	}
+	if out == nil {
+		return history, 0
+	}
+	return out, dropped
 }
