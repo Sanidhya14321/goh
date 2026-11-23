@@ -75,5 +75,8 @@ func (a *Agent) localDefinitions() []core.Tool {
 // unadvertisedTools stay callable (older sessions and models that know them
 // keep working) but are not offered, because every offered definition is
 // sent with every request. search is grep with a limit; write_file creates a
-// new file as create_file does.
-var unadvertisedTools = map[string]bool{"search": true, "create_file": true}
+// new file as create_file does. The snapshot tools were called once in 453
+// benchmark requests while costing about 300 tokens on each; the user undoes
+// and inspects runs with /undo, /redo, /changes and /snapshots.
+var unadvertisedTools = map[string]bool{"search": true, "create_file": true,
+	"snapshot_list": true, "snapshot_diff": true, "snapshot_undo": true, "snapshot_redo": true}
