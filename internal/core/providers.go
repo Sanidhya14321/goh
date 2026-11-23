@@ -90,7 +90,13 @@ func deref[T any](p *T) T {
 }
 
 // Providers lists the connected providers, sorted by name, marking the one
-// the top-level settings use.
+// the top-level settings use. Two providers can share a route (protocol,
+// address and model) and differ only in other settings, so the one the user
+// selected (c.Provider) is active while its route is still the top-level
+// one. Without a usable selection (older settings, or settings edited by
+// hand) the active provider is inferred: an exact match of every route
+// setting first, then the first route match by name, so the choice is the
+// same on every run.
 func (c Config) Providers() []ProviderEntry {
 	top := ProviderEntry{Protocol: c.EffectiveProtocol(), Address: c.BaseURL, Model: c.Model, Window: c.ContextWindow, KeyEnv: c.APIKeyEnv}
 	if c.Endpoint != "" {
@@ -101,7 +107,6 @@ func (c Config) Providers() []ProviderEntry {
 	}
 	configured := c.Model != "" || c.Protocol != "" || c.BaseURL != "" || c.Endpoint != ""
 	var out []ProviderEntry
-	activeFound := false
 	for name, p := range c.Profiles {
 		if p.Protocol == nil && p.BaseURL == nil && p.Endpoint == nil {
 			continue // a model-only profile, shown in /models
@@ -118,13 +123,35 @@ func (c Config) Providers() []ProviderEntry {
 			e.Address = chatGPTResource
 		}
 		e.Preset = presetFor(e.Protocol, e.Address)
-		e.Active = configured && !activeFound && e.Protocol == top.Protocol && e.Address == top.Address &&
-			e.IsEndpoint == top.IsEndpoint && (e.Model == top.Model || top.Model == "")
-		activeFound = activeFound || e.Active
 		out = append(out, e)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	if configured && !activeFound && (top.Address != "" || top.Protocol == ChatGPTProtocol) {
+	sameRoute := func(e ProviderEntry) bool {
+		return e.Protocol == top.Protocol && e.Address == top.Address && e.IsEndpoint == top.IsEndpoint &&
+			(e.Model == top.Model || top.Model == "")
+	}
+	active := -1
+	if configured {
+		for i, e := range out {
+			if e.Name == c.Provider && sameRoute(e) {
+				active = i // the provider the user selected
+			}
+		}
+		for i := 0; active < 0 && i < len(out); i++ {
+			if e := out[i]; sameRoute(e) && e.Window == top.Window && e.KeyEnv == top.KeyEnv {
+				active = i
+			}
+		}
+		for i := 0; active < 0 && i < len(out); i++ {
+			if sameRoute(out[i]) {
+				active = i
+			}
+		}
+	}
+	if active >= 0 {
+		out[active].Active = true
+	}
+	if configured && active < 0 && (top.Address != "" || top.Protocol == ChatGPTProtocol) {
 		top.Name, top.Active, top.Unsaved = UnsavedProviderName, true, true
 		top.Preset = presetFor(top.Protocol, top.Address)
 		out = append([]ProviderEntry{top}, out...)
@@ -276,6 +303,7 @@ func SaveProvider(raw, name string, s ProviderSettings, activate bool) (string, 
 		if activate {
 			setTop(doc, route)
 			delete(doc, "profile")
+			doc["provider"], _ = json.Marshal(name)
 		}
 		return nil
 	})
@@ -301,6 +329,10 @@ func RenameProvider(raw, from, to string) (string, error) {
 		var selected string
 		if b, ok := doc["profile"]; ok && json.Unmarshal(b, &selected) == nil && selected == from {
 			doc["profile"], _ = json.Marshal(to)
+		}
+		var active string
+		if b, ok := doc["provider"]; ok && json.Unmarshal(b, &active) == nil && active == from {
+			doc["provider"], _ = json.Marshal(to)
 		}
 		if b, ok := doc["agents"]; ok {
 			agents := map[string]map[string]json.RawMessage{}
@@ -359,6 +391,7 @@ func ActivateProvider(raw, name string) (string, error) {
 		}
 		setTop(doc, p)
 		delete(doc, "profile")
+		doc["provider"], _ = json.Marshal(name)
 		return nil
 	})
 }
@@ -396,6 +429,15 @@ func RemoveProvider(raw, name string, active bool, next string) (string, error) 
 		}
 		if active || name == UnsavedProviderName {
 			setTop(doc, profiles[next])
+			if next != "" {
+				doc["provider"], _ = json.Marshal(next)
+			} else {
+				delete(doc, "provider")
+			}
+		}
+		var selected string
+		if b, ok := doc["provider"]; ok && json.Unmarshal(b, &selected) == nil && selected == name {
+			delete(doc, "provider") // the selected provider no longer exists
 		}
 		if b, ok := doc["profile"]; ok {
 			var selected string

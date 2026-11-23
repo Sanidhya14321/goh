@@ -186,3 +186,43 @@ func TestConnectedRouteForConfigChats(t *testing.T) {
 		t.Fatalf("saved key by route: %q %v", key, err)
 	}
 }
+
+// `goh providers use` reports "already in use" only for the provider that is
+// actually selected, also when another provider shares its endpoint and
+// model.
+func TestProvidersUseWithSharedRoute(t *testing.T) {
+	isolateHome(t)
+	small := core.ProviderSettings{Protocol: "chat_completions", Address: "https://gw.example/v1", Model: "m", Window: 8192}
+	large := small
+	large.Window = 131072
+	if err := saveProvider("alpha", small, "gw-key", true); err != nil {
+		t.Fatal(err)
+	}
+	if err := saveProvider("beta", large, "", false); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 20; i++ {
+		var out bytes.Buffer
+		if err := runProviders([]string{"use", "beta"}, &out); err != nil {
+			t.Fatal(err)
+		}
+		want := "New chats use beta"
+		if i > 0 {
+			want = "New chats already use beta"
+		}
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("round %d: %q", i, out.String())
+		}
+		_, _, cfg, _ := userSettings()
+		if e, _ := cfg.FindProvider("beta"); !e.Active || cfg.ContextWindow != 131072 {
+			t.Fatalf("round %d: beta not active: %+v", i, cfg)
+		}
+	}
+	var out bytes.Buffer
+	if err := runProviders([]string{"use", "alpha"}, &out); err != nil || !strings.Contains(out.String(), "New chats use alpha") {
+		t.Fatal(out.String(), err)
+	}
+	if err := runProviders([]string{"list"}, &out); err != nil || !strings.Contains(out.String(), "* alpha") || strings.Contains(out.String(), "* beta") {
+		t.Fatal(out.String(), err)
+	}
+}

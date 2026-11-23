@@ -216,6 +216,11 @@ type Config struct {
 	Agent           string                   `json:"agent,omitempty"`
 	Profiles        map[string]ModelProfile  `json:"profiles,omitempty"`
 	Agents          map[string]AgentProfile  `json:"agents,omitempty"`
+	// Provider names the saved provider the user last selected; its route
+	// is copied to the top-level fields above. It only tells the provider
+	// registry which of several identical-looking providers is active and
+	// never changes what a run uses (unlike Profile, which is overlaid).
+	Provider string `json:"provider,omitempty"`
 	// SkippedAgentFiles explains project agent files that were not loaded.
 	SkippedAgentFiles []SkippedAgentFile `json:"-"`
 	SkillPaths        []string           `json:"skill_paths,omitempty"`

@@ -166,3 +166,131 @@ func TestSharesKeyWith(t *testing.T) {
 		t.Fatal("different endpoints reported as sharing a key")
 	}
 }
+
+// activeNames lists the providers marked active, checked over many calls so
+// map iteration order cannot hide a nondeterministic choice.
+func activeNames(t *testing.T, raw string) string {
+	t.Helper()
+	c := mustDecode(t, raw)
+	first := ""
+	for i := 0; i < 200; i++ {
+		var active []string
+		for _, e := range c.Providers() {
+			if e.Active {
+				active = append(active, e.Name)
+			}
+		}
+		got := strings.Join(active, ",")
+		if i == 0 {
+			first = got
+		} else if got != first {
+			t.Fatalf("active provider changed between calls: %q then %q", first, got)
+		}
+	}
+	return first
+}
+
+// Two saved providers can share protocol, endpoint and model and differ in
+// other settings (here the context window). The one the user selects stays
+// active after saving and reloading; editing or removing the other leaves it
+// active; renaming it follows the new name; removing it hands over as before.
+func TestSelectedProviderWinsOverASharedRoute(t *testing.T) {
+	small := ProviderSettings{Protocol: "chat_completions", Address: "https://gw.example/v1", Model: "m", Window: 8192}
+	large := small
+	large.Window = 131072
+	raw, err := SaveProvider(`{"theme":"dark"}`, "alpha", small, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if raw, err = SaveProvider(raw, "beta", large, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := activeNames(t, raw); got != "beta" {
+		t.Fatalf("selected beta, active %q", got)
+	}
+	if c := mustDecode(t, raw); c.ContextWindow != 131072 || c.Provider != "beta" {
+		t.Fatalf("top level does not follow beta: %+v", c)
+	}
+	// Selecting alpha, whose route is identical except for the window.
+	if raw, err = ActivateProvider(raw, "alpha"); err != nil {
+		t.Fatal(err)
+	}
+	if got := activeNames(t, raw); got != "alpha" || mustDecode(t, raw).ContextWindow != 8192 {
+		t.Fatalf("selected alpha, active %q", got)
+	}
+	if raw, err = ActivateProvider(raw, "beta"); err != nil {
+		t.Fatal(err)
+	}
+	// Editing the inactive alias (the manager saves it without activating).
+	edited := small
+	edited.Window = 16384
+	if raw, err = SaveProvider(raw, "alpha", edited, false); err != nil {
+		t.Fatal(err)
+	}
+	if got := activeNames(t, raw); got != "beta" || mustDecode(t, raw).ContextWindow != 131072 {
+		t.Fatalf("editing alpha moved the selection to %q", got)
+	}
+	// Renaming the active provider follows the new name.
+	if raw, err = RenameProvider(raw, "beta", "wide"); err != nil {
+		t.Fatal(err)
+	}
+	if got := activeNames(t, raw); got != "wide" || mustDecode(t, raw).Provider != "wide" {
+		t.Fatalf("after rename, active %q", got)
+	}
+	// Removing the inactive alias leaves the selection alone.
+	if raw, err = RemoveProvider(raw, "alpha", false, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := activeNames(t, raw); got != "wide" {
+		t.Fatalf("removing alpha changed the selection to %q", got)
+	}
+	// Removing the active provider hands over to the one named.
+	if raw, err = SaveProvider(raw, "alpha", small, false); err != nil {
+		t.Fatal(err)
+	}
+	if raw, err = RemoveProvider(raw, "wide", true, "alpha"); err != nil {
+		t.Fatal(err)
+	}
+	if got, c := activeNames(t, raw), mustDecode(t, raw); got != "alpha" || c.Provider != "alpha" || c.ContextWindow != 8192 {
+		t.Fatalf("after removing the active provider, active %q: %+v", got, c)
+	}
+	if raw, err = RemoveProvider(raw, "alpha", true, ""); err != nil {
+		t.Fatal(err)
+	}
+	if c := mustDecode(t, raw); c.Provider != "" || len(c.Providers()) != 0 || !strings.Contains(raw, `"theme": "dark"`) {
+		t.Fatalf("removing the last provider: %s", raw)
+	}
+}
+
+// Settings written before the selection was recorded still load and keep
+// their route. Ambiguous matches resolve the same way every time: every
+// route setting matching first, then the first by name. A selection that
+// no longer matches the top-level route (edited by hand) is not trusted.
+func TestOlderSettingsWithSharedRoutes(t *testing.T) {
+	profiles := `"profiles":{"beta":{"protocol":"chat_completions","base_url":"https://gw.example/v1","model":"m","context_window":131072},
+		"alpha":{"protocol":"chat_completions","base_url":"https://gw.example/v1","model":"m","context_window":8192}}`
+	top := `"protocol":"chat_completions","base_url":"https://gw.example/v1","model":"m"`
+	for name, tc := range map[string]struct{ raw, want string }{
+		"exact match wins":                {`{` + top + `,"context_window":131072,` + profiles + `}`, "beta"},
+		"first by name otherwise":         {`{` + top + `,"context_window":4096,` + profiles + `}`, "alpha"},
+		"selection that no longer exists": {`{` + top + `,"context_window":131072,"provider":"gone",` + profiles + `}`, "beta"},
+		"selection off the top route":     {`{"protocol":"chat_completions","base_url":"https://other.example/v1","model":"m","provider":"alpha",` + profiles + `}`, UnsavedProviderName},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := activeNames(t, tc.raw); got != tc.want {
+				t.Fatalf("active %q, want %q", got, tc.want)
+			}
+		})
+	}
+	// The recorded selection never changes what a run uses: profile and
+	// agent overlays keep their precedence.
+	raw := `{` + top + `,"context_window":131072,"provider":"beta",` + profiles + `,
+		"agents":{"rev":{"description":"d","instructions":"i","mode":"plan","profile":"alpha"}}}`
+	c := mustDecode(t, raw)
+	if r, err := c.Resolve("", ""); err != nil || r.ContextWindow != 131072 || r.Profile != "" {
+		t.Fatalf("selection changed the resolved route: %+v %v", r, err)
+	}
+	if r, err := c.Resolve("", "rev"); err != nil || r.ContextWindow != 8192 || r.Profile != "alpha" {
+		t.Fatalf("agent profile no longer applies: window %d profile %q %v", r.ContextWindow, r.Profile, err)
+	}
+}

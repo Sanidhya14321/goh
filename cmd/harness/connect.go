@@ -239,6 +239,7 @@ func providerRows(cfg core.Config) []tui.ProviderRow {
 // manageProviders runs the provider manager until it is closed. It reports
 // whether the provider new chats use changed, and a notice for the chat.
 func manageProviders(backdrop string) (changed bool, notice string, err error) {
+	defer forgetModelLists() // the routes or keys behind the cached lists may change
 	selected := ""
 	for {
 		_, _, cfg, err := userSettings()
@@ -323,6 +324,7 @@ func findEntry(name string) (core.ProviderEntry, core.Config, error) {
 }
 
 func useProvider(name string) (bool, string, error) {
+	defer forgetModelLists() // the routes or keys behind the cached lists may change
 	e, _, err := findEntry(name)
 	if err != nil {
 		return false, "", err
@@ -403,6 +405,7 @@ func addProvider(backdrop string) (string, string, error) {
 // list) returns to the picker, and a failed step is explained there so it
 // can be retried or another provider chosen. welcome is the first-run form.
 func addProviderFlow(backdrop string, welcome bool) (string, string, error) {
+	defer forgetModelLists() // the routes or keys behind the cached lists may change
 	title, footer := "Add a provider", ""
 	if welcome {
 		title = "Welcome · connect a model provider to start"
@@ -822,6 +825,11 @@ func changeProviderModel(name, backdrop string) (bool, string, error) {
 // modelChoices lists e's chat models as picker options, with the context
 // windows the provider reports (0 when unknown).
 func modelChoices(e core.ProviderEntry, cfg core.Config, backdrop string) (options []tui.Option, windows map[string]int, err error) {
+	route := e.Route(cfg)
+	key := modelCacheKey("saved", e.Name, e.Protocol, e.Preset, route.BaseURL, route.Endpoint)
+	if options, windows, ok := cachedModelList(key); ok {
+		return options, windows, nil
+	}
 	// The request runs behind a screen that says so and owns the keys: Esc
 	// cancels it there, and nothing typed meanwhile reaches the next picker.
 	err = tui.WithProgress("Loading "+e.Name+" models", backdrop, func(parent context.Context) error {
@@ -831,6 +839,9 @@ func modelChoices(e core.ProviderEntry, cfg core.Config, backdrop string) (optio
 		options, windows, e2 = listModelChoices(ctx, e, cfg)
 		return e2
 	})
+	if err == nil {
+		storeModelList(key, options, windows)
+	}
 	return options, windows, err
 }
 
@@ -916,13 +927,28 @@ func sameRoute(chat, saved core.Config) bool {
 // chooseChatModel picks a model for a chat whose route is not saved.
 func chooseChatModel(chat core.Config, backdrop string) (string, string, error) {
 	var ids []string
-	err := tui.WithProgress("Loading this chat's models", backdrop, func(parent context.Context) error {
-		ctx, cancel := context.WithTimeout(parent, 30*time.Second)
-		defer cancel()
-		var e error
-		ids, e = provider.ListModels(ctx, chat, &http.Client{})
-		return e
-	})
+	key := modelCacheKey("chat", chat.EffectiveProtocol(), chat.BaseURL, chat.Endpoint, chat.APIKeyEnv)
+	var err error
+	if cached, _, ok := cachedModelList(key); ok {
+		for _, o := range cached {
+			ids = append(ids, o.Value)
+		}
+	} else {
+		err = tui.WithProgress("Loading this chat's models", backdrop, func(parent context.Context) error {
+			ctx, cancel := context.WithTimeout(parent, 30*time.Second)
+			defer cancel()
+			var e error
+			ids, e = provider.ListModels(ctx, chat, &http.Client{})
+			return e
+		})
+		if err == nil {
+			cached := make([]tui.Option, len(ids))
+			for i, id := range ids {
+				cached[i] = tui.Option{Value: id}
+			}
+			storeModelList(key, cached, nil)
+		}
+	}
 	if errors.Is(err, tui.ErrCancelled) {
 		return "", modelListCancelled, nil
 	}
@@ -992,6 +1018,7 @@ func chooseSavedModel(cfg core.Config, backdrop string) (string, error) {
 // changeProviderKey replaces a provider's key after checking it, or for
 // ChatGPT signs in again.
 func changeProviderKey(name, backdrop string) (string, error) {
+	defer forgetModelLists() // the routes or keys behind the cached lists may change
 	e, cfg, err := findEntry(name)
 	if err != nil {
 		return "", err
