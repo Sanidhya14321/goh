@@ -12,6 +12,8 @@ Each entry lists user-visible changes; evidence for each is in
 - A Go test run whose packages all pass from the test cache (`ok pkg (cached)`) counts as a passing test run.
 - After the completion reminder, the final reply still says what changed instead of only "tests pass".
 - A command that fails because `python` (or `pip`) is missing says that `python3` is installed.
+- Experiment `project-listing`: a project of up to 80 files has its file list sent with the session's
+  context, so a task need not spend its first request on `list_files` (off until measured).
 - `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
   `git status` work as in a real project (they failed 28 times in earlier runs).
 

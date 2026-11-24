@@ -313,7 +313,8 @@ completed; text mode prints `Verification failed: …`, JSON has `outcome: faile
 `130` cancelled.
 
 `--experiment NAME` (repeatable, or `"experiments": [...]` in the config) turns on a research
-prototype: `submission-evidence`, `recoverable-compression` or `retrieval-expansion`. All are off by
+prototype: `submission-evidence`, `recoverable-compression`, `retrieval-expansion` or `project-listing`
+(a small project's file list sent up front). All are off by
 default; see [experiments](BENCHMARKS.md).
 
 `run_finished` carries `outcome` (`verified`, `unverified`, `no_changes`, `failed_verification`)

@@ -120,6 +120,7 @@ type Agent struct {
 	sessionLevel core.AccessLevel
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
 	projectGuidance string
+	projectListing  string // experiment project-listing: files at session start
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
 	// runTokens counts model tokens (input+output) used by this run;
@@ -241,6 +242,10 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 			a.GuidanceFiles = append(a.GuidanceFiles, filepath.Join(s.Project, name))
 		}
 		break
+	}
+
+	if c.Experiment(core.ExperimentProjectListing) {
+		a.projectListing = smallProjectListing(t)
 	}
 
 	trustedSystem := a.History[0]
@@ -1848,4 +1853,34 @@ func onlyCompactionState(history []core.Message) bool {
 		return false
 	}
 	return true
+}
+
+// Bounds for the project-listing experiment: larger projects get no listing
+// (the model searches them instead).
+const (
+	listingMaxFiles = 80
+	listingMaxBytes = 3 << 10
+)
+
+// smallProjectListing is the project's file list, one path per line, when it
+// is small enough to send with every request; otherwise "".
+func smallProjectListing(t interface {
+	Execute(context.Context, string, json.RawMessage) tools.Result
+}) string {
+	r := t.Execute(context.Background(), "list_files", json.RawMessage(fmt.Sprintf(`{"limit":%d}`, listingMaxFiles+1)))
+	if r.Error {
+		return ""
+	}
+	var out struct {
+		Files     []string `json:"files"`
+		Truncated bool     `json:"truncated"`
+	}
+	if json.Unmarshal([]byte(r.Content), &out) != nil || out.Truncated || len(out.Files) == 0 || len(out.Files) > listingMaxFiles {
+		return ""
+	}
+	text := strings.Join(out.Files, "\n")
+	if len(text) > listingMaxBytes {
+		return ""
+	}
+	return text
 }
