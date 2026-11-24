@@ -343,7 +343,7 @@ func (s *Store) restore(ctx context.Context, tree string) (before string, change
 // outside reports whether a relative path leaves its base: ".." or a path
 // under it, not a name that merely starts with two dots ("..notes.txt").
 func outside(rel string) bool {
-	return rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator))
+	return rel == ".." || strings.HasPrefix(filepath.ToSlash(rel), "../")
 }
 
 // linkedParent reports whether any folder between project and p is a symlink.
