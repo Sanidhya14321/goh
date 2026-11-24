@@ -21,6 +21,9 @@ Each entry lists user-visible changes; evidence for each is in
 - Project walks (the change check after each command, `list_files`, `grep`, `repo_map`) open only the
   ignore files a folder has and open each folder from its parent: the change check 138 → 64 ms in a
   6,600-file tree and 53 → 20 ms in this repository, `repo_map` 241 → 167 ms.
+- `grep` over a 6,600-file tree takes 0.21 s instead of 1.73 s: files the walk listed skip a second
+  per-folder symlink check, each is opened from its open folder, and several are read at once (results,
+  their order and the limits are unchanged).
 - `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
   `git status` work as in a real project (they failed 28 times in earlier runs).
 

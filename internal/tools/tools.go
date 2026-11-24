@@ -16,8 +16,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -310,7 +312,150 @@ func read(r *os.Root, p string) ([]byte, fs.FileMode, error) {
 	if !lst.Mode().IsRegular() {
 		return nil, 0, errors.New("only regular files supported")
 	}
-	f, err := r.OpenFile(p, os.O_RDONLY|platform.NonBlock, 0)
+	return readOpen(r, p, 0)
+}
+
+// readWalked reads a file a project walk just listed. The walk followed no
+// symlinks, so the per-component check in read (one lookup per folder of
+// the path, each resolved from the root again: most of a grep's time) is
+// skipped; a file swapped for a symlink since is refused, and the root
+// still keeps every open inside the project.
+func readWalked(r *os.Root, p string) ([]byte, fs.FileMode, error) {
+	return readOpen(r, p, platform.NoFollow)
+}
+
+// lineMatch is one matching line of a scanned file.
+type lineMatch struct {
+	line int
+	text string
+}
+
+// fileScan is one file's matches, ready once done is closed.
+type fileScan struct {
+	found []lineMatch
+	ok    bool // false when the file could not be read as text
+	done  chan struct{}
+}
+
+// fileScanner reads and matches files on a few goroutines, each taking a run
+// of files from one folder.
+type fileScanner struct {
+	ctx    context.Context
+	files  []fileScan
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+}
+
+func scanFiles(ctx context.Context, r *os.Root, paths []string, re *regexp.Regexp, limit int) *fileScanner {
+	ctx, cancel := context.WithCancel(ctx)
+	s := &fileScanner{ctx: ctx, files: make([]fileScan, len(paths)), cancel: cancel}
+	for i := range s.files {
+		s.files[i].done = make(chan struct{})
+	}
+	type span struct{ from, to int }
+	spans := make(chan span, 64)
+	go func() {
+		defer close(spans)
+		for from := 0; from < len(paths); {
+			to, dir := from+1, path.Dir(paths[from])
+			for to < len(paths) && to-from < 32 && path.Dir(paths[to]) == dir {
+				to++
+			}
+			select {
+			case spans <- span{from, to}:
+			case <-ctx.Done():
+				return
+			}
+			from = to
+		}
+	}()
+	workers := min(max(runtime.GOMAXPROCS(0), 1), 8)
+	for range workers {
+		s.wg.Add(1)
+		go func() {
+			defer s.wg.Done()
+			folders := &walkedFolders{root: r}
+			defer folders.close()
+			for sp := range spans {
+				for i := sp.from; i < sp.to; i++ {
+					f := &s.files[i]
+					if ctx.Err() == nil {
+						if b, _, err := folders.read(paths[i]); err == nil {
+							f.ok = true
+							n := 0
+							for l := range strings.SplitSeq(string(b), "\n") {
+								n++
+								if re.MatchString(l) {
+									f.found = append(f.found, lineMatch{n, l})
+									if len(f.found) >= limit+1 {
+										break // the loop takes at most limit
+									}
+								}
+							}
+						}
+					}
+					close(f.done)
+				}
+			}
+		}()
+	}
+	return s
+}
+
+// result waits for file i; err is set when the caller's context ended.
+func (s *fileScanner) result(i int) ([]lineMatch, bool, error) {
+	select {
+	case <-s.files[i].done:
+		if !s.files[i].ok {
+			if err := s.ctx.Err(); err != nil {
+				return nil, false, err
+			}
+		}
+		return s.files[i].found, s.files[i].ok, nil
+	case <-s.ctx.Done():
+		return nil, false, s.ctx.Err()
+	}
+}
+
+// stop ends the scan and waits for its workers.
+func (s *fileScanner) stop() {
+	s.cancel()
+	s.wg.Wait()
+}
+
+// walkedFolders reads walked files in listing order, keeping the current
+// file's folder open so each file is one open from it.
+type walkedFolders struct {
+	root *os.Root
+	dir  string
+	open *os.Root
+}
+
+func (w *walkedFolders) read(p string) ([]byte, fs.FileMode, error) {
+	dir, base := path.Split(p)
+	if dir == "" {
+		return readWalked(w.root, p)
+	}
+	if dir != w.dir || w.open == nil {
+		w.close()
+		sub, err := w.root.OpenRoot(dir)
+		if err != nil {
+			return nil, 0, err
+		}
+		w.dir, w.open = dir, sub
+	}
+	return readWalked(w.open, base)
+}
+
+func (w *walkedFolders) close() {
+	if w.open != nil {
+		w.open.Close()
+		w.open, w.dir = nil, ""
+	}
+}
+
+func readOpen(r *os.Root, p string, flags int) ([]byte, fs.FileMode, error) {
+	f, err := r.OpenFile(p, os.O_RDONLY|platform.NonBlock|flags, 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -833,13 +978,8 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 			return failure(err)
 		}
 	}
-	matches := []match{}
-	bytesUsed := 0
-	skipped := 0
+	var candidates []string
 	for _, p := range files {
-		if err := ctx.Err(); err != nil {
-			return failure(err)
-		}
 		if name == "grep" && a.Include != "" {
 			relative := p
 			if a.Path != "." {
@@ -853,22 +993,33 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 				continue
 			}
 		}
-		b, _, err := read(r, p)
+		candidates = append(candidates, p)
+	}
+	// Files are read and matched ahead by a few workers; the loop below
+	// takes their results in listing order, so the matches, the limit and
+	// the size budget are exactly those of reading one file at a time.
+	scan := scanFiles(ctx, r, candidates, re, limit)
+	defer scan.stop()
+	matches := []match{}
+	bytesUsed := 0
+	skipped := 0
+	for i, p := range candidates {
+		found, ok, err := scan.result(i)
 		if err != nil {
+			return failure(err)
+		}
+		if !ok {
 			skipped++
 			continue
 		}
-		i := 0
-		for l := range strings.SplitSeq(string(b), "\n") {
-			i++
-			if re.MatchString(l) {
-				if len(matches) >= limit || bytesUsed+len(l)+len(p)+100 > MaxInline/2 {
-					truncated = true
-					break
-				}
-				matches = append(matches, match{p, i, l})
-				bytesUsed += len(l) + len(p) + 100
+		for _, f := range found {
+			l := f.text
+			if len(matches) >= limit || bytesUsed+len(l)+len(p)+100 > MaxInline/2 {
+				truncated = true
+				break
 			}
+			matches = append(matches, match{p, f.line, l})
+			bytesUsed += len(l) + len(p) + 100
 		}
 		if truncated && len(matches) >= limit {
 			break

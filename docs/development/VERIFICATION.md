@@ -22,6 +22,9 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   and most of the rest in re-resolving each folder's path. `TestIgnoreWalkMatchesWalkDir` checks the new
   walk visits what `fs.WalkDir` visits, in order (symlinks, an unreadable folder, a skipped folder), and
   that nested ignore files apply; timings above are means of 10 against the previous commit.
+- `grep`: output compared byte for byte with the previous commit over 16 searches on two trees (9 of
+  them cut at 100 matches or the size cap): identical. `TestGrepKeepsListingOrder` (order across 480
+  files in 12 folders, cancellation) passes under `-race`.
 
 ## Unreleased: checks that count
 
