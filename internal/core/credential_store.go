@@ -190,7 +190,7 @@ func removeSecret(path string) error {
 
 // isSecretName reports the credential folder's entries that are secrets.
 func isSecretName(name string) bool {
-	return name == chatGPTAccountFile || strings.HasSuffix(name, ".key") && len(name) == 64+len(".key")
+	return name == chatGPTAccountFile || strings.HasSuffix(name, ".key") && len(name) == 64+len(".key") || isMCPCredentialName(name)
 }
 
 // savedSecrets lists the secrets in dir, in either form.

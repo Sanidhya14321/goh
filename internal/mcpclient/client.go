@@ -242,7 +242,16 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 			cancel()
 			return fmt.Errorf("MCP server %s: %w", name, err)
 		}
-		transport = &mcp.StreamableClientTransport{Endpoint: cfg.URL, HTTPClient: httpClient, MaxRetries: -1, DisableStandaloneSSE: true}
+		remote := &mcp.StreamableClientTransport{Endpoint: cfg.URL, HTTPClient: httpClient, MaxRetries: -1, DisableStandaloneSSE: true}
+		if usesOAuth(cfg) {
+			handler, err := runHandler(name, cfg)
+			if err != nil {
+				cancel()
+				return err
+			}
+			remote.OAuthHandler = handler
+		}
+		transport = remote
 	}
 	session, e := client.Connect(initCtx, transport, nil)
 	if e != nil {

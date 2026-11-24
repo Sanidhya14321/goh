@@ -26,6 +26,10 @@ type MCPConfig struct {
 	// Headers are literal values supplied by an ACP client for this
 	// connection only; they are never read from or written to config files.
 	Headers map[string]string `json:"-"`
+	// OAuthClientID is a client registered with the server's authorization
+	// server, for servers that do not support dynamic registration; the
+	// sign-in (`goh mcp login`) then uses it as a public client with PKCE.
+	OAuthClientID string `json:"oauth_client_id,omitempty"`
 }
 type CommandConfig struct {
 	Description string `json:"description"`
