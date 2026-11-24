@@ -83,6 +83,14 @@ func Export(dir, id string, w io.Writer) error {
 	}
 	defer store.Close()
 	portable := Portable{Format: PortableFormat, Version: PortableVersion, SourceSessionID: id, Project: store.Project, ExportedAt: time.Now().UTC(), Pending: store.Pending(), Records: portableRecords(store.Records())}
+	// An archive import would refuse is not written. One with uncertain
+	// effects is for inspection only (import refuses it anyway), so it is
+	// exported whatever its size.
+	if len(portable.Pending) == 0 {
+		if err := checkPortableCount(len(portable.Records)); err != nil {
+			return fmt.Errorf("%w; it cannot be exported in a form import accepts", err)
+		}
+	}
 	data, err := json.MarshalIndent(portable, "", "  ")
 	if err != nil {
 		return err
@@ -193,9 +201,20 @@ func ForkBefore(dir, id string, beforeTurn int) (*Store, string, error) {
 	return store, prompt, err
 }
 
+// maxPortableRecords is how many state records a portable archive may hold;
+// export and import share it so an exported archive always imports.
+var maxPortableRecords = 100000 // a variable so tests can lower it
+
+func checkPortableCount(n int) error {
+	if n > maxPortableRecords {
+		return fmt.Errorf("portable session exceeds %d state records (has %d)", maxPortableRecords, n)
+	}
+	return nil
+}
+
 func validatePortableRecords(records []Record) error {
-	if len(records) > 100000 {
-		return errors.New("portable session exceeds 100000 state records")
+	if err := checkPortableCount(len(records)); err != nil {
+		return err
 	}
 	var history []core.Message
 	for i, record := range records {

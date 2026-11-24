@@ -349,3 +349,48 @@ func TestLegacyMalformedToolArgumentsForkAndReimport(t *testing.T) {
 	}
 	again.Close()
 }
+
+// Export and import share one record limit: an archive at the limit round
+// trips, one over it is not written (unless it is an inspection export of a
+// session with uncertain effects, which import refuses anyway).
+func TestPortableRecordLimitIsShared(t *testing.T) {
+	saved := maxPortableRecords
+	t.Cleanup(func() { maxPortableRecords = saved })
+	source, dir := completedFixture(t)
+	id := source.ID
+	source.Close()
+
+	maxPortableRecords = 6 // the fixture's portable records
+	var atLimit bytes.Buffer
+	if err := Export(dir, id, &atLimit); err != nil {
+		t.Fatal(err)
+	}
+	imported, err := Import(t.TempDir(), bytes.NewReader(atLimit.Bytes()), "")
+	if err != nil {
+		t.Fatal("an archive at the limit must import:", err)
+	}
+	imported.Close()
+
+	maxPortableRecords = 5
+	var over bytes.Buffer
+	if err := Export(dir, id, &over); err == nil || !strings.Contains(err.Error(), "exceeds 5 state records (has 6)") || over.Len() != 0 {
+		t.Fatalf("export over the limit: %v, %d bytes written", err, over.Len())
+	}
+	if _, err := Import(t.TempDir(), bytes.NewReader(atLimit.Bytes()), ""); err == nil || !strings.Contains(err.Error(), "exceeds 5 state records") {
+		t.Fatal("import over the limit:", err)
+	}
+
+	// Uncertain effects: exported for inspection whatever the size.
+	store, err := Open(dir, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Append("tool_start", map[string]any{"id": "call-two", "name": "shell"}); err != nil {
+		t.Fatal(err)
+	}
+	store.Close()
+	var inspection bytes.Buffer
+	if err := Export(dir, id, &inspection); err != nil || !strings.Contains(inspection.String(), "call-two") {
+		t.Fatal("inspection export refused:", err)
+	}
+}
