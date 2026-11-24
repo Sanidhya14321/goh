@@ -21,6 +21,10 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   message-free region, an oversized last record, legacy untimed records, call/result order, a repeated prompt
   outside the shown tail, and both sides of the shared export/import record limit. Open itself still reads the
   whole journal (40 ms, 79 MB at 20,000 records); a streaming open is the next step if that matters.
+- Phases: deterministic tests attribute an injected provider delay to its attempt (tool-only reply without
+  first text, text reply with it), a busy back-off to the next attempt, and report cancelled runs; the event is
+  absent by default. `scripts/e2e/test_latency.py` measures submit → first visible text and final text →
+  idle in a PTY (400 ms provider delay: 416 ms and 0–18 ms).
 
 ## 1.1.0
 

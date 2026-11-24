@@ -65,6 +65,9 @@ One Apple M5 Pro, no model involved (`go test -bench` in the named packages):
 | Reopened chat's messages, 20,000-record journal | 0.24 ms, 0.5 MB (1.1.0: 7.0 ms, 31 MB) |
 | Opening a 20,000-record journal | 40 ms, 79 MB |
 | Resume of a settled session (64 calls, 32 KiB results) | 4 µs (1.1.0: 2.9 ms, 10 MB) |
+| Headless `hello`, scripted model, `GOH_PHASES` (p50 / p95 of 20) | 15 / 21 ms: setup 7, request 2, after final reply 7 (journal 2) |
+| Headless read + reply, same | 28 / 36 ms: tool 6, first text 22 |
+| Interactive: submit → first text with a 400 ms provider delay; final text → idle | 416 ms; 0–18 ms |
 | goh's own time in a 3-request run | ~80 ms of 11.6 s (journal writes) |
 
 ## Running
