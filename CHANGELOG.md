@@ -41,6 +41,8 @@ Each entry lists user-visible changes; evidence for each is in
   compaction, each provider attempt (start, first text, end, retry wait, route), time per tool and their
   union, approval and question waits, and the finish steps (verification, cleanup, title, journal, snapshot,
   hooks). Text mode prints it as one line. Off by default; nothing is journaled.
+- `goh-bench`: a run the model never answered (a provider usage limit, say) is `no_model_reply` and not
+  scored; a host-graded run whose test command (`go`, `python3`) is not on PATH stops before any model request.
 
 ## 1.1.0 — 2026-11-23
 

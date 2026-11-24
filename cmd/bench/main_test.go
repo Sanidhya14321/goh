@@ -90,3 +90,13 @@ func TestAnswerSpecAndPromptRangeTable(t *testing.T) {
 		t.Error("unscored attempt counted")
 	}
 }
+
+func TestMissingCommandIsFoundBeforeRuns(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	if got := missingCommand(task{FailToPass: "go test ./...", PassToPass: "X=1 go vet"}); got != "go" {
+		t.Fatalf("got %q", got)
+	}
+	if got := missingCommand(task{Setup: []string{"cd sub"}, FailToPass: ""}); got != "" {
+		t.Fatalf("builtin reported missing: %q", got)
+	}
+}

@@ -259,6 +259,9 @@ func main() {
 		case hostGrading && !sandbox.Supported():
 			fail(fmt.Errorf("task %s: -host-grading needs goh's native sandbox for the agent's shell, which this system does not have", t.ID))
 		case hostGrading:
+			if name := missingCommand(t); name != "" {
+				fail(fmt.Errorf("task %s: its test command needs %q, which is not on PATH; nothing was run", t.ID, name))
+			}
 			fmt.Fprintf(os.Stderr, "isolation %-28s HOST: agent shell confined by goh's native sandbox (--access auto, shell not granted), grading unsandboxed on this machine\n", t.ID)
 		default:
 			fmt.Fprintf(os.Stderr, "isolation %-28s refused (no image; pass -host-grading)\n", t.ID)
@@ -1286,4 +1289,25 @@ func dryRoot() string {
 // and without calling a tool.
 func noModelReply(r Result) bool {
 	return r.Status != "completed" && r.Requests == 0 && r.ToolCalls == 0 && len(r.Usage) == 0
+}
+
+// missingCommand is the first program a host-graded task's setup or test
+// commands start with that is not on PATH. Checked before any model run, so
+// a missing toolchain cannot turn every run into an ungraded one.
+func missingCommand(t task) string {
+	commands := append(append([]string{}, t.Setup...), t.FailToPass, t.PassToPass)
+	for _, c := range commands {
+		fields := strings.Fields(c)
+		if len(fields) == 0 || strings.Contains(fields[0], "=") {
+			continue
+		}
+		switch fields[0] {
+		case "cd", ".", "set", "export", "true", ":", "(", "{", "if", "exec", "env":
+			continue
+		}
+		if _, err := exec.LookPath(fields[0]); err != nil {
+			return fields[0]
+		}
+	}
+	return ""
 }
