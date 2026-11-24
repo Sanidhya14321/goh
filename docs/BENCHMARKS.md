@@ -59,7 +59,9 @@ One Apple M5 Pro, no model involved (`go test -bench` in the named packages):
 | Start to first prompt (120×36 terminal) | 39 ms, ~23 MB (OpenCode: 1,400 ms, ~820 MB) |
 | Search 128 files (2.4 MB) | 7.9 ms |
 | Exact edit of a 114 KB file, durable | 8.7 ms |
-| Chat frame, 120 KB transcript | 0.2 ms |
+| Chat frame, 120 KB transcript | 0.07 ms (1.1.0: 0.15 ms) |
+| Redraw of a 200-turn session, nothing new / after new text | 30 µs / 279 µs (1.1.0: 136 / 414 µs) |
+| Streaming a 2,000-line code block, per update | 2.6 ms (1.1.0: 3.6 ms) |
 | goh's own time in a 3-request run | ~80 ms of 11.6 s (journal writes) |
 
 ## Running

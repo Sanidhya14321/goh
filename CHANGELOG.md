@@ -4,6 +4,23 @@ GoHarness releases, newest first. Dates are commit dates.
 Each entry lists user-visible changes; evidence for each is in
 [VERIFICATION.md](docs/development/VERIFICATION.md).
 
+## Unreleased
+
+**Terminal: clearer and faster**
+- Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.
+- Tool calls read as what they do (`▸ Read  a.go`, `▸ Shell  go test ./...`). A read is one line
+  (`a.go · 120 lines`); command output shows its last lines with a count of the rest (`/details` shows all).
+- A finished edit, write or patch shows the lines it changed on green and red washes, live and when resumed.
+- Inline code and bold render in color and weight; code blocks get a gutter instead of a frame (2 rows saved).
+- The status line (spinner, time, steps) sits just above the input; the session header is gone (2 rows saved).
+  The footer shows context use instead of repeating the model.
+- Approvals are a panel: "Allow Edit src/a.go?" with the keys highlighted and the diff on washes.
+- The default theme asks the terminal for its background and tints panels and diffs from it; nothing waits
+  for the answer.
+- Rendering is faster: a redraw with nothing new 136 → 30 µs, after new text 414 → 279 µs, a streamed
+  2,000-line code block 3.6 → 2.6 ms (ASCII and common symbols skip grapheme segmentation; the project
+  folder is no longer resolved on every frame).
+
 ## 1.1.0 — 2026-11-23
 
 Fewer tokens and faster runs for every kind of prompt, from `hello` to debugging a 6,000-line file,
