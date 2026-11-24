@@ -14,6 +14,14 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
+      - name: Classify the release tag
+        id: tag
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=prerelease" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v5
       - uses: actions/setup-go@v6
         with:
@@ -40,14 +48,19 @@ jobs:
           test -s notes.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
       - name: Publish
         env:
+          CHANNEL: ${{ steps.tag.outputs.channel }}
           GH_TOKEN: ${{ github.token }}
         run: |
           files=$(find dist -maxdepth 1 -type f | sort)
-          gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md --latest --verify-tag
+          flags=(--latest)
+          if [[ "$CHANNEL" == prerelease ]]; then
+            flags=(--prerelease --latest=false)
+          fi
+          gh release create "$GITHUB_REF_NAME" $files --title "GoHarness ${GITHUB_REF_NAME#v}" --notes-file notes.md "${flags[@]}" --verify-tag
       - name: Package manager manifests
         # Stable versions only, so `brew upgrade` and `scoop update` never
         # move users to a release candidate.
-        if: ${{ !contains(github.ref_name, '-') }}
+        if: ${{ steps.tag.outputs.channel == 'stable' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
