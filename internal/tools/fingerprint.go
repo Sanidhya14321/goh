@@ -48,7 +48,7 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 	filter := newIgnoreFilter(root, ".")
 	h := sha256.New()
 	n := 0
-	err = fs.WalkDir(root.FS(), ".", func(p string, d fs.DirEntry, err error) error {
+	err = filter.walk(root, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				return nil // removed during the walk
@@ -58,7 +58,6 @@ func (e *Engine) Fingerprint() (sum string, ok bool) {
 			return err
 		}
 		if p == "." {
-			filter.skip(p, d) // loads the root's .gitignore and .ignore
 			return nil
 		}
 		if d.IsDir() && (cacheDirs[d.Name()] || skipRel[p]) || filter.skip(p, d) {

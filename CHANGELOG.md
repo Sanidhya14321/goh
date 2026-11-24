@@ -18,6 +18,9 @@ Each entry lists user-visible changes; evidence for each is in
 - Each prompt starts 50–140 ms sooner in a mid-sized project: the walk that lets goh notice files changed
   by commands now runs beside the first model request, and a reply that used no tools skips the closing
   walk. `list_files` with a limit stops walking at the limit (159 → 3 ms in a 6,600-file tree).
+- Project walks (the change check after each command, `list_files`, `grep`, `repo_map`) open only the
+  ignore files a folder has and open each folder from its parent: the change check 138 → 64 ms in a
+  6,600-file tree and 53 → 20 ms in this repository, `repo_map` 241 → 167 ms.
 - `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
   `git status` work as in a real project (they failed 28 times in earlier runs).
 

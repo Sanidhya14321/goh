@@ -244,7 +244,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 	start := filepath.ToSlash(a.Path)
 	filter := newIgnoreFilter(r, start)
 	var candidates []string
-	err = fs.WalkDir(r.FS(), start, func(path string, d fs.DirEntry, walkErr error) error {
+	err = filter.walk(r, start, func(path string, d fs.DirEntry, walkErr error) error {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

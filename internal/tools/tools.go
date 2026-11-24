@@ -757,7 +757,7 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 	visited := 0
 	truncated := false
 	ignored := newIgnoreFilter(r, filepath.ToSlash(a.Path))
-	err := fs.WalkDir(r.FS(), filepath.ToSlash(a.Path), func(p string, d fs.DirEntry, err error) error {
+	err := ignored.walk(r, filepath.ToSlash(a.Path), func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}

@@ -18,6 +18,10 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   150 → 10 ms in a 6,600-file tree, 10 ms both in a tiny one. `TestStartFingerprintCoversTheFirstCommand`
   (a change by the first reply's command is still noticed) and `TestReplyWithoutToolsIsNoChange` pass
   under `-race`; `go test ./...`, `go vet ./...` and `make acceptance` pass.
+- Project walk: a CPU profile of the fingerprint put 57% in opening `.gitignore`/`.ignore` in every folder
+  and most of the rest in re-resolving each folder's path. `TestIgnoreWalkMatchesWalkDir` checks the new
+  walk visits what `fs.WalkDir` visits, in order (symlinks, an unreadable folder, a skipped folder), and
+  that nested ignore files apply; timings above are means of 10 against the previous commit.
 
 ## Unreleased: checks that count
 
