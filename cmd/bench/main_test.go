@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -98,5 +99,26 @@ func TestMissingCommandIsFoundBeforeRuns(t *testing.T) {
 	}
 	if got := missingCommand(task{Setup: []string{"cd sub"}, FailToPass: ""}); got != "" {
 		t.Fatalf("builtin reported missing: %q", got)
+	}
+}
+
+func TestTaskTreeIsARepository(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("no git")
+	}
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n"), 0o644)
+	if err := gitBaseline(dir); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(dir, "a.go"), []byte("package a\n\nvar X = 1\n"), 0o644)
+	cmd := exec.Command("git", "diff", "--stat")
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	if err != nil || !strings.Contains(string(out), "a.go") {
+		t.Fatalf("git diff: %s %v", out, err)
+	}
+	if h, _ := snapshotHashes(dir); len(h) != 1 {
+		t.Fatalf("snapshot sees .git: %v", h)
 	}
 }

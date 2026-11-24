@@ -448,6 +448,11 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 			}
 		}
 	}
+	// Real projects are repositories: without one, the agent's git diff and
+	// git status fail (28 wasted calls in earlier runs).
+	if err := gitBaseline(work); err != nil {
+		return infra("git", err.Error())
+	}
 	// The pre-run baseline: what the agent started from, after setup.
 	if err := copyTree(work, pristine); err != nil {
 		return infra("copy", err.Error())
@@ -1310,4 +1315,25 @@ func missingCommand(t task) string {
 		}
 	}
 	return ""
+}
+
+// gitBaseline makes dir a git repository with its starting files committed,
+// unless it already is one or git is not installed. The grader ignores .git.
+func gitBaseline(dir string) error {
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
+		return nil
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		return nil
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"},
+		{"-c", "user.name=goh-bench", "-c", "user.email=bench@localhost", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "task baseline"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("git %s: %v: %s", args[0], err, strings.TrimSpace(string(out)))
+		}
+	}
+	return nil
 }

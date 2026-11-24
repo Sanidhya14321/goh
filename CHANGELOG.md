@@ -11,6 +11,9 @@ Each entry lists user-visible changes; evidence for each is in
   those changes; before, the run was reminded to check again.
 - A Go test run whose packages all pass from the test cache (`ok pkg (cached)`) counts as a passing test run.
 - After the completion reminder, the final reply still says what changed instead of only "tests pass".
+- A command that fails because `python` (or `pip`) is missing says that `python3` is installed.
+- `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
+  `git status` work as in a real project (they failed 28 times in earlier runs).
 
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.

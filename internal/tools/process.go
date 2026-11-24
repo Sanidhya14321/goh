@@ -234,6 +234,11 @@ settled:
 	if waitErr != nil {
 		value["error"] = waitErr.Error()
 	}
+	if code == 127 {
+		if hint := missingProgramHint(output.text("")); hint != "" {
+			value["hint"] = hint
+		}
+	}
 	if interrupted {
 		value["effects"] = "Execution interrupted; effects may already have occurred and were not rolled back."
 	}
@@ -243,4 +248,26 @@ settled:
 	res := result(value)
 	res.Error = res.Error || waitErr != nil || interrupted || cleanupIncomplete
 	return res
+}
+
+// usualSubstitutes are programs commonly missing under their unversioned
+// name (macOS and many Linux systems have only python3).
+var usualSubstitutes = map[string]string{"python": "python3", "pip": "pip3"}
+
+// missingProgramHint names the installed substitute when a command failed
+// because "python" or "pip" does not exist, so the model does not have to
+// rediscover it (benchmark runs lost a call to this on every Python task).
+func missingProgramHint(output string) string {
+	for name, alt := range usualSubstitutes {
+		if !strings.Contains(output, name+": command not found") && !strings.Contains(output, name+": not found") {
+			continue
+		}
+		if _, err := exec.LookPath(name); err == nil {
+			continue
+		}
+		if _, err := exec.LookPath(alt); err == nil {
+			return fmt.Sprintf("%s is not installed here; use %s", name, alt)
+		}
+	}
+	return ""
 }
