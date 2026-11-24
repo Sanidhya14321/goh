@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: project listing and a faster start
+
+- Project listing: 52 runs on the Python hard and prompt-range tasks and 24 on the holdout, base against
+  the listing, all solved, no false completions (numbers in [BENCHMARKS.md](../BENCHMARKS.md#experiments-partial)).
+  `TestProjectListing` checks the listing is sent unchanged on every request, never journaled, and left
+  out for a project over 80 files; `TestListFilesStopsAtTheLimit` covers the early stop.
+- Start walk: `GOH_PHASES` headless `hello`, median of 11, against the previous commit: 63 → 10 ms here,
+  150 → 10 ms in a 6,600-file tree, 10 ms both in a tiny one. `TestStartFingerprintCoversTheFirstCommand`
+  (a change by the first reply's command is still noticed) and `TestReplyWithoutToolsIsNoChange` pass
+  under `-race`; `go test ./...`, `go vet ./...` and `make acceptance` pass.
+
 ## Unreleased: checks that count
 
 The experiment run (66 scored runs, 8 Go hard tasks × 4 arms × 2) solved everything, but 15 ended

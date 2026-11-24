@@ -12,8 +12,12 @@ Each entry lists user-visible changes; evidence for each is in
 - A Go test run whose packages all pass from the test cache (`ok pkg (cached)`) counts as a passing test run.
 - After the completion reminder, the final reply still says what changed instead of only "tests pass".
 - A command that fails because `python` (or `pip`) is missing says that `python3` is installed.
-- Experiment `project-listing`: a project of up to 80 files has its file list sent with the session's
-  context, so a task need not spend its first request on `list_files` (off until measured).
+- A project of up to 80 files has its file list sent with the session's context, so a task need not spend
+  its first request on `list_files`: 18% fewer input tokens and 12% less time on the Python hard and
+  prompt-range tasks, 5% and 6% on the holdout; `hello` costs 49 more tokens.
+- Each prompt starts 50–140 ms sooner in a mid-sized project: the walk that lets goh notice files changed
+  by commands now runs beside the first model request, and a reply that used no tools skips the closing
+  walk. `list_files` with a limit stops walking at the limit (159 → 3 ms in a 6,600-file tree).
 - `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
   `git status` work as in a real project (they failed 28 times in earlier runs).
 

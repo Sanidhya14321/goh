@@ -336,6 +336,13 @@ func (e *Engine) Jobs() []map[string]any {
 	return out
 }
 
+// HasJobs reports whether any background job is listed, running or not.
+func (e *Engine) HasJobs() bool {
+	e.jobs.mu.Lock()
+	defer e.jobs.mu.Unlock()
+	return len(e.jobs.jobs) > 0
+}
+
 // StopJobs stops every running background job. Call it before exiting.
 // ShareJobs gives next this engine's background jobs, so a chat rebuilt for
 // the same session and project (after a model or agent switch) keeps them

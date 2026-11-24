@@ -103,6 +103,8 @@ type Agent struct {
 	// the start of the run (too many files that are not ignored), so later
 	// steps do not repeat a walk that cannot succeed.
 	noFingerprint bool
+	// pendingFingerprint is the start fingerprint still being taken.
+	pendingFingerprint *pendingFingerprint
 	// externalConnected is set once connectExternal has run in this run.
 	externalConnected bool
 	eventMu           sync.Mutex
@@ -120,7 +122,7 @@ type Agent struct {
 	sessionLevel core.AccessLevel
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.
 	projectGuidance string
-	projectListing  string // experiment project-listing: files at session start
+	projectListing  string // a small project's files at session start
 	// toolCalls, repairsUsed and verifyFailed are per-run counters.
 	toolCalls, repairsUsed int
 	// runTokens counts model tokens (input+output) used by this run;
@@ -244,9 +246,8 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 		break
 	}
 
-	if c.Experiment(core.ExperimentProjectListing) {
-		a.projectListing = smallProjectListing(t)
-	}
+	// A small project's files, so a task need not start with list_files.
+	a.projectListing = smallProjectListing(t)
 
 	trustedSystem := a.History[0]
 	for _, r := range s.Records() {
@@ -772,6 +773,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			}
 			return "failed", e
 		}
+		a.settleFingerprint()
 		badArgs := sanitizeToolArguments(&reply.Message)
 		if len(reply.Message.ToolCalls) == 0 && strings.TrimSpace(reply.Message.Content) == "" {
 			// Not committed: an empty assistant message is invalid history
@@ -784,7 +786,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		}
 		a.event("assistant_completed", a.completedData(reply))
 		if len(reply.Message.ToolCalls) == 0 {
-			a.noticeUntrackedChanges() // background jobs, for example
+			if a.toolCalls > 0 || a.Tools != nil && a.Tools.HasJobs() {
+				// Background jobs, for example. With no tool call and no
+				// job, nothing this session started could change a file.
+				a.noticeUntrackedChanges()
+			}
 			if a.needsEvidence() {
 				// Experiment: a structured evidence record replaces the
 				// one-time completion reminder.

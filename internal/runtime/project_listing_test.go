@@ -13,7 +13,7 @@ import (
 	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
-func listingAgent(t *testing.T, files int, experiment bool) *Agent {
+func listingAgent(t *testing.T, files int) *Agent {
 	t.Helper()
 	root := testutil.TempDir(t)
 	for i := 0; i < files; i++ {
@@ -21,9 +21,6 @@ func listingAgent(t *testing.T, files int, experiment bool) *Agent {
 	}
 	c := core.Defaults()
 	c.SessionDir, c.ContextWindow, c.Model = t.TempDir(), 1<<20, "fixture"
-	if experiment {
-		c.Experiments = []string{core.ExperimentProjectListing}
-	}
 	s, err := session.New(c.SessionDir, root)
 	if err != nil {
 		t.Fatal(err)
@@ -37,16 +34,15 @@ func listingAgent(t *testing.T, files int, experiment bool) *Agent {
 }
 
 // The listing is sent after the system message on every request, unchanged,
-// only with the experiment on and only for a small project.
-func TestProjectListingExperiment(t *testing.T) {
+// and only for a small project.
+func TestProjectListing(t *testing.T) {
 	for _, tc := range []struct {
-		name       string
-		files      int
-		experiment bool
-		want       bool
-	}{{"on", 3, true, true}, {"off", 3, false, false}, {"large project", listingMaxFiles + 1, true, false}} {
+		name  string
+		files int
+		want  bool
+	}{{"small project", 3, true}, {"large project", listingMaxFiles + 1, false}} {
 		t.Run(tc.name, func(t *testing.T) {
-			a := listingAgent(t, tc.files, tc.experiment)
+			a := listingAgent(t, tc.files)
 			var seen []string
 			calls := 0
 			a.Provider = modelFunc(func(_ context.Context, h []core.Message, _ []core.Tool, _ func(string)) (core.Reply, error) {
@@ -68,7 +64,7 @@ func TestProjectListingExperiment(t *testing.T) {
 				t.Fatalf("listing incomplete or changed between requests: %q / %q", seen[0], seen[1])
 			}
 			for _, r := range a.Store.Records() {
-				if strings.Contains(string(r.Data), "Project files when this session started") {
+				if strings.Contains(string(r.Data), "Files in this project when the session started") {
 					t.Fatal("listing was journaled")
 				}
 			}

@@ -27,6 +27,7 @@ func (a *Agent) RunShell(ctx context.Context, command string) (status string, er
 	a.runID = ID()
 	a.operation, a.titleSource = "user_shell", ""
 	a.resetOutcome(true)
+	a.settleFingerprint() // the command runs at once
 	a.resetRunCounters()
 	status = "failed"
 	started := time.Now()

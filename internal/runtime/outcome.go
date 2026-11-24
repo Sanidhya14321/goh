@@ -60,12 +60,36 @@ func (a *Agent) resetOutcome(fingerprint bool) {
 	a.narrowTestPassed, a.fullTestPassed = false, false
 	a.evidence = nil
 	a.runCommands, a.evidenceSubmitted, a.evidenceRevision = nil, false, ""
-	var fingerprinted bool
-	a.fingerprint, fingerprinted = "", false
+	a.fingerprint, a.noFingerprint, a.pendingFingerprint = "", true, nil
 	if a.Tools != nil && fingerprint {
-		a.fingerprint, fingerprinted = a.Tools.Fingerprint()
+		// Walking a large project takes a noticeable time (about 0.15 s for
+		// 6,000 files), so it runs beside the first model request; nothing
+		// reads or changes the project before that reply (settleFingerprint).
+		p := &pendingFingerprint{done: make(chan struct{})}
+		go func(t *tools.Engine) { p.sum, p.ok = t.Fingerprint(); close(p.done) }(a.Tools)
+		a.pendingFingerprint = p
 	}
-	a.noFingerprint = !fingerprinted
+}
+
+// pendingFingerprint is the project fingerprint being taken at the start of
+// an operation.
+type pendingFingerprint struct {
+	done chan struct{}
+	sum  string
+	ok   bool
+}
+
+// settleFingerprint waits for the start-of-operation fingerprint. It is
+// called once a model reply arrives, before any tool runs or the outcome is
+// read, and before a user shell command.
+func (a *Agent) settleFingerprint() {
+	p := a.pendingFingerprint
+	if p == nil {
+		return
+	}
+	a.pendingFingerprint = nil
+	<-p.done
+	a.fingerprint, a.noFingerprint = p.sum, !p.ok
 }
 
 // markChanged records a file change: earlier checks no longer cover the

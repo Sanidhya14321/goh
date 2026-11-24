@@ -794,6 +794,12 @@ func inventory(ctx context.Context, r *os.Root, name string, a args, deny func(s
 			return nil
 		}
 		files = append(files, p)
+		if name == "list_files" && len(files) > limit {
+			// The walk is in directory order, so the first files found are
+			// the ones shown; walking further would only be cut off.
+			truncated = true
+			return fs.SkipAll
+		}
 		if len(files) >= maxFiles {
 			truncated = true
 			return fs.SkipAll
