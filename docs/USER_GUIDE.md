@@ -788,6 +788,9 @@ goh mcp list           # shows "signed in" under each remote server that is
 goh mcp logout docs    # forgets the sign-in
 ```
 
+In the chat, `/mcp login docs` and `/mcp logout docs` do the same (Esc cancels a sign-in waiting
+for the browser); a run that stopped a server for lack of sign-in says so.
+
 The token is saved like the ChatGPT sign-in (a private file, or sealed with the OS credential store
 after `goh auth store keychain`), kept for that exact server URL, and refreshed as it expires. Runs
 never open a browser: a server that still refuses fails to start with "requires sign-in: run

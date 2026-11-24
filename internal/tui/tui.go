@@ -560,6 +560,12 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 		}
 		return m, m.afterRun(v)
+	case mcpSignInMsg:
+		m.log += "\n"
+		for _, line := range strings.Split(Safe(v.text), "\n") {
+			m.log += verbatimMark + line + "\n"
+		}
+		return m, m.wait()
 	case mcpPromptsMsg:
 		m.log += "\nMCP prompts (run as /mcp:<server>:<prompt> [name=value ...]):\n"
 		for _, p := range v.list {
@@ -924,7 +930,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			}
 			if strings.TrimSpace(prompt) == "/commands" {
 				m.input = ""
-				m.log += "\nCommands: /providers, /connect, /models, /agents, /access, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp\n"
+				m.log += "\nCommands: /providers, /connect, /models, /agents, /access, /new, /settings, /workspace, /sessions, /compact, /todos, /skills, /commands, /mcp, /mcp login NAME\n"
 				// The same set the palette shows: configured and project commands.
 				set := m.a.CommandSet()
 				names := make([]string, 0, len(set))
@@ -939,6 +945,10 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 					m.trimLog()
 				}
 				return m, nil
+			}
+			if fields := strings.Fields(prompt); len(fields) >= 2 && fields[0] == "/mcp" && (fields[1] == "login" || fields[1] == "logout") {
+				m.input, m.inputCursor = "", 0
+				return m, m.mcpSignIn(fields[1], fields[2:])
 			}
 			if strings.TrimSpace(prompt) == "/mcp" {
 				// Listing starts the configured servers (with approval, as a
@@ -1499,7 +1509,11 @@ func degradedLine(data any) string {
 	if label == "" {
 		label = "integration"
 	}
-	return "\n[integration] " + label + " " + Safe(d.Name) + " unavailable and stopped: " + Safe(d.Error) + "\nChat and built-in tools continue. Fix its config and start a new run to retry.\n"
+	next := "Fix its config and start a new run to retry."
+	if strings.Contains(d.Error, "requires sign-in") {
+		next = "Sign in with /mcp login " + Safe(d.Name) + ", then start a new run."
+	}
+	return "\n[integration] " + label + " " + Safe(d.Name) + " unavailable and stopped: " + Safe(d.Error) + "\nChat and built-in tools continue. " + next + "\n"
 }
 
 // requestRewind hands /undo or /redo to the launcher, which owns session

@@ -34,6 +34,7 @@ Each entry lists user-visible changes; evidence for each is in
   dynamic client registration or a configured `oauth_client_id`, authorization code with PKCE); runs use
   and refresh the saved token. `goh mcp logout NAME` forgets it; `goh mcp list` shows who is signed in.
   Tokens are kept per server URL in the credential store and move with `goh auth store`.
+- In the chat: `/mcp login NAME` and `/mcp logout NAME`; a server stopped for lack of sign-in points there.
 
 **Measuring where a run's time goes**
 - `GOH_PHASES=1` adds one `run_phases` event before `run_finished`: setup, request assembly and size,

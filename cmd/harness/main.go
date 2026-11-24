@@ -108,6 +108,7 @@ func main() {
 	sandbox.HelperMain() // never returns when started as the Linux sandbox helper
 	core.ProductVersion = version
 	agent.ProcessStarted = processStart
+	tui.OpenBrowser = openBrowser
 	if e := run(os.Args[1:]); e != nil {
 		if strings.Contains(e.Error(), "error opening TTY") {
 			// Bubble Tea could not reach a terminal (cron, CI, a detached
