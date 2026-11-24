@@ -25,6 +25,11 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   first text, text reply with it), a busy back-off to the next attempt, and report cancelled runs; the event is
   absent by default. `scripts/e2e/test_latency.py` measures submit → first visible text and final text →
   idle in a PTY (400 ms provider delay: 416 ms and 0–18 ms).
+- MCP OAuth: `TestMCPOAuthSignInRunAndRefresh` runs the whole flow against a loopback authorization
+  server and protected MCP server (401 with resource metadata, metadata discovery, registration, PKCE
+  checked by the server, code exchange, saved token used by a run, refresh with a rotated refresh token,
+  no token for another URL, logout); an unsigned run neither registers nor opens a browser.
+  `TestMCPCredentialsStoreAndMove` covers both stores and `goh auth store`.
 
 ## 1.1.0
 

@@ -42,7 +42,7 @@ them. No manual Windows session has been run.
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
-| MCP | No OAuth for remote MCP servers | Needs a real OAuth MCP server to build against |
+| MCP | OAuth sign-in (`goh mcp login`) is tested against a loopback authorization server only | Needs a live OAuth MCP server |
 | Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
 | Providers | A fallback's stated request cap is only used to skip that fallback; its request is not shrunk to fit it. `max_run_tokens` is checked between requests, so one request can finish above it | The primary keeps cap learning; per-route compaction would be a larger change |
 | Verification | A check inside a pipeline, after `\|\|`, followed by another command, or using a redirect such as `2>&1` does not count as verification even when it passed | Its exit status cannot be tied to the check from the command text; run the check on its own or use `verify` |

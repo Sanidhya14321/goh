@@ -779,6 +779,21 @@ Limits: 128 tools per server, 1 MiB frames, 64 KiB arguments and results, 15 s i
 Streamable HTTP over HTTPS only (HTTP for localhost); redirects are refused. Approval prompts show
 header names, never values.
 
+**Signing in (OAuth).** A remote server without an `Authorization` header that asks for sign-in is
+signed in to once, in the browser:
+
+```sh
+goh mcp login docs     # discovers the server's authorization server, registers, opens the browser
+goh mcp list           # shows "signed in" under each remote server that is
+goh mcp logout docs    # forgets the sign-in
+```
+
+The token is saved like the ChatGPT sign-in (a private file, or sealed with the OS credential store
+after `goh auth store keychain`), kept for that exact server URL, and refreshed as it expires. Runs
+never open a browser: a server that still refuses fails to start with "requires sign-in: run
+`goh mcp login NAME`". For an authorization server without dynamic client registration, set the
+client registered with it: `"oauth_client_id": "…"` (a public client; PKCE is always used).
+
 ### Resources and prompts
 
 Servers offering resources add `mcp_resources` and `mcp_read_resource`. Prompt templates are listed

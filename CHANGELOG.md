@@ -29,6 +29,12 @@ Each entry lists user-visible changes; evidence for each is in
 - Resuming a session whose calls all finished no longer scans the journal (2.9 ms, 10 MB → 4 µs, 11 KB).
 - An ordinary export over 100,000 records is refused instead of writing an archive import rejects.
 
+**MCP**
+- Remote MCP servers that require OAuth: `goh mcp login NAME` signs in through the browser (discovery,
+  dynamic client registration or a configured `oauth_client_id`, authorization code with PKCE); runs use
+  and refresh the saved token. `goh mcp logout NAME` forgets it; `goh mcp list` shows who is signed in.
+  Tokens are kept per server URL in the credential store and move with `goh auth store`.
+
 **Measuring where a run's time goes**
 - `GOH_PHASES=1` adds one `run_phases` event before `run_finished`: setup, request assembly and size,
   compaction, each provider attempt (start, first text, end, retry wait, route), time per tool and their

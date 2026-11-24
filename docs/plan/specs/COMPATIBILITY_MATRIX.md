@@ -26,7 +26,7 @@ This matrix separates reference observations from Go acceptance tests. Go implem
 | Sessions and uncertain effects | `reference-resume.json`; Go uncertain resume captured | Versioned durable journal; no automatic replay | Compatible normal text resume; recovery internals unverified | Go tests are independent acceptance |
 | Context and compaction | Reference unobserved | Preserve task/tool relationships; explicit budget outcome | Unverified | Token estimates must be documented |
 | TUI | `reference-tui-ready.json`, `go-tui-selected.json` | Same runtime, approval, cancel, resize, safe text | Compatible selected text/resize/exit; differing session-selection interaction | No visual equivalence claim |
-| Local stdio MCP | `reference-mcp.json`, `reference-mcp-disconnect.json` | Explicit admission/execution, schema checks, no replay | Compatible echo; stricter Go disconnect recovery | Remote streamable HTTP added later (no OAuth); no sampling |
+| Local stdio MCP | `reference-mcp.json`, `reference-mcp-disconnect.json` | Explicit admission/execution, schema checks, no replay | Compatible echo; stricter Go disconnect recovery | Remote streamable HTTP added later, OAuth sign-in via `goh mcp login`; no sampling |
 | Windows, subagents, native Responses/Anthropic | Implemented (RC17–RC27) | Native CI on Windows; scripted subagent and provider fixtures | Live providers pending user keys | See VERIFICATION.md |
 | Desktop/browser, plugins, upstream session import | Outside V1 | Deferred | Deferred | See original plan |
 
