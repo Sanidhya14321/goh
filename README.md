@@ -6,10 +6,10 @@ and Windows and works with a ChatGPT sign-in, OpenAI, Anthropic, and any OpenAI-
 endpoint.
 
 [Latest stable release](https://github.com/Sanidhya14321/goh/releases/latest) ·
-[Website and benchmarks](https://goh-website-three.vercel.app) ·
-[GoHarness Desktop source](https://github.com/Sanidhya14321/goh-desktop)
+[Website beta and benchmarks](https://goh-website-three.vercel.app) ·
+[GoHarness Desktop Beta source](https://github.com/Sanidhya14321/goh-desktop)
 
-GoHarness Desktop bundles a verified release of this engine. Check the [download page](https://goh-website-three.vercel.app/downloads/) for CLI and Desktop package availability.
+GoHarness Desktop Beta bundles a verified release of this engine. Check the [download page](https://goh-website-three.vercel.app/downloads/) for CLI and Desktop package availability.
 
 ![Session view: a verified edit, rendered code and tables, and the session sidebar](docs/images/tui-session.png)
 
