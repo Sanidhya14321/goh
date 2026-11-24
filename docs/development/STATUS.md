@@ -1,8 +1,8 @@
 # Project status
 
-*Last reviewed: 21 November 2026 · latest release `v1.0.0` ([changelog](../../CHANGELOG.md)).*
+*Last reviewed: 24 November 2026 · latest release `v1.1.0` ([changelog](../../CHANGELOG.md)).*
 
-GoHarness 1.0.0 is the first stable release. Every milestone passes the gates in
+GoHarness 1.1.0 is the latest stable release (1.0.0 was the first). Every milestone passes the gates in
 [TESTING.md](TESTING.md); per-release evidence is in [VERIFICATION.md](VERIFICATION.md). This page
 lists only what is **not** done or **not** verified, so it stays short.
 
@@ -56,3 +56,5 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
 2. **Benchmark:** add `gold_files` and a private Go/Python holdout, then run the experiment arms ([experiments](../BENCHMARKS.md)).
+3. **Long sessions:** opening a journal still reads every record (40 ms, 79 MB at 20,000 records); a
+   streaming or tail-only open for resume and attach, if that cost matters in practice.
