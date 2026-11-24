@@ -45,9 +45,10 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 	// streamed is the text this attempt has shown, so the final reply can be
 	// reconciled with it below.
 	var streamed strings.Builder
+	attempt := a.phases.requestStarted(purpose)
 	shown := delta
 	if delta != nil {
-		shown = func(s string) { streamed.WriteString(s); delta(s) }
+		shown = func(s string) { streamed.WriteString(s); a.phases.firstText(attempt); delta(s) }
 	}
 	reply, served, err := a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
 	a.servedBy = served
@@ -66,6 +67,10 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 		return errors.Is(err, provider.ErrRejectedOutput) && retry <= 2
 	}
 	for retry := 1; retryable(retry); retry++ {
+		// The failed attempt ends here; a pause before the next one is
+		// counted on the next attempt, not as provider time.
+		a.phases.requestEnded(attempt, "", served != "", true)
+		var retryWait time.Duration
 		if e := a.tokenBudgetErr(); e != nil {
 			// The discarded attempt's reported usage already spent the run's
 			// budget: another request would only exceed it further.
@@ -76,19 +81,28 @@ func (a *Agent) completeWithFailover(ctx context.Context, purpose string, primar
 			// An overloaded service needs a pause, not an immediate resend.
 			wait := busyWait(retry)
 			a.event("provider_retry", core.RetryNotice{Attempt: retry + 1, Max: busyRetries + 1, DelayMS: wait.Milliseconds(), Reason: "overloaded"})
+			waitStart := time.Now()
 			select {
 			case <-ctx.Done():
 				return core.Reply{}, ctx.Err()
 			case <-time.After(wait):
 			}
+			retryWait = time.Since(waitStart)
 		}
 		// Nothing from the broken reply was committed or executed, so this
 		// is a fresh request on the same history. The event tells interfaces
 		// to drop the partial text already shown.
 		a.event("stream_retry", map[string]any{"attempt": retry, "error": err.Error(), "busy": busy})
 		streamed.Reset()
+		attempt = a.phases.requestStarted(purpose)
+		a.phases.retryWaited(attempt, retryWait)
 		reply, served, err = a.completeRoutes(ctx, purpose, primary, primaryConfig, history, defs, shown)
 		a.servedBy = served
+	}
+	if model := reply.Model; model != "" || err != nil {
+		a.phases.requestEnded(attempt, model, served != "", err != nil)
+	} else {
+		a.phases.requestEnded(attempt, primaryConfig.Model, served != "", false)
 	}
 	if err != nil {
 		return reply, err

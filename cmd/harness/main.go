@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/formatters"
@@ -99,9 +100,14 @@ var usage = func() string {
 	return b.String()
 }()
 
+// processStart is taken during package initialization, as early as the
+// process can observe; GOH_PHASES reports the time from it to the first run.
+var processStart = time.Now()
+
 func main() {
 	sandbox.HelperMain() // never returns when started as the Linux sandbox helper
 	core.ProductVersion = version
+	agent.ProcessStarted = processStart
 	if e := run(os.Args[1:]); e != nil {
 		if strings.Contains(e.Error(), "error opening TTY") {
 			// Bubble Tea could not reach a terminal (cron, CI, a detached
@@ -679,6 +685,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	enc := json.NewEncoder(os.Stdout)
 	var emitErr error
 	var pendingPermission *core.Permission
+	phases := "" // the run_phases line, shown after the reply (GOH_PHASES=1)
 	shownTools := map[string]bool{}
 	// finished is this run's terminal record, read for the exit code.
 	var finished map[string]any
@@ -757,8 +764,15 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 				}
 			case "request_cap_learned":
 				fmt.Fprintln(os.Stderr, tui.RequestCapText(e.Data))
+			case "run_phases":
+				// GOH_PHASES=1: where the run's time went, on one line,
+				// printed after the reply ends (run_finished follows).
+				phases = phasesLine(e.Data)
 			case "run_finished":
 				fmt.Println()
+				if phases != "" {
+					fmt.Fprintln(os.Stderr, phases)
+				}
 				if d, ok := e.Data.(map[string]any); ok && d["status"] == "needs_permission" && pendingPermission != nil {
 					fmt.Fprintf(os.Stderr, "Approval required: %s\n%s\n", tui.Safe(pendingPermission.Tool), tui.Safe(pendingPermission.Preview))
 					fmt.Fprintf(os.Stderr, "A headless run cannot ask. Rerun with --allow %s, or use goh chat to approve interactively.\n", tui.Safe(pendingPermission.Tool))
@@ -1007,4 +1021,27 @@ func stopParkedJobs() {
 		parkedJobs = nil
 		p.tools.StopJobs()
 	}
+}
+
+// phasesLine summarizes a run_phases event: "phases: 1840 ms · setup 12 ·
+// 2 requests 1610 (first text 950, retry wait 0) · tools 140 (wall 120) ·
+// approvals 0 · finish 30".
+func phasesLine(data any) string {
+	b, _ := json.Marshal(data)
+	var raw map[string]json.RawMessage
+	json.Unmarshal(b, &raw)
+	get := func(k string) int64 {
+		var v int64
+		json.Unmarshal(raw[k], &v)
+		return v
+	}
+	var requests []json.RawMessage
+	json.Unmarshal(raw["requests"], &requests)
+	line := fmt.Sprintf("phases: %d ms · setup %d · assembly %d · compaction %d · %d requests %d (first text %d, retry wait %d) · tools %d (wall %d) · approvals %d · questions %d · after final reply %d",
+		get("total_ms"), get("setup_ms"), get("assembly_ms"), get("compaction_ms"), len(requests), get("request_ms"), get("first_text_ms"), get("retry_wait_ms"),
+		get("tool_ms"), get("tool_wall_ms"), get("approval_wait_ms"), get("question_wait_ms"), get("final_reply_to_end_ms"))
+	if v := get("process_startup_ms"); v > 0 {
+		line += fmt.Sprintf(" · process start %d", v)
+	}
+	return line
 }

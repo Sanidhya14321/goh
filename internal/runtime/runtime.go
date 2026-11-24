@@ -109,6 +109,8 @@ type Agent struct {
 	// accessMu guards the access levels, which the interface can change
 	// while a run is active.
 	accessMu sync.Mutex
+	// phases times the current top-level run when GOH_PHASES=1 (phases.go).
+	phases *runPhases
 	// rootMu guards the resolved project folder (see projectRoot).
 	rootMu       sync.Mutex
 	root         string
@@ -347,7 +349,9 @@ func (a *Agent) Permission(ctx context.Context, p core.Permission) (core.Decisio
 		if a.Approve == nil {
 			return d, errPermission
 		}
+		waitStart := time.Now()
 		d, e = a.Approve(ctx, p)
+		a.phases.waited(false, time.Since(waitStart).Milliseconds())
 		if e != nil {
 			return d, e
 		}
@@ -583,6 +587,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if a.Remote != nil {
 		return a.Remote(ctx, prompt)
 	}
+	a.phases = nil
+	if a.depth == 0 && phasesEnabled() {
+		a.phases = newRunPhases()
+	}
 	if a.Config.MaxRunSeconds > 0 && a.depth == 0 {
 		// Child tasks run under this context, so they share the time budget.
 		var stop context.CancelFunc
@@ -728,9 +736,11 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			// Checked before compaction too: a summary is a model call.
 			return "budget_exhausted", e
 		}
+		compactStart, kept := time.Now(), len(a.History)
 		if e := a.compact(ctx, defs); e != nil {
 			return compactionStatus(ctx, e), e
 		}
+		a.phases.compacted(time.Since(compactStart).Milliseconds(), len(a.History) != kept)
 		a.event("assistant_started", map[string]any{"turn": turn})
 		reasoningCtx := core.WithReasoning(ctx, func(s string) { a.event("reasoning_updated", map[string]any{"text": s}) })
 		reasoningCtx = core.WithRetryNotices(reasoningCtx, func(n core.RetryNotice) { a.event("provider_retry", n) })
@@ -739,7 +749,12 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 			// Checked between turns, so every requested tool has its result.
 			return "budget_exhausted", e
 		}
+		assemblyStart := time.Now()
 		history := a.modelHistory()
+		if a.phases != nil {
+			size, _ := requestBytes(history, defs)
+			a.phases.assembled(time.Since(assemblyStart).Milliseconds(), size)
+		}
 		reply, e := a.completeWithFailover(reasoningCtx, "turn", a.Provider, a.Config, history, defs, func(s string) { a.event("assistant_updated", map[string]any{"text": s}) })
 		if e != nil && a.servedBy == "" && a.adaptToRequestCap(e, history, defs) {
 			turn-- // nothing was generated; compact to the stated cap and resend
@@ -784,7 +799,10 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				a.event("completion_check", map[string]any{"reason": reason})
 				continue
 			}
-			if retry, st, e := a.verifyAndMaybeRepair(ctx); e != nil {
+			verifyStart := time.Now()
+			retry, st, e := a.verifyAndMaybeRepair(ctx)
+			a.phases.finishStep("verification", time.Since(verifyStart).Milliseconds())
+			if e != nil {
 				if st == "" {
 					st = "failed"
 				}
@@ -1029,6 +1047,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	return "budget_exhausted", errors.New("model turn limit reached")
 }
 func (a *Agent) start(c core.Call) error {
+	a.phases.toolStarted(c.ID, c.Function.Name)
 	d := map[string]any{"id": c.ID, "name": c.Function.Name, "arguments": json.RawMessage(c.Function.Arguments)}
 	if e := a.Store.Append("tool_start", d); e != nil {
 		return e
@@ -1043,6 +1062,7 @@ func (a *Agent) finish(c core.Call, r tools.Result) error {
 		return e
 	}
 	a.event("tool_finished", d)
+	a.phases.toolFinished(c.ID)
 	return nil
 }
 func (a *Agent) saveResults(cs []core.Call, rs []tools.Result) error {
@@ -1535,8 +1555,12 @@ func (a *Agent) compactWithMode(ctx context.Context, defs []core.Tool, force boo
 }
 
 func (a *Agent) endRun(ctx context.Context, status string, err error, started time.Time, closeExternal bool) (string, error) {
+	a.phases.finishing()
 	if closeExternal {
-		if e := a.closeIntegrations(); e != nil {
+		step := time.Now()
+		e := a.closeIntegrations()
+		a.phases.finishStep("integrations", time.Since(step).Milliseconds())
+		if e != nil {
 			status = "cleanup_incomplete"
 			err = errors.Join(err, e) // keep why the run stopped, too
 		}
@@ -1557,7 +1581,9 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 	if status == "completed" && err == nil && a.operation == "run" {
 		// Optional model work: only for model runs (a typed !command and a
 		// compaction stay local), bounded, and skipped when it cannot fit.
+		step := time.Now()
 		a.maybeAutoTitle(ctx)
+		a.phases.finishStep("title", time.Since(step).Milliseconds())
 	}
 	d := map[string]any{"status": status, "duration_ms": time.Since(started).Milliseconds(), "run_id": a.runID}
 	if a.operation != "" {
@@ -1574,19 +1600,31 @@ func (a *Agent) endRun(ctx context.Context, status string, err error, started ti
 		d["error"] = err.Error()
 		a.event("error", map[string]any{"message": err.Error()})
 	}
-	if e := a.Store.Append("run_finished", d); e != nil {
+	journalStart := time.Now()
+	journalErr := a.Store.Append("run_finished", d)
+	a.phases.finishStep("journal", time.Since(journalStart).Milliseconds())
+	if e := journalErr; e != nil {
 		status = "failed"
 		err = e
 		d["status"] = status
 		d["error"] = e.Error()
 	}
+	snapStart := time.Now()
 	snapCtx, cancelSnap := context.WithTimeout(context.Background(), 30*time.Second)
 	a.recordProjectSnapshot(snapCtx, "end")
 	cancelSnap()
+	a.phases.finishStep("snapshot", time.Since(snapStart).Milliseconds())
 	// Notification hooks see the settled result; they run before the
 	// public terminal event so run_finished is the last event of the run,
 	// and their failures never change it.
+	hooksStart := time.Now()
 	a.runFinishedHooks(d)
+	a.phases.finishStep("hooks", time.Since(hooksStart).Milliseconds())
+	if a.phases != nil {
+		// One summary, not journaled; run_finished stays the last event.
+		a.event("run_phases", a.phases.summary())
+		a.phases = nil
+	}
 	a.event("run_finished", d)
 	return status, err
 }

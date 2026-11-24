@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -95,7 +96,9 @@ func (a *Agent) executeQuestion(ctx context.Context, raw json.RawMessage) (tools
 		}
 		return tools.Result{}, ErrNeedsInput
 	}
+	waitStart := time.Now()
 	reply, e := a.Ask(ctx, request)
+	a.phases.waited(true, time.Since(waitStart).Milliseconds())
 	if e != nil {
 		if ctx.Err() != nil {
 			return tools.Result{}, ctx.Err()
