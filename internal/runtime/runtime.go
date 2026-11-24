@@ -108,7 +108,12 @@ type Agent struct {
 	eventMu           sync.Mutex
 	// accessMu guards the access levels, which the interface can change
 	// while a run is active.
-	accessMu     sync.Mutex
+	accessMu sync.Mutex
+	// rootMu guards the resolved project folder (see projectRoot).
+	rootMu       sync.Mutex
+	root         string
+	rootFor      string
+	rootAt       time.Time
 	accessRules  []core.FolderAccess
 	sessionLevel core.AccessLevel
 	// projectGuidance is AGENTS.md/CLAUDE.md text from the repository.

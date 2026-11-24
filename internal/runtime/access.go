@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/sandbox"
@@ -84,13 +85,25 @@ func (a *Agent) ProjectAccess() core.AccessLevel {
 
 // projectRoot is the project folder with symlinks resolved, as saved access
 // paths are.
+//
+// The screen asks for the access level on every frame, and resolving costs a
+// system call per path component, so the answer is reused for a moment.
 func (a *Agent) projectRoot() string {
-	root := a.Store.Project
+	project := a.Store.Project
+	a.rootMu.Lock()
+	defer a.rootMu.Unlock()
+	if a.rootFor == project && time.Since(a.rootAt) < projectRootTTL {
+		return a.root
+	}
+	root := project
 	if r, err := filepath.EvalSymlinks(root); err == nil {
 		root = r
 	}
-	return filepath.Clean(root)
+	a.root, a.rootFor, a.rootAt = filepath.Clean(root), project, time.Now()
+	return a.root
 }
+
+const projectRootTTL = 2 * time.Second
 
 // levelAt returns the level for path and the folder it was granted on.
 func (a *Agent) levelAt(path string) (core.AccessLevel, string) {
