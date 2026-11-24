@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: checks that count
+
+The experiment run (66 scored runs, 8 Go hard tasks × 4 arms × 2) solved everything, but 15 ended
+`unverified` and 14 drew the completion reminder. Every reminder followed `gofmt -w … && go test …`
+passing (the formatter's writes voided the check), and the re-run that followed passed from Go's test
+cache, which counted as no tests. `TestCachedGoPassAndFormatThenTestAreChecks` and
+`TestCachedPassAndFormatThenTestVerifyARun` cover both; a check alone that writes files, a check
+followed by a writer, `;` and `||` chains still do not verify. A recorder over a scripted run with
+replayed reasoning confirmed each request extends the previous one exactly, so the 47–90% cache
+hit rates seen are the provider's. `go test ./...`, `go vet ./...` and `make acceptance` pass.
+
 ## Unreleased: terminal redesign
 
 - Compared against OpenCode 1.19.5 and Claude Code 2.1.330 driving the same scripted turn (hello, then

@@ -6,6 +6,12 @@ Each entry lists user-visible changes; evidence for each is in
 
 ## Unreleased
 
+**Checks that count** (from the benchmark: 14 of 66 runs got a needless reminder)
+- A passing check chained after commands that changed files (`gofmt -w a.go && go test ./...`) now verifies
+  those changes; before, the run was reminded to check again.
+- A Go test run whose packages all pass from the test cache (`ok pkg (cached)`) counts as a passing test run.
+- After the completion reminder, the final reply still says what changed instead of only "tests pass".
+
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.
 - Tool calls read as what they do (`▸ Read  a.go`, `▸ Shell  go test ./...`). A read is one line

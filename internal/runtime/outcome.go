@@ -117,7 +117,10 @@ func (a *Agent) trackOutcome(c core.Call, r tools.Result) {
 		// it run without asking) skips the project walk; changes from
 		// background jobs are still noticed at the next writing command and
 		// when the run ends.
-		return // the command changed files, so it did not check them
+		if c.Function.Name != "shell" || !checksAfterChanges(args.Command) {
+			return // the command changed files, so it did not check them
+		}
+		// gofmt -w x.go && go test ./...: the check ran after the changes.
 	}
 	if c.Function.Name != "shell" || r.Error {
 		return
@@ -264,7 +267,7 @@ const testDoubleCheckPrompt = "[Automatic check, not a new request] Your checks 
 
 const selectedTestsCheckPrompt = "[Automatic check, not a new request] The tests that passed since your last change were picked by name (-run, -k, ::, -t or similar). Run the full tests of every package or module you changed, without the name filter, and fix any failure, including existing tests your change broke. Then finish."
 
-const completionCheckPrompt = "[Automatic check, not a new request] You changed files in this run but no test, build or other check has succeeded since your last change. Run the most relevant check now and fix any failure. If no check applies, say why in one sentence. Then finish."
+const completionCheckPrompt = "[Automatic check, not a new request] You changed files in this run but no test, build or other check has succeeded since your last change. Run the most relevant check now and fix any failure. If no check applies, say why in one sentence. Then finish: your next reply is the final one, so state what you changed in a sentence or two and the check's result."
 
 // needsCompletionCheck reports whether to remind the model, once per run, to
 // check its changes before finishing. Completion gated on evidence improves
@@ -386,8 +389,9 @@ func programs(command string) []string {
 // zeroTestsRe finds a test runner's report that it ran no tests.
 var zeroTestsRe = regexp.MustCompile(`(?m)(^Ran 0 tests\b|\bno tests ran\b|\bcollected 0 items\b|^No tests found|\brunning 0 tests\b|\[no tests to run\]|\[no test files\])`)
 
-// goPassedRe is a Go package that ran tests and passed.
-var goPassedRe = regexp.MustCompile(`(?m)^ok\s+\S+\s+[\d.]+s(\s|$)`)
+// goPassedRe is a Go package that ran tests and passed, timed or "(cached)":
+// a cached pass is the recorded result of these exact sources and tests.
+var goPassedRe = regexp.MustCompile(`(?m)^ok\s+\S+\s+([\d.]+s|\(cached\))(\s|$)`)
 
 // ranNoTests reports whether a test command's output says it executed no
 // tests: such a run passes without checking anything. Go output counts as

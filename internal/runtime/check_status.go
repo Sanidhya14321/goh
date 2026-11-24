@@ -48,6 +48,42 @@ var shellKeywords = map[string]bool{"!": true, "if": true, "then": true, "else":
 	"while": true, "until": true, "for": true, "do": true, "done": true, "case": true, "esac": true,
 	"trap": true, "exit": true, "return": true, "set": true, "function": true}
 
+// checksAfterChanges reports whether a command that changed files ends with
+// a recognized check that ran after every change: commands joined only by
+// &&, the last one a check and an earlier one not (a formatter, a code
+// generator, an edit). A failure anywhere ends the list with its status, so
+// exit 0 means the check passed on the changed files. A check alone that
+// changed files still does not count: its own writes are unchecked.
+func checksAfterChanges(command string) bool {
+	segs, ops, ok := shellList(command)
+	if !ok || len(segs) < 2 {
+		return false
+	}
+	for _, op := range ops {
+		if op != "&&" {
+			return false
+		}
+	}
+	program := func(words []string) string {
+		kept := words[:0:0]
+		for _, w := range words {
+			if !strings.ContainsAny(w, "<>") {
+				kept = append(kept, w)
+			}
+		}
+		return strings.Join(kept, " ")
+	}
+	if checkKind(program(segs[len(segs)-1])) == "" {
+		return false
+	}
+	for _, words := range segs[:len(segs)-1] {
+		if p := program(words); len(programs(p)) > 0 && checkKind(p) == "" {
+			return true
+		}
+	}
+	return false
+}
+
 // shellList splits a command into simple commands and the operators between
 // them (";", "&&", "||", "|", or "\n"). ok is false for syntax it does not
 // follow: unbalanced quotes, an unquoted ( ) { } or backquote, $( ), a

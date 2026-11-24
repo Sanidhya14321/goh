@@ -476,3 +476,54 @@ func TestCheckStatusAttributableTerminators(t *testing.T) {
 		}
 	}
 }
+
+// Seen in benchmark runs: a re-run whose packages all passed from Go's test
+// cache, and a formatter chained before the tests, were not counted as
+// checks, so correct fixes ended "unverified" and drew a needless reminder.
+func TestCachedGoPassAndFormatThenTestAreChecks(t *testing.T) {
+	cached := "?   \texample.com/x/api\t[no test files]\nok  \texample.com/x/pricing\t(cached)\n"
+	if ranNoTests(cached) {
+		t.Error("a cached Go pass counted as no tests run")
+	}
+	if !ranNoTests("ok  \tex/p\t(cached) [no tests to run]\n") {
+		t.Error("a cached run with no tests counted as a test run")
+	}
+	for cmd, want := range map[string]bool{
+		"gofmt -w a.go b.go && go test ./...":    true,
+		"black . && pytest -q 2>&1":              true,
+		"go test ./...":                          false, // the check's own writes are unchecked
+		"go test ./... && gofmt -w a.go":         false, // changed after the check
+		"gofmt -w a.go; go test ./...":           false,
+		"gofmt -w a.go && go test ./... || true": false,
+		"gofmt -w a.go && echo done":             false,
+	} {
+		if got := checksAfterChanges(cmd); got != want {
+			t.Errorf("checksAfterChanges(%q) = %v want %v", cmd, got, want)
+		}
+	}
+}
+
+// The same two cases through a run: both end verified.
+func TestCachedPassAndFormatThenTestVerifyARun(t *testing.T) {
+	testutil.RequireUnixShell(t)
+	for name, command := range map[string]string{
+		"cached":           "PATH=./stub:$PATH go test ./...",
+		"format then test": "PATH=./stub:$PATH gofmt -w new.txt && PATH=./stub:$PATH go test ./...",
+	} {
+		t.Run(name, func(t *testing.T) {
+			a, root := testAgent(t)
+			os.MkdirAll(filepath.Join(root, "stub"), 0o755)
+			os.WriteFile(filepath.Join(root, "stub", "go"), []byte("#!/bin/sh\nprintf '?   \\tex/q\\t[no test files]\\nok  \\tex/p\\t(cached)\\n'\n"), 0o755)
+			os.WriteFile(filepath.Join(root, "stub", "gofmt"), []byte("#!/bin/sh\necho formatted >> new.txt\n"), 0o755)
+			a.Grants["create_file"], a.Grants["shell"] = true, true
+			a.Provider = scripted(
+				[]core.Call{toolCall("c", "create_file", map[string]any{"path": "new.txt", "content": "x\n"})},
+				[]core.Call{toolCall("t", "shell", map[string]any{"command": command})},
+			)
+			a.Run(context.Background(), "go")
+			if got := lastFinished(t, a)["outcome"]; got != OutcomeVerified {
+				t.Fatalf("outcome %v", got)
+			}
+		})
+	}
+}
