@@ -21,7 +21,7 @@ type modelFunc func(context.Context, []core.Message, []core.Tool, func(string)) 
 func (f modelFunc) Complete(c context.Context, h []core.Message, d []core.Tool, emit func(string)) (core.Reply, error) {
 	return f(c, h, d, emit)
 }
-func testAgent(t *testing.T) (*Agent, string) {
+func testAgent(t testing.TB) (*Agent, string) {
 	t.Helper()
 	root := testutil.TempDir(t)
 	c := core.Defaults()

@@ -1,12 +1,15 @@
 package tui
 
 import (
-	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/Sanidhya14321/goh/internal/core"
+	agent "github.com/Sanidhya14321/goh/internal/runtime"
 	"github.com/Sanidhya14321/goh/internal/session"
+	"github.com/Sanidhya14321/goh/internal/testutil"
 )
 
 func TestTimestampLinesToggleAndCannotBeForged(t *testing.T) {
@@ -33,22 +36,40 @@ func TestTimestampLinesToggleAndCannotBeForged(t *testing.T) {
 	}
 }
 
-func TestPromptTimesMatchByContentInOrder(t *testing.T) {
-	rec := func(role, content string, at int64) session.Record {
-		b, _ := json.Marshal(map[string]string{"role": role, "content": content})
-		v := 2
-		if at == 0 {
-			v = 1
+// A reopened chat stamps each prompt with its own record's time. Before,
+// times were matched by text across the whole journal, so when an earlier
+// identical prompt fell outside the shown tail, the recent one got its time.
+func TestRepeatedPromptKeepsItsOwnTime(t *testing.T) {
+	store, err := session.New(t.TempDir(), testutil.TempDir(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if err := store.Append("message", core.Message{Role: "user", Content: "run the tests"}); err != nil {
+		t.Fatal(err)
+	}
+	for i := range 80 { // pushes the first prompt out of the shown tail
+		if err := store.Append("message", core.Message{Role: "assistant", Content: strings.Repeat("output ", 600) + fmt.Sprint(i)}); err != nil {
+			t.Fatal(err)
 		}
-		return session.Record{Version: v, Type: "message", Data: b, Time: at}
 	}
-	times := userPromptTimes([]session.Record{
-		rec("user", "again", 1000), rec("assistant", "x", 1500), rec("user", "old", 0), rec("user", "again", 2000),
-	})
-	if popTime(times, "again").UnixMilli() != 1000 || popTime(times, "again").UnixMilli() != 2000 {
-		t.Fatal("repeated prompts out of order")
+	time.Sleep(5 * time.Millisecond)
+	if err := store.Append("message", core.Message{Role: "user", Content: "run the tests"}); err != nil {
+		t.Fatal(err)
 	}
-	if !popTime(times, "again").IsZero() || !popTime(times, "old").IsZero() || !popTime(times, "x").IsZero() {
-		t.Fatal("expected no time for exhausted, untimed or assistant entries")
+	last, _ := store.Last("message")
+	a := &agent.Agent{Store: store}
+	entries := screenHistory(a)
+	prompts := 0
+	for _, e := range entries {
+		if e.message.Role == "user" {
+			prompts++
+			if e.at.UnixMilli() != last.Time {
+				t.Fatalf("prompt shown with %d, its record has %d", e.at.UnixMilli(), last.Time)
+			}
+		}
+	}
+	if prompts != 1 {
+		t.Fatalf("the earlier prompt should be outside the tail: %d prompts", prompts)
 	}
 }

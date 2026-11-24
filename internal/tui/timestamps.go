@@ -1,11 +1,8 @@
 package tui
 
 import (
-	"encoding/json"
 	"strings"
 	"time"
-
-	"github.com/Sanidhya14321/goh/internal/session"
 )
 
 // stampMark starts a transcript line holding a turn time. Safe() replaces
@@ -36,36 +33,6 @@ func withStamps(log string, show bool) string {
 		out = append(out, line)
 	}
 	return strings.Join(out, "\n")
-}
-
-// userPromptTimes returns journaled times of user messages, in order, keyed by
-// content so compacted or summarized history still matches the right prompt.
-// Records from journals older than record timestamps have none.
-func userPromptTimes(records []session.Record) map[string][]time.Time {
-	times := map[string][]time.Time{}
-	for _, r := range records {
-		if r.Type != "message" || r.Time <= 0 {
-			continue
-		}
-		var msg struct {
-			Role      string `json:"role"`
-			Content   string `json:"content"`
-			Automatic bool   `json:"automatic"`
-		}
-		if json.Unmarshal(r.Data, &msg) == nil && msg.Role == "user" && !msg.Automatic {
-			times[msg.Content] = append(times[msg.Content], time.UnixMilli(r.Time))
-		}
-	}
-	return times
-}
-
-func popTime(times map[string][]time.Time, content string) time.Time {
-	q := times[content]
-	if len(q) == 0 {
-		return time.Time{}
-	}
-	times[content] = q[1:]
-	return q[0]
 }
 
 func (m *model) toggleTimestamps() {

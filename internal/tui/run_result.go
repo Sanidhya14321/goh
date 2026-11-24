@@ -120,7 +120,13 @@ func (m *model) restoreLastRun() {
 	if m.a == nil || m.a.Store == nil {
 		return
 	}
-	if r := lastRunFromRecords(m.a.Store.Records()); r != nil && r.Outcome != "" {
+	// Only the latest run record matters: a reverse lookup, not a copy of
+	// the whole journal.
+	record, ok := m.a.Store.Last("run_started", "run_finished")
+	if !ok {
+		return
+	}
+	if r := lastRunFromRecords([]session.Record{record}); r != nil && r.Outcome != "" {
 		m.lastRun = r
 		m.status = "Last run: " + r.label()
 		if r.failedVerification() {

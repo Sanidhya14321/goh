@@ -213,3 +213,27 @@ func TestMalformedSiblingInReadBatchIsNotExecuted(t *testing.T) {
 		t.Fatal("no result for the malformed call")
 	}
 }
+
+// A settled session (every call has its result) is the common resume: the
+// repair must not read the journal at all.
+func BenchmarkRepairSettledHistory(b *testing.B) {
+	a, _ := testAgent(b)
+	payload := strings.Repeat("r", 32<<10)
+	for i := range 64 {
+		call := toolCall("c"+strings.Repeat("x", i%3)+string(rune('a'+i%26))+string(rune('a'+i/26)), "read_file", map[string]any{"path": "a.go"})
+		if err := a.commit(core.Message{Role: "assistant", ToolCalls: []core.Call{call}}); err != nil {
+			b.Fatal(err)
+		}
+		a.start(call)
+		a.finish(call, tools.Result{Content: payload})
+		if err := a.commit(core.Message{Role: "tool", ToolCallID: call.ID, Content: payload}); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		if err := a.RepairInterruptedHistory(); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

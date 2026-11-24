@@ -21,6 +21,14 @@ Each entry lists user-visible changes; evidence for each is in
   2,000-line code block 3.6 → 2.6 ms (ASCII and common symbols skip grapheme segmentation; the project
   folder is no longer resolved on every frame).
 
+**Long sessions**
+- Reopening a chat reads only the messages it shows (newest first, within the display budget) instead of
+  copying the whole journal: 7.0 ms and 31 MB → 0.24 ms and 0.5 MB at 20,000 records, the same at 1,000.
+- A repeated prompt in a reopened chat shows its own time, not the time of an earlier identical prompt.
+- Returning from a picker or settings checks the journal by its length instead of copying it.
+- Resuming a session whose calls all finished no longer scans the journal (2.9 ms, 10 MB → 4 µs, 11 KB).
+- An ordinary export over 100,000 records is refused instead of writing an archive import rejects.
+
 ## 1.1.0 — 2026-11-23
 
 Fewer tokens and faster runs for every kind of prompt, from `hello` to debugging a 6,000-line file,

@@ -177,7 +177,7 @@ func TestFetchedPageIsCompactLiveAndResumed(t *testing.T) {
 		t.Fatal(err)
 	}
 	r := &model{a: resumed, width: 100, height: 40, status: "ready"}
-	r.loadHistory(resumed.History, nil)
+	r.loadHistory(untimed(resumed.History))
 	t.Run("resumed", func(t *testing.T) { checkFetchTranscript(t, r, host) })
 }
 
@@ -343,12 +343,12 @@ func TestFencesStayInsideTheirMessage(t *testing.T) {
 	live.log += "\nYou: next\n"
 	t.Run("live", func(t *testing.T) { check(t, live.log) })
 	resumed := &model{width: 80, height: 24}
-	resumed.loadHistory([]core.Message{
+	resumed.loadHistory(untimed([]core.Message{
 		{Role: "user", Content: "show code\n" + fence},
 		{Role: "assistant", Content: reply, ToolCalls: []core.Call{call}},
 		{Role: "tool", Content: `{"Content":"{\"path\":\"a.go\",\"content\":\"package a\"}","Error":false}`},
 		{Role: "user", Content: "next"},
-	}, nil)
+	}))
 	t.Run("resumed", func(t *testing.T) { check(t, resumed.log) })
 
 	outer := strings.Repeat("\x60", 4)
@@ -445,7 +445,7 @@ func TestReopenedChatAfterCompactionShowsJournal(t *testing.T) {
 		t.Fatal("precondition: compaction should have removed the first answer from the model context")
 	}
 	m := &model{a: resumed, width: 100, height: 40}
-	m.loadHistory(screenHistory(resumed), nil)
+	m.loadHistory(screenHistory(resumed))
 	for _, want := range []string{"You: first question about parsing", "answer number 1", "You: second question about tests", "You: third question", "answer number 3"} {
 		if !strings.Contains(m.log, want) {
 			t.Fatalf("reopened chat lost %q:\n%s", want, m.log)
@@ -458,7 +458,7 @@ func TestReopenedChatAfterCompactionShowsJournal(t *testing.T) {
 		}
 	}
 	recent := screenHistory(resumed)
-	if len(recent) >= 400 || len(recent) < 50 || !strings.HasPrefix(recent[len(recent)-1].Content, "prompt 399 ") {
+	if len(recent) >= 400 || len(recent) < 50 || !strings.HasPrefix(recent[len(recent)-1].message.Content, "prompt 399 ") {
 		t.Fatalf("history not bounded to its recent end: %d messages", len(recent))
 	}
 }

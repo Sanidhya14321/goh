@@ -522,6 +522,12 @@ func (a *Agent) RepairInterruptedHistory() error {
 			delete(pending, m.ToolCallID)
 		}
 	}
+	if len(pending) == 0 {
+		// Every call has its result: nothing to backfill, so the journal
+		// (copied and scanned below) is not read. Uncertain durable effects
+		// are checked separately (Store.Pending).
+		return nil
+	}
 	// The journal is the source of truth: a result recorded before the
 	// interruption is reused exactly; a call that started without a recorded
 	// result is uncertain; a call that never started was not executed.

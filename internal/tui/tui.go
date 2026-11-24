@@ -1069,41 +1069,53 @@ const screenHistoryBytes = 256 << 10
 
 // screenHistory is what a reopened chat shows: the journaled messages, not
 // the model's context, which compaction replaces with a summary. Only the
-// recent end that fits the transcript is returned.
-func screenHistory(a *agent.Agent) []core.Message {
-	if a.Store == nil {
-		return a.History
-	}
-	var messages []core.Message
-	for _, record := range a.Store.Records() {
-		if record.Type != "message" {
-			continue
-		}
-		var message core.Message
-		if json.Unmarshal(record.Data, &message) == nil {
-			messages = append(messages, message)
-		}
-	}
-	if len(messages) == 0 {
-		return a.History
-	}
-	size := 0
-	for i := len(messages) - 1; i >= 0; i-- {
-		size += min(len(messages[i].Content), 4096) + 64
-		for _, call := range messages[i].ToolCalls {
-			size += min(len(call.Function.Arguments), 256) + 64
-		}
-		if size > screenHistoryBytes {
-			return messages[i+1:]
+// recent end that fits the transcript is read, each message with the time of
+// its own record (so a repeated prompt keeps its own time).
+func screenHistory(a *agent.Agent) []historyEntry {
+	if a.Store != nil {
+		if recent := a.Store.RecentMessages(screenHistoryBytes, screenWeight); len(recent) > 0 {
+			entries := make([]historyEntry, len(recent))
+			for i, r := range recent {
+				entries[i] = historyEntry{message: r.Message}
+				if r.Time > 0 {
+					entries[i].at = time.UnixMilli(r.Time)
+				}
+			}
+			return entries
 		}
 	}
-	return messages
+	return untimed(a.History)
+}
+
+// screenWeight approximates a message's share of the rendered transcript.
+func screenWeight(message core.Message) int {
+	size := min(len(message.Content), 4096) + 64
+	for _, call := range message.ToolCalls {
+		size += min(len(call.Function.Arguments), 256) + 64
+	}
+	return size
+}
+
+// historyEntry is a message to replay and when it was journaled (zero for
+// records from journals that kept no times).
+type historyEntry struct {
+	message core.Message
+	at      time.Time
+}
+
+func untimed(messages []core.Message) []historyEntry {
+	entries := make([]historyEntry, len(messages))
+	for i, message := range messages {
+		entries[i] = historyEntry{message: message}
+	}
+	return entries
 }
 
 // loadHistory writes a resumed conversation the way a live turn writes it.
-func (m *model) loadHistory(history []core.Message, promptTimes map[string][]time.Time) {
+func (m *model) loadHistory(history []historyEntry) {
 	calls := map[string]core.Call{}
-	for _, message := range history {
+	for _, entry := range history {
+		message := entry.message
 		switch message.Role {
 		case "user":
 			if message.Automatic {
@@ -1111,7 +1123,7 @@ func (m *model) loadHistory(history []core.Message, promptTimes map[string][]tim
 				continue
 			}
 			m.rememberPrompt(message.Content)
-			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n" + closeFence(Safe(message.Content)+"\n")
+			m.log += stampLine(entry.at) + "\nYou: " + Safe(message.Content) + "\n" + closeFence(Safe(message.Content)+"\n")
 		case "assistant":
 			if message.Content != "" {
 				m.log += replyBreak(m.log)
@@ -1344,11 +1356,7 @@ func Run(a *agent.Agent, notice, draft string) error {
 	m := &model{a: a, events: make(chan tea.Msg, 128), width: 80, height: 24, status: "ready", closed: make(chan struct{}), todos: append([]core.Todo{}, a.Todos...), keys: keymapFor(&a.Config), sessionTitle: title}
 	m.insertInput(Safe(draft))
 	if !m.unparkView() {
-		var promptTimes map[string][]time.Time
-		if a.Store != nil {
-			promptTimes = userPromptTimes(a.Store.Records())
-		}
-		m.loadHistory(screenHistory(a), promptTimes)
+		m.loadHistory(screenHistory(a))
 		if len(m.log) > 128<<10 {
 			m.trimLog()
 		}

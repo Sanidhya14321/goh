@@ -62,6 +62,9 @@ One Apple M5 Pro, no model involved (`go test -bench` in the named packages):
 | Chat frame, 120 KB transcript | 0.07 ms (1.1.0: 0.15 ms) |
 | Redraw of a 200-turn session, nothing new / after new text | 30 µs / 279 µs (1.1.0: 136 / 414 µs) |
 | Streaming a 2,000-line code block, per update | 2.6 ms (1.1.0: 3.6 ms) |
+| Reopened chat's messages, 20,000-record journal | 0.24 ms, 0.5 MB (1.1.0: 7.0 ms, 31 MB) |
+| Opening a 20,000-record journal | 40 ms, 79 MB |
+| Resume of a settled session (64 calls, 32 KiB results) | 4 µs (1.1.0: 2.9 ms, 10 MB) |
 | goh's own time in a 3-request run | ~80 ms of 11.6 s (journal writes) |
 
 ## Running

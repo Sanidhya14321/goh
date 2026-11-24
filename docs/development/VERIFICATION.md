@@ -16,6 +16,11 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
   and all six PTY suites pass. New tests: the width fast path matches `ansi` for every rune it claims, style
   marks cannot be forged by model text, edit diffs live and resumed, turn navigation by prompt rows.
 - Render benchmarks before/after (`BenchmarkSession*`, five runs each) are in [BENCHMARKS.md](../BENCHMARKS.md).
+- Long sessions: `BenchmarkRecentMessages*`, `BenchmarkCopyAllMessages*` (what it replaces),
+  `BenchmarkOpenAndRecentMessages*` at 1,000 and 20,000 records; `BenchmarkRepairSettledHistory`. Tests cover a
+  message-free region, an oversized last record, legacy untimed records, call/result order, a repeated prompt
+  outside the shown tail, and both sides of the shared export/import record limit. Open itself still reads the
+  whole journal (40 ms, 79 MB at 20,000 records); a streaming open is the next step if that matters.
 
 ## 1.1.0
 

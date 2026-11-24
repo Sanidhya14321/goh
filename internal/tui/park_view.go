@@ -39,7 +39,7 @@ func (m *model) parkView() {
 	parkedView.Lock()
 	defer parkedView.Unlock()
 	parkedView.state = &parkedViewState{
-		session: m.a.Store.ID, records: len(m.a.Store.Records()),
+		session: m.a.Store.ID, records: m.a.Store.Len(),
 		log: m.log, logTrimmed: m.logTrimmed, scrollOffset: m.scrollOffset,
 		details: m.details, hideThinking: m.hideThinking, timestamps: m.timestamps,
 		hideSidebar: m.hideSidebar, skillNotice: m.skillNoticeShown,
@@ -55,7 +55,7 @@ func (m *model) unparkView() bool {
 	p := parkedView.state
 	parkedView.state = nil
 	parkedView.Unlock()
-	if p == nil || m.a == nil || m.a.Store == nil || p.session != m.a.Store.ID || p.records != len(m.a.Store.Records()) {
+	if p == nil || m.a == nil || m.a.Store == nil || p.session != m.a.Store.ID || p.records != m.a.Store.Len() {
 		return false
 	}
 	m.log, m.logTrimmed, m.scrollOffset = p.log, p.logTrimmed, p.scrollOffset
@@ -64,9 +64,9 @@ func (m *model) unparkView() bool {
 	m.durationMS, m.usage = p.durationMS, p.usage // the last run's time and tokens
 	m.usageIn, m.usageOut = p.usageIn, p.usageOut
 	// Prompt history (↑) comes from the journal, as when it is rebuilt.
-	for _, message := range screenHistory(m.a) {
-		if message.Role == "user" && !message.Automatic {
-			m.rememberPrompt(message.Content)
+	for _, entry := range screenHistory(m.a) {
+		if entry.message.Role == "user" && !entry.message.Automatic {
+			m.rememberPrompt(entry.message.Content)
 		}
 	}
 	return true
