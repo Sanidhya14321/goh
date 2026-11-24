@@ -253,3 +253,14 @@ func TestAbortedPackages(t *testing.T) {
 		t.Fatal("inPackage must match the exact package only")
 	}
 }
+
+func TestNoModelReplyIsNotScored(t *testing.T) {
+	if !noModelReply(Result{Status: "failed"}) {
+		t.Fatal("a run with no completed request must not be scored")
+	}
+	for _, r := range []Result{{Status: "failed", Requests: 1}, {Status: "failed", ToolCalls: 2}, {Status: "completed"}} {
+		if noModelReply(r) {
+			t.Fatalf("scored run treated as no reply: %+v", r)
+		}
+	}
+}

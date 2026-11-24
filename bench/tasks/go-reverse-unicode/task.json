@@ -4,6 +4,7 @@
   "max_tool_calls": 120,
   "prompt": "Reverse in strutil.go corrupts non-ASCII text such as \"h\u00e9llo\" and emoji. Make it reverse by Unicode code points.",
   "fail_to_pass": "go test -run TestReverse ./...",
+  "gold_files": ["strutil.go"],
   "pass_to_pass": "go test ./...",
   "fail_to_pass_tests": ["example.com/task.TestReverse"],
   "pass_to_pass_tests": []

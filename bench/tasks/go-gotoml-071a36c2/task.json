@@ -6,6 +6,7 @@
   },
   "prompt": "Unmarshalling a document with extremely deep nesting of arrays or inline tables (for example 100,000 levels) crashes the whole process with a stack overflow. It must return an ordinary error instead. Fix the decoder.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["unstable/parser.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

@@ -6,6 +6,7 @@
   },
   "prompt": "Byte sizes just below a unit boundary print with the wrong unit: values like 1 MB minus one byte or 1 GB minus 1 KB print as \"1000 kB\"/\"1000 MB\" (or the IEC equivalents) instead of being promoted to \"1.0 MB\", \"1.0 GB\", \"1.0 MiB\" and so on. This affects Bytes, IBytes, BigBytes and BigIBytes. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["bigbytes.go", "bytes.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

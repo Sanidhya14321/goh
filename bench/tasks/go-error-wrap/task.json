@@ -4,6 +4,7 @@
   "max_tool_calls": 80,
   "prompt": "LoadUser in store.go hides why a lookup failed. Callers need errors.Is(err, ErrNotFound) to work for missing users, and the error text should include the user ID. Keep other errors distinguishable.",
   "fail_to_pass": "go test -run TestLoadUser ./...",
+  "gold_files": ["store.go"],
   "pass_to_pass": "go test ./...",
   "fail_to_pass_tests": ["example.com/task.TestLoadUser"],
   "pass_to_pass_tests": []

@@ -6,6 +6,7 @@
   },
   "prompt": "Deleting the empty key does not work: Delete(`{\"\":\"1\",\"1\":\"2\"}`, \"\") should return `{\"1\":\"2\"}` without an error. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["sjson.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

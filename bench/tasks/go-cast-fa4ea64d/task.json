@@ -6,6 +6,7 @@
   },
   "prompt": "Converting numeric strings that have a decimal part to integers is inconsistent: inputs like \"10.010\", \".5\", \"+12.\" or \"-.25\" fail or give odd results. The fractional part should simply be dropped, while malformed values such as \"10...17\", \"10.foobar\" or \"10.0E9\" must still be errors. Fix the conversion.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["cast.go", "number.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

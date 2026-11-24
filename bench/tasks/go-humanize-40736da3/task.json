@@ -6,6 +6,7 @@
   },
   "prompt": "CommafWithDigits drops or mangles trailing zero decimals and thousands separators: CommafWithDigits(1000, 2) should give \"1,000.00\", CommafWithDigits(1.23, 3) \"1.230\", and CommafWithDigits(-1000, 2) \"-1,000.00\". Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["comma.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

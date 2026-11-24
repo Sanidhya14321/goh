@@ -3,6 +3,7 @@
   "size": "large",
   "prompt": "Prorated charges are a day short: a customer who used 15 days of a 30-day period pays for 14, and cancelling on the last day of the period does not charge the full price. Fix it.",
   "fail_to_pass": "go test ./ledger/",
+  "gold_files": ["ledger/ledger.go"],
   "pass_to_pass": "go test ./...",
   "expect": {
     "requests": 8,

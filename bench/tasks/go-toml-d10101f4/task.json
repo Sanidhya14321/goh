@@ -6,6 +6,7 @@
   },
   "prompt": "Encoding a struct that contains a slice (or nested slice) of structs, where each element has a scalar field followed by a map field, produces invalid TOML: a comma or separator is missing or misplaced around the nested table. For example A []struct{I int; M map[string]int} should encode as an array of tables with the map as a sub-table. Fix the encoder.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["encode.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

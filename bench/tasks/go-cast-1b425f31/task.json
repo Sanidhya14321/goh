@@ -6,6 +6,7 @@
   },
   "prompt": "Typed nil pointers are handled inconsistently. The package's internal pointer-unwrapping helper (indirect) must report a typed nil pointer, including one stored in an interface or behind another pointer, as (nil, true): \"was a pointer, resolved to nothing\", while a plain untyped nil or nil interface value gives (nil, false). Conversions then treat a typed nil like its type's zero value: ToBoolE((*bool)(nil)) returns false with no error and ToStringE((*string)(nil)) returns \"\" with no error. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["indirect.go", "time.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

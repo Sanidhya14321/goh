@@ -6,6 +6,7 @@
   },
   "prompt": "Delete removes the wrong key when an object has both a \"#\" key and a \"-1\" key: Delete(`{\"#\":200,\"-1\":true}`, \"-1\") should return `{\"#\":200}`. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["sjson.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

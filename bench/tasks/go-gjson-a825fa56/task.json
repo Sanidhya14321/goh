@@ -6,6 +6,7 @@
   },
   "prompt": "String() mangles JSON strings that contain a broken UTF-16 surrogate pair: when a high surrogate escape (like \\ud83d) is not followed by a valid low surrogate, the next character is dropped or corrupted. The result should match what encoding/json decodes for the same input. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["gjson.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

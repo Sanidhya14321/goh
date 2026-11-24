@@ -6,6 +6,7 @@
   },
   "prompt": "Version.Equal panics when either version is nil. Two nil versions should be equal, and a nil version compared with a non-nil one should be unequal. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["version.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

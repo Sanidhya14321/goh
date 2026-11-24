@@ -38,7 +38,7 @@ them. No manual Windows session has been run.
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
-| Benchmark | No task lists `gold_files`; no private holdout exists; the research experiments have no live result | Holdout and gold annotations still to write; live arms need model quota ([experiments](../BENCHMARKS.md)) |
+| Benchmark | The research experiments and the private holdout have no live result | The first attempt (24 Nov) hit the ChatGPT usage limit before any request; rerun when quota allows ([experiments](../BENCHMARKS.md)) |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
@@ -55,6 +55,6 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 ## Next
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
-2. **Benchmark:** add `gold_files` and a private Go/Python holdout, then run the experiment arms ([experiments](../BENCHMARKS.md)).
+2. **Benchmark:** run the experiment arms and the private holdout (`research/holdout`) live ([experiments](../BENCHMARKS.md)).
 3. **Long sessions:** opening a journal still reads every record (40 ms, 79 MB at 20,000 records); a
    streaming or tail-only open for resume and attach, if that cost matters in practice.

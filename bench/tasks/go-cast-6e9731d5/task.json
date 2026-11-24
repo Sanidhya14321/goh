@@ -6,6 +6,7 @@
   },
   "prompt": "ToUint64E fails for numeric strings above the int64 range, such as \"18446744073709551615\" (the largest uint64), returning 0 or an error. Values up to the uint64 maximum must convert; values beyond it should still return an error. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["caste.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

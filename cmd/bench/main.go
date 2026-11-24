@@ -504,6 +504,16 @@ func runTask(t task, goh, arm string, extra []string, attempt int, workRoot stri
 		}
 	}
 	r.Usage, r.Children = journalUsage(sessions)
+	if noModelReply(r) {
+		// The provider never answered (a usage limit, an outage, a revoked
+		// sign-in): nothing about the agent was measured, so the attempt is
+		// not scored rather than counted as a failed fix.
+		msg := r.Error
+		if b, _ := os.ReadFile(filepath.Join(base, "goh-stderr.log")); msg == "" && len(b) > 0 {
+			msg = tail(string(b))
+		}
+		return infra("no_model_reply", msg)
+	}
 	if len(t.GoldFiles) > 0 {
 		r.Retrieval = retrievalTelemetry(sessions, t.GoldFiles, start)
 	}
@@ -1270,4 +1280,10 @@ func dryRoot() string {
 	dir := filepath.Join(home, ".cache", "goh-bench-dry")
 	os.MkdirAll(dir, 0o755)
 	return dir
+}
+
+// noModelReply reports a run that ended before any model request completed
+// and without calling a tool.
+func noModelReply(r Result) bool {
+	return r.Status != "completed" && r.Requests == 0 && r.ToolCalls == 0 && len(r.Usage) == 0
 }

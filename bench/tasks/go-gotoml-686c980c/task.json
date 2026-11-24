@@ -6,6 +6,7 @@
   },
   "prompt": "Two encoding problems: a named string type whose value receiver implements encoding.TextMarshaler is encoded as the raw string instead of its MarshalText output, and strings containing invalid UTF-8 produce invalid TOML instead of having the bad bytes replaced with U+FFFD. Fix the encoder.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["marshaler.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

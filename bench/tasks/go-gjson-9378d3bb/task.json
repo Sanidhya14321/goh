@@ -6,6 +6,7 @@
   },
   "prompt": "Calling Path() on a result from a malformed JSON document panics. For example, Get(`{\"b:\"2}`, \"b:\").Path(...) with the same document crashes the program. Library calls must never panic on bad input; fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["gjson.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

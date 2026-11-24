@@ -6,6 +6,7 @@
   },
   "prompt": "A subrouter with several routes returns the wrong status for a wrong method: with GET /v1/api and GET /v1/api/{id} registered on a /v1 subrouter, a PUT /v1/api should get 405 Method Not Allowed but does not. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["route.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

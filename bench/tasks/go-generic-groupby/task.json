@@ -4,6 +4,7 @@
   "max_tool_calls": 120,
   "prompt": "Implement GroupBy in group.go (it currently panics): a generic function that groups a slice into a map by a key function, preserving the original order within each group.",
   "fail_to_pass": "go test -run TestGroupBy ./...",
+  "gold_files": ["group.go"],
   "pass_to_pass": "go test ./...",
   "fail_to_pass_tests": ["example.com/task.TestGroupBy"],
   "pass_to_pass_tests": []

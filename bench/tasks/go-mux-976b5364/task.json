@@ -6,6 +6,7 @@
   },
   "prompt": "Two routes on the same path and method that differ only by query parameters do not both work: with /api registered once with Queries(\"foo\", \"{foo:[0-9]+}\") and once with Queries(\"bar\", \"{bar:[0-9]+}\"), a GET /api?bar=4 fails to match (or matches with an error). Each route should match its own query. Fix routing.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["route.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,

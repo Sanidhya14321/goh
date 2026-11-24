@@ -6,6 +6,7 @@
   },
   "prompt": "SI formatting of infinities and NaN is wrong: +Inf is printed with the largest SI prefix (as if it were a finite number times 10^30). Infinities and NaN should get no prefix, e.g. SI(+Inf, \"x\") gives \"+Inf x\" and ComputeSI returns an empty prefix. Fix it.",
   "fail_to_pass": "go test ./.",
+  "gold_files": ["si.go"],
   "pass_to_pass": "go test ./...",
   "max_run_seconds": 1200,
   "max_tool_calls": 150,
