@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"github.com/charmbracelet/x/ansi"
 	"strings"
 	"testing"
 
@@ -40,7 +41,7 @@ func TestApprovalAllowAllRaisesAccess(t *testing.T) {
 	m := fuzzModel(t)
 	response := make(chan core.Decision, 1)
 	m.pending = &permissionMsg{request: core.Permission{Tool: "create_file", Preview: "Create a.go"}, response: response}
-	if !strings.Contains(m.View().Content, "a all edits") {
+	if !strings.Contains(ansi.Strip(m.View().Content), "a all edits") {
 		t.Fatal("shortcut not offered")
 	}
 	m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -48,7 +49,7 @@ func TestApprovalAllowAllRaisesAccess(t *testing.T) {
 		t.Fatalf("decision %+v access %s", d, m.a.ProjectAccess())
 	}
 	m.pending = &permissionMsg{request: core.Permission{Tool: "webfetch", Preview: "GET https://example.com"}, response: response}
-	if strings.Contains(m.View().Content, "a all") {
+	if strings.Contains(ansi.Strip(m.View().Content), "a all") {
 		t.Fatal("shortcut offered for network access")
 	}
 	m.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
@@ -59,7 +60,7 @@ func TestApprovalAllowAllRaisesAccess(t *testing.T) {
 	}
 	if sandbox.Supported() {
 		m.pending = &permissionMsg{request: core.Permission{Tool: "shell", Preview: "Command: npm test"}, response: response}
-		if !strings.Contains(m.View().Content, "a all, sandboxed") {
+		if !strings.Contains(ansi.Strip(m.View().Content), "a all, sandboxed") {
 			t.Fatal("command shortcut not offered")
 		}
 	}

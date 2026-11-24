@@ -28,6 +28,13 @@ func highlightCode(code, language string) string {
 	var out strings.Builder
 	colored := os.Getenv("NO_COLOR") == ""
 	end := 0
+	// Back to the text color; the default theme has none of its own, and an
+	// empty "38;2;" sequence is read by terminals as a full reset, which
+	// would also drop the code block's background.
+	restore := "\x1b[39m"
+	if foreground != "" {
+		restore = "\x1b[38;2;" + foreground + "m"
+	}
 	for kind := scan.Scan(); kind != scanner.EOF; kind = scan.Scan() {
 		text, start := scan.TokenText(), scan.Position.Offset
 		out.WriteString(code[end:start])
@@ -59,7 +66,7 @@ func highlightCode(code, language string) string {
 			if colored && color != foreground && part != "" {
 				out.WriteString("\x1b[38;2;" + color + "m")
 				out.WriteString(part)
-				out.WriteString("\x1b[38;2;" + foreground + "m")
+				out.WriteString(restore)
 			} else {
 				out.WriteString(part)
 			}

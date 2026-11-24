@@ -140,7 +140,9 @@ type hostModel struct {
 	pending       []tea.Msg // keys typed while no screen was shown
 }
 
-func (h *hostModel) Init() tea.Cmd { return nil }
+// Init asks the terminal for its background color. The answer arrives
+// asynchronously and only tints panels; nothing waits for it.
+func (h *hostModel) Init() tea.Cmd { return tea.RequestBackgroundColor }
 
 func (h *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch v := msg.(type) {
@@ -159,6 +161,11 @@ func (h *hostModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return h, nil // from a screen that has closed
 		}
 		return h, h.deliver(v.msg)
+	case tea.BackgroundColorMsg:
+		if !setTerminalBackground(v.Color) || h.screen == nil {
+			return h, nil
+		}
+		return h, h.deliver(themeChanged{}) // cached rows carry the old colors
 	case tea.WindowSizeMsg:
 		h.width, h.height, h.sized = v.Width, v.Height, true
 		if h.under != nil {

@@ -54,6 +54,14 @@ func applyTheme(name string) bool {
 	if onAccent == "" {
 		onAccent = "16;16;16"
 	}
+	diffAddBg, diffDelBg = "", ""
+	base := p.background
+	if base == "" {
+		base = terminalBackground // the default theme, once the terminal answered
+	}
+	if r, g, b, ok := parseRGB(base); ok {
+		deriveTints(r, g, b, p.panel == "")
+	}
 	currentTheme = name
 	return true
 }

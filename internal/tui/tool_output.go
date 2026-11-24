@@ -41,6 +41,25 @@ func toolResultLog(mark, raw string) string {
 			return fetchedPageLines(mark, Safe(summary), Safe(preview))
 		}
 	}
+	if mark == "✓ " {
+		if line, ok := readSummary(raw); ok {
+			// File text is for the model; the reader needs what was read.
+			b := summaryMark + mark + Safe(line) + "\n"
+			content := toolResultText(raw)
+			if len(content) > 2048 {
+				content = strings.ToValidUTF8(content[:2048], "�") + "…"
+			}
+			for i, l := range strings.Split(strings.TrimRight(Safe(content), "\n"), "\n") {
+				if i == 0 {
+					l = mark + l
+				} else {
+					l = "  " + l
+				}
+				b += detailMark + l + "\n"
+			}
+			return b
+		}
+	}
 	content := toolResultText(raw)
 	if len(content) > 2048 {
 		content = strings.ToValidUTF8(content[:2048], "�") + "…"
@@ -380,4 +399,49 @@ func byteSize(n int64) string {
 		return fmt.Sprintf("%.1f KiB", float64(n)/(1<<10))
 	}
 	return fmt.Sprintf("%d bytes", n)
+}
+
+// readSummary is "a.go · 120 lines" for a read_file result.
+func readSummary(raw string) (string, bool) {
+	var r struct {
+		Path    string  `json:"path"`
+		Content *string `json:"content"`
+		SHA     string  `json:"sha256"`
+		Start   int     `json:"start_line"`
+		End     int     `json:"end_line"`
+		Total   int     `json:"total_lines"`
+	}
+	if !strings.HasPrefix(raw, "{") || json.Unmarshal([]byte(raw), &r) != nil || r.Content == nil || r.SHA == "" || r.Path == "" {
+		return "", false
+	}
+	if r.Start > 0 && r.End >= r.Start && r.Total > 0 && (r.Start > 1 || r.End < r.Total) {
+		return fmt.Sprintf("%s · lines %d–%d of %d", r.Path, r.Start, r.End, r.Total), true
+	}
+	n := strings.Count(*r.Content, "\n")
+	if *r.Content != "" && !strings.HasSuffix(*r.Content, "\n") {
+		n++
+	}
+	return r.Path + " · " + plural(n, "line", "lines"), true
+}
+
+// toolFinishedLog is a finished call's transcript lines: for a file change,
+// the changed lines themselves; otherwise its result (toolResultLog).
+func toolFinishedLog(mark, raw, name string, arguments json.RawMessage) string {
+	if mark == "✓ " && arguments != nil {
+		if diff := editDiffLines(name, arguments); diff != "" {
+			var r struct {
+				Path string `json:"path"`
+			}
+			json.Unmarshal([]byte(raw), &r)
+			line := mark + Safe(r.Path)
+			if line == mark {
+				line = mark + toolVerb(name)
+			}
+			if counts := diffCounts(diff); counts != "" {
+				line += " · " + counts
+			}
+			return summaryMark + line + "\n" + detailMark + line + "\n" + diff
+		}
+	}
+	return toolResultLog(mark, raw)
 }

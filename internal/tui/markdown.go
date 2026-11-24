@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"os"
 	"strings"
 	"unicode/utf8"
 
@@ -10,6 +11,11 @@ import (
 type transcriptRow struct {
 	text, fg, bg string
 	styled       string
+	// gutter, when set, replaces the row's left margin: a prompt's bar or a
+	// code block's rule, drawn in bar.
+	gutter, bar string
+	// turn marks the first row of a prompt, where turn navigation stops.
+	turn bool
 }
 
 // fenceOpening returns the delimiter run that opens a fenced block on line
@@ -79,11 +85,19 @@ func plainInline(line string) string {
 
 func transcriptRows(text string, width int, fence string, review bool) []transcriptRow {
 	var rows []transcriptRow
-	lines := strings.Split(Safe(text), "\n")
+	safe := Safe(text)
+	if hasStyleMarks(safe) {
+		safe = styleMarks.Replace(safe) // only the renderer writes these
+	}
+	lines := strings.Split(safe, "\n")
 	for index := 0; index < len(lines); index++ {
 		line := lines[index]
 		row := transcriptRow{fg: foreground, bg: background}
 		hang := ""
+		if diff, ok := strings.CutPrefix(line, diffMark); ok && !review && fence == "" {
+			rows = append(rows, diffRows(diff, width)...)
+			continue
+		}
 		if verbatim, ok := strings.CutPrefix(line, verbatimMark); ok && !review && fence == "" {
 			switch {
 			case strings.HasPrefix(verbatim, "[error]"):
@@ -105,13 +119,6 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 			if marker == "" {
 				marker = fenceOpening(line)
 				language = strings.TrimSpace(strings.TrimSpace(line)[len(marker):])
-				label := language
-				if label == "" {
-					label = "code"
-				}
-				for _, header := range terminalRows("┌─ "+label, width) {
-					rows = append(rows, transcriptRow{text: header, fg: accent, bg: panel})
-				}
 				start++
 			}
 			end := start
@@ -123,8 +130,12 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 				highlighted := highlightCode(code, language)
 				for _, physical := range strings.Split(highlighted, "\n") {
 					style := ""
-					for _, wrapped := range strings.Split(ansi.Hardwrap(physical, width, true), "\n") {
-						rows = append(rows, transcriptRow{text: ansi.Strip(wrapped), styled: style + wrapped, fg: foreground, bg: panel})
+					pieces := []string{physical}
+					if textWidth(physical) > max(1, width-2) {
+						pieces = strings.Split(ansi.Hardwrap(physical, max(1, width-2), true), "\n")
+					}
+					for _, wrapped := range pieces {
+						rows = append(rows, transcriptRow{text: ansi.Strip(wrapped), styled: style + wrapped, fg: foreground, bg: panel, gutter: "│", bar: muted})
 						if last := strings.LastIndex(wrapped, "\x1b[38;2;"); last >= 0 {
 							if end := strings.IndexByte(wrapped[last:], 'm'); end >= 0 {
 								style = wrapped[last : last+end+1]
@@ -132,9 +143,6 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 						}
 					}
 				}
-			}
-			if end < len(lines) {
-				rows = append(rows, transcriptRow{text: "└─", fg: accent, bg: panel})
 			}
 			index, fence = end, ""
 			continue
@@ -166,14 +174,28 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 				row.fg = blue
 			} else if strings.HasPrefix(line, "+") {
 				row.fg = green
+				if diffAddBg != "" {
+					row.bg = diffAddBg
+				}
 			} else if strings.HasPrefix(line, "-") {
 				row.fg = red
+				if diffDelBg != "" {
+					row.bg = diffDelBg
+				}
 			}
 		case strings.HasPrefix(line, "You:"):
-			row.fg, row.bg = blue, panel
+			// The prompt: a filled band with a bar, so turns stand apart.
+			prompt := strings.TrimPrefix(strings.TrimPrefix(line, "You:"), " ")
+			for i, wrapped := range terminalRows(prompt, max(1, width-2)) {
+				rows = append(rows, transcriptRow{text: wrapped, fg: foreground, bg: panel, gutter: "▌", bar: blue, turn: i == 0})
+			}
+			continue
+		case strings.HasPrefix(line, "▸ "):
+			rows = append(rows, toolCallRows(line, width)...)
+			continue
 		case strings.HasPrefix(line, "[error]"):
 			row.fg = red
-		case strings.HasPrefix(line, "▸"), bracketTag(line):
+		case bracketTag(line):
 			row.fg = muted
 		case strings.HasPrefix(line, "✓"):
 			row.fg = green
@@ -181,7 +203,7 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 			trimmed := strings.TrimSpace(line)
 			indent := line[:len(line)-len(strings.TrimLeft(line, " "))]
 			if heading, rest, ok := strings.Cut(trimmed, " "); ok && len(heading) <= 6 && strings.Trim(heading, "#") == "" {
-				line, row.fg = renderInline(rest), accent
+				line, row.fg = boldOn+renderInline(rest)+boldOff, accent
 			} else if trimmed == "---" || trimmed == "***" || trimmed == "___" {
 				line, row.fg = strings.Repeat("─", min(width, 40)), muted
 			} else if strings.HasPrefix(line, "> ") {
@@ -205,8 +227,20 @@ func transcriptRows(text string, width int, fence string, review bool) []transcr
 			}
 			continue
 		}
+		code, bold := false, false
+		marked := hasStyleMarks(line)
 		for _, wrapped := range proseRows(line, width, hang) {
-			row.text = wrapped
+			row.text, row.styled = wrapped, ""
+			if !marked {
+				rows = append(rows, row)
+				continue
+			}
+			if hasStyleMarks(wrapped) {
+				row.text = styleMarks.Replace(wrapped)
+				row.styled, code, bold = styledRow(wrapped, row.fg, code, bold)
+			} else if code || bold {
+				row.styled, code, bold = styledRow(wrapped, row.fg, code, bold)
+			}
 			rows = append(rows, row)
 		}
 	}
@@ -255,7 +289,7 @@ func listItem(trimmed string) (string, bool) {
 func proseRows(text string, width int, hang string) []string {
 	text = strings.TrimRight(strings.ReplaceAll(Safe(text), "\t", "    "), " ")
 	width = max(1, width)
-	if ansi.StringWidth(text) <= width {
+	if textWidth(text) <= width {
 		return []string{text}
 	}
 	if ansi.StringWidth(hang)*2 > width {
@@ -275,7 +309,7 @@ func proseRows(text string, width int, hang string) []string {
 		if word == "" {
 			continue
 		}
-		w := ansi.StringWidth(word)
+		w := textWidth(word)
 		if !empty && used+1+w > width {
 			flush()
 		}
@@ -317,7 +351,9 @@ func proseRows(text string, width int, hang string) []string {
 		rows = append(rows, row)
 	}
 	for i := range rows {
-		rows[i] = ansi.Truncate(rows[i], width, "")
+		if textWidth(rows[i]) > width {
+			rows[i] = ansi.Truncate(rows[i], width, "")
+		}
 	}
 	return rows
 }
@@ -354,7 +390,7 @@ func inlineInto(b *strings.Builder, s string, depth int) {
 				if len(code) >= 2 && code[0] == ' ' && code[len(code)-1] == ' ' && strings.TrimSpace(code) != "" {
 					code = code[1 : len(code)-1]
 				}
-				b.WriteString(code)
+				b.WriteString(codeOn + code + codeOff)
 				i = end + n
 				continue
 			}
@@ -391,6 +427,13 @@ func inlineInto(b *strings.Builder, s string, depth int) {
 			n := markerRun(s, i, c)
 			if (c != '~' || n == 2) && n <= 3 && opensEmphasis(s, i, n, c) {
 				if end := closingRun(s, i+n, c, n, true); end >= 0 {
+					if n >= 2 && c != '~' {
+						b.WriteString(boldOn)
+						inlineInto(b, s[i+n:end], depth+1)
+						b.WriteString(boldOff)
+						i = end + n
+						continue
+					}
 					inlineInto(b, s[i+n:end], depth+1)
 					i = end + n
 					continue
@@ -499,10 +542,73 @@ func parseLink(s string, i int) (label, target string, next int, ok bool) {
 }
 
 func transcriptCell(row transcriptRow, width int) string {
+	if row.gutter != "" {
+		// The margin stays; the gutter lines up with the text around it.
+		bar := paint("  ", foreground, background) + paint(row.gutter, row.bar, row.bg)
+		if row.styled == "" {
+			return bar + cell(" "+row.text, width-3, row.fg, row.bg)
+		}
+		content := ansi.Truncate(row.styled, max(0, width-4), "")
+		return bar + paint(" "+content+strings.Repeat(" ", max(0, width-4-ansi.StringWidth(content))), row.fg, row.bg)
+	}
 	if row.styled == "" {
 		return cell("  "+row.text, width, row.fg, row.bg)
 	}
 	// styled is generated solely by highlightCode from sanitized text.
 	content := ansi.Truncate(row.styled, max(0, width-2), "")
 	return paint("  "+content+strings.Repeat(" ", max(0, width-2-ansi.StringWidth(content))), row.fg, row.bg)
+}
+
+// toolCallRows draws "▸ read_file  a.go" as "▸ Read  a.go": the verb bright,
+// the arguments muted.
+func toolCallRows(line string, width int) []transcriptRow {
+	name, args, _ := strings.Cut(strings.TrimPrefix(line, "▸ "), "  ")
+	verb := toolVerb(name)
+	wrapped := terminalRows("▸ "+verb+"  "+args, width)
+	rows := make([]transcriptRow, len(wrapped))
+	for i, text := range wrapped {
+		rows[i] = transcriptRow{text: text, fg: muted, bg: background}
+	}
+	if head, ok := strings.CutPrefix(wrapped[0], "▸ "+verb); ok && os.Getenv("NO_COLOR") == "" {
+		bright := "\x1b[39m"
+		if foreground != "" {
+			bright = "\x1b[38;2;" + foreground + "m"
+		}
+		rows[0].styled = "▸ " + bright + "\x1b[1m" + verb + "\x1b[22m\x1b[38;2;" + muted + "m" + head
+	}
+	return rows
+}
+
+// diffRows draws one line of a change: added lines on a green wash, removed
+// on a red one (plain colored text where no wash is known).
+func diffRows(diff string, width int) []transcriptRow {
+	row := transcriptRow{fg: muted, bg: background}
+	sign, text := " ", diff
+	if diff != "" {
+		sign, text = diff[:1], diff[1:]
+	}
+	switch sign {
+	case "+":
+		row.fg = green
+		if diffAddBg != "" {
+			row.bg = diffAddBg
+		}
+	case "-":
+		row.fg = red
+		if diffDelBg != "" {
+			row.bg = diffDelBg
+		}
+	default:
+		sign = " "
+	}
+	var rows []transcriptRow
+	row.gutter, row.bar = sign, row.fg // the wash starts at the text margin
+	for i, wrapped := range terminalRows(text, max(1, width-2)) {
+		if i > 0 {
+			row.gutter = " "
+		}
+		row.text = wrapped
+		rows = append(rows, row)
+	}
+	return rows
 }

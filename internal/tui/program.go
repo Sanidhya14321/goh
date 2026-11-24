@@ -68,7 +68,7 @@ type settler struct {
 }
 
 func (s *settler) Init() tea.Cmd {
-	cmd := interceptQuit(s.inner.Init())
+	cmd := tea.Batch(interceptQuit(s.inner.Init()), tea.RequestBackgroundColor)
 	if len(s.replay) > 0 {
 		cmd = tea.Batch(cmd, func() tea.Msg { return replayKeys{} })
 	}
@@ -87,6 +87,12 @@ func (s *settler) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, cmd)
 		}
 		return s, tea.Batch(cmds...)
+	}
+	if bg, ok := msg.(tea.BackgroundColorMsg); ok {
+		if !setTerminalBackground(bg.Color) {
+			return s, nil
+		}
+		msg = themeChanged{} // cached rows carry the old colors
 	}
 	if !s.closing {
 		if _, ok := msg.(quitRequested); ok {

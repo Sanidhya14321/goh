@@ -19,17 +19,29 @@ const (
 	verbatimMark = "\u2060"
 )
 
+// summaryOutputLines is how much output the compact view shows under a
+// result's first line; /details shows all of it.
+const summaryOutputLines = 4
+
 func toolResultLines(mark, content string) string {
 	lines := strings.Split(strings.TrimRight(content, "\n"), "\n")
-	summary := mark + oneLine(lines[0], 80)
-	if len(lines) > 1 {
-		summary += " (+" + itoa(len(lines)-1) + " lines)"
-	}
 	var b strings.Builder
-	b.WriteString(summaryMark + summary + "\n")
+	b.WriteString(summaryMark + mark + oneLine(lines[0], 120) + "\n")
+	rest := lines[1:]
+	// Most commands end with what matters (a summary, the failure), so the
+	// compact view keeps the last lines.
+	if len(rest) > summaryOutputLines {
+		b.WriteString(summaryMark + "  … " + itoa(len(rest)-summaryOutputLines+1) + " earlier lines · /details shows all\n")
+		rest = rest[len(rest)-summaryOutputLines+1:]
+	}
+	for _, line := range rest {
+		b.WriteString(summaryMark + "  " + strings.TrimRight(line, " \r") + "\n")
+	}
 	for i, line := range lines {
 		if i == 0 {
 			line = mark + line
+		} else {
+			line = "  " + line // output sits under its result line
 		}
 		b.WriteString(detailMark + line + "\n")
 	}
@@ -66,9 +78,9 @@ func itoa(n int) string {
 type detailsMode int
 
 const (
-	detailsShown    detailsMode = iota // tool output; fetched pages as one line
+	detailsHidden   detailsMode = iota // compact: a result line and the last few output lines (default)
+	detailsShown                       // all tool output; fetched pages as one line
 	detailsPreviews                    // and fetched-page previews
-	detailsHidden                      // one line per result
 )
 
 // withDetails keeps the lines the mode shows and drops the markers.
@@ -101,21 +113,21 @@ func withDetails(log string, mode detailsMode) string {
 
 func (m *model) toggleDetails() {
 	switch m.details {
+	case detailsHidden:
+		m.details = detailsShown
 	case detailsShown:
 		m.details = detailsHidden
 		if strings.Contains(m.log, previewMark) {
 			m.details = detailsPreviews
 		}
-	case detailsPreviews:
-		m.details = detailsHidden
 	default:
-		m.details = detailsShown
+		m.details = detailsHidden
 	}
 	switch m.details {
 	case detailsPreviews:
 		m.status = "Tool details shown, with fetched page previews"
 	case detailsHidden:
-		m.status = "Tool details hidden (one line per result)"
+		m.status = "Tool details compact (last lines of each result)"
 	default:
 		m.status = "Tool details shown"
 	}
@@ -124,10 +136,4 @@ func (m *model) toggleDetails() {
 // displayLog is the transcript as rendered (timestamps and details applied).
 func (m *model) displayLog() string {
 	return withThinking(withDetails(withStamps(m.log, m.timestamps), m.details), !m.hideThinking)
-}
-
-// lastLineIsToolOutput reports whether the log ends with a tool result line.
-func lastLineIsToolOutput(log string) bool {
-	last := log[strings.LastIndex(strings.TrimSuffix(log, "\n"), "\n")+1:]
-	return strings.Contains(last, detailMark) || strings.Contains(last, previewMark)
 }

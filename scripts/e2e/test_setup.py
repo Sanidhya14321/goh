@@ -199,7 +199,7 @@ with tempfile.TemporaryDirectory(prefix="goh-setup-") as temporary, http.server.
         pos = len(output)
         os.write(master, b"\x1b[Z\x15" + key.encode() + b"\x13")
         wait_for(b"Added custom (setup-fixture)", pos)
-        wait_for(b"Ctrl+P commands", pos)
+        wait_for(b" commands", pos)  # the hint row's label: the main screen is back
         saved = json.loads((config_dir / "config.json").read_text())
         assert saved["profiles"]["custom"]["model"] == "setup-fixture" and saved["model"] == "setup-fixture", saved
         assert saved["profiles"]["fast"] == {"model": "fixture-fast"}, saved

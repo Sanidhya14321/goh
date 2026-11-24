@@ -169,7 +169,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                 else:
                     os.write(master, b'Exercise the fixture\r')
                 if case=='typed_child':
-                    wait_for(b'Allow task?')
+                    wait_for(b'Allow Agent')
                     os.write(master,b'y')
                     wait_for(b'Typed parent fixture complete')
                     # Validate the root tool result, rather than matching display text.
@@ -239,7 +239,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                 elif case=='timeline_revert':
                     target=root/'undo-target.txt'
                     target.unlink(missing_ok=True)
-                    wait_for(b'Allow create_file?')
+                    wait_for(b'Allow Create')
                     os.write(master,b'y')
                     wait_reply('fixture complete.')
                     for attempt in range(250):
@@ -260,7 +260,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                 elif case=='undo_redo':
                     target=root/'undo-target.txt'
                     target.unlink(missing_ok=True)
-                    wait_for(b'Allow create_file?')
+                    wait_for(b'Allow Create')
                     os.write(master,b'y')
                     wait_reply('fixture complete.')  # the renderer may split the line
                     # Type /undo only once the run has settled; while running the
@@ -284,7 +284,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                     wait_for(b'Redid turn 1')
                     assert target.read_text()=='made in turn one','redo did not restore the file'
                 elif case.startswith('formatter_'):
-                    wait_for(b'Allow create_file?')
+                    wait_for(b'Allow Create')
                     os.write(master,b'y')
                     wait_for(b'format:fixture')
                     os.write(master,b'n' if case=='formatter_denial' else b'y')
@@ -301,16 +301,16 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                         wait_for(b'complete.')
                         assert (root/'format.fmtcase').read_text()==('raw' if case=='formatter_denial' else 'FORMATTED')
                 elif case.startswith('subagent_'):
-                    wait_for(b'Allow task?')
+                    wait_for(b'Allow Agent')
                     os.write(master,b'y')
                     if case=='subagent_approval':
-                        wait_for(b'Allow child:create_file?')
+                        wait_for(b'Allow subagent: Create')
                         os.write(master,b'y')
                         wait_for(b'Parent fixture complete')
                         wait_for(b'completed')
                         assert (root/'subagent-output').read_text()=='child output'
                     else:
-                        wait_for(b'Allow child:shell?')
+                        wait_for(b'Allow subagent: Shell?')
                         os.write(master,b'y')
                         wait_for('subagent ▸ shell'.encode())
                         for attempt in range(250):
@@ -343,7 +343,7 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                         wait_for(b'cancelled')
                         assert process.poll() is None,'question cancellation exited TUI'
                 elif case == 'tasks_and_compaction':
-                    wait_for(b'Allow todowrite?')
+                    wait_for(b'Allow Tasks')
                     os.write(master,b'y')
                     wait_for(b'Tasks: 1 remaining / 1 total')
                     wait_for(b'completed')
@@ -392,20 +392,20 @@ with tempfile.TemporaryDirectory(prefix='harness-tui-') as temporary, tempfile.T
                     job_pid=int((root/'job.pid').read_text())
                     os.kill(job_pid, 0)  # running while the chat is open
                 elif case == 'edit_approval':
-                    wait_for(b'Allow edit_file?')
+                    wait_for(b'Allow Edit ')
                     os.write(master, b'y')
-                    wait_for(b'Allow shell?')
+                    wait_for(b'Allow Shell?')
                     os.write(master, b'n')
                     wait_for(b'completed')
                     assert (root / 'note.txt').read_text() == 'beta\n'
                 elif case == 'permission_denial':
-                    wait_for(b'Allow shell?')
+                    wait_for(b'Allow Shell?')
                     os.write(master, b'n')
                     wait_for(b'completed')
                 elif case == 'shell_cancellation':
-                    wait_for(b'Allow shell?')
+                    wait_for(b'Allow Shell?')
                     os.write(master, b'y')
-                    wait_for('▸ shell'.encode())
+                    wait_for('▸ Shell'.encode())
                     os.write(master, b'\x1b')
                     wait_for(b'cancelled')
                     if process.poll() is not None:

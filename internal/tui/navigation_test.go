@@ -33,19 +33,19 @@ func TestTranscriptJumpsBetweenUserTurns(t *testing.T) {
 	}
 	m.View()
 	leader(m, 'k') // previous turn from the bottom
-	if got := topRow(m); got != "You: prompt 4" {
+	if got := topRow(m); got != "prompt 4" {
 		t.Fatalf("previous: top row %q", got)
 	}
 	leader(m, 'k')
-	if got := topRow(m); got != "You: prompt 3" {
+	if got := topRow(m); got != "prompt 3" {
 		t.Fatalf("previous again: top row %q", got)
 	}
 	leader(m, 'j')
-	if got := topRow(m); got != "You: prompt 4" {
+	if got := topRow(m); got != "prompt 4" {
 		t.Fatalf("next: top row %q", got)
 	}
 	leader(m, 'g') // first message
-	if got := topRow(m); got != "You: prompt 1" {
+	if got := topRow(m); got != "prompt 1" {
 		t.Fatalf("first: top row %q", got)
 	}
 	m.Update(tea.KeyPressMsg{Code: 'g', Mod: tea.ModCtrl | tea.ModAlt}) // last

@@ -54,7 +54,16 @@ type doneMsg struct {
 	status string
 	err    error
 }
+
+// toolCall is a running call's name and arguments, kept until its result
+// arrives so a file change can be shown as the lines it changed.
+type toolCall struct {
+	name      string
+	arguments json.RawMessage
+}
+
 type model struct {
+	calls map[string]toolCall
 	// reviewHidden is set by the view when a pending approval or question
 	// has none of its content on screen; it cannot be answered unseen.
 	reviewHidden bool
@@ -256,6 +265,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			m.fileCompletion.matches = m.completionMatches(v.files, m.fileCompletion.query)
 			m.fileCompletion.selected = min(m.fileCompletion.selected, max(0, len(m.fileCompletion.matches)-1))
 		}
+	case themeChanged:
+		m.wrappedRows, m.previewRows = nil, nil
+		return m, nil
 	case tea.WindowSizeMsg:
 		m.width = v.Width
 		m.height = v.Height
@@ -346,9 +358,7 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if m.partialReply == "" {
 				// A reply after tool output starts its own paragraph so it is
 				// not read as more of the output.
-				if strings.HasSuffix(m.log, "\n") && !strings.HasSuffix(m.log, "\n\n") && lastLineIsToolOutput(m.log) {
-					m.log += "\n"
-				}
+				m.log += replyBreak(m.log)
 				m.partialStart = len(m.log)
 			}
 			m.log += Safe(d.Text)
@@ -356,14 +366,23 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 		case "tool_started":
 			b, _ := json.Marshal(v.Data)
 			var tool struct {
+				ID        string          `json:"id"`
 				Name      string          `json:"name"`
 				Arguments json.RawMessage `json:"arguments"`
 			}
 			json.Unmarshal(b, &tool)
+			if m.calls == nil {
+				m.calls = map[string]toolCall{}
+			}
+			if len(m.calls) > 256 {
+				clear(m.calls) // only calls still running need their arguments
+			}
+			m.calls[tool.ID] = toolCall{tool.Name, tool.Arguments}
 			m.log += toolCallLine(tool.Name, tool.Arguments)
 		case "tool_finished":
 			b, _ := json.Marshal(v.Data)
 			var tool struct {
+				ID     string `json:"id"`
 				Result struct {
 					Error   bool   `json:"error"`
 					Content string `json:"content"`
@@ -374,7 +393,9 @@ func (m *model) Update(msg tea.Msg) (next tea.Model, command tea.Cmd) {
 			if tool.Result.Error {
 				mark = "[error] "
 			}
-			m.log += toolResultLog(mark, tool.Result.Content)
+			call := m.calls[tool.ID]
+			delete(m.calls, tool.ID)
+			m.log += toolFinishedLog(mark, tool.Result.Content, call.name, call.arguments)
 		case "context_compaction_skipped":
 			b, _ := json.Marshal(v.Data)
 			var d struct {
@@ -1081,6 +1102,7 @@ func screenHistory(a *agent.Agent) []core.Message {
 
 // loadHistory writes a resumed conversation the way a live turn writes it.
 func (m *model) loadHistory(history []core.Message, promptTimes map[string][]time.Time) {
+	calls := map[string]core.Call{}
 	for _, message := range history {
 		switch message.Role {
 		case "user":
@@ -1091,15 +1113,22 @@ func (m *model) loadHistory(history []core.Message, promptTimes map[string][]tim
 			m.rememberPrompt(message.Content)
 			m.log += stampLine(popTime(promptTimes, message.Content)) + "\nYou: " + Safe(message.Content) + "\n" + closeFence(Safe(message.Content)+"\n")
 		case "assistant":
-			if message.Content != "" && lastLineIsToolOutput(m.log) && !strings.HasSuffix(m.log, "\n\n") {
-				m.log += "\n"
+			if message.Content != "" {
+				m.log += replyBreak(m.log)
 			}
 			m.log += Safe(message.Content) + closeFence(Safe(message.Content))
 			for _, call := range message.ToolCalls {
+				calls[call.ID] = call
 				m.log += toolCallLine(call.Function.Name, json.RawMessage(call.Function.Arguments))
 			}
 		case "tool":
-			m.log += toolResultLog(historyToolParts(message.Content))
+			mark, content := historyToolParts(message.Content)
+			call := calls[message.ToolCallID]
+			var arguments json.RawMessage
+			if call.Function.Arguments != "" {
+				arguments = json.RawMessage(call.Function.Arguments)
+			}
+			m.log += toolFinishedLog(mark, content, call.Function.Name, arguments)
 		}
 	}
 }
@@ -1126,6 +1155,9 @@ func toolCallLine(name string, arguments json.RawMessage) string {
 
 func terminalRows(text string, width int) []string {
 	text = strings.ReplaceAll(Safe(text), "\t", "    ")
+	if !strings.Contains(text, "\n") && textWidth(text) <= width {
+		return []string{text} // fits: nothing to wrap or cut
+	}
 	rows := strings.Split(ansi.Hardwrap(text, width, true), "\n")
 	for i := range rows {
 		rows[i] = ansi.Truncate(rows[i], width, "")
@@ -1607,7 +1639,7 @@ func (m *model) transcriptHeight() int {
 	return max(1, m.height-8)
 }
 
-// jumpUserTurn moves the view to the previous or next "You:" turn relative to
+// jumpUserTurn moves the view to the previous or next prompt relative to
 // the turn currently at the top. Older turns outside the wrapped window are
 // reached by scrolling a page, which widens the window on the next render.
 func (m *model) jumpUserTurn(previous bool) {
@@ -1620,7 +1652,7 @@ func (m *model) jumpUserTurn(previous bool) {
 	target := -1
 	if previous {
 		for i := top - 1; i >= 0; i-- {
-			if strings.HasPrefix(strings.TrimSpace(rows[i].text), "You:") {
+			if rows[i].turn {
 				target = i
 				break
 			}
@@ -1632,7 +1664,7 @@ func (m *model) jumpUserTurn(previous bool) {
 		}
 	} else {
 		for i := top + 1; i < len(rows); i++ {
-			if strings.HasPrefix(strings.TrimSpace(rows[i].text), "You:") {
+			if rows[i].turn {
 				target = i
 				break
 			}
@@ -1813,3 +1845,18 @@ func groupDigits(n int) string {
 	}
 	return s
 }
+
+// replyBreak starts a reply on its own paragraph: after the prompt, after
+// tool output and after an earlier reply alike.
+func replyBreak(log string) string {
+	switch {
+	case log == "" || strings.HasSuffix(log, "\n\n"):
+		return ""
+	case strings.HasSuffix(log, "\n"):
+		return "\n"
+	}
+	return "\n\n"
+}
+
+// themeChanged tells a screen its cached rows were drawn in old colors.
+type themeChanged struct{}

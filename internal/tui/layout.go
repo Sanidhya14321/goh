@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -42,8 +41,12 @@ func paint(text, fg, bg string) string {
 
 func cell(text string, width int, fg, bg string) string {
 	text = strings.ReplaceAll(strings.ReplaceAll(Safe(text), "\t", "    "), "\n", " ")
-	text = ansi.Truncate(text, max(0, width), "…") // a cut shows, not a word fragment
-	return paint(text+strings.Repeat(" ", max(0, width-ansi.StringWidth(text))), fg, bg)
+	w := textWidth(text)
+	if w > width {
+		text = ansi.Truncate(text, max(0, width), "…") // a cut shows, not a word fragment
+		w = ansi.StringWidth(text)
+	}
+	return paint(text+strings.Repeat(" ", max(0, width-w)), fg, bg)
 }
 
 // fitHints shortens a row of key hints to width by dropping whole hints
@@ -75,8 +78,12 @@ func canvas(rows []string, width, height int) tea.View {
 	for i, row := range rows {
 		// Rows already contain our own styling. Padding is always a trusted
 		// sequence and never reinterprets untrusted escape codes.
-		row = ansi.Truncate(row, width, "")
-		rows[i] = row + paint(strings.Repeat(" ", max(0, width-ansi.StringWidth(row))), foreground, background)
+		w := textWidth(row)
+		if w > width {
+			row = ansi.Truncate(row, width, "")
+			w = ansi.StringWidth(row)
+		}
+		rows[i] = row + paint(strings.Repeat(" ", max(0, width-w)), foreground, background)
 	}
 	view := tea.NewView(strings.Join(rows, "\n"))
 	view.AltScreen = true
@@ -146,7 +153,10 @@ func (m *model) View() tea.View {
 	if version := Version; version != "" {
 		right += " " + version
 	}
-	right = Safe(modelName) + "  ·  " + right + " "
+	if line := m.contextLine(); line != "" {
+		right = strings.TrimPrefix(line, "Context: ") + " context  ·  " + right
+	}
+	right += " "
 	rightWidth := min(ansi.StringWidth(right), max(0, width/2))
 	footer := cell(" "+Safe(shortPath(project, width-rightWidth-3)), width-rightWidth, muted, background) +
 		cell(right, rightWidth, muted, background)
@@ -169,6 +179,7 @@ func (m *model) View() tea.View {
 	}
 
 	draftRows := m.inputRows(promptWidth - 5)
+	placeholder := false
 	if m.input == "" {
 		draft := "Ask anything about your project…"
 		switch {
@@ -186,6 +197,7 @@ func (m *model) View() tea.View {
 			draft = "Press Enter to " + step
 		}
 		draftRows = terminalRows("▏ "+draft, promptWidth-5)
+		placeholder = true
 	}
 	draftRows = draftRows[max(0, len(draftRows)-3):]
 	promptRows := m.fileCompletionRows(promptWidth, min(6, max(1, height-16)))
@@ -217,13 +229,21 @@ func (m *model) View() tea.View {
 		}
 		promptRows = append(promptRows, cell(hint, promptWidth, accent, panel))
 	}
-	promptRows = append(promptRows, cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel))
+	if !home {
+		// What is happening now sits where the eye is: just above the input.
+		promptRows = append(promptRows, cell(m.statusLine(), promptWidth, statusColor(m), background))
+	}
+	draftColor := foreground
+	if placeholder {
+		draftColor = muted
+	}
+	promptRows = append(promptRows, cell("▌", 1, blue, panel)+cell("", promptWidth-1, foreground, panel))
 	for _, row := range draftRows {
-		promptRows = append(promptRows, cell("▎", 1, blue, background)+cell("  "+row, promptWidth-1, foreground, panel))
+		promptRows = append(promptRows, cell("▌", 1, blue, panel)+cell("  "+row, promptWidth-1, draftColor, panel))
 	}
 	promptRows = append(promptRows,
-		cell("▎", 1, blue, background)+cell("", promptWidth-1, foreground, panel),
-		cell("▎", 1, blue, background)+cell("  Agent: "+agentName+"  ·  "+modelName+"  ·  "+m.accessLabel(), promptWidth-1, blue, panel))
+		cell("▌", 1, blue, panel)+cell("", promptWidth-1, foreground, panel),
+		cell("▌", 1, blue, panel)+agentLine(agentName, modelName, m.accessLabel(), promptWidth-1))
 	controls := "Enter send  Alt+Enter newline  "
 	if key := m.keyLabel("command_palette"); key != "" {
 		controls += key + " commands  "
@@ -250,7 +270,7 @@ func (m *model) View() tea.View {
 	if !m.lastInterrupt.IsZero() && time.Since(m.lastInterrupt) < 2*time.Second {
 		controls = "Press Ctrl+C again to exit"
 	}
-	promptRows = append(promptRows, cell("   "+fitHints(controls, promptWidth-3), promptWidth, muted, background))
+	promptRows = append(promptRows, cell("   ", 3, muted, background)+keyHints(controls, promptWidth-3))
 
 	var rows []string
 	if home {
@@ -275,10 +295,7 @@ func (m *model) View() tea.View {
 		}
 		rows = append(rows, cell(strings.Repeat(" ", max(0, (width-9)/2))+"GoHarness", width, muted, background), "")
 	} else {
-		rows = append(rows,
-			cell("  GoHarness  /  "+filepath.Base(project), columns+4, foreground, panel),
-			cell("  "+m.statusLine(), columns+4, statusColor(m), background),
-			"")
+		rows = append(rows, "")
 		if len(m.todos) > 0 && sideWidth == 0 {
 			remaining := 0
 			for _, todo := range m.todos {
@@ -297,7 +314,7 @@ func (m *model) View() tea.View {
 	body, review := m.displayLog(), ""
 	if m.pending != nil {
 		body = relativizePreview(m.pending.request.Preview, project)
-		review = "Allow " + m.pending.request.Tool + "?   " + m.approvalChoices("  ·  ") + "  ·  PgUp/PgDn scroll"
+		review = "Allow " + approvalTitle(m.pending.request.Tool, body) + "?  ·  " + m.approvalChoices("  ·  ") + "  ·  PgUp/PgDn scroll"
 	} else if m.question != nil {
 		body, review = m.question.view(), "INTERACTIVE QUESTION · answers grant no permissions"
 	} else if home {
@@ -339,12 +356,28 @@ func (m *model) View() tea.View {
 			for _, row := range lines {
 				rows = append(rows, transcriptCell(row, columns+4))
 			}
-			rows = append(rows, cell("  "+strings.Repeat("─", max(0, columns-2)), columns+4, muted, background))
+			rows = append(rows, "")
 		}
-		for _, row := range header {
-			rows = append(rows, cell("  "+row, columns+4, accent, panel))
+		for i, row := range header {
+			lead := paint("  ", foreground, background) + cell("▌", 1, accent, panel)
+			if i == 0 {
+				// The question in accent, its keys styled like every hint row.
+				question, keys, _ := strings.Cut(row, "?  ·  ")
+				if keys == "" || os.Getenv("NO_COLOR") != "" {
+					rows = append(rows, lead+cell(" "+row, columns+1, accent, panel))
+					continue
+				}
+				head := " " + question + "?  "
+				rows = append(rows, lead+paint(head, accent, panel)+panelHints(keys, columns+1-ansi.StringWidth(head)))
+				continue
+			}
+			rows = append(rows, lead+paint(" ", foreground, panel)+panelHints(row, columns))
 		}
 		for _, row := range preview {
+			row.gutter, row.bar = "▌", accent
+			if row.bg == background {
+				row.bg = panel
+			}
 			rows = append(rows, transcriptCell(row, columns+4))
 		}
 		used := len(header) + len(preview)
@@ -383,9 +416,13 @@ func (m *model) View() tea.View {
 			if i < len(sidebar) {
 				side = sidebar[i]
 			}
-			row := ansi.Truncate(rows[i], width-sideWidth-1, "")
-			rows[i] = row + paint(strings.Repeat(" ", max(0, width-sideWidth-1-ansi.StringWidth(row))), foreground, background) +
-				cell("│", 1, muted, background) + cell("  "+side, sideWidth, sidebarColor(side), panel)
+			row, w := rows[i], textWidth(rows[i])
+			if w > width-sideWidth-1 {
+				row = ansi.Truncate(row, width-sideWidth-1, "")
+				w = ansi.StringWidth(row)
+			}
+			rows[i] = row + paint(strings.Repeat(" ", max(0, width-sideWidth-1-w)), foreground, background) +
+				cell("│", 1, muted, background) + cell("  "+side, sideWidth, sidebarColor(side), background)
 		}
 	}
 	for len(rows) < height-1 {
@@ -569,13 +606,8 @@ func (m *model) sidebar(sessionID, modelName string) []string {
 			rows = append(rows, fmt.Sprintf("  +%d more · /todos", rest))
 		}
 	}
-	rows = append(rows, "")
 	if key := m.keyLabel("sidebar_toggle"); key != "" {
-		rows = append(rows, key+" toggle sidebar")
-	}
-	rows = append(rows, "PgUp/PgDn history")
-	if key := m.keyLabel("command_palette"); key != "" {
-		rows = append(rows, key+" commands")
+		rows = append(rows, "", key+" hides this")
 	}
 	return rows
 }
@@ -676,3 +708,32 @@ func keyRows(text, sep string, width int) []string {
 	}
 	return append(rows, line)
 }
+
+// agentLine is the composer's last row: the agent in blue, the model and
+// access muted ("Agent: build  ·  gpt-6.1-sol  ·  Access: Ask").
+func agentLine(agent, model, access string, width int) string {
+	text := "  Agent: " + agent + "  ·  " + model + "  ·  " + access
+	if os.Getenv("NO_COLOR") != "" || ansi.StringWidth(text) > width {
+		return cell(text, width, blue, panel)
+	}
+	return paint("  Agent: "+Safe(agent), blue, panel) +
+		cell("  ·  "+model+"  ·  "+access, width-ansi.StringWidth("  Agent: "+agent), muted, panel)
+}
+
+// approvalTitle names what is asked in words: "Edit note.txt", "Shell go
+// test ./...". The file comes from the preview's "+++ " header.
+func approvalTitle(tool, preview string) string {
+	if rest, ok := strings.CutPrefix(tool, "child:"); ok {
+		return "subagent: " + approvalTitle(rest, preview)
+	}
+	verb := toolVerb(tool)
+	for _, line := range strings.SplitN(preview, "\n", 8) {
+		if path, ok := strings.CutPrefix(line, "+++ "); ok && path != "/dev/null" {
+			return verb + " " + oneLine(Safe(strings.TrimPrefix(path, "b/")), 60)
+		}
+	}
+	return verb
+}
+
+// panelHints is keyHints drawn on the panel color.
+func panelHints(text string, width int) string { return keyHintsOn(text, width, panel) }

@@ -57,7 +57,7 @@ func checkFetchTranscript(t *testing.T, m *model, host string) {
 	t.Helper()
 	_, shown := renderedText(m.displayLog(), 100)
 	summary := "✓ http://" + host + "/example/fixture · HTTP 200 · " // https:// is the part dropped
-	if !strings.Contains(shown, "▸ webfetch  http://"+host+"/example/fixture") || !strings.Contains(shown, summary) || !strings.Contains(shown, " markdown") {
+	if !strings.Contains(shown, "▸ Fetch  http://"+host+"/example/fixture") || !strings.Contains(shown, summary) || !strings.Contains(shown, " markdown") {
 		t.Fatalf("compact fetch result missing:\n%s", shown)
 	}
 	for _, page := range []string{"Title: GitHub", "# Fixture", "Exact file tools", "go install"} {
@@ -66,8 +66,12 @@ func checkFetchTranscript(t *testing.T, m *model, host string) {
 		}
 	}
 	m.toggleDetails()
+	if m.details != detailsShown {
+		t.Fatal("first /details should show all tool output", m.status)
+	}
+	m.toggleDetails()
 	if m.details != detailsPreviews || !strings.Contains(m.status, "previews") {
-		t.Fatal("first /details should reveal page previews", m.status)
+		t.Fatal("second /details should reveal page previews", m.status)
 	}
 	_, previews := renderedText(m.displayLog(), 100)
 	for _, want := range []string{summary, "  Title: GitHub - example/fixture", "  # Fixture", "  [Fixture](https://github.com/example/fixture) is a **terminal", "  … 4 more lines"} {
@@ -85,7 +89,7 @@ func checkFetchTranscript(t *testing.T, m *model, host string) {
 	}
 	m.toggleDetails()
 	if m.details != detailsShown {
-		t.Fatal("details should cycle back to shown")
+		t.Fatal("details should cycle on to shown")
 	}
 
 	for _, width := range []int{20, 32} {
@@ -188,7 +192,7 @@ func TestFetchErrorsStayVisible(t *testing.T) {
 	}
 	// Shell output stays literal and fully shown by default.
 	shell := toolResultLog("✓ ", `{"exit_code":0,"output":"# heading\n**kwargs\nhttps://x.test/a"}`)
-	if _, text := renderedText(withDetails(shell, detailsShown), 80); !strings.Contains(text, "exit 0\n# heading\n**kwargs\nhttps://x.test/a") {
+	if _, text := renderedText(withDetails(shell, detailsShown), 80); !strings.Contains(text, "exit 0\n  # heading\n  **kwargs\n  https://x.test/a") {
 		t.Fatalf("shell output changed: %q", text)
 	}
 }
@@ -219,7 +223,7 @@ func TestInlineMarkdown(t *testing.T) {
 		"[unclosed](link and [x] plain":                                  "[unclosed](link and [x] plain",
 		"***both*** __strong__":                                          "both strong",
 	} {
-		if got := renderInline(in); got != want {
+		if got := styleMarks.Replace(renderInline(in)); got != want {
 			t.Errorf("%q\n got %q\nwant %q", in, got, want)
 		}
 	}
@@ -233,7 +237,7 @@ func TestInlineMarkdown(t *testing.T) {
 // Prose wraps between words at any width; only a token wider than a row is
 // broken, and wide characters count as two cells.
 func TestProseWrapsAtWordBoundaries(t *testing.T) {
-	words := strings.Fields(renderInline(strings.ReplaceAll(repoAnswer, "\n\n", " ")))
+	words := strings.Fields(styleMarks.Replace(renderInline(strings.ReplaceAll(repoAnswer, "\n\n", " "))))
 	for _, width := range []int{24, 40, 60, 100, 160} {
 		rows := transcriptRows(repoAnswer, width, "", false)
 		var got []string
@@ -274,7 +278,7 @@ func TestProseWrapsAtWordBoundaries(t *testing.T) {
 	fence := strings.Repeat("\x60", 3)
 	code := transcriptRows(fence+"go\nx := \"a b c d e f g h i j k l m n\"\n"+fence, 16, "", false)
 	var joined string
-	for _, row := range code[1 : len(code)-1] {
+	for _, row := range code {
 		joined += row.text
 	}
 	if joined != "x := \"a b c d e f g h i j k l m n\"" {
@@ -355,7 +359,7 @@ func TestFencesStayInsideTheirMessage(t *testing.T) {
 			code = append(code, row.text)
 		}
 	}
-	if strings.Join(code, "|") != "┌─ md|"+fence+"go|inner|"+fence+"|~~~|└─" || rows[len(rows)-1].text != "prose" {
+	if strings.Join(code, "|") != fence+"go|inner|"+fence+"|~~~" || rows[len(rows)-1].text != "prose" {
 		t.Fatalf("delimiter length not respected: %q", code)
 	}
 }

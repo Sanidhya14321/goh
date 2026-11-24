@@ -44,7 +44,7 @@ func TestFindScrollsOldMatchesIntoView(t *testing.T) {
 	if !screenHas(m, "NeedleOld") || !strings.Contains(m.status, "Match 1/2") {
 		t.Fatal("older match not scrolled into view", m.status, m.scrollOffset)
 	}
-	if !screenHas(m, "▸ You: where is NeedleOld") || screenHas(m, "▸ filler") {
+	if !screenHas(m, "▸ where is NeedleOld") || screenHas(m, "▸ filler") {
 		t.Fatal("match not marked, or a non-match marked")
 	}
 	m.Update(tea.KeyPressMsg{Code: tea.KeyDown})

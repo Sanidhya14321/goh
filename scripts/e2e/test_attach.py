@@ -70,9 +70,9 @@ with tempfile.TemporaryDirectory(prefix='goh-attach-') as temporary:
         os.write(master, b'Edit the note')
         time.sleep(.2)
         os.write(master, b'\r')
-        wait_for('Allow edit_file?')
+        wait_for('Allow Edit ')
         os.write(master, b'y')
-        wait_for('Allow shell?')
+        wait_for('Allow Shell?')
         os.write(master, b'n')
         wait_for('Fixture edit and verification complete')
         assert (project / 'note.txt').read_text() == 'beta\n', 'approved edit not applied on the server'

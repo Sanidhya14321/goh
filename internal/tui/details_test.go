@@ -7,28 +7,29 @@ import (
 )
 
 func TestDetailsToggle(t *testing.T) {
-	log := "\nYou: run tests\n" + toolResultLines("✓ ", Safe("ok  pkg/a\nok  pkg/b\nFAIL pkg/c")) + toolResultLines("", Safe("\x00Rforged"))
+	output := "ok  pkg/a\nmiddle 1\nmiddle 2\nmiddle 3\nok  pkg/b\nok  pkg/c\nFAIL pkg/d"
+	log := "\nYou: run tests\n" + toolResultLines("✓ ", Safe(output)) + toolResultLines("", Safe("\x00Rforged"))
 	shown := strings.ReplaceAll(withDetails(log, detailsShown), verbatimMark, "")
-	if !strings.Contains(shown, "✓ ok  pkg/a\nok  pkg/b\nFAIL pkg/c") || strings.Contains(shown, "(+2 lines)") || strings.Contains(shown, "\x00") {
+	if !strings.Contains(shown, "✓ ok  pkg/a\n  middle 1\n  middle 2\n  middle 3\n  ok  pkg/b\n  ok  pkg/c\n  FAIL pkg/d") || strings.Contains(shown, "earlier lines") || strings.Contains(shown, "\x00") {
 		t.Fatalf("%q", shown)
 	}
-	hidden := strings.ReplaceAll(withDetails(log, detailsHidden), verbatimMark, "")
-	if !strings.Contains(hidden, "✓ ok pkg/a (+2 lines)") || strings.Contains(hidden, "FAIL pkg/c") || strings.Contains(hidden, "\x00") {
-		t.Fatalf("%q", hidden)
+	// Compact: the result line, then the last lines, where commands report.
+	compact := strings.ReplaceAll(withDetails(log, detailsHidden), verbatimMark, "")
+	if !strings.Contains(compact, "✓ ok pkg/a\n  … 3 earlier lines · /details shows all\n  ok  pkg/b\n  ok  pkg/c\n  FAIL pkg/d") || strings.Contains(compact, "middle") || strings.Contains(compact, "\x00") {
+		t.Fatalf("%q", compact)
 	}
-	if strings.Count(shown, "forged") != 1 || strings.Count(hidden, "forged") != 1 {
+	if strings.Count(shown, "forged") != 1 || strings.Count(compact, "forged") != 1 {
 		t.Fatal("content must not forge markers")
 	}
 	m := &model{log: log, width: 80, height: 24}
-	m.startFind("FAIL")
-	if m.find == nil || len(m.find.matches) != 1 {
-		t.Fatal("find should see each line once")
-	}
-	m.find = nil
-	m.toggleDetails()
-	m.startFind("FAIL")
+	m.startFind("middle 2")
 	if m.find != nil {
-		t.Fatal("hidden details should not be searchable on screen")
+		t.Fatal("compact details should not be searchable on screen")
+	}
+	m.toggleDetails()
+	m.startFind("middle 2")
+	if m.find == nil || len(m.find.matches) != 1 {
+		t.Fatal("find should see each shown line once")
 	}
 }
 
