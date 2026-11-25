@@ -166,12 +166,15 @@ func (a *Agent) accessDecision(p core.Permission) (allow bool, confine string, l
 		}
 		dir := root
 		if args.Cwd != "" {
-			if filepath.IsAbs(args.Cwd) {
-				return false, "", ""
-			}
 			dir = filepath.Join(root, filepath.FromSlash(args.Cwd))
+			if filepath.IsAbs(args.Cwd) {
+				dir = filepath.Clean(args.Cwd) // the tools accept one inside the project
+			}
 			if r, err := filepath.EvalSymlinks(dir); err == nil {
 				dir = r
+			}
+			if rel, err := filepath.Rel(root, dir); err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+				return false, "", "" // outside the project: ask
 			}
 		}
 		level, folder := a.levelAt(dir)

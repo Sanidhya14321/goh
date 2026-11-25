@@ -114,6 +114,12 @@ func TestAccessIsScopedToFolders(t *testing.T) {
 	if asked, confine := probe("shell", map[string]string{"command": "npm test", "cwd": "web"}); asked || confine != filepath.Join(root, "web") {
 		t.Errorf("command in the auto folder: asked=%v confine=%q", asked, confine)
 	}
+	if asked, confine := probe("shell", map[string]string{"command": "npm test", "cwd": filepath.Join(root, "web")}); asked || confine != filepath.Join(root, "web") {
+		t.Errorf("absolute cwd in the auto folder: asked=%v confine=%q", asked, confine)
+	}
+	if asked, _ := probe("shell", map[string]string{"command": "npm test", "cwd": filepath.Dir(root)}); !asked {
+		t.Error("a cwd outside the project did not ask")
+	}
 	if asked, _ := probe("shell", map[string]string{"command": "npm test"}); !asked {
 		t.Error("command at the project root did not ask")
 	}
