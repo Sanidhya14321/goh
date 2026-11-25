@@ -127,6 +127,13 @@ class Goh(BaseInstalledAgent):
         await self.exec_as_root(environment, f"mkdir -p {Path(CA_PATH).parent}")
         await self._upload(environment, HOST_CA, CA_PATH)
         await self.exec_as_root(environment, f"chmod 644 {CA_PATH}")
+        # Terminal-Bench bounds each task by time; goh's own turn cap (64 by
+        # default) is raised to its maximum so it does not end a run first.
+        await self.exec_as_agent(
+            environment,
+            'mkdir -p "$HOME/.config/independent-harness" && '
+            'printf \'{"max_turns": 256}\\n\' > "$HOME/.config/independent-harness/config.json"',
+        )
         await self._place_token(environment)
 
     async def _keep_token_fresh(self, environment: BaseEnvironment) -> None:
