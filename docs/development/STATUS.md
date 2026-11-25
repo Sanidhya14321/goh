@@ -1,6 +1,6 @@
 # Project status
 
-*Last reviewed: 24 November 2026 · latest release `v1.1.0` ([changelog](../../CHANGELOG.md)).*
+*Last reviewed: 26 November 2026 · latest release `v1.1.0` ([changelog](../../CHANGELOG.md)).*
 
 GoHarness 1.1.0 is the latest stable release (1.0.0 was the first). Every milestone passes the gates in
 [TESTING.md](TESTING.md); per-release evidence is in [VERIFICATION.md](VERIFICATION.md). This page
@@ -38,14 +38,14 @@ them. No manual Windows session has been run.
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
-| Benchmark | The research experiments and the private holdout have no live result | The first attempt (24 Nov) hit the ChatGPT usage limit before any request; rerun when quota allows ([experiments](../BENCHMARKS.md)) |
+| Benchmark | Terminal-Bench 2.0 (Harbor, Apple containers, `gpt-6.2-sol` medium) is partial: 36 of 43 decided tasks solved before the ChatGPT usage limit; the full 89 need a rerun on one build ([results](../BENCHMARKS.md#terminal-bench-20-partial)). The research experiments stay off: they only cost on the Go hard tasks | ChatGPT usage limits stop long runs |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
 | MCP | OAuth sign-in (`goh mcp login`) is tested against a loopback authorization server only | Needs a live OAuth MCP server |
 | Providers | A provider's per-request cap is learned from its first refusal (one wasted request per run in `goh run`; a chat session keeps it). Providers whose refusal does not state the cap still fail with HTTP 413 | Groq states it; others vary |
 | Providers | A fallback's stated request cap is only used to skip that fallback; its request is not shrunk to fit it. `max_run_tokens` is checked between requests, so one request can finish above it | The primary keeps cap learning; per-route compaction would be a larger change |
-| Verification | A check inside a pipeline, after `\|\|`, followed by another command, or using a redirect such as `2>&1` does not count as verification even when it passed | Its exit status cannot be tied to the check from the command text; run the check on its own or use `verify` |
+| Verification | A check inside a pipeline, after `\|\|`, or followed by another command does not count as verification even when it passed, unless the script starts with `set -e` and no `&&` chain precedes a later line (here-document scripts and redirects such as `2>&1` do count) | Its exit status cannot be tied to the check from the command text; run the check on its own or use `verify` |
 | Attach | `goh attach` works only with a loopback `goh serve` | Remote servers are out of scope |
 | CI | On Windows runners, `TestRealClangd` and `TestParentChildCancellationUnderLoad` failed together in 3 of 8 runs on 17 Nov and again on 19 Nov (run 44553177409): clangd took over 15 s to initialize and six PowerShell children took over 30 s to start while other packages ran | Runner load. Both tests now allow a slower start-up (45 s LSP operations in the clangd test, 120 s child start on Windows) without loosening the cancellation and approval checks they measure; watch whether they recur |
 
@@ -55,6 +55,6 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 ## Next
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
-2. **Benchmark:** run the experiment arms and the private holdout (`research/holdout`) live ([experiments](../BENCHMARKS.md)).
+2. **Benchmark:** rerun all 89 Terminal-Bench 2.0 tasks on one build when ChatGPT quota allows (`bench/harbor_agent/run.sh -d terminal-bench@2.0 -n 4`).
 3. **Long sessions:** opening a journal still reads every record (40 ms, 79 MB at 20,000 records); a
    streaming or tail-only open for resume and attach, if that cost matters in practice.
