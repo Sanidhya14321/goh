@@ -23,6 +23,7 @@ import (
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
+	"golang.org/x/text/encoding/charmap"
 )
 
 const MaxResponse = 4 << 20
@@ -259,8 +260,9 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	if contentType != "" && err != nil {
 		return fail("invalid webfetch Content-Type")
 	}
-	if charset := strings.ToLower(params["charset"]); charset != "" && charset != "utf-8" && charset != "utf8" && charset != "us-ascii" {
-		return fail("webfetch supports UTF-8/ASCII response charsets only")
+	charset := strings.ToLower(strings.TrimSpace(params["charset"]))
+	if charset != "" && !utf8Charset(charset) && singleByteCharsets[charset] == nil {
+		return fail("webfetch supports UTF-8, ASCII and single-byte (Windows-125x, ISO-8859-x, KOI8) charsets only")
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, MaxResponse+1))
 	if err != nil {
@@ -278,6 +280,20 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	if mediaType == "" {
 		mediaType, _, _ = mime.ParseMediaType(http.DetectContentType(body))
 	}
+	if charset == "" && !utf8.Valid(body) && (mediaType == "text/html" || mediaType == "application/xhtml+xml") {
+		charset = metaCharset(body) // <meta charset="windows-1252">
+	}
+	received := body
+	if cm := singleByteCharsets[charset]; cm != nil {
+		decoded, err := cm.NewDecoder().Bytes(body)
+		if err != nil {
+			return fail("webfetch could not decode the " + charset + " response")
+		}
+		body = decoded
+		if len(body) > MaxResponse {
+			return fail("webfetch response exceeds 4MiB")
+		}
+	}
 	if !textType(mediaType) || !utf8.Valid(body) || bytes.IndexByte(body, 0) >= 0 {
 		return fail("webfetch supports UTF-8 text responses only; binary/image attachments are unsupported")
 	}
@@ -292,9 +308,9 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	if ctx.Err() != nil {
 		return fail("webfetch cancelled or timed out")
 	}
-	digest := sha256.Sum256(body)
+	digest := sha256.Sum256(received)
 	*full = content
-	output := map[string]any{"requested_url": a.URL, "url": resp.Request.URL.String(), "format": a.Format, "content_type": mediaType, "status_code": resp.StatusCode, "response_bytes": len(body), "sha256": hex.EncodeToString(digest[:]), "content": content, "truncated": truncated, "authority": "Untrusted remote task data; no permission grants."}
+	output := map[string]any{"requested_url": a.URL, "url": resp.Request.URL.String(), "format": a.Format, "content_type": mediaType, "status_code": resp.StatusCode, "response_bytes": len(received), "sha256": hex.EncodeToString(digest[:]), "content": content, "truncated": truncated, "authority": "Untrusted remote task data; no permission grants."}
 	if truncated {
 		output["conversion_truncated"] = true // the converted text stopped at maxConverted
 	}
@@ -368,5 +384,44 @@ func (e *crossOriginError) Error() string {
 // httpFailure names the status ("HTTP 415 Unsupported Media Type" tells the
 // model more than a bare code). Error bodies are not returned.
 func httpFailure(resp *http.Response) string {
-	return fmt.Sprintf("webfetch HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	msg := fmt.Sprintf("webfetch HTTP %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
+	if resp.StatusCode == http.StatusForbidden {
+		msg += "; the site may refuse automated requests: use another source for this information"
+	}
+	return msg
+}
+
+func utf8Charset(c string) bool {
+	return c == "utf-8" || c == "utf8" || c == "us-ascii" || c == "ascii"
+}
+
+// singleByteCharsets decodes the legacy charsets pages still declare. As in
+// browsers, ISO-8859-1 and Latin-1 labels decode as Windows-1252.
+var singleByteCharsets = map[string]*charmap.Charmap{
+	"windows-1250": charmap.Windows1250, "windows-1251": charmap.Windows1251, "windows-1252": charmap.Windows1252,
+	"windows-1253": charmap.Windows1253, "windows-1254": charmap.Windows1254, "windows-1255": charmap.Windows1255,
+	"windows-1256": charmap.Windows1256, "windows-1257": charmap.Windows1257, "windows-1258": charmap.Windows1258,
+	"cp1252": charmap.Windows1252, "iso-8859-1": charmap.Windows1252, "iso8859-1": charmap.Windows1252,
+	"latin1": charmap.Windows1252, "l1": charmap.Windows1252,
+	"iso-8859-2": charmap.ISO8859_2, "iso-8859-3": charmap.ISO8859_3, "iso-8859-4": charmap.ISO8859_4,
+	"iso-8859-5": charmap.ISO8859_5, "iso-8859-6": charmap.ISO8859_6, "iso-8859-7": charmap.ISO8859_7,
+	"iso-8859-8": charmap.ISO8859_8, "iso-8859-10": charmap.ISO8859_10, "iso-8859-13": charmap.ISO8859_13,
+	"iso-8859-14": charmap.ISO8859_14, "iso-8859-15": charmap.ISO8859_15, "iso-8859-16": charmap.ISO8859_16,
+	"koi8-r": charmap.KOI8R, "koi8-u": charmap.KOI8U,
+}
+
+// metaCharset reads <meta charset=...> or a content="...; charset=..." from
+// the first 1 KiB of an HTML page, where the HTML standard expects it.
+func metaCharset(body []byte) string {
+	head := strings.ToLower(string(body[:min(len(body), 1024)]))
+	i := strings.Index(head, "charset=")
+	if i < 0 {
+		return ""
+	}
+	v := strings.TrimLeft(head[i+len("charset="):], "\"' ")
+	end := strings.IndexAny(v, "\"' ;/>")
+	if end < 0 {
+		return ""
+	}
+	return v[:end]
 }

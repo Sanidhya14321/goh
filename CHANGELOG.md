@@ -38,6 +38,8 @@ Each entry lists user-visible changes; evidence for each is in
 - Checks written as scripts count: an inline script whose body is a here-document
   (`python3 - <<'PY' … PY`) and a `set -e` script of checks. The completion reminder fired in 37 of 50
   Terminal-Bench runs because these were not recognized, costing about two requests each.
+- `webfetch` decodes single-byte charsets (Windows-125x, ISO-8859-x, KOI8; from the header or an HTML
+  `<meta charset>`) instead of refusing the page, and an HTTP 403 says the site may refuse automated requests.
 - A shell command stopped at its own timeout now returns to the model (status `timed_out`, with a hint to
   raise `timeout_seconds` or use `job_start`) instead of ending the run; Terminal-Bench ended a run there.
 

@@ -153,6 +153,12 @@ func TestResponseValidationAndBoundedResults(t *testing.T) {
 			w.Write([]byte{255})
 		case "/latin":
 			w.Header().Set("Content-Type", "text/plain; charset=iso-8859-1")
+			w.Write([]byte("caf\xe9 \x93q\x94")) // é and Windows-1252 quotes
+		case "/meta-latin":
+			w.Header().Set("Content-Type", "text/html")
+			w.Write([]byte("<html><head><meta charset=\"windows-1252\"></head><body><p>na\xefve</p></body></html>"))
+		case "/sjis":
+			w.Header().Set("Content-Type", "text/plain; charset=shift_jis")
 			fmt.Fprint(w, "body")
 		case "/header":
 			w.Header().Set("Content-Type", "text/plain")
@@ -181,11 +187,18 @@ func TestResponseValidationAndBoundedResults(t *testing.T) {
 	defer server.Close()
 	c := NewAllowingPrivate() // fixtures are loopback servers
 	defer c.Close()
-	for _, path := range []string{"status", "binary", "invalid-utf8", "latin", "header", "stream", "gzip"} {
+	for _, path := range []string{"status", "binary", "invalid-utf8", "sjis", "header", "stream", "gzip"} {
 		r := c.Fetch(context.Background(), raw(t, server.URL+"/"+path, "text"))
 		if !r.Error || len(r.Content) > tools.MaxInline || strings.Contains(r.Content, "secret error content") {
 			t.Fatal(path, r)
 		}
+	}
+	// Single-byte charsets decode to UTF-8; hashes and sizes describe the bytes received.
+	if v := decoded(t, c.Fetch(context.Background(), raw(t, server.URL+"/latin", "text"))); v["content"] != "café “q”" || v["response_bytes"] != float64(8) {
+		t.Fatalf("latin: %v", v)
+	}
+	if v := decoded(t, c.Fetch(context.Background(), raw(t, server.URL+"/meta-latin", "text"))); !strings.Contains(v["content"].(string), "naïve") {
+		t.Fatalf("meta charset: %v", v["content"])
 	}
 	r := c.Fetch(context.Background(), raw(t, server.URL+"/long", "text"))
 	v := decoded(t, r)
