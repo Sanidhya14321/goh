@@ -69,6 +69,25 @@ The project listing (a project of up to 80 files has its file list sent up front
 session; `hello` costs 49 more tokens. Its first wording ended "Use list_files for current state", and 7
 of 12 Python runs still began with `list_files`; without that sentence, 4 of 12.
 
+## Terminal-Bench 2.0 (partial)
+
+goh as a [Harbor](https://github.com/harbor-framework/harbor) agent, `gpt-6.2-sol` at medium reasoning
+effort over the ChatGPT sign-in, Apple containers on one M5 Pro, 4 tasks at a time, one attempt per task
+(2026-11-26, goh `fc4cb8f`). The ChatGPT usage limit stopped the run after 58 of the 89 tasks had started.
+
+| | Tasks |
+| --- | ---: |
+| Solved | 36 |
+| Failed the task's tests | 7 |
+| **Solved, of the 43 that ran to a verdict** | **84%** |
+| goh stopped the run when a command hit its own timeout (fixed in `4b1c621`; one of these was still solved) | 5 |
+| goh's 64-turn cap reached (raised to 256 for these runs) | 1 |
+| Infrastructure: upload cut short (now checked and retried), container start or test timeout | 6 |
+| Cancelled when the run was stopped; not started | 4; 31 |
+
+The 43 are the alphabetically first tasks, not a sample; the rest, and the 16 above, run when quota
+allows (`harbor job resume`). Not comparable to the public leaderboard until every task has run.
+
 ## Other harnesses
 
 What each agent sends a model, recorded against a loopback mock (no inference; o200k_base token counts;
