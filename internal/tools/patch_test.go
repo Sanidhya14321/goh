@@ -163,7 +163,7 @@ func TestPatchHunksEOFAnchorsAndNoFinalNewline(t *testing.T) {
 }
 func TestMalformedPatchRejected(t *testing.T) {
 	for _, text := range []string{"", "*** Begin Patch\n*** End Patch", "*** Begin Patch\n*** Add File: a\ninvalid\n*** End Patch", patchText("*** Update File: a", "@@"), patchText("*** Frobnicate File: a"), patchText("*** Delete File: a", "-old"), patchText("*** Update File: a", "*** Move to: a"), patchText("*** Add File: a", "+new") + "\ntrailing"} {
-		if _, err := parsePatch(text); err == nil {
+		if _, err := parsePatch(text, ""); err == nil {
 			t.Fatal("accepted malformed patch", text)
 		}
 	}
@@ -260,7 +260,7 @@ func FuzzPatchGrammar(f *testing.F) {
 		if len(text) > 1<<20 {
 			return
 		}
-		_, _ = parsePatch(text)
+		_, _ = parsePatch(text, "")
 	})
 }
 

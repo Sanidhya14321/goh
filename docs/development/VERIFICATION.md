@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: Terminal-Bench findings
+
+From the journals of the 50 Terminal-Bench 2.0 runs that finished: 38 file-tool calls refused an absolute
+path inside the project, and the completion reminder fired in 37 runs after checks goh did not recognize.
+`TestAbsolutePathsInsideTheProject` (read, write, patch with an absolute header and hash key, grep, an
+outside path) and `TestAbsolutePathThroughSymlink`; `TestScriptChecksAreAttributable` (commands taken
+from the runs, plus the cases that must stay advisory: `&&` before a later line under `set -e`, `|| true`,
+no `set -e`, an open quote) and `TestInlineScriptCheckVerifiesARun`. `TestTimedOutCommandReturnsToTheModel`
+covers the timeout fix. `go test ./...`, `-race` on runtime and tools, `make acceptance` pass. Two
+cryptanalysis tasks ended at once because the model declined them; that is the model's policy, not goh.
+
 ## Unreleased: project listing and a faster start
 
 - Project listing: 52 runs on the Python hard and prompt-range tasks and 24 on the holdout, base against

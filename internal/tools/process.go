@@ -90,7 +90,7 @@ func (w *captureWriter) text(artifactID string) string {
 }
 
 func (e *Engine) shell(ctx context.Context, a args) Result {
-	a.Cwd, _ = clean(a.Cwd, true)
+	a.Cwd, _ = e.clean(a.Cwd, true)
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(a.Timeout)*time.Second)
 	defer cancel()
 	if err := os.MkdirAll(e.artifacts, 0700); err != nil {

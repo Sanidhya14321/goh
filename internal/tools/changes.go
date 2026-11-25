@@ -19,7 +19,7 @@ func (e *Engine) MutationPaths(name string, raw json.RawMessage) ([]string, erro
 		if err != nil {
 			return nil, err
 		}
-		p, err := clean(a.Path, false)
+		p, err := e.clean(a.Path, false)
 		if err != nil {
 			return nil, err
 		}
@@ -29,7 +29,7 @@ func (e *Engine) MutationPaths(name string, raw json.RawMessage) ([]string, erro
 		if err != nil {
 			return nil, err
 		}
-		ops, err := parsePatch(a.PatchText)
+		ops, err := parsePatch(a.PatchText, e.root)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +53,7 @@ func (e *Engine) MutationPaths(name string, raw json.RawMessage) ([]string, erro
 // FileDigest reports current bytes after post-edit formatting without returning
 // the entire file to the model. Missing files are represented explicitly.
 func (e *Engine) FileDigest(path string) (map[string]any, error) {
-	p, err := clean(path, false)
+	p, err := e.clean(path, false)
 	if err != nil {
 		return nil, err
 	}

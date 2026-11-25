@@ -261,6 +261,59 @@ func decode(name string, raw json.RawMessage) (args, error) {
 	}
 	return a, nil
 }
+
+// clean is the package clean for a path given to this engine: an absolute
+// path inside the project is taken as its project-relative form (benchmark
+// and user prompts name files as /app/x.py; refusing them cost a request).
+func (e *Engine) clean(path string, allowRoot bool) (string, error) {
+	return cleanIn(e.root, path, allowRoot)
+}
+
+// cleanIn is clean with absolute paths inside root made relative to it.
+func cleanIn(root, path string, allowRoot bool) (string, error) {
+	if root != "" && filepath.IsAbs(path) {
+		rel, err := projectRelative(root, path)
+		if err != nil {
+			return "", err
+		}
+		path = rel
+	}
+	return clean(path, allowRoot)
+}
+
+// projectRelative maps an absolute path inside root (absolute, symlinks
+// resolved) to a relative one. The path's longest existing ancestor is
+// resolved too, so /tmp/p/a.go matches a root under /private/tmp.
+func projectRelative(root, path string) (string, error) {
+	path = filepath.Clean(path)
+	inside := func(p string) (string, bool) {
+		rel, err := filepath.Rel(root, p)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+			return "", false
+		}
+		return rel, true
+	}
+	if rel, ok := inside(path); ok {
+		return rel, nil
+	}
+	existing, rest := path, ""
+	for {
+		if resolved, err := filepath.EvalSymlinks(existing); err == nil {
+			if rel, ok := inside(filepath.Join(resolved, rest)); ok {
+				return rel, nil
+			}
+			break
+		}
+		parent := filepath.Dir(existing)
+		if parent == existing {
+			break
+		}
+		rest = filepath.Join(filepath.Base(existing), rest)
+		existing = parent
+	}
+	return "", fmt.Errorf("%s is outside the project (%s); file tools work only inside it", path, root)
+}
+
 func clean(path string, allowRoot bool) (string, error) {
 	if path == "" {
 		if allowRoot {
@@ -598,7 +651,7 @@ func (e *Engine) Prepare(name string, raw json.RawMessage) (string, bool, error)
 	}
 	defer r.Close()
 	if name == "shell" {
-		a.Cwd, err = clean(a.Cwd, true)
+		a.Cwd, err = e.clean(a.Cwd, true)
 		if err == nil {
 			err = checked(r, a.Cwd, false)
 		}
@@ -611,7 +664,7 @@ func (e *Engine) Prepare(name string, raw json.RawMessage) (string, bool, error)
 		}
 		return fmt.Sprintf("Command: %s\nDirectory: %s\nTimeout: %ds", a.Command, filepath.Join(e.root, a.Cwd), a.Timeout), true, nil
 	}
-	a.Path, err = clean(a.Path, name == "list_files" || name == "search" || name == "grep" || name == "glob")
+	a.Path, err = e.clean(a.Path, name == "list_files" || name == "search" || name == "grep" || name == "glob")
 	if err != nil {
 		return "", side, err
 	}
@@ -751,7 +804,7 @@ func (e *Engine) execute(ctx context.Context, name string, raw json.RawMessage) 
 	if name == "shell" {
 		return e.shell(ctx, a)
 	}
-	a.Path, err = clean(a.Path, name == "list_files" || name == "search" || name == "grep" || name == "glob")
+	a.Path, err = e.clean(a.Path, name == "list_files" || name == "search" || name == "grep" || name == "glob")
 	if err != nil {
 		return failure(err)
 	}

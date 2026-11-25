@@ -12,7 +12,7 @@ import "strings"
 // this reader does not follow (subshells, groups, substitutions, control
 // keywords, negation, background jobs). Those are treated as advisory.
 func checkStatusAttributable(command string) bool {
-	segs, ops, ok := shellList(command)
+	segs, ops, ok := errexitList(command)
 	if !ok || len(segs) == 0 {
 		return false
 	}
@@ -55,7 +55,7 @@ var shellKeywords = map[string]bool{"!": true, "if": true, "then": true, "else":
 // exit 0 means the check passed on the changed files. A check alone that
 // changed files still does not count: its own writes are unchecked.
 func checksAfterChanges(command string) bool {
-	segs, ops, ok := shellList(command)
+	segs, ops, ok := errexitList(command)
 	if !ok || len(segs) < 2 {
 		return false
 	}
@@ -89,6 +89,10 @@ func checksAfterChanges(command string) bool {
 // follow: unbalanced quotes, an unquoted ( ) { } or backquote, $( ), a
 // background &, or an empty command.
 func shellList(cmd string) (segs [][]string, ops []string, ok bool) {
+	cmd, ok = stripHeredocs(cmd)
+	if !ok {
+		return nil, nil, false
+	}
 	var words []string
 	var word strings.Builder
 	inWord := false
@@ -145,6 +149,9 @@ func shellList(cmd string) (segs [][]string, ops []string, ok bool) {
 			}
 		case c == ' ' || c == '\t':
 			flushWord()
+		case c == '\n' && !inWord && len(words) == 0:
+			// A blank line, or a line ending in && or |: not a command.
+			continue
 		case c == '\n' || c == ';':
 			op := string(c)
 			if !flushCmd(op) {
@@ -195,4 +202,149 @@ func shellList(cmd string) (segs [][]string, ops []string, ok bool) {
 		return nil, nil, false
 	}
 	return segs, ops, true
+}
+
+// errexitList is shellList for a script that starts with set -e (set -eu,
+// set -euo pipefail, set -o errexit): any failing command then ends it with
+// its status, so commands after ; or a newline are joined as by &&. The set
+// command itself is dropped. Without set -e it is shellList.
+func errexitList(command string) (segs [][]string, ops []string, ok bool) {
+	segs, ops, ok = shellList(command)
+	if !ok || len(segs) < 2 || !setsErrexit(segs[0]) || ops[0] == "|" || ops[0] == "||" {
+		return segs, ops, ok
+	}
+	segs, ops = segs[1:], append([]string(nil), ops[1:]...)
+	// set -e does not stop at a failure inside an && list (only at its last
+	// command): check && x followed by more lines can fail and still exit 0.
+	// So && may appear only after the last line break.
+	last := -1
+	for i, op := range ops {
+		if op == ";" || op == "\n" {
+			last = i
+		}
+	}
+	for i := 0; i < last; i++ {
+		if ops[i] == "&&" {
+			return shellList(command)
+		}
+	}
+	for i, op := range ops {
+		if op == ";" || op == "\n" {
+			ops[i] = "&&"
+		}
+	}
+	return segs, ops, true
+}
+
+// setsErrexit reports whether words is a set command that turns on errexit.
+func setsErrexit(words []string) bool {
+	if len(words) < 2 || words[0] != "set" {
+		return false
+	}
+	for i, w := range words[1:] {
+		if w == "-o" && i+2 < len(words) && words[i+2] == "errexit" {
+			return true
+		}
+		if strings.HasPrefix(w, "-") && !strings.HasPrefix(w, "--") && strings.Contains(w, "e") {
+			return true
+		}
+	}
+	return false
+}
+
+// stripHeredocs removes here-document bodies (cmd <<'PY' ... PY): they are
+// a command's input, not commands. The <<WORD redirection itself stays. A
+// body that reaches the end without its delimiter ends there, as in bash.
+// ok is false when a quote is left open.
+func stripHeredocs(cmd string) (string, bool) {
+	if !strings.Contains(cmd, "<<") {
+		return cmd, true
+	}
+	r := []rune(cmd)
+	var out strings.Builder
+	type pending struct {
+		word string
+		tabs bool
+	}
+	var docs []pending
+	quote := rune(0)
+	for i := 0; i < len(r); i++ {
+		c := r[i]
+		switch {
+		case quote != 0:
+			if c == quote {
+				quote = 0
+			} else if c == '\\' && quote == '"' && i+1 < len(r) {
+				out.WriteRune(c)
+				i++
+				c = r[i]
+			}
+		case c == '\'' || c == '"':
+			quote = c
+		case c == '\\' && i+1 < len(r):
+			out.WriteRune(c)
+			i++
+			c = r[i]
+		case c == '<' && i+1 < len(r) && r[i+1] == '<' && (i+2 >= len(r) || r[i+2] != '<') && (i == 0 || r[i-1] != '<'):
+			j := i + 2
+			tabs := false
+			if j < len(r) && r[j] == '-' {
+				tabs, j = true, j+1
+			}
+			for j < len(r) && (r[j] == ' ' || r[j] == '\t') {
+				j++
+			}
+			var word strings.Builder
+			for j < len(r) && !strings.ContainsRune(" \t\n;&|<>()", r[j]) {
+				if r[j] == '\'' || r[j] == '"' {
+					q := r[j]
+					j++
+					for j < len(r) && r[j] != q {
+						word.WriteRune(r[j])
+						j++
+					}
+					if j >= len(r) {
+						return cmd, false
+					}
+				} else if r[j] != '\\' {
+					word.WriteRune(r[j])
+				}
+				j++
+			}
+			if word.Len() == 0 {
+				return cmd, false
+			}
+			docs = append(docs, pending{word.String(), tabs})
+			out.WriteString("<<" + word.String())
+			i = j - 1
+			continue
+		case c == '\n' && len(docs) > 0:
+			out.WriteRune(c)
+			pos := i + 1
+			for _, d := range docs {
+				for pos < len(r) {
+					end := pos
+					for end < len(r) && r[end] != '\n' {
+						end++
+					}
+					line := string(r[pos:end])
+					if d.tabs {
+						line = strings.TrimLeft(line, "\t")
+					}
+					pos = end + 1
+					if line == d.word {
+						break
+					}
+				}
+			}
+			docs = nil
+			i = pos - 1
+			continue
+		}
+		out.WriteRune(c)
+	}
+	if quote != 0 {
+		return cmd, false
+	}
+	return out.String(), true
 }

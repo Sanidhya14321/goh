@@ -45,7 +45,7 @@ type mapCacheEntry struct {
 	Partial    bool
 }
 
-func decodeMap(raw json.RawMessage) (mapArgs, error) {
+func decodeMap(raw json.RawMessage, root string) (mapArgs, error) {
 	var a mapArgs
 	if len(raw) > 8192 {
 		return a, errors.New("repo_map arguments exceed 8KiB")
@@ -64,7 +64,7 @@ func decodeMap(raw json.RawMessage) (mapArgs, error) {
 	if err := d.Decode(&a); err != nil {
 		return a, err
 	}
-	p, err := clean(a.Path, true)
+	p, err := cleanIn(root, a.Path, true)
 	if err != nil {
 		return a, err
 	}
@@ -81,7 +81,7 @@ func decodeMap(raw json.RawMessage) (mapArgs, error) {
 	return a, nil
 }
 func (e *Engine) prepareRepoMap(raw json.RawMessage) (string, bool, error) {
-	a, err := decodeMap(raw)
+	a, err := decodeMap(raw, e.root)
 	if err != nil {
 		return "", false, err
 	}
@@ -227,7 +227,7 @@ func (e *Engine) repoMap(ctx context.Context, raw json.RawMessage) Result {
 	if _, _, err := e.prepareRepoMap(raw); err != nil {
 		return failure(err)
 	}
-	a, _ := decodeMap(raw)
+	a, _ := decodeMap(raw, e.root)
 	r, err := os.OpenRoot(e.root)
 	if err != nil {
 		return failure(err)

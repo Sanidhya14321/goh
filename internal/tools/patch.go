@@ -85,7 +85,7 @@ func decodePatch(raw json.RawMessage) (patchArguments, error) {
 	}
 	return a, nil
 }
-func parsePatch(text string) ([]patchOperation, error) {
+func parsePatch(text, root string) ([]patchOperation, error) {
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	if strings.Count(text, "\n") > 65536 {
 		return nil, errors.New("patch exceeds 65536 lines")
@@ -116,7 +116,7 @@ func parsePatch(text string) ([]patchOperation, error) {
 			return nil, fmt.Errorf("invalid patch file header %q", header)
 		}
 		var err error
-		op.path, err = clean(op.path, false)
+		op.path, err = cleanIn(root, op.path, false)
 		if err != nil {
 			return nil, err
 		}
@@ -128,7 +128,7 @@ func parsePatch(text string) ([]patchOperation, error) {
 		}
 		if op.kind == "update" {
 			if i < len(lines)-1 && strings.HasPrefix(lines[i], "*** Move to: ") {
-				op.destination, err = clean(strings.TrimPrefix(lines[i], "*** Move to: "), false)
+				op.destination, err = cleanIn(root, strings.TrimPrefix(lines[i], "*** Move to: "), false)
 				if err != nil {
 					return nil, err
 				}
@@ -312,9 +312,23 @@ func expectedPatchHash(a patchArguments, path string, before []byte) error {
 	return nil
 }
 func (e *Engine) planPatch(root *os.Root, a patchArguments) ([]patchChange, error) {
-	operations, err := parsePatch(a.PatchText)
+	operations, err := parsePatch(a.PatchText, e.root)
 	if err != nil {
 		return nil, err
+	}
+	if len(a.Expected) > 0 {
+		// Keys name files as the patch does, absolute paths included.
+		keyed := make(map[string]string, len(a.Expected))
+		for key, sum := range a.Expected {
+			if p, err := cleanIn(e.root, key, false); err == nil {
+				key = p
+			}
+			if _, dup := keyed[key]; dup {
+				return nil, fmt.Errorf("expected_sha256 names %s twice", key)
+			}
+			keyed[key] = sum
+		}
+		a.Expected = keyed
 	}
 	claimed := map[string]bool{}
 	expectedUsed := map[string]bool{}

@@ -374,6 +374,9 @@ var wrappers = map[string]int{"timeout": 1, "time": 0, "nice": 0, "env": 0, "npx
 // is never counted as a check.
 func programs(command string) []string {
 	var out []string
+	if stripped, ok := stripHeredocs(command); ok {
+		command = stripped // a here-document body is input, not commands
+	}
 	for _, words := range splitShell(strings.TrimSpace(command)) {
 		for {
 			for len(words) > 0 && strings.Contains(words[0], "=") && !strings.HasPrefix(words[0], "=") && !strings.HasPrefix(words[0], "-") {

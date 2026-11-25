@@ -122,7 +122,7 @@ func (e *Engine) prepareJob(name string, raw json.RawMessage) (string, bool, err
 }
 
 func (e *Engine) jobDir(cwd string) (string, error) {
-	cwd, err := clean(cwd, true)
+	cwd, err := e.clean(cwd, true)
 	if err != nil {
 		return "", err
 	}

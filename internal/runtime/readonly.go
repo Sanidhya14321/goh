@@ -163,6 +163,13 @@ func splitShell(cmd string) [][]string {
 			quote, inWord = c, true
 		case c == ' ' || c == '\t':
 			flushWord()
+		case c == '\n':
+			// A line break ends a command; a blank line, or one after && or
+			// |, is not one.
+			flushWord()
+			if len(words) > 0 {
+				flushCmd()
+			}
 		case c == ';' || c == '|':
 			if c == '|' && i+1 < len(r) && r[i+1] == '|' {
 				i++
@@ -183,7 +190,13 @@ func splitShell(cmd string) [][]string {
 			inWord = true
 		}
 	}
-	if quote != 0 || !flushCmd() {
+	if quote != 0 {
+		return nil
+	}
+	if flushWord(); len(words) == 0 && len(out) > 0 && strings.HasSuffix(strings.TrimRight(cmd, " \t"), "\n") {
+		return out // the last line ended with a line break
+	}
+	if !flushCmd() {
 		return nil
 	}
 	return out

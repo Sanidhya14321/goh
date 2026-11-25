@@ -32,6 +32,12 @@ Each entry lists user-visible changes; evidence for each is in
   (`bench/harbor_agent/run.sh -d terminal-bench@2.0`), on this machine's ChatGPT sign-in.
 - `goh auth export FILE [45m]` writes the sign-in without its refresh token for a disposable machine: it
   can use the access token but never renew or revoke the sign-in here.
+- File tools accept absolute paths inside the project (`/app/main.py`), in patches and their
+  `expected_sha256` keys too; Terminal-Bench prompts name files that way, and 38 calls were refused. A path
+  outside the project is refused with the project named.
+- Checks written as scripts count: an inline script whose body is a here-document
+  (`python3 - <<'PY' … PY`) and a `set -e` script of checks. The completion reminder fired in 37 of 50
+  Terminal-Bench runs because these were not recognized, costing about two requests each.
 - A shell command stopped at its own timeout now returns to the model (status `timed_out`, with a hint to
   raise `timeout_seconds` or use `job_start`) instead of ending the run; Terminal-Bench ended a run there.
 
