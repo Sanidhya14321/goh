@@ -9,14 +9,18 @@ import (
 	"time"
 
 	"github.com/Sanidhya14321/goh/internal/core"
+	"github.com/Sanidhya14321/goh/internal/platform"
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
 
-const authUsage = "usage: goh auth login|switch|status|refresh|models|logout|list|store [file|keychain]"
+const authUsage = "usage: goh auth login|switch|status|refresh|models|logout|list|store [file|keychain]|export FILE [VALID_FOR]"
 
 func chatGPTAuth(args []string) error {
 	if len(args) == 2 && args[0] == "store" || len(args) == 1 && args[0] == "store" {
 		return authStore(args[1:])
+	}
+	if len(args) >= 2 && len(args) <= 3 && args[0] == "export" {
+		return authExport(args[1:])
 	}
 	if len(args) != 1 {
 		return errors.New(authUsage)
@@ -141,5 +145,42 @@ func authStore(args []string) error {
 		where = "the " + core.CredentialStoreName()
 	}
 	fmt.Printf("Saved credentials are now kept in %s (%d moved).\n", where, moved)
+	return nil
+}
+
+// authExport writes the sign-in without its refresh token, for a benchmark
+// container (core.ExportChatGPTAccess): goh there reads it from
+// <config>/independent-harness/credentials/chatgpt-account.json.
+func authExport(args []string) error {
+	validFor := 45 * time.Minute
+	if len(args) == 2 {
+		d, err := time.ParseDuration(args[1])
+		if err != nil || d < time.Minute || d > 24*time.Hour {
+			return errors.New("VALID_FOR is how long the token must stay valid, such as 45m (1m to 24h)")
+		}
+		validFor = d
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	b, expires, err := core.ExportChatGPTAccess(ctx, validFor)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(args[0], os.O_WRONLY|os.O_CREATE|os.O_TRUNC|platform.NoFollow, 0o600)
+	if err != nil {
+		return err
+	}
+	if err := f.Chmod(0o600); err != nil {
+		f.Close()
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
+		return err
+	}
+	fmt.Printf("Wrote a ChatGPT access token valid until %s, without the refresh token: goh using it cannot renew it.\n", expires.Local().Format("2 Jan 15:04"))
 	return nil
 }

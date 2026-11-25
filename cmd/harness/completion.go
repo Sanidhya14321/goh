@@ -12,7 +12,7 @@ var subcommands = map[string][]string{
 	"sessions":   {"list", "preview", "show", "export", "import", "fork", "salvage", "rename", "delete", "restore", "prune"},
 	"providers":  {"list", "use", "remove"},
 	"workspaces": {"list", "forget"},
-	"auth":       {"login", "switch", "status", "refresh", "models", "logout", "list", "store"},
+	"auth":       {"login", "switch", "status", "refresh", "models", "logout", "list", "store", "export"},
 	"mcp":        {"list"},
 	"memory":     {"add", "list", "recall", "delete"},
 	"completion": {"bash", "zsh", "fish"},

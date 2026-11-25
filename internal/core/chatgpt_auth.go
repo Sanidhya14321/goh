@@ -145,6 +145,40 @@ func RefreshChatGPT(ctx context.Context) (time.Time, error) {
 	return a.Expires, err
 }
 
+// ExportChatGPTAccess returns the saved sign-in without its refresh and
+// identity tokens, for a disposable machine such as a benchmark container:
+// goh there can use the access token until it expires and can never renew
+// it, so the copy cannot rotate (and so revoke) this machine's sign-in. The
+// access token is renewed here first when less than minValid remains.
+func ExportChatGPTAccess(ctx context.Context, minValid time.Duration) ([]byte, time.Time, error) {
+	a, err := readChatGPTAccount()
+	if err != nil {
+		return nil, time.Time{}, err
+	}
+	if time.Until(a.Expires) < minValid || a.Tokens.Access == "" {
+		unlock, err := chatGPTLock(ctx)
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+		a, err = readChatGPTAccount()
+		if err == nil && (time.Until(a.Expires) < minValid || a.Tokens.Access == "") {
+			if _, err = renewChatGPTLocked(ctx, a); err == nil {
+				a, err = readChatGPTAccount()
+			}
+		}
+		unlock()
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+	}
+	if time.Until(a.Expires) < minValid {
+		return nil, time.Time{}, fmt.Errorf("the renewed ChatGPT access token is valid only until %s, less than the %s asked for", a.Expires.Local().Format("2 Jan 15:04"), minValid)
+	}
+	a.Tokens.Refresh, a.Tokens.Identity = "", ""
+	b, err := json.Marshal(a)
+	return b, a.Expires, err
+}
+
 // chatGPTLockWait bounds how long a sign-in update waits for another.
 var chatGPTLockWait = 20 * time.Second
 

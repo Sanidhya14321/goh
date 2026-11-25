@@ -23,3 +23,4 @@
 /harness
 /goh
 /cmd/bench/.container-test-*
+/bench/harbor_agent/bin/
