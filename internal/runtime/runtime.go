@@ -988,7 +988,15 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				switch outcome.Status {
 				case "cleanup_incomplete":
 					return "cleanup_incomplete", errors.New("tool cleanup incomplete; inspect retained artifacts")
-				case "timed_out", "interrupted", "cancelled":
+				case "timed_out":
+					if ctx.Err() != nil {
+						return "cancelled", ctx.Err()
+					}
+					// The command hit its own time limit and its processes were
+					// cleaned up: the model gets the result and can retry
+					// longer or in the background (Terminal-Bench ended a run
+					// here on a 120 s command).
+				case "interrupted", "cancelled":
 					if ctx.Err() != nil {
 						return "cancelled", ctx.Err()
 					}

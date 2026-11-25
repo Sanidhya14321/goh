@@ -27,6 +27,14 @@ Each entry lists user-visible changes; evidence for each is in
 - `goh-bench` task trees are git repositories with the starting files committed, so `git diff` and
   `git status` work as in a real project (they failed 28 times in earlier runs).
 
+**Benchmarks you can show**
+- goh runs as a [Harbor](https://github.com/harbor-framework/harbor) agent in Apple containers
+  (`bench/harbor_agent/run.sh -d terminal-bench@2.0`), on this machine's ChatGPT sign-in.
+- `goh auth export FILE [45m]` writes the sign-in without its refresh token for a disposable machine: it
+  can use the access token but never renew or revoke the sign-in here.
+- A shell command stopped at its own timeout now returns to the model (status `timed_out`, with a hint to
+  raise `timeout_seconds` or use `job_start`) instead of ending the run; Terminal-Bench ended a run there.
+
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.
 - Tool calls read as what they do (`▸ Read  a.go`, `▸ Shell  go test ./...`). A read is one line

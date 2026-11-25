@@ -242,6 +242,9 @@ settled:
 	if interrupted {
 		value["effects"] = "Execution interrupted; effects may already have occurred and were not rolled back."
 	}
+	if state == "timed_out" {
+		value["hint"] = "stopped at its timeout; for a longer command raise timeout_seconds (up to 600) or start it with job_start and check it with job_output"
+	}
 	if termErr != nil {
 		value["cleanup_error"] = fmt.Sprint(termErr)
 	}

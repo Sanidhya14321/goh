@@ -102,6 +102,11 @@ fails with `3p_login_workspace_scope_denied`; use **Use a different ChatGPT acco
 `/connect` (or `goh auth switch`) instead. The old sign-in is replaced only after the new one
 succeeds. If OpenAI shows an error page, press Ctrl+C in the terminal.
 
+`goh auth export FILE [45m]` writes the sign-in without its refresh token, for a disposable machine
+such as a benchmark container: put it at `~/.config/independent-harness/credentials/chatgpt-account.json`
+(mode `0600`) there. goh can use its access token, which lasts about an hour, but can never renew it, so the
+copy cannot rotate or revoke the sign-in on this machine; replace the file to extend it.
+
 The `openai_chatgpt` protocol is bound to OpenAI's official Responses endpoint. For a Responses API
 key, use `openai_responses` instead.
 

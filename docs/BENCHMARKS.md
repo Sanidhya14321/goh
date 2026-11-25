@@ -116,6 +116,13 @@ This spends model quota. Put Go on `PATH`, and keep `--out` outside the system t
 sandbox refuses a writable temporary folder that overlaps the project). Tasks without a container image
 need `-host-grading`, which runs model-edited code on this machine.
 
+- **Harbor** (Terminal-Bench and other public sets, in Apple containers): install Apple's `container`
+  (`brew install container`, then `container system start`) and `uv`, clone
+  [Harbor](https://github.com/harbor-framework/harbor) into `research/harbor` and run `uv sync` there,
+  sign in with `goh auth login`, then `bench/harbor_agent/run.sh -d terminal-bench@2.0 -n 4`. Each task
+  container gets an access-only token (`goh auth export`), replaced every 20 minutes from this machine;
+  an image without CA certificates gets this machine's bundle through `SSL_CERT_FILE`. Results go to
+  `bench/results/harbor`.
 - **Task sets** in `bench/tasks`: 22 basic and 14 hard (`hard-*`, `bench/tools/gen_hard.py`) Go and Python
   bug fixes, 7 prompt-range tasks (`spec-*`, `bench/tools/gen_spectrum.py`), and 19 real-project fixes
   (`bench/tools/mine_go.py`; upstream licenses in `bench/licenses`; run them in a container).

@@ -74,6 +74,20 @@ class Goh(BaseInstalledAgent):
         model = self.model_name or "gpt-6.2-sol"
         return model.split("/", 1)[-1]  # "openai/gpt-6.2-sol" -> "gpt-6.2-sol"
 
+    async def _upload(self, environment: BaseEnvironment, source: Path | str, target: str) -> None:
+        """Uploads and checks the size: the container's tar stream is sometimes cut short."""
+        size = Path(source).stat().st_size
+        for attempt in range(4):
+            try:
+                await environment.upload_file(source, target)
+                got = await environment.exec(f"wc -c < {shlex.quote(target)}", user="root")
+                if (got.stdout or "").strip() == str(size):
+                    return
+            except RuntimeError as exc:
+                self.logger.debug(f"upload of {target} failed (attempt {attempt + 1}): {exc}")
+            await asyncio.sleep(1 + attempt)
+        raise RuntimeError(f"could not upload {target} intact")
+
     @override
     async def install(self, environment: BaseEnvironment) -> None:
         arch = (await environment.exec("uname -m", user="root")).stdout or ""
@@ -81,7 +95,7 @@ class Goh(BaseInstalledAgent):
         binary = BIN_DIR / f"goh-linux-{goarch}"
         if not binary.is_file():
             raise RuntimeError(f"{binary} is missing; build it with bench/harbor_agent/run.sh")
-        await environment.upload_file(binary, "/usr/local/bin/goh")
+        await self._upload(environment, binary, "/usr/local/bin/goh")
         await self.exec_as_root(environment, "chmod 755 /usr/local/bin/goh && goh --version")
 
     async def _place_token(self, environment: BaseEnvironment) -> None:
@@ -96,7 +110,7 @@ class Goh(BaseInstalledAgent):
                 )
                 if done.returncode != 0:
                     raise RuntimeError("goh auth export failed: " + done.stderr.strip())
-                await environment.upload_file(path, "/installed-agent/chatgpt-account.json")
+                await self._upload(environment, path, "/installed-agent/chatgpt-account.json")
         # Uploaded as root; handed to the agent user as a private file.
         await self.exec_as_root(environment, "chmod 644 /installed-agent/chatgpt-account.json")
         await self.exec_as_agent(
@@ -111,7 +125,7 @@ class Goh(BaseInstalledAgent):
     @override
     async def configure(self, environment: BaseEnvironment) -> None:
         await self.exec_as_root(environment, f"mkdir -p {Path(CA_PATH).parent}")
-        await environment.upload_file(HOST_CA, CA_PATH)
+        await self._upload(environment, HOST_CA, CA_PATH)
         await self.exec_as_root(environment, f"chmod 644 {CA_PATH}")
         await self._place_token(environment)
 
