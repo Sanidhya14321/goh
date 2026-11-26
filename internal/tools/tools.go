@@ -249,6 +249,9 @@ func decode(name string, raw json.RawMessage) (args, error) {
 		if a.Timeout < 1 || a.Timeout > 600 {
 			return a, errors.New("timeout_seconds must be 1..600")
 		}
+		if a.Timeout < minPackageTimeout && runsPackageManager(a.Command) {
+			a.Timeout = minPackageTimeout
+		}
 	}
 	if a.Start < 0 || a.End < 0 || a.Limit < 0 || a.Limit > maxFiles {
 		return a, errors.New("invalid line or result limit")

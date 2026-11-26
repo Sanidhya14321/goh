@@ -42,6 +42,9 @@ Each entry lists user-visible changes; evidence for each is in
   `<meta charset>`) instead of refusing the page, and an HTTP 403 says the site may refuse automated requests.
 - A shell command stopped at its own timeout now returns to the model (status `timed_out`, with a hint to
   raise `timeout_seconds` or use `job_start`) instead of ending the run; Terminal-Bench ended a run there.
+- A shell command that runs a system package manager (`apt-get`, `dpkg`, `yum`, `apk`, …) gets at least
+  300 s, even if the model asked for less: Terminal-Bench showed a 20 s limit stopping `dpkg` midway, which
+  left the package database broken and failed the task's own tests.
 
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.
