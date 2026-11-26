@@ -38,7 +38,7 @@ them. No manual Windows session has been run.
 | Credentials | Linux keychain sealing needs `secret-tool` installed (verified with gnome-keyring) | Uses the desktop Secret Service |
 | Sandbox | Landlock cannot hide files denied by `file_rules` from a sandboxed shell (macOS can) | Landlock grants are allow-lists of whole folders |
 | Sandbox | On Linux, Auto asks instead of running commands in a folder that contains a stricter subfolder or goh's own state; the read-only `.git/hooks` and `.git/config` rule is not enforced there | Landlock cannot restrict a folder inside a writable one; unit tests pass natively on Linux CI; not yet exercised in an interactive Linux session |
-| Benchmark | Terminal-Bench 2.0 (Harbor, Apple containers, `gpt-6.2-sol` medium) is partial: 53 of 89 tasks have a verdict over two runs (run 2: 34 of 44, 77%); 36 remain for the next quota window ([results](../BENCHMARKS.md#terminal-bench-20-partial)). The research experiments stay off: they only cost on the Go hard tasks | ChatGPT usage limits stop long runs |
+| Benchmark | Terminal-Bench 2.0 (Harbor, Apple containers, `gpt-6.2-sol` medium): 67 of 89 solved (75%) over three runs on three builds, one attempt each ([results](../BENCHMARKS.md#terminal-bench-20)); a single-build rerun with the fixes would give a cleaner number. The research experiments stay off: they only cost on the Go hard tasks | ChatGPT usage limits split long runs |
 | Shell rules | Rules match command text, not intent | A guardrail, not a security boundary; the sandbox is the boundary |
 | Background jobs | A hard kill of `goh` cannot stop its jobs; the next start finds and offers to stop them (Unix) | No supervisor process |
 | Budgets | Runs can be capped by tokens, tool calls and time, not by dollars | Prices vary by plan; `goh stats` shows cost estimates |
@@ -55,6 +55,6 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 ## Next
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
-2. **Benchmark:** run the 36 Terminal-Bench 2.0 tasks without a verdict when ChatGPT quota allows (`bench/harbor_agent/run.sh -d terminal-bench@2.0 -n 4 -i …`).
+2. **Benchmark:** optionally rerun all 89 Terminal-Bench 2.0 tasks on one build (about two quota windows) for a single-build score.
 3. **Long sessions:** opening a journal still reads every record (40 ms, 79 MB at 20,000 records); a
    streaming or tail-only open for resume and attach, if that cost matters in practice.

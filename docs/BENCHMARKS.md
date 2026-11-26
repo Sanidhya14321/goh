@@ -69,25 +69,30 @@ The project listing (a project of up to 80 files has its file list sent up front
 session; `hello` costs 49 more tokens. Its first wording ended "Use list_files for current state", and 7
 of 12 Python runs still began with `list_files`; without that sentence, 4 of 12.
 
-## Terminal-Bench 2.0 (partial)
+## Terminal-Bench 2.0
 
 goh as a [Harbor](https://github.com/harbor-framework/harbor) agent, `gpt-6.2-sol` at medium reasoning
-effort over the ChatGPT sign-in, Apple containers on one M5 Pro, 4 tasks at a time, one attempt per task.
-Both runs so far ended at the ChatGPT usage limit, so neither covers all 89 tasks.
+effort over the ChatGPT sign-in, Apple containers on one M5 Pro (amd64 images under Rosetta), 4 tasks at a
+time, one attempt per task, 2026-11-26. The ChatGPT usage limit split the 89 tasks over three runs; each
+task's verdict is from the newest build that reached one.
 
-| Run 2 (2026-11-26, goh `f9f6aaf`, 2 h 15 min) | Tasks |
+| | Tasks |
 | --- | ---: |
-| Solved | 34 |
-| Failed the task's tests (2 were the model declining cryptanalysis; 1 a `dpkg` install goh stopped at the model's 20 s limit, fixed in `da90936`) | 9 |
-| Refused by the provider's cybersecurity filter | 1 |
-| **Solved, of the 44 that ran to a verdict** | **77%** |
-| Infrastructure: container start or test timeout | 4 |
-| Ended by the usage limit before a verdict | 41 |
+| **Solved** | **67 of 89 (75%)** |
+| Failed the task's tests: the model's solution was wrong | 12 |
+| Declined by the model (two cryptanalysis tasks) or refused by the provider's cybersecurity filter | 3 |
+| goh problems, fixed since: a `dpkg` install stopped at the model's 20 s limit (`da90936`), a server stopped when the run ended (`--keep-jobs`, `138e96e`), a command-timeout stop that ended the run (run 1, `4b1c621`) | 3 |
+| This machine, not the agent: Rosetta cannot run the task's reference binary in a chroot (2); Debian's mirror returned 404 for the test step's own `curl` install (2) | 4 |
 
-Run 1 (goh `fc4cb8f`) solved 36 of 43 (84%) with 46 tasks lost to fixed goh stops, infrastructure and the
-limit. On the 39 tasks both runs decided, run 2 solved 31 and run 1 solved 28. 53 tasks have a verdict
-in at least one run; 36 (alphabetically from `make-doom-for-mips`) have none yet. The decided tasks are
-the alphabetically first, not a sample: not comparable to the public leaderboard until every task has run.
+| Run | goh | Verdicts used | Solved |
+| --- | --- | ---: | ---: |
+| 1 | `fc4cb8f` | 9 | 8 |
+| 2 | `f9f6aaf` | 44 | 34 |
+| 3 | `55d57f0` | 36 | 25 |
+
+On the 39 tasks both run 1 and run 2 decided, run 2 solved 31 and run 1 solved 28. Not a leaderboard
+submission: one attempt instead of five, a local container runtime with doubled container-start, setup and
+test timeouts (agent time limits unchanged), and three builds.
 
 ## Other harnesses
 
