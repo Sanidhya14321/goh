@@ -816,9 +816,14 @@ func tail(s string) string {
 }
 
 // copyTree copies regular files and folders (no symlinks) from src into dst.
+// A file that disappears during the walk (a lock file another process
+// removed) is skipped.
 func copyTree(src, dst string) error {
 	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
+			if p != src && errors.Is(err, fs.ErrNotExist) {
+				return nil
+			}
 			return err
 		}
 		rel, _ := filepath.Rel(src, p)
@@ -830,10 +835,16 @@ func copyTree(src, dst string) error {
 			return nil
 		}
 		info, err := d.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
 		data, err := os.ReadFile(p)
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -1328,7 +1339,9 @@ func gitBaseline(dir string) error {
 	}
 	for _, args := range [][]string{{"init", "-q"}, {"add", "-A"},
 		{"-c", "user.name=goh-bench", "-c", "user.email=bench@localhost", "-c", "commit.gpgsign=false", "commit", "-q", "--allow-empty", "-m", "task baseline"}} {
-		cmd := exec.Command("git", args...)
+		// No automatic maintenance: newer git runs it in the background
+		// after a commit, changing .git while the tree is copied next.
+		cmd := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 		cmd.Dir = dir
 		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1")
 		if out, err := cmd.CombinedOutput(); err != nil {
