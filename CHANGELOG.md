@@ -45,6 +45,10 @@ Each entry lists user-visible changes; evidence for each is in
 - A shell command that runs a system package manager (`apt-get`, `dpkg`, `yum`, `apk`, …) gets at least
   300 s, even if the model asked for less: Terminal-Bench showed a 20 s limit stopping `dpkg` midway, which
   left the package database broken and failed the task's own tests.
+- `goh run --keep-jobs` leaves background jobs running after the run ends, writing to a log file instead
+  of a pipe, for tasks that ask for a service left up (Terminal-Bench `pypi-server`: the server the model
+  started was gone when the tests ran). A shell command that leaves processes in the background now says
+  they were stopped and to use `job_start`.
 
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.

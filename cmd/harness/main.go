@@ -313,6 +313,7 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	maxRunSeconds := f.Int("max-run-seconds", 0, "run: stop after this many seconds, child tasks included")
 	sandboxContainer := f.String("sandbox-container", "", "run: run shell commands inside this running Docker container (project mounted at the same path)")
 	maxRunTokens := f.Int("max-run-tokens", 0, "run: stop before the next model turn once this many tokens are used, child tasks included")
+	keepJobsFlag := f.Bool("keep-jobs", false, "run: leave background jobs running after the run ends (for tasks that ask for a service left running)")
 	lineEdits := f.Bool("line-edits", false, "run: let edit_file replace numbered line ranges as well as exact text")
 	retryInterrupted := f.Int("retry-interrupted", 0, "run: re-send a model request whose stream broke, up to N times (0-2); partial replies are discarded")
 	completionCheck := f.Bool("completion-check", true, "remind once to check unverified file changes before finishing")
@@ -641,7 +642,8 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if command == "chat" {
 		adoptParkedJobs(store.ID, a.Tools)
 	}
-	keepJobs := false
+	keepJobs := command == "run" && *keepJobsFlag
+	a.Tools.KeepJobs = keepJobs
 	defer func() {
 		if !keepJobs {
 			a.Tools.StopJobs()

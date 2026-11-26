@@ -155,6 +155,9 @@ func (e *Engine) shell(ctx context.Context, a args) Result {
 	// Always settle descendants that remain in the owned group, including after
 	// a successful parent exit. Deliberately detached processes are outside scope.
 	pid := cmd.Process.Pid
+	// Processes the command left running in its group (`server &`, nohup)
+	// are stopped below; the result tells the model how to keep one.
+	leftBehind := !interrupted && !platform.GroupExited(pid)
 	termErr := platform.TerminateGroup(pid)
 	cleanupIncomplete := termErr != nil
 	timer := time.NewTimer(2 * time.Second)
@@ -244,6 +247,9 @@ settled:
 	}
 	if state == "timed_out" {
 		value["hint"] = "stopped at its timeout; for a longer command raise timeout_seconds (up to 600) or start it with job_start and check it with job_output"
+	}
+	if leftBehind && state == "completed" {
+		value["note"] = "processes this command left running in the background were stopped when it finished; start a server or other service that must keep running with job_start"
 	}
 	if termErr != nil {
 		value["cleanup_error"] = fmt.Sprint(termErr)

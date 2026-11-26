@@ -47,6 +47,11 @@ type Engine struct {
 	// end_line) instead of matching old_text. Off unless configured, for A/B
 	// comparison; the whole-file expected_sha256 guard still applies.
 	LineEdits bool
+	// KeepJobs leaves background jobs running after GoHarness exits (goh run
+	// --keep-jobs, for a task that asks for a service left running). Their
+	// output then goes to a log file in the session artifacts, so a job that
+	// writes after GoHarness is gone does not die on a closed pipe.
+	KeepJobs bool
 	// RelatedExpansion (the retrieval-expansion experiment) makes repo_map
 	// add, for query matches, the files that reference those symbols.
 	RelatedExpansion bool
@@ -127,6 +132,13 @@ func (e *Engine) Definitions() []Definition {
 			defs[i].Schema = map[string]any{"type": "object", "properties": props,
 				"required": []string{"path", "new_text", "expected_sha256"}, "additionalProperties": false}
 			defs[i].Description = "Edit a file against expected_sha256 (from your latest read_file). Either replace exact old_text (one occurrence unless replace_all), or replace lines start_line..end_line inclusive, numbered as read_file shows them, with new_text (empty new_text deletes the lines). With both, old_text must equal those lines."
+		}
+	}
+	if e != nil && e.KeepJobs {
+		for i, d := range defs {
+			if d.Name == "job_start" {
+				defs[i].Description = strings.Replace(d.Description, "Jobs stop when GoHarness exits", "Jobs keep running after GoHarness exits, for a server or service the task needs left running; stop the others with job_stop", 1)
+			}
 		}
 	}
 	if e != nil && e.Sandbox != nil {

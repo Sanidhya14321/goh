@@ -308,6 +308,10 @@ goh doctor
 - `--access ask|edits|auto|full` sets the [access level](#access-levels) for the project for this
   run; levels saved for folders apply to `goh run` too.
 - `--profile` and `--agent` select a profile and agent per invocation.
+- Background jobs (`job_start`) stop when the run ends. `--keep-jobs` leaves them running, for a task
+  that asks for a server or service left up; their output goes to a log in the session's artifacts, and
+  the next goh start in that session storage offers to stop them. A shell command's own background
+  processes (`server &`) are always stopped when it finishes, and the result says so.
 - `GOH_PHASES=1` reports where the run's time went: setup, each model request (first text, retry
   wait), tools, approval and question waits, and the finishing steps. Text mode prints one `phases:` line
   on stderr; JSON adds a `run_phases` event before `run_finished`. Durations and sizes only.

@@ -165,7 +165,7 @@ class Goh(BaseInstalledAgent):
             'goh run --project "$PWD" --prompt "$GOH_TASK" --format json '
             "--protocol openai_chatgpt "
             f"--model {shlex.quote(self._model())} --reasoning-effort {shlex.quote(effort)} "
-            "--access full --allow all --session-dir /logs/agent/sessions "
+            "--access full --allow all --keep-jobs --session-dir /logs/agent/sessions "
             "> /logs/agent/goh.jsonl 2> /logs/agent/goh.stderr; "
             "status=$?; tail -c 2000 /logs/agent/goh.stderr; exit $status"
         )

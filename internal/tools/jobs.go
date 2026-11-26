@@ -37,6 +37,7 @@ type job struct {
 	exitCode         int
 	state            string // running, exited, stopped
 	ended            time.Time
+	log              string // output file when the job outlives GoHarness (KeepJobs); else output is kept in tail
 }
 
 func (j *job) Write(p []byte) (int, error) {
@@ -114,7 +115,11 @@ func (e *Engine) prepareJob(name string, raw json.RawMessage) (string, bool, err
 		if err != nil {
 			return "", true, err
 		}
-		return fmt.Sprintf("Background command: %s\nDirectory: %s\nRuns until stopped or GoHarness exits.", a.Command, cwd), true, nil
+		until := "Runs until stopped or GoHarness exits."
+		if e.KeepJobs {
+			until = "Keeps running after GoHarness exits unless stopped."
+		}
+		return fmt.Sprintf("Background command: %s\nDirectory: %s\n%s", a.Command, cwd, until), true, nil
 	case "job_stop":
 		return "Stop background job " + a.ID, true, nil
 	}
@@ -205,14 +210,21 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 		return failure(err)
 	}
 	platform.NewGroup(cmd)
-	reader, writer, err := os.Pipe()
+	var reader, writer *os.File
+	if e.KeepJobs {
+		writer, err = e.jobLog(j)
+	} else {
+		reader, writer, err = os.Pipe()
+	}
 	if err != nil {
 		e.dropJob(j.id)
 		return failure(err)
 	}
 	cmd.Stdout, cmd.Stderr = writer, writer
 	if err := cmd.Start(); err != nil {
-		reader.Close()
+		if reader != nil {
+			reader.Close()
+		}
 		writer.Close()
 		e.dropJob(j.id)
 		return failure(err)
@@ -223,7 +235,11 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 	e.saveRegistry()
 	e.jobs.mu.Unlock()
 	copied := make(chan struct{})
-	go func() { _, _ = io.Copy(j, reader); reader.Close(); close(copied) }()
+	if reader != nil {
+		go func() { _, _ = io.Copy(j, reader); reader.Close(); close(copied) }()
+	} else {
+		close(copied)
+	}
 	go func() {
 		err := cmd.Wait()
 		// Descendants may hold the pipe; settle the group so output ends.
@@ -232,7 +248,9 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 		case <-copied:
 		case <-time.After(2 * time.Second):
 			platform.KillGroup(j.pid)
-			reader.Close()
+			if reader != nil {
+				reader.Close()
+			}
 		}
 		j.mu.Lock()
 		j.exitCode = 0
@@ -253,8 +271,44 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 		e.saveRegistry()
 		e.jobs.mu.Unlock()
 	}()
-	return result(map[string]any{"id": j.id, "status": "running", "command": a.Command, "directory": dir,
-		"note": "Use job_output to read output and job_stop to stop it. It stops when GoHarness exits."})
+	note := "Use job_output to read output and job_stop to stop it. It stops when GoHarness exits."
+	if e.KeepJobs {
+		note = "Use job_output to read output and job_stop to stop it. It keeps running after GoHarness exits."
+	}
+	return result(map[string]any{"id": j.id, "status": "running", "command": a.Command, "directory": dir, "note": note})
+}
+
+// jobLog creates the output file of a job that may outlive GoHarness.
+func (e *Engine) jobLog(j *job) (*os.File, error) {
+	if err := os.MkdirAll(e.artifacts, 0o700); err != nil {
+		return nil, err
+	}
+	j.log = filepath.Join(e.artifacts, fmt.Sprintf("%s-%d.log", j.id, time.Now().UnixNano()))
+	return os.OpenFile(j.log, os.O_CREATE|os.O_EXCL|os.O_WRONLY|os.O_APPEND, 0o600)
+}
+
+// logTail reads the size and the last limit bytes of a job's output file.
+func logTail(path string, limit int) (int64, []byte) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, nil
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return 0, nil
+	}
+	size := info.Size()
+	if limit <= 0 {
+		return size, nil
+	}
+	start := size - int64(limit)
+	if start < 0 {
+		start = 0
+	}
+	buf := make([]byte, size-start)
+	n, _ := f.ReadAt(buf, start)
+	return size, buf[:n]
 }
 
 func (j *job) running() bool {
@@ -292,18 +346,21 @@ func (j *job) summary(limit int) map[string]any {
 	if state == "running" && !j.running() {
 		state = "exited"
 	}
-	v := map[string]any{"id": j.id, "command": j.command, "status": state, "output_bytes": j.total,
+	total, tail := j.total, j.tail
+	if j.log != "" {
+		total, tail = logTail(j.log, limit)
+	}
+	v := map[string]any{"id": j.id, "command": j.command, "status": state, "output_bytes": total,
 		"started": j.started.UTC().Format(time.RFC3339)}
 	if state != "running" {
 		v["exit_code"] = j.exitCode
 	}
 	if limit > 0 {
-		tail := j.tail
 		if len(tail) > limit {
 			tail = tail[len(tail)-limit:]
 		}
 		v["output"] = strings.ToValidUTF8(string(tail), "�")
-		v["output_truncated"] = j.total > int64(len(tail))
+		v["output_truncated"] = total > int64(len(tail))
 	}
 	return v
 }
