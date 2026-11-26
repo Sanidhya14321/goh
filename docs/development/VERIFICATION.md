@@ -8,6 +8,16 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: services left running, package installs
+
+From Terminal-Bench runs 2 and 3. `TestKeptJobWritesToLog` (a `--keep-jobs` job writes to its log, not
+a pipe; `job_output` reads the file's tail; the tool description says jobs outlive the run) and
+`TestShellNotesStoppedBackgroundProcesses`. By hand with `cmd/scripted-model`: a job that writes every
+0.2 s stopped at `goh run` exit without the flag (1 → 1 lines over 2 s) and kept writing with it (3 → 13).
+`TestPackageManagerTimeout` covers the 300 s minimum. `bench/harbor_agent` classifies the ChatGPT plan
+limit as `ApiUsageLimitError` (checked against the exact message from run 2 through Harbor's classifier).
+`go test ./...`, `-race` on tools and harness, `make vet`, `make acceptance` pass.
+
 ## Unreleased: Terminal-Bench findings
 
 From the journals of the 50 Terminal-Bench 2.0 runs that finished: 38 file-tool calls refused an absolute
