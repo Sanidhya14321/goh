@@ -72,21 +72,22 @@ of 12 Python runs still began with `list_files`; without that sentence, 4 of 12.
 ## Terminal-Bench 2.0 (partial)
 
 goh as a [Harbor](https://github.com/harbor-framework/harbor) agent, `gpt-6.2-sol` at medium reasoning
-effort over the ChatGPT sign-in, Apple containers on one M5 Pro, 4 tasks at a time, one attempt per task
-(2026-11-26, goh `fc4cb8f`). The ChatGPT usage limit stopped the run after 58 of the 89 tasks had started.
+effort over the ChatGPT sign-in, Apple containers on one M5 Pro, 4 tasks at a time, one attempt per task.
+Both runs so far ended at the ChatGPT usage limit, so neither covers all 89 tasks.
 
-| | Tasks |
+| Run 2 (2026-11-26, goh `f9f6aaf`, 2 h 15 min) | Tasks |
 | --- | ---: |
-| Solved | 36 |
-| Failed the task's tests | 7 |
-| **Solved, of the 43 that ran to a verdict** | **84%** |
-| goh stopped the run when a command hit its own timeout (fixed in `4b1c621`; one of these was still solved) | 5 |
-| goh's 64-turn cap reached (raised to 256 for these runs) | 1 |
-| Infrastructure: upload cut short (now checked and retried), container start or test timeout | 6 |
-| Cancelled when the run was stopped; not started | 4; 31 |
+| Solved | 34 |
+| Failed the task's tests (2 were the model declining cryptanalysis; 1 a `dpkg` install goh stopped at the model's 20 s limit, fixed in `da90936`) | 9 |
+| Refused by the provider's cybersecurity filter | 1 |
+| **Solved, of the 44 that ran to a verdict** | **77%** |
+| Infrastructure: container start or test timeout | 4 |
+| Ended by the usage limit before a verdict | 41 |
 
-The 43 are the alphabetically first tasks, not a sample; the rest, and the 16 above, run when quota
-allows (`harbor job resume`). Not comparable to the public leaderboard until every task has run.
+Run 1 (goh `fc4cb8f`) solved 36 of 43 (84%) with 46 tasks lost to fixed goh stops, infrastructure and the
+limit. On the 39 tasks both runs decided, run 2 solved 31 and run 1 solved 28. 53 tasks have a verdict
+in at least one run; 36 (alphabetically from `make-doom-for-mips`) have none yet. The decided tasks are
+the alphabetically first, not a sample: not comparable to the public leaderboard until every task has run.
 
 ## Other harnesses
 
