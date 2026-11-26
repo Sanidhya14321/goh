@@ -141,8 +141,11 @@ need `-host-grading`, which runs model-edited code on this machine.
   [Harbor](https://github.com/harbor-framework/harbor) into `research/harbor` and run `uv sync` there,
   sign in with `goh auth login`, then `bench/harbor_agent/run.sh -d terminal-bench@2.0 -n 4`. Each task
   container gets an access-only token (`goh auth export`), replaced every 20 minutes from this machine;
-  an image without CA certificates gets this machine's bundle through `SSL_CERT_FILE`. Results go to
-  `bench/results/harbor`.
+  an image without CA certificates gets this machine's bundle through `SSL_CERT_FILE`. Task images not yet
+  stored are pulled before the run (`bench/harbor_agent/prepull.sh`), not inside the container start
+  timeout; a run ended by the ChatGPT plan limit is recorded as `ApiUsageLimitError`, not a verdict;
+  `VERIFIER_TIMEOUT_MULTIPLIER=4` gives slow test steps (headless Chrome under Rosetta) more time.
+  Results go to `bench/results/harbor`.
 - **Task sets** in `bench/tasks`: 22 basic and 14 hard (`hard-*`, `bench/tools/gen_hard.py`) Go and Python
   bug fixes, 7 prompt-range tasks (`spec-*`, `bench/tools/gen_spectrum.py`), and 19 real-project fixes
   (`bench/tools/mine_go.py`; upstream licenses in `bench/licenses`; run them in a container).

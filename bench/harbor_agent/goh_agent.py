@@ -22,7 +22,12 @@ from typing import Annotated, override
 from pydantic import Field
 
 from harbor.agents.capabilities import AgentCapabilities
-from harbor.agents.installed.base import BaseInstalledAgent, with_prompt_template
+from harbor.agents.installed.base import (
+    ApiUsageLimitError,
+    BaseInstalledAgent,
+    ErrorPattern,
+    with_prompt_template,
+)
 from harbor.agents.options import Cli, InstalledAgentOptions
 from harbor.environments.base import BaseEnvironment
 from harbor.models.agent.context import AgentContext
@@ -55,6 +60,12 @@ class Goh(BaseInstalledAgent):
 
     options_model = GohOptions
     capabilities = AgentCapabilities(reasoning_effort=True)
+    # goh prints the provider's error code; Harbor's own patterns miss the
+    # ChatGPT plan limit, which would otherwise read as a goh failure.
+    ERROR_PATTERNS = [
+        *BaseInstalledAgent.ERROR_PATTERNS,
+        ErrorPattern(r"\(\w*usage_limit_exceeded\)|reached their [\w ]*usage limit", ApiUsageLimitError),
+    ]
     _export_lock = asyncio.Lock()  # one host renewal at a time
 
     @staticmethod

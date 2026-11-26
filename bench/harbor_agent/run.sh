@@ -5,7 +5,8 @@
 # Needs: the container CLI (running), uv, a Harbor checkout (HARBOR_DIR,
 # default research/harbor) and a ChatGPT sign-in on this machine (goh auth login).
 # Container start, agent setup and test steps get twice the task's time (amd64
-# images run under Rosetta here); the agent's own time limit is unchanged.
+# images run under Rosetta here; VERIFIER_TIMEOUT_MULTIPLIER overrides the test
+# step's); the agent's own time limit is unchanged.
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 GO=${GO:-$ROOT/research/tooling/go/bin/go}
@@ -19,9 +20,11 @@ for arch in arm64 amd64; do
     -ldflags "-s -w -X main.version=$VERSION" -o "bench/harbor_agent/bin/goh-linux-$arch" ./cmd/harness
 done
 CGO_ENABLED=0 "$GO" build -trimpath -ldflags "-s -w -X main.version=$VERSION" -o bin/goh ./cmd/harness
+# Task images not stored yet are pulled first, outside the container start timeout.
+bench/harbor_agent/prepull.sh
 cd "$HARBOR_DIR"
 PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}" exec uv run harbor run \
   -a bench.harbor_agent.goh_agent:Goh -m "$MODEL" -e apple-container \
   --environment-build-timeout-multiplier 2 --agent-setup-timeout-multiplier 2 \
-  --verifier-timeout-multiplier 2 \
+  --verifier-timeout-multiplier "${VERIFIER_TIMEOUT_MULTIPLIER:-2}" \
   -o "$ROOT/bench/results/harbor" "$@"
