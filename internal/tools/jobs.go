@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 const (
 	maxJobs      = 8
 	jobTailBytes = 64 << 10
+	maxJobWait   = 600 // seconds job_output may wait
 )
 
 // job is a background shell process owned by this GoHarness process. Jobs
@@ -61,7 +63,7 @@ type jobTable struct {
 func jobDefinitions(s func(map[string]any, ...string) map[string]any, str func() map[string]any, number func(int, int) map[string]any) []Definition {
 	return []Definition{
 		{"job_start", "Start a long-running command in the background (dev server, watcher) and return its job id. This is not sandboxed. Jobs stop when GoHarness exits; at most 8 run at once.", s(map[string]any{"command": str(), "cwd": str()}, "command")},
-		{"job_output", "Read a background job's state and the tail of its output (last 64KiB retained). Without id, list jobs.", s(map[string]any{"id": str(), "limit": number(1, jobTailBytes)})},
+		{"job_output", "Read a background job's state and the tail of its output (last 64KiB retained). Without id, list jobs. With wait_seconds, first wait up to that long for the job to exit or, given until (a regular expression), for its output to match; use this instead of sleep loops.", s(map[string]any{"id": str(), "limit": number(1, jobTailBytes), "wait_seconds": number(1, maxJobWait), "until": str()})},
 		{"job_stop", "Stop a background job and its whole process group.", s(map[string]any{"id": str()}, "id")},
 	}
 }
@@ -71,6 +73,8 @@ type jobArgs struct {
 	Command string `json:"command"`
 	Cwd     string `json:"cwd"`
 	Limit   int    `json:"limit"`
+	Wait    int    `json:"wait_seconds"`
+	Until   string `json:"until"`
 }
 
 func decodeJob(name string, raw json.RawMessage) (jobArgs, error) {
@@ -85,16 +89,30 @@ func decodeJob(name string, raw json.RawMessage) (jobArgs, error) {
 	}
 	switch name {
 	case "job_start":
-		if strings.TrimSpace(a.Command) == "" || a.ID != "" || a.Limit != 0 {
+		if strings.TrimSpace(a.Command) == "" || a.ID != "" || a.Limit != 0 || a.Wait != 0 || a.Until != "" {
 			return a, errors.New("job_start takes command and optional cwd")
 		}
 	case "job_stop":
-		if a.ID == "" || a.Command != "" || a.Cwd != "" || a.Limit != 0 {
+		if a.ID == "" || a.Command != "" || a.Cwd != "" || a.Limit != 0 || a.Wait != 0 || a.Until != "" {
 			return a, errors.New("job_stop takes id")
 		}
 	case "job_output":
-		if a.Command != "" || a.Cwd != "" || a.Limit < 0 || a.Limit > jobTailBytes {
-			return a, errors.New("job_output takes optional id and limit")
+		if a.Command != "" || a.Cwd != "" || a.Limit < 0 || a.Limit > jobTailBytes || a.Wait < 0 || a.Wait > maxJobWait {
+			return a, fmt.Errorf("job_output takes optional id, limit, wait_seconds (1-%d) and until", maxJobWait)
+		}
+		if (a.Wait > 0 || a.Until != "") && a.ID == "" {
+			return a, errors.New("job_output needs id to wait")
+		}
+		if a.Until != "" {
+			if a.Wait == 0 {
+				return a, errors.New("until needs wait_seconds")
+			}
+			if len(a.Until) > 500 {
+				return a, errors.New("until is longer than 500 bytes")
+			}
+			if _, err := regexp.Compile(a.Until); err != nil {
+				return a, fmt.Errorf("until is not a valid regular expression: %w", err)
+			}
 		}
 	}
 	return a, nil
@@ -172,7 +190,63 @@ func (e *Engine) executeJob(ctx context.Context, name string, raw json.RawMessag
 	if limit == 0 {
 		limit = 8192
 	}
-	return result(j.summary(limit))
+	if a.Wait == 0 {
+		return result(j.summary(limit))
+	}
+	start := time.Now()
+	waited := j.wait(ctx, time.Duration(a.Wait)*time.Second, a.Until)
+	v := j.summary(limit)
+	v["waited"], v["waited_seconds"] = waited, int(time.Since(start).Seconds()+0.5)
+	return result(v)
+}
+
+// jobPoll is how often a wait with until re-reads the output.
+const jobPoll = 200 * time.Millisecond
+
+// wait blocks until the job ends ("exited"), its retained output matches
+// until ("matched"), the wait expires ("timeout") or ctx ends ("cancelled").
+func (j *job) wait(ctx context.Context, d time.Duration, until string) string {
+	var re *regexp.Regexp
+	if until != "" {
+		re = regexp.MustCompile(until) // validated by decodeJob
+	}
+	matched := func() bool {
+		if re == nil {
+			return false
+		}
+		j.mu.Lock()
+		tail := j.tail
+		if j.log != "" {
+			_, tail = logTail(j.log, jobTailBytes)
+		}
+		ok := re.Match(tail)
+		j.mu.Unlock()
+		return ok
+	}
+	if matched() {
+		return "matched"
+	}
+	timer := time.NewTimer(d)
+	defer timer.Stop()
+	tick := time.NewTicker(jobPoll)
+	defer tick.Stop()
+	for {
+		select {
+		case <-j.done:
+			if matched() {
+				return "matched"
+			}
+			return "exited"
+		case <-timer.C:
+			return "timeout"
+		case <-ctx.Done():
+			return "cancelled"
+		case <-tick.C:
+			if matched() {
+				return "matched"
+			}
+		}
+	}
 }
 
 func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
@@ -271,9 +345,9 @@ func (e *Engine) startJob(ctx context.Context, a jobArgs) Result {
 		e.saveRegistry()
 		e.jobs.mu.Unlock()
 	}()
-	note := "Use job_output to read output and job_stop to stop it. It stops when GoHarness exits."
+	note := "Use job_output to read output (wait_seconds waits for it to exit or for until to match) and job_stop to stop it. It stops when GoHarness exits."
 	if e.KeepJobs {
-		note = "Use job_output to read output and job_stop to stop it. It keeps running after GoHarness exits."
+		note = strings.Replace(note, "It stops when", "It keeps running after", 1)
 	}
 	return result(map[string]any{"id": j.id, "status": "running", "command": a.Command, "directory": dir, "note": note})
 }
