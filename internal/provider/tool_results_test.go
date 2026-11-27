@@ -101,3 +101,11 @@ func TestToolResultsOnTheWire(t *testing.T) {
 		t.Fatalf("anthropic: %s", b)
 	}
 }
+
+func TestToolResultTextBudgetLast(t *testing.T) {
+	got, isErr, ok := ToolResultText(`{"content":"{\"exit_code\":0,\"output\":\"hi\"}","budget":"Run budget: 5 of 10 tool calls left. Plan the remaining work to fit."}`)
+	want := "{\"exit_code\":0}\nhi\n[Run budget: 5 of 10 tool calls left. Plan the remaining work to fit.]"
+	if got != want || isErr || !ok {
+		t.Fatalf("%q %v %v", got, isErr, ok)
+	}
+}

@@ -16,6 +16,7 @@ import os
 import shlex
 import subprocess
 import tempfile
+import tomllib
 from pathlib import Path
 from typing import Annotated, override
 
@@ -40,6 +41,10 @@ HOST_GOH = os.environ.get("GOH_HOST_BIN", str(REPO / "bin" / "goh"))
 TOKEN_EVERY_SEC = 20 * 60
 TOKEN_VALID = "45m"
 CRED_DIR = "$HOME/.config/independent-harness/credentials"
+TASK_CACHE = Path(os.environ.get("HARBOR_TASK_CACHE", Path.home() / ".cache" / "harbor" / "tasks"))
+# goh stops this long before Harbor's agent timeout, so it ends the run itself
+# (jobs and the journal intact) and the model plans against the real limit.
+STOP_MARGIN_SEC = 30
 # Some task images have no CA certificates. goh then uses this machine's bundle
 # (as the agents that install ca-certificates do); commands it runs inherit it.
 HOST_CA = os.environ.get("GOH_CA_BUNDLE", "/etc/ssl/cert.pem")
@@ -155,17 +160,37 @@ class Goh(BaseInstalledAgent):
             except Exception as exc:  # the run reports its own failure if it expires
                 self.logger.warning(f"goh token replacement failed: {exc}")
 
+    def _time_limit(self) -> int | None:
+        """The task's agent time limit in seconds, from the trial's config and task.toml."""
+        try:
+            trial = json.loads((self.logs_dir.parent / "config.json").read_text())
+            limit = trial.get("agent", {}).get("override_timeout_sec")
+            if limit is None:
+                path = trial["task"]["path"]
+                for toml in TASK_CACHE.glob(f"*/{path}/task.toml"):
+                    limit = tomllib.loads(toml.read_text()).get("agent", {}).get("timeout_sec")
+                    break
+            if limit is None:
+                return None
+            limit *= trial.get("agent_timeout_multiplier") or trial.get("timeout_multiplier") or 1
+            return max(60, int(limit) - STOP_MARGIN_SEC)
+        except (OSError, KeyError, ValueError, TypeError) as exc:
+            self.logger.debug(f"no time limit for goh: {exc}")
+            return None
+
     @override
     @with_prompt_template
     async def run(self, instruction: str, environment: BaseEnvironment, context: AgentContext) -> None:
         effort = getattr(self.options, "reasoning_effort", None) or "medium"
         has_ca = " || ".join(f"[ -s {p} ]" for p in SYSTEM_CA)
+        limit = self._time_limit()
+        budget = f"--max-run-seconds {limit} " if limit else ""
         command = (
             f'if ! {{ {has_ca}; }}; then export SSL_CERT_FILE={CA_PATH}; fi; '
             'goh run --project "$PWD" --prompt "$GOH_TASK" --format json '
             "--protocol openai_chatgpt "
             f"--model {shlex.quote(self._model())} --reasoning-effort {shlex.quote(effort)} "
-            "--access full --allow all --keep-jobs --session-dir /logs/agent/sessions "
+            f"--access full --allow all --keep-jobs {budget}--session-dir /logs/agent/sessions "
             "> /logs/agent/goh.jsonl 2> /logs/agent/goh.stderr; "
             "status=$?; tail -c 2000 /logs/agent/goh.stderr; exit $status"
         )

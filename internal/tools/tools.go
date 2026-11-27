@@ -38,6 +38,9 @@ type Definition struct {
 type Result struct {
 	Content string `json:"content"`
 	Error   bool   `json:"error,omitempty"`
+	// Budget is a run-budget note the runtime adds to the newest result of
+	// a batch (see runtime/budget.go); tools never set it.
+	Budget string `json:"budget,omitempty"`
 }
 type Engine struct {
 	root, artifacts string

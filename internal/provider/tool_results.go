@@ -23,18 +23,27 @@ func ToolResultText(content string) (text string, isError bool, ok bool) {
 	var envelope struct {
 		Content *string `json:"content"`
 		Error   bool    `json:"error"`
+		Budget  string  `json:"budget"`
 	}
 	if !strings.HasPrefix(content, "{") || json.Unmarshal([]byte(content), &envelope) != nil || envelope.Content == nil {
 		return content, false, false // a receipt, a summary, or another tool's own format
 	}
-	body := *envelope.Content
+	text, isError, ok = renderToolResult(*envelope.Content, envelope.Error)
+	if envelope.Budget != "" {
+		// The run-budget note goes last, read with the newest result.
+		text += "\n[" + envelope.Budget + "]"
+	}
+	return text, isError, ok
+}
+
+func renderToolResult(body string, isError bool) (string, bool, bool) {
 	prefix := ""
-	if envelope.Error {
+	if isError {
 		prefix = "Error: "
 	}
 	fields, ok := decodeObject(body)
 	if !ok {
-		return prefix + body, envelope.Error, true
+		return prefix + body, isError, true
 	}
 	// List-shaped results read best one entry per line.
 	if lines, ok := grepLines(fields["matches"]); ok {
@@ -42,14 +51,14 @@ func ToolResultText(content string) (text string, isError bool, ok bool) {
 		if len(lines) == 0 {
 			lines = []string{"no matches"}
 		}
-		return prefix + joinNonEmpty(strings.Join(lines, "\n"), compactFields(fields)), envelope.Error, true
+		return prefix + joinNonEmpty(strings.Join(lines, "\n"), compactFields(fields)), isError, true
 	}
 	if names, ok := stringList(fields["files"]); ok {
 		delete(fields, "files")
 		if len(names) == 0 {
 			names = []string{"no files"}
 		}
-		return prefix + joinNonEmpty(strings.Join(names, "\n"), compactFields(fields)), envelope.Error, true
+		return prefix + joinNonEmpty(strings.Join(names, "\n"), compactFields(fields)), isError, true
 	}
 	if _, ok := fields["artifact_id"]; ok {
 		delete(fields, "artifact") // the absolute log path; read_artifact takes the id
@@ -60,15 +69,15 @@ func ToolResultText(content string) (text string, isError bool, ok bool) {
 			delete(fields, key)
 			head := compactFields(fields)
 			if main == "" {
-				return prefix + head, envelope.Error, true
+				return prefix + head, isError, true
 			}
 			if head == "" {
-				return prefix + main, envelope.Error, true
+				return prefix + main, isError, true
 			}
-			return prefix + head + "\n" + main, envelope.Error, true
+			return prefix + head + "\n" + main, isError, true
 		}
 	}
-	return prefix + compactFields(fields), envelope.Error, true
+	return prefix + compactFields(fields), isError, true
 }
 
 func decodeObject(body string) (map[string]json.RawMessage, bool) {

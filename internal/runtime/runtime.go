@@ -128,6 +128,7 @@ type Agent struct {
 	// runTokens counts model tokens (input+output) used by this run;
 	// usageMissing counts model calls whose provider reported no usage.
 	runTokens, usageMissing int
+	budget                  budgetState
 	// bytesPerToken converts request bytes to estimated tokens; 0 means not
 	// calibrated yet (one token per byte). capAdapts counts the requests
 	// this run resent after a provider stated its per-request cap.
@@ -635,6 +636,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		a.External = a.ExternalFactory()
 	}
 	started := time.Now()
+	a.resetBudget(started)
 	a.event("run_started", map[string]any{"model": a.Config.Model, "protocol": a.Config.EffectiveProtocol(), "project": a.Store.Project, "profile": a.Config.Profile, "agent": a.Config.Agent, "agent_mode": a.Config.AgentMode})
 	defer func() { status, err = a.endRun(ctx, status, err, started, true) }()
 	if e := a.Store.Append("run_started", map[string]any{"model": a.Config.Model, "protocol": a.Config.EffectiveProtocol(), "profile": a.Config.Profile, "agent": a.Config.Agent, "agent_mode": a.Config.AgentMode}); e != nil {
@@ -1052,6 +1054,9 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 				results[j] = a.postToolHooks(ctx, calls[j], results[j])
 			}
 			i = end
+		}
+		if note := a.budgetNote(ctx); note != "" && len(results) > 0 {
+			results[len(results)-1].Budget = note
 		}
 		if e := a.saveResults(calls, results); e != nil {
 			return "failed", e

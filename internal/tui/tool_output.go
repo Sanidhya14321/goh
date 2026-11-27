@@ -14,6 +14,7 @@ func historyToolParts(raw string) (mark, content string) {
 	var envelope struct {
 		Content *string
 		Error   bool
+		Budget  string // a run-budget note for the model; not shown
 	}
 	decoder := json.NewDecoder(strings.NewReader(raw))
 	decoder.DisallowUnknownFields()
