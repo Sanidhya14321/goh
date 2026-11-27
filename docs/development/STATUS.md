@@ -56,5 +56,5 @@ Not attempted by decision: custom tool plugins (they would run repository code),
 
 1. **Manual checks:** Zed over ACP, and one interactive Windows session (LSP drive/UNC URIs and the attach/TUI changes are cross-vetted only).
 2. **Benchmark:** optionally rerun all 89 Terminal-Bench 2.0 tasks on one build (about two quota windows) for a single-build score.
-3. **Long sessions:** opening a journal still reads every record (40 ms, 79 MB at 20,000 records); a
-   streaming or tail-only open for resume and attach, if that cost matters in practice.
+3. **Long sessions:** opening a journal still reads every record (9.6 ms, 23 MB at 20,000 records); a
+   tail-only open for resume and attach, if that cost matters in practice.

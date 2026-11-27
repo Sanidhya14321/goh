@@ -8,6 +8,14 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: faster journal open
+
+`TestFastRecordMatchesStrict` (records in goh's own form take the fast path; other key orders, escapes,
+duplicate or padded fields, a leading-zero time are left to the strict decoder) and `FuzzFastRecord`
+(whenever the fast path accepts a line the strict decoder accepts it with the same fields; 23 million
+inputs, including the padded-data case it found). `BenchmarkOpenAndRecentMessages20k`: 37 → 9.6 ms,
+79 → 23 MB. `go test ./...`, `-race` on session and runtime, `make vet`, `make acceptance` pass.
+
 ## Unreleased: budget notes, waiting for jobs, task recitation
 
 `TestBudgetNotesAtMarks` (a 10-call cap is reported at 5, 2 and 1 left, once each, on the newest result

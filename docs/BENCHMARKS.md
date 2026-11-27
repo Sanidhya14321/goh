@@ -137,7 +137,7 @@ One Apple M5 Pro, no model involved (`go test -bench` in the named packages):
 | Redraw of a 200-turn session, nothing new / after new text | 30 µs / 279 µs (1.1.0: 136 / 414 µs) |
 | Streaming a 2,000-line code block, per update | 2.6 ms (1.1.0: 3.6 ms) |
 | Reopened chat's messages, 20,000-record journal | 0.24 ms, 0.5 MB (1.1.0: 7.0 ms, 31 MB) |
-| Opening a 20,000-record journal | 40 ms, 79 MB |
+| Opening a 20,000-record journal | 9.6 ms, 23 MB (before: 37 ms, 79 MB) |
 | Resume of a settled session (64 calls, 32 KiB results) | 4 µs (1.1.0: 2.9 ms, 10 MB) |
 | Headless `hello`, scripted model, `GOH_PHASES` (p50 / p95 of 20) | 15 / 21 ms: setup 7, request 2, after final reply 7 (journal 2) |
 | Headless `hello` in a 6,600-file project, same | 10 ms (before: 150 ms, a whole-project walk ahead of the request) |

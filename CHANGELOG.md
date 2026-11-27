@@ -59,6 +59,9 @@ Each entry lists user-visible changes; evidence for each is in
   for 69 jobs and 39 sleep loops on Terminal-Bench).
 - New experiment `task-recitation` (off): before a long run finishes, the task is quoted back once to check
   each explicit requirement. The Harbor agent takes `--ak experiment=NAME[,NAME]`.
+- Opening a saved session reads its journal in one buffer and decodes records in the form goh writes
+  without a decoder per line (others still go through the strict decoder): a 20,000-record journal opens
+  in 9.6 ms and 23 MB instead of 37 ms and 79 MB, for resume, attach and the session pickers.
 
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.

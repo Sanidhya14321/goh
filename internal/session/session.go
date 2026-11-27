@@ -4,7 +4,6 @@
 package session
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
@@ -246,40 +245,42 @@ func open(dir, id, project string) (*Store, error) {
 
 // readRecords accepts only a valid prefix followed by an unterminated tail.
 // A newline-terminated malformed record, including the last one, is corruption.
+// The journal is read in one buffer and each record's Data is a slice of it.
 func readRecords(r io.Reader) ([]Record, int64, bool, error) {
-	reader := bufio.NewReaderSize(r, 64<<10)
-	var records []Record
+	var buf bytes.Buffer
+	if f, ok := r.(*os.File); ok {
+		if info, err := f.Stat(); err == nil && info.Size() > 0 {
+			buf.Grow(int(info.Size()) + bytes.MinRead)
+		}
+	}
+	if _, err := buf.ReadFrom(r); err != nil {
+		return nil, 0, false, err
+	}
+	content := buf.Bytes()
+	records := make([]Record, 0, bytes.Count(content, []byte{'\n'}))
 	var offset int64
-	for {
-		line, err := reader.ReadSlice('\n')
-		var full []byte
-		for err == bufio.ErrBufferFull {
-			full = append(full, line...)
-			if len(full) > maxRecordBytes {
+	for len(content) > 0 {
+		end := bytes.IndexByte(content, '\n')
+		if end < 0 {
+			if len(content) > maxRecordBytes {
 				return nil, offset, false, errors.New("journal record exceeds 16 MiB")
 			}
-			line, err = reader.ReadSlice('\n')
+			return records, offset, true, nil
 		}
-		if len(full) > 0 {
-			line = append(full, line...)
-		}
-		if len(line) > maxRecordBytes {
+		if end+1 > maxRecordBytes {
 			return nil, offset, false, errors.New("journal record exceeds 16 MiB")
 		}
-		if err == io.EOF {
-			return records, offset, len(line) > 0, nil
-		}
-		if err != nil {
-			return nil, offset, false, err
-		}
-		var record Record
-		decoder := json.NewDecoder(bytes.NewReader(line))
-		decoder.DisallowUnknownFields()
-		if err := decoder.Decode(&record); err != nil {
-			return nil, offset, false, fmt.Errorf("journal corruption at byte %d: %w", offset, err)
-		}
-		if err := decoder.Decode(new(any)); err != io.EOF {
-			return nil, offset, false, fmt.Errorf("journal corruption at byte %d: trailing content", offset)
+		line := content[: end+1 : end+1]
+		record, ok := fastRecord(line[:end])
+		if !ok {
+			decoder := json.NewDecoder(bytes.NewReader(line))
+			decoder.DisallowUnknownFields()
+			if err := decoder.Decode(&record); err != nil {
+				return nil, offset, false, fmt.Errorf("journal corruption at byte %d: %w", offset, err)
+			}
+			if err := decoder.Decode(new(any)); err != io.EOF {
+				return nil, offset, false, fmt.Errorf("journal corruption at byte %d: trailing content", offset)
+			}
 		}
 		if !validVersion(record) {
 			return nil, offset, false, fmt.Errorf("unsupported journal version %d at byte %d", record.Version, offset)
@@ -288,8 +289,70 @@ func readRecords(r io.Reader) ([]Record, int64, bool, error) {
 			return nil, offset, false, fmt.Errorf("invalid journal record at byte %d", offset)
 		}
 		records = append(records, record)
-		offset += int64(len(line))
+		offset += int64(end + 1)
+		content = content[end+1:]
 	}
+	return records, offset, false, nil
+}
+
+// fastRecord decodes a line in exactly the form appendAt writes,
+// {"version":N,"type":"T","data":D[,"time":N]}, without a decoder per line.
+// Anything else (escapes in the type, other key orders, spacing) reports
+// false and goes through the strict decoder, which accepts the same records.
+func fastRecord(line []byte) (Record, bool) {
+	var r Record
+	rest, ok := bytes.CutPrefix(line, []byte(`{"version":`))
+	if !ok || len(rest) == 0 || (rest[0] != '1' && rest[0] != '2') {
+		return r, false
+	}
+	r.Version = int(rest[0] - '0')
+	if rest, ok = bytes.CutPrefix(rest[1:], []byte(`,"type":"`)); !ok {
+		return r, false
+	}
+	quote := bytes.IndexByte(rest, '"')
+	if quote < 0 {
+		return r, false
+	}
+	for _, c := range rest[:quote] {
+		if c < 0x20 || c >= 0x7f || c == '\\' {
+			return r, false
+		}
+	}
+	r.Type = string(rest[:quote])
+	if rest, ok = bytes.CutPrefix(rest[quote+1:], []byte(`,"data":`)); !ok {
+		return r, false
+	}
+	if rest, ok = bytes.CutSuffix(rest, []byte("}")); !ok {
+		return r, false
+	}
+	if at := bytes.LastIndex(rest, []byte(`,"time":`)); at >= 0 {
+		digits := rest[at+len(`,"time":`):]
+		if t, ok := parseTime(digits); ok {
+			r.Time, rest = t, rest[:at]
+		}
+	}
+	if len(rest) == 0 || isJSONSpace(rest[0]) || isJSONSpace(rest[len(rest)-1]) || !json.Valid(rest) {
+		return r, false
+	}
+	r.Data = json.RawMessage(rest[:len(rest):len(rest)])
+	return r, true
+}
+
+func isJSONSpace(c byte) bool { return c == ' ' || c == '\t' || c == '\n' || c == '\r' }
+
+// parseTime reads a positive JSON integer with no leading zero.
+func parseTime(b []byte) (int64, bool) {
+	if len(b) == 0 || len(b) > 18 || b[0] == '0' {
+		return 0, false
+	}
+	var t int64
+	for _, c := range b {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		t = t*10 + int64(c-'0')
+	}
+	return t, true
 }
 
 func (s *Store) Append(kind string, data any) error {

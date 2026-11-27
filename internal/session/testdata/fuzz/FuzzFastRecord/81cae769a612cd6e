@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("{\"version\":1,\"type\":\"\",\"data\": \"00000000\"}")
