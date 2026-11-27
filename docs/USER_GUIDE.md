@@ -311,7 +311,10 @@ goh doctor
 - Background jobs (`job_start`) stop when the run ends. `--keep-jobs` leaves them running, for a task
   that asks for a server or service left up; their output goes to a log in the session's artifacts, and
   the next goh start in that session storage offers to stop them. A shell command's own background
-  processes (`server &`) are always stopped when it finishes, and the result says so.
+  processes (`server &`) are always stopped when it finishes, and the result says so. `job_output` can
+  wait (`wait_seconds`) for a job to exit or for its output to match `until`.
+- With `--max-run-seconds`, `--max-tool-calls` or `--max-run-tokens`, the model is told what is left
+  when a budget passes 50%, 75% and 90%.
 - `GOH_PHASES=1` reports where the run's time went: setup, each model request (first text, retry
   wait), tools, approval and question waits, and the finishing steps. Text mode prints one `phases:` line
   on stderr; JSON adds a `run_phases` event before `run_finished`. Durations and sizes only.
@@ -322,7 +325,8 @@ completed; text mode prints `Verification failed: …`, JSON has `outcome: faile
 `130` cancelled.
 
 `--experiment NAME` (repeatable, or `"experiments": [...]` in the config) turns on a research
-prototype: `submission-evidence`, `recoverable-compression` or `retrieval-expansion`. All are off by
+prototype: `submission-evidence`, `recoverable-compression`, `retrieval-expansion` or
+`task-recitation`. All are off by
 default; see [experiments](BENCHMARKS.md).
 
 `run_finished` carries `outcome` (`verified`, `unverified`, `no_changes`, `failed_verification`)

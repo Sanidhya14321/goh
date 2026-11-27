@@ -50,6 +50,16 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Research round after Terminal-Bench** (list and reasons in [design decisions](docs/development/DESIGN_DECISIONS.md#after-terminal-bench-20-november-2026))
+- A run capped by `max_run_seconds`, `max_tool_calls` or `max_run_tokens` tells the model what is left when a
+  budget passes 50%, 75% and 90% (one line on the newest tool result; uncapped runs are unchanged). The
+  Harbor agent passes each task's time limit, less 30 s.
+- `job_output` takes `wait_seconds` (up to 600) and `until` (a regular expression): it returns when the job
+  exits or its output matches, instead of the model polling or writing sleep loops (105 `job_output` calls
+  for 69 jobs and 39 sleep loops on Terminal-Bench).
+- New experiment `task-recitation` (off): before a long run finishes, the task is quoted back once to check
+  each explicit requirement. The Harbor agent takes `--ak experiment=NAME[,NAME]`.
+
 **Terminal: clearer and faster**
 - Your prompts sit in a filled band with a bar, so turns stand apart; every reply starts its own paragraph.
 - Tool calls read as what they do (`▸ Read  a.go`, `▸ Shell  go test ./...`). A read is one line

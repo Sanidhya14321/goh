@@ -108,3 +108,33 @@ Sources:
 - From the review: DeepSWE, Terminal-Bench 2.1 and SWE-Bench Pro on verifier fixes and time budgets.
 
 Built: clean regrading with a hidden-test overlay and tamper detection; false-completion, budget, tool-call, time and token metrics; arms for one-change-at-a-time A/B tests. The suite has since grown to 22 basic, 14 hard and 19 real-project tasks; results are in [benchmarks](../BENCHMARKS.md).
+
+## After Terminal-Bench 2.0 (November 2026)
+
+What the 89-task run showed about goh itself (per-task logs under `bench/results/harbor`):
+
+- Three failures were goh's and are fixed (package-manager timeout, services stopped at exit, a timeout that ended the run).
+- Four of the twelve wrong solutions passed the model's own check but missed a stated requirement: a QEMU monitor on another socket path, a CSV with the wrong columns, clean input that had to stay unchanged, a web server returning 404.
+- Prompt caching held: 88.6% of input tokens were cache reads. No trial reached compaction (largest context about 63k tokens), so compression changes cannot move this benchmark.
+- The model polled background jobs: 105 `job_output` calls for 69 jobs, and 39 shell `sleep` loops of its own.
+- 11.6% of turns issued more than one tool call; adjacent reads already run in parallel.
+- The model was never told its time limit.
+
+Sources:
+- [Budget-Aware Tool-Use Enables Effective Agent Scaling (arXiv:2511.17006)](https://arxiv.org/abs/2511.17006): an agent that sees its remaining budget matches plain ReAct at a tenth of the tool calls.
+- [Asynchronous LLM Function Calling (arXiv:2412.07017)](https://arxiv.org/abs/2412.07017) and [AsyncFC (arXiv:2605.15077)](https://arxiv.org/abs/2605.15077): event-driven results instead of blocking or polling; AsyncFC reports little gain on strictly sequential tasks.
+- [Context Engineering for AI Agents: Lessons from Building Manus](https://manus.im/blog/Context-Engineering-for-AI-Agents-Lessons-from-Building-Manus): recite goals into the end of the context, keep the prefix stable for the cache. [Lost in the Middle (arXiv:2307.03172)](https://arxiv.org/abs/2307.03172).
+- [ACON (arXiv:2510.00615)](https://arxiv.org/abs/2510.00615): learned compression guidelines, 26–54% fewer peak tokens.
+- [Speculative Actions (arXiv:2510.04371)](https://arxiv.org/abs/2510.04371): a fast model predicts the next actions.
+
+Chosen:
+- **Budget notes** (default when a budget is set): one line on the newest tool result at 50%, 75% and 90%, so earlier requests stay cacheable.
+- **`job_output` waits** (`wait_seconds`, `until`): the event-driven part of AsyncLM without changing the protocol.
+- **`task-recitation`** as an experiment, off until an A/B shows it pays.
+
+Not chosen, for now:
+- Learned compression: no trial compacted.
+- Streaming tool dispatch: few multi-call turns.
+- Speculative actions: they need a second model and spend tokens.
+- Model or effort routing: one model family on the ChatGPT plan.
+- Automatic memory writes: still user-initiated by design.
