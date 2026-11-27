@@ -94,6 +94,23 @@ On the 39 tasks both run 1 and run 2 decided, run 2 solved 31 and run 1 solved 2
 submission: one attempt instead of five, a local container runtime with doubled container-start, setup and
 test timeouts (agent time limits unchanged), and three builds.
 
+### After the research round (2026-11-27)
+
+Same Harbor setup, build `45e0b78`, on the tasks the run above got wrong for the model's reasons plus the two
+goh fixes, one attempt each:
+
+| Arm | Tasks | Solved | Requests | Input tokens |
+| --- | ---: | ---: | ---: | ---: |
+| base | pypi-server, code-from-image | 2 of 2 (both fixed) | 11 | 51k |
+| base | 8 wrong-solution tasks | 2 of 7 (dna-insert, video-processing) | 21.5 | 442k |
+| `task-recitation` | same 8 | 0 of 7 | 24.1 | 451k |
+
+`filter-js-from-html` hit the test step's timeout in both arms (this machine; not scored). Recitation fired
+once per run and fixed none of the missed requirements, so it stays off; the two base wins are run-to-run
+variance on tasks failed before. With `job_output` able to wait, the model made 12 `job_output` calls for 18
+jobs (1.5 per job before) and no shell sleep loops. No run passed half its time limit, so no budget note was
+sent.
+
 ## Other harnesses
 
 What each agent sends a model, recorded against a loopback mock (no inference; o200k_base token counts;

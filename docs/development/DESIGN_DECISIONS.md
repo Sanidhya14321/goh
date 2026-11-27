@@ -130,7 +130,7 @@ Sources:
 Chosen:
 - **Budget notes** (default when a budget is set): one line on the newest tool result at 50%, 75% and 90%, so earlier requests stay cacheable.
 - **`job_output` waits** (`wait_seconds`, `until`): the event-driven part of AsyncLM without changing the protocol.
-- **`task-recitation`** as an experiment, off until an A/B shows it pays.
+- **`task-recitation`** as an experiment. Measured on the eight wrong-solution tasks: 0 of 7 against 2 of 7 for base, about 2 more requests per task, no missed requirement caught; it stays off ([results](../BENCHMARKS.md#after-the-research-round-2026-11-27)).
 
 Not chosen, for now:
 - Learned compression: no trial compacted.

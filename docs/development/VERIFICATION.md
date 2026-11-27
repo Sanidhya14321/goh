@@ -8,6 +8,17 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: budget notes, waiting for jobs, task recitation
+
+`TestBudgetNotesAtMarks` (a 10-call cap is reported at 5, 2 and 1 left, once each, on the newest result
+only), `TestBudgetNoteTime`, `TestNoBudgetNoNote`, `TestToolResultTextBudgetLast` (the note renders last).
+`TestJobOutputWaits` (exit, `until` match, timeout, cancellation; returns early), `TestKeptJobOutputWaitsForMatch`,
+`TestJobOutputWaitValidation`. `TestTaskRecitation` (once per long run, quotes the task, not in short runs
+or with the experiment off). Live through Harbor on Terminal-Bench (`--max-run-seconds 3570` reached goh;
+waits used in 4 of 10 tasks; recitation fired once per run) — results in
+[benchmarks](../BENCHMARKS.md#after-the-research-round-2026-11-27). `go test ./...`, `-race` on tools,
+`make vet`, `make acceptance` pass.
+
 ## Unreleased: services left running, package installs
 
 From Terminal-Bench runs 2 and 3. `TestKeptJobWritesToLog` (a `--keep-jobs` job writes to its log, not
