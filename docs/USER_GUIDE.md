@@ -905,6 +905,16 @@ by `---`, plus `matches` (0 when nothing matched). `links: true` adds `links`: u
 URLs with their text, from the page or the selected parts, each once. Other content types refuse both
 arguments.
 
+**Pages built by JavaScript.** With `"webfetch_browser": "auto"` (or the absolute path of Chrome,
+Chromium, Edge or Brave), `webfetch` also takes `render: true`: the page is loaded in a headless browser
+with a fresh profile, its scripts run for up to 8 s of page time, and the resulting page goes through the
+same conversion, `selector` and `links`. Every connection the browser makes, including the page's own
+scripts, images and requests, goes through a loopback proxy that refuses loopback, private-network and
+link-local addresses as plain fetches do (unless `webfetch_allow_private`); QUIC, WebRTC UDP and DNS
+prefetching are off so nothing bypasses it. Unlike a plain fetch, scripts can load other public sites and
+redirects may leave the origin; the approval prompt says so. Each render needs approval like any fetch;
+about 1–3 s per page. If the browser is not found, `render` is not offered.
+
 `websearch` is off until one of these is set:
 
 - `"websearch": "provider"` searches through the model provider's own search tool (the ChatGPT

@@ -209,6 +209,12 @@ func New(c core.Config, s *session.Store) (*Agent, error) {
 	if c.WebfetchAllowPrivate {
 		web = webfetch.NewAllowingPrivate()
 	}
+	if c.WebfetchBrowser != "" {
+		// A browser that is not found leaves render off; plain fetches work.
+		if path, err := webfetch.FindBrowser(c.WebfetchBrowser); err == nil {
+			web.SetBrowser(path)
+		}
+	}
 	a := &Agent{Web: web, readyIntegrations: map[string]bool{}, Config: c, Store: s, Tools: t, Provider: provider.New(c), Grants: map[string]bool{}, invalid: map[string]int{}}
 	a.accessRules = core.SavedAccess() // levels the user saved for folders
 	a.Skills, e = skills.New(context.Background(), s.Project, c.SkillPaths)

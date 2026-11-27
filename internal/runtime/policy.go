@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/Sanidhya14321/goh/internal/core"
-	"github.com/Sanidhya14321/goh/internal/webfetch"
 	"github.com/Sanidhya14321/goh/internal/websearch"
 )
 
@@ -35,7 +34,7 @@ func (a *Agent) localDefinitions() []core.Tool {
 	if len(a.Skills.List()) > 0 {
 		defs = append(defs, a.skillDefinition()) // an empty catalog is not worth a tool
 	}
-	defs = append(defs, questionDefinition(), webfetch.Definition())
+	defs = append(defs, questionDefinition(), a.Web.Definition())
 	if a.Config.WebsearchURL != "" {
 		defs = append(defs, websearch.Definition())
 	} else if a.providerSearch() != nil {

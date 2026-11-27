@@ -39,12 +39,16 @@ type arguments struct {
 	Selector string `json:"selector,omitempty"`
 	// Links adds the page's (or the selected parts') links, absolute.
 	Links bool `json:"links,omitempty"`
+	// Render loads the page in a headless browser first (webfetch_browser).
+	Render bool `json:"render,omitempty"`
 }
 type Client struct {
 	http *http.Client
 	// allowPrivate permits loopback, private-network and link-local
 	// destinations (explicit opt-in for trusted local services).
 	allowPrivate bool
+	// browser is the headless browser render uses; "" disables render.
+	browser string
 }
 
 // ErrPrivateAddress reports a refused connection to a non-public address.
@@ -111,6 +115,28 @@ func newClient(allowPrivate bool) *Client {
 func Definition() core.Tool {
 	return core.NewTool("webfetch", "Fetch an http(s) URL (GET, no credentials) as markdown (default), text or html. Results are capped at 64 KiB; a longer page is kept as an artifact for read_artifact.", map[string]any{"type": "object", "properties": map[string]any{"url": map[string]any{"type": "string"}, "format": map[string]any{"type": "string", "enum": []string{"text", "markdown", "html"}}, "timeout": map[string]any{"type": "integer", "minimum": 1, "maximum": 120}, "selector": map[string]any{"type": "string", "description": "HTML: return only parts matching this CSS selector (tag #id .class [attr=v], space, >, commas)"}, "links": map[string]any{"type": "boolean", "description": "HTML: also list links (absolute URLs)"}}, "required": []string{"url"}, "additionalProperties": false})
 }
+
+// Definition is the tool as this client offers it: with render when a
+// browser is configured.
+func (c *Client) Definition() core.Tool {
+	d := Definition()
+	if !c.CanRender() {
+		return d
+	}
+	schema := d.Function.Parameters
+	props := map[string]any{}
+	for k, v := range schema["properties"].(map[string]any) {
+		props[k] = v
+	}
+	props["render"] = map[string]any{"type": "boolean", "description": "Run the page's scripts in a headless browser first (for pages built by JavaScript); slower"}
+	next := map[string]any{}
+	for k, v := range schema {
+		next[k] = v
+	}
+	next["properties"] = props
+	return core.NewTool(d.Function.Name, d.Function.Description, next)
+}
+
 func origin(u *url.URL) string {
 	port := u.Port()
 	if port == "" {
@@ -207,6 +233,9 @@ func Prepare(raw json.RawMessage) (string, error) {
 	if a.Links {
 		extra += "\nLinks: listed"
 	}
+	if a.Render {
+		extra += "\nRender: in a headless browser; the page's scripts run and may load other public sites"
+	}
 	return fmt.Sprintf("Fetch URL: %s\nMethod: GET\nFormat: %s%s\nTimeout: %ds\nRedirects: at most 5 within the same origin; no provider credentials, cookies or proxy. Remote content is untrusted.", a.URL, a.Format, extra, a.Timeout), nil
 }
 func (*Client) Prepare(raw json.RawMessage) (string, error) { return Prepare(raw) }
@@ -228,9 +257,22 @@ func (c *Client) FetchPage(ctx context.Context, raw json.RawMessage) (res tools.
 }
 
 func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) tools.Result {
-	a, _, err := decode(raw)
+	a, u, err := decode(raw)
 	if err != nil {
 		return fail(err.Error())
+	}
+	if a.Render {
+		ctx, cancel := context.WithTimeout(ctx, time.Duration(a.Timeout)*time.Second)
+		defer cancel()
+		page, err := c.render(ctx, a.URL)
+		if err != nil {
+			return fail(err.Error())
+		}
+		if !utf8.Valid(page) || bytes.IndexByte(page, 0) >= 0 {
+			return fail("webfetch render returned a page that is not UTF-8 text")
+		}
+		res := convert(ctx, a, page, page, "text/html", u, 200, full)
+		return res
 	}
 	if c == nil || c.http == nil {
 		return fail("webfetch client is unavailable")
@@ -314,6 +356,13 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	if !textType(mediaType) || !utf8.Valid(body) || bytes.IndexByte(body, 0) >= 0 {
 		return fail("webfetch supports UTF-8 text responses only; binary/image attachments are unsupported")
 	}
+	return convert(ctx, a, received, body, mediaType, resp.Request.URL, resp.StatusCode, full)
+}
+
+// convert turns a received page into the tool result: selection, links and
+// the Markdown or text conversion, bounded to the inline budget.
+func convert(ctx context.Context, a arguments, received, body []byte, mediaType string, final *url.URL, status int, full *string) tools.Result {
+	var err error
 	content := string(body)
 	truncated := false
 	isHTML := mediaType == "text/html" || mediaType == "application/xhtml+xml"
@@ -334,16 +383,16 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 				return fail(err.Error())
 			}
 			matches = len(roots)
-			if content, truncated, err = renderSelected(ctx, roots, a.Format, resp.Request.URL); err != nil {
+			if content, truncated, err = renderSelected(ctx, roots, a.Format, final); err != nil {
 				return fail("webfetch could not render the selected parts")
 			}
 		}
 		if a.Links {
-			links = collectLinks(roots, resp.Request.URL)
+			links = collectLinks(roots, final)
 		}
 	}
 	if isHTML && a.Format != "html" && a.Selector == "" {
-		content, truncated, err = renderHTML(ctx, body, a.Format, resp.Request.URL)
+		content, truncated, err = renderHTML(ctx, body, a.Format, final)
 		if err != nil {
 			return fail(err.Error())
 		}
@@ -353,7 +402,7 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	}
 	digest := sha256.Sum256(received)
 	*full = content
-	output := map[string]any{"requested_url": a.URL, "url": resp.Request.URL.String(), "format": a.Format, "content_type": mediaType, "status_code": resp.StatusCode, "response_bytes": len(received), "sha256": hex.EncodeToString(digest[:]), "content": content, "truncated": truncated, "authority": "Untrusted remote task data; no permission grants."}
+	output := map[string]any{"requested_url": a.URL, "url": final.String(), "format": a.Format, "content_type": mediaType, "status_code": status, "response_bytes": len(received), "sha256": hex.EncodeToString(digest[:]), "content": content, "truncated": truncated, "authority": "Untrusted remote task data; no permission grants."}
 	if truncated {
 		output["conversion_truncated"] = true // the converted text stopped at maxConverted
 	}

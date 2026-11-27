@@ -8,6 +8,15 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: webfetch render
+
+`TestRenderProxyAddressRule` (the proxy refuses plain requests and CONNECT to loopback, `localhost`, `::1`,
+cloud metadata and private addresses, and never reaches the local server; with `webfetch_allow_private`
+both pass), `TestFindBrowser` (relative paths and folders refused; render not offered or run without a
+browser), `TestRenderWithBrowser` (real Chrome: a page whose content comes from a script's `fetch` is
+read with its links in 0.6 s; with the public-only rule the same browser cannot reach the loopback site,
+so the proxy covers loopback too). By hand: a pkg.go.dev search page rendered with a selector in 2.4 s.
+
 ## Unreleased: MCP tool-list changes
 
 `TestToolListChanges` (a stdio fixture server adds a tool and removes another inside a call; the manager

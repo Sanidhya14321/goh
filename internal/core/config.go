@@ -173,6 +173,9 @@ type Config struct {
 	// WebfetchAllowPrivate lets webfetch reach loopback, private-network and
 	// link-local addresses (off by default: cloud metadata, local services).
 	WebfetchAllowPrivate bool `json:"webfetch_allow_private,omitempty"`
+	// WebfetchBrowser ("auto" or an absolute path to Chrome, Chromium, Edge
+	// or Brave) lets webfetch render pages built by JavaScript.
+	WebfetchBrowser string `json:"webfetch_browser,omitempty"`
 	// CacheKey groups one conversation's requests for provider prompt
 	// caching (set to the session ID by the runtime; never from config).
 	CacheKey string `json:"-"`
@@ -419,6 +422,9 @@ func (c Config) Validate() error {
 		if b < 1024 || b >= c.OutputBudget {
 			return fmt.Errorf("thinking_budget must be at least 1024 and below output_budget (%d)", c.OutputBudget)
 		}
+	}
+	if b := c.WebfetchBrowser; b != "" && b != "auto" && !filepath.IsAbs(b) {
+		return fmt.Errorf(`webfetch_browser must be "auto" or an absolute path to a Chromium-family browser`)
 	}
 	if c.Websearch != "" && c.Websearch != "provider" {
 		return fmt.Errorf(`websearch must be "provider" (or leave it unset and use websearch_url)`)
