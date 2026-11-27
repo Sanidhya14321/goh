@@ -8,6 +8,12 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: MCP tool-list changes
+
+`TestToolListChanges` (a stdio fixture server adds a tool and removes another inside a call; the manager
+re-lists them and the new tool runs; `-race -count 3`), `TestToolListRebuiltWhenServerChangesIt` (the
+request after the change carries the new list, the one before it the old list).
+
 ## Unreleased: MCP elicitation
 
 `TestElicitationAsksTheUser` (an SDK server elicits a five-field form mid-call; the questions name the

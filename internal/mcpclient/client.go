@@ -62,6 +62,8 @@ type Manager struct {
 	reconnectMu sync.Mutex
 	// ask, when set, answers servers' requests for input (elicitation).
 	ask AskFunc
+	// generation counts tool-list changes after Connect.
+	generation uint64
 }
 
 // maxReconnects bounds automatic restarts of one server per run.
@@ -247,6 +249,9 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		options.ElicitationHandler = m.elicitHandler(name, ask)
 		options.Capabilities.Elicitation = &mcp.ElicitationCapabilities{Form: &mcp.FormElicitationCapabilities{}}
 	}
+	options.ToolListChangedHandler = func(ctx context.Context, req *mcp.ToolListChangedRequest) {
+		go m.refreshTools(ctx, name, req.Session)
+	}
 	client := mcp.NewClient(&mcp.Implementation{Name: core.ProductName, Version: core.ProductVersion}, options)
 	var transport mcp.Transport = &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}
 	if cfg.URL != "" {
@@ -279,57 +284,10 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	}
 	p.setSession(session)
 	init := session.InitializeResult()
-	count := 0
-	discovered := map[string]binding{}
-	for tool, e := range session.Tools(initCtx, nil) {
-		if e != nil {
-			cancel()
-			return fmt.Errorf("MCP server %s discovery failed: %w", name, e)
-		}
-		count++
-		if count > 128 {
-			cancel()
-			return fmt.Errorf("MCP server %s exceeds 128-tool discovery limit", name)
-		}
-		if !validComponent(tool.Name) {
-			cancel()
-			return fmt.Errorf("MCP tool %q uses an unsupported name; alpha supports letters, digits, underscore and hyphen without double underscores", tool.Name)
-		}
-		full := "mcp__" + name + "__" + tool.Name
-		if len(full) > 64 {
-			cancel()
-			return fmt.Errorf("MCP namespaced tool %q exceeds 64 bytes", full)
-		}
-		if _, exists := discovered[full]; exists {
-			cancel()
-			return fmt.Errorf("MCP duplicate tool name %q", full)
-		}
-		schema, ok := tool.InputSchema.(map[string]any)
-		if !ok {
-			cancel()
-			return fmt.Errorf("MCP tool %s requires an object input schema", full)
-		}
-		if e := rejectReferences(schema); e != nil {
-			cancel()
-			return fmt.Errorf("MCP tool %s: %w", full, e)
-		}
-		compiler := jsonschema.NewCompiler()
-		compiler.UseLoader(noLoader{})
-		const schemaURL = "https://harness.invalid/schema"
-		if e := compiler.AddResource(schemaURL, schema); e != nil {
-			cancel()
-			return fmt.Errorf("MCP tool %s schema: %w", full, e)
-		}
-		compiled, e := compiler.Compile(schemaURL)
-		if e != nil {
-			cancel()
-			return fmt.Errorf("MCP tool %s unsupported schema: %w", full, e)
-		}
-		description := tool.Description
-		if len(description) > 8192 {
-			description = strings.ToValidUTF8(description[:8192], "")
-		}
-		discovered[full] = binding{server: name, session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
+	discovered, e := discoverTools(initCtx, name, session, p)
+	if e != nil {
+		cancel()
+		return e
 	}
 	cancel()
 	// Tools, prompts and resources are published together, only after the
@@ -819,4 +777,107 @@ func rejectDuplicateKeys(raw []byte) error {
 		return nil
 	}
 	return walk()
+}
+
+// discoverTools lists a server's tools and checks each name and schema.
+func discoverTools(ctx context.Context, name string, session *mcp.ClientSession, p *process) (map[string]binding, error) {
+	count := 0
+	discovered := map[string]binding{}
+	for tool, e := range session.Tools(ctx, nil) {
+		if e != nil {
+			return nil, fmt.Errorf("MCP server %s discovery failed: %w", name, e)
+		}
+		count++
+		if count > 128 {
+			return nil, fmt.Errorf("MCP server %s exceeds 128-tool discovery limit", name)
+		}
+		if !validComponent(tool.Name) {
+			return nil, fmt.Errorf("MCP tool %q uses an unsupported name; alpha supports letters, digits, underscore and hyphen without double underscores", tool.Name)
+		}
+		full := "mcp__" + name + "__" + tool.Name
+		if len(full) > 64 {
+			return nil, fmt.Errorf("MCP namespaced tool %q exceeds 64 bytes", full)
+		}
+		if _, exists := discovered[full]; exists {
+			return nil, fmt.Errorf("MCP duplicate tool name %q", full)
+		}
+		schema, ok := tool.InputSchema.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("MCP tool %s requires an object input schema", full)
+		}
+		if e := rejectReferences(schema); e != nil {
+			return nil, fmt.Errorf("MCP tool %s: %w", full, e)
+		}
+		compiler := jsonschema.NewCompiler()
+		compiler.UseLoader(noLoader{})
+		const schemaURL = "https://harness.invalid/schema"
+		if e := compiler.AddResource(schemaURL, schema); e != nil {
+			return nil, fmt.Errorf("MCP tool %s schema: %w", full, e)
+		}
+		compiled, e := compiler.Compile(schemaURL)
+		if e != nil {
+			return nil, fmt.Errorf("MCP tool %s unsupported schema: %w", full, e)
+		}
+		description := tool.Description
+		if len(description) > 8192 {
+			description = strings.ToValidUTF8(description[:8192], "")
+		}
+		discovered[full] = binding{server: name, session: session, process: p, original: tool.Name, schema: compiled, definition: core.NewTool(full, description, schema)}
+	}
+	return discovered, nil
+}
+
+// refreshTools re-lists a server's tools after it announced a change, and
+// swaps them in whole; a listing that fails its checks keeps the old tools.
+func (m *Manager) refreshTools(ctx context.Context, name string, session *mcp.ClientSession) {
+	m.mu.Lock()
+	var p *process
+	for _, b := range m.bindings {
+		if b.server == name && b.session == session {
+			p = b.process
+			break
+		}
+	}
+	if p == nil { // a server that had no tools yet
+		for _, q := range m.processes {
+			q.mu.Lock()
+			if q.session == session {
+				p = q
+			}
+			q.mu.Unlock()
+		}
+	}
+	m.mu.Unlock()
+	if p == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 15*time.Second)
+	defer cancel()
+	discovered, err := discoverTools(ctx, name, session, p)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if err != nil || m.closed {
+		return
+	}
+	for n := range discovered {
+		if b, taken := m.bindings[n]; taken && b.server != name {
+			return // would collide with another server's tool
+		}
+	}
+	for n, b := range m.bindings {
+		if b.server == name {
+			delete(m.bindings, n)
+		}
+	}
+	for n, b := range discovered {
+		m.bindings[n] = b
+	}
+	m.generation++
+}
+
+// Generation changes whenever the offered tools change after Connect.
+func (m *Manager) Generation() uint64 {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.generation
 }

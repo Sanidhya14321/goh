@@ -49,6 +49,15 @@ func TestMCPHelper(t *testing.T) {
 	server.AddTool(&mcp.Tool{Name: "large", InputSchema: empty}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: strings.Repeat("x", maxResult+1)}}}, nil
 	})
+	if os.Getenv("HARNESS_MCP_GROW") == "1" {
+		server.AddTool(&mcp.Tool{Name: "unlock", InputSchema: empty}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			server.AddTool(&mcp.Tool{Name: "extra", InputSchema: empty}, func(context.Context, *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+				return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "EXTRA-41"}}}, nil
+			})
+			server.RemoveTools("unlock")
+			return &mcp.CallToolResult{Content: []mcp.Content{&mcp.TextContent{Text: "ok"}}}, nil
+		})
+	}
 	if os.Getenv("HARNESS_MCP_RESOURCES") == "1" {
 		server.AddResource(&mcp.Resource{URI: "fixture://docs/api", Name: "api", MIMEType: "text/plain"}, func(context.Context, *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
 			return &mcp.ReadResourceResult{Contents: []*mcp.ResourceContents{{URI: "fixture://docs/api", MIMEType: "text/plain", Text: "RESOURCE-TEXT-55"}}}, nil

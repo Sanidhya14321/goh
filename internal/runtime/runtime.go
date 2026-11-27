@@ -732,16 +732,33 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	if len(a.Skills.Diagnostics()) > 0 {
 		a.event("skill_diagnostics", a.Skills.Diagnostics())
 	}
-	defs := a.localDefinitions()
-	if a.External != nil {
-		defs = append(defs, a.External.Definitions()...)
+	buildDefinitions := func() []core.Tool {
+		defs := a.localDefinitions()
+		if a.External != nil {
+			defs = append(defs, a.External.Definitions()...)
+		}
+		if a.LSP != nil {
+			defs = append(defs, a.LSP.Definitions()...)
+		}
+		return defs
 	}
-	if a.LSP != nil {
-		defs = append(defs, a.LSP.Definitions()...)
+	defs := buildDefinitions()
+	// An MCP server may change its tools mid-run; the list is rebuilt only
+	// then, so the request prefix (and its cache) is otherwise unchanged.
+	generation, versioned := a.External.(interface{ Generation() uint64 })
+	var seen uint64
+	if versioned {
+		seen = generation.Generation()
 	}
 	for turn := 0; turn < a.Config.MaxTurns; turn++ {
 		if e := ctx.Err(); e != nil {
 			return "cancelled", e
+		}
+		if versioned {
+			if g := generation.Generation(); g != seen {
+				seen, defs = g, buildDefinitions()
+				a.event("tools_changed", map[string]any{"tools": len(defs)})
+			}
 		}
 		if e := a.tokenBudgetErr(); e != nil {
 			// Checked before compaction too: a summary is a model call.

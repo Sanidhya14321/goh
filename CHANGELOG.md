@@ -63,6 +63,8 @@ Each entry lists user-visible changes; evidence for each is in
 **MCP**
 - `goh mcp add NAME -- COMMAND ARGS…` and `goh mcp add NAME --url URL [--header H=ENV] [--sse]` add a
   server to the user settings; `goh mcp remove NAME` removes it.
+- A local server that changes its tools mid-run has them listed again, and the next request offers the
+  new list (the list is rebuilt only on a change, so the prompt cache is kept).
 - A server can ask you for input during a call (form elicitation): its fields appear as chat questions
   and the answers go back to it, typed as its form asks. Headless runs do not offer this.
 - Remote servers on the older HTTP+SSE transport work with `"transport": "sse"`; requests stay on the

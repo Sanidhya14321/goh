@@ -823,6 +823,13 @@ never open a browser: a server that still refuses fails to start with "requires 
 `goh mcp login NAME`". For an authorization server without dynamic client registration, set the
 client registered with it: `"oauth_client_id": "…"` (a public client; PKCE is always used).
 
+### Tools that change
+
+A local server that announces a changed tool list (`notifications/tools/list_changed`) has its tools
+listed again; the next model request in the same run carries the new list (requests are otherwise sent
+with the same list, so the prompt cache is kept). A listing that fails goh's checks keeps the old tools.
+Remote servers are not listened to between calls, so their changes show in the next run.
+
 ### Questions from servers
 
 A server can ask you for input during a call (MCP elicitation, form mode): each field appears as a chat

@@ -675,7 +675,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	if *accessFlag != "" {
 		a.SetSessionAccess(accessLevel)
 	}
-	a.ExternalFactory = func() agent.External { return mcpclient.ForAgent(mcpclient.New(c.MCP, store.Project, a.Permission), a.Ask != nil, a.AskForIntegration) }
+	a.ExternalFactory = func() agent.External {
+		return mcpclient.ForAgent(mcpclient.New(c.MCP, store.Project, a.Permission), a.Ask != nil, a.AskForIntegration)
+	}
 	if command == "chat" {
 		tui.Version = version
 		err := tui.Run(a, notice, draft)
