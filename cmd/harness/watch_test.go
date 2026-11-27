@@ -20,7 +20,7 @@ func gitRepo(t *testing.T) (git, root string) {
 	}
 	root = filepath.Join(t.TempDir(), "repo")
 	os.MkdirAll(root, 0o755)
-	for _, args := range [][]string{{"init", "-q"}, {"config", "user.name", "t"}, {"config", "user.email", "t@example.com"}, {"config", "commit.gpgsign", "false"}} {
+	for _, args := range [][]string{{"init", "-q"}, {"config", "user.name", "t"}, {"config", "user.email", "t@example.com"}, {"config", "commit.gpgsign", "false"}, {"config", "core.autocrlf", "false"}} {
 		if out, err := exec.Command(git, append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
 			t.Fatal(string(out))
 		}
