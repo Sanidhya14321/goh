@@ -29,6 +29,7 @@ func TestTextWidthMatchesAnsi(t *testing.T) {
 }
 
 func TestStyleMarksAndInlineStyling(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
 	if hasStyleMarks(verbatimMark+"plain") || !hasStyleMarks("x"+codeOn+"y") || !hasStyleMarks(verbatimMark+boldOff) {
 		t.Fatal("style mark detection")
 	}

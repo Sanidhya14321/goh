@@ -6,6 +6,7 @@ import (
 )
 
 func TestTranscriptCodeAndReviewPreserveContents(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
 	fence := strings.Repeat("\x60", 3)
 	code := "value := \"**literal** \x60text\x60\""
 	rows := transcriptRows("# Heading\n"+fence+"go\n"+code+"\n"+fence+"\n- **item**", 100, "", false)
