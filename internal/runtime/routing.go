@@ -149,6 +149,13 @@ func (a *Agent) recordUsage(purpose, model string, u *core.Usage, discarded bool
 		return nil
 	}
 	a.runTokens += max(u.Total, u.Prompt+u.Completion)
+	if a.Config.MaxRunCost > 0 {
+		if price, ok := a.Config.PriceFor(model); ok {
+			a.runCost += price.Cost(u.Prompt, u.Completion, u.CacheRead, u.CacheWrite)
+		} else if a.unpriced == "" {
+			a.unpriced = model
+		}
+	}
 	d := map[string]any{"model": model, "purpose": purpose, "prompt_tokens": u.Prompt, "completion_tokens": u.Completion, "total_tokens": u.Total, "cache_read_tokens": u.CacheRead, "cache_write_tokens": u.CacheWrite}
 	if discarded {
 		d["discarded"] = true
@@ -186,8 +193,23 @@ func (a *Agent) tokenBudgetErr() error {
 	if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
 		return fmt.Errorf("%w (%d used of %d)", errRunTokens, a.runTokens, a.Config.MaxRunTokens)
 	}
+	if limit := a.Config.MaxRunCost; limit > 0 {
+		if a.unpriced != "" {
+			return fmt.Errorf("%w: the run used %s, which has no entry in prices, so its spend cannot be counted", errRunCost, a.unpriced)
+		}
+		if _, ok := a.Config.PriceFor(a.Config.Model); !ok {
+			return fmt.Errorf("%w: max_run_cost needs a price for %s in prices", errRunCost, a.Config.Model)
+		}
+		if a.runCost >= limit {
+			return fmt.Errorf("%w ($%.4f used of $%.2f)", errRunCost, a.runCost, limit)
+		}
+	}
 	return nil
 }
+
+// errRunCost marks a run stopped at its max_run_cost limit, or one whose
+// spend cannot be counted.
+var errRunCost = errors.New("run stopped at the max_run_cost limit")
 
 // completeRoutes returns the reply or error of the route that answered last
 // and that route: the fallback profile name, or "" for the primary.

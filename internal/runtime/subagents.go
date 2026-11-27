@@ -268,9 +268,20 @@ func (a *Agent) executeTask(ctx context.Context, raw json.RawMessage) tools.Resu
 		}
 		child.Config.MaxRunTokens = remaining
 	}
+	if a.Config.MaxRunCost > 0 {
+		remaining := a.Config.MaxRunCost - a.runCost
+		if remaining <= 0 {
+			return tools.Result{Error: true, Content: "Not executed: the run's max_run_cost budget is used up"}
+		}
+		child.Config.MaxRunCost = remaining
+	}
 	status, runErr := child.Run(runCtx, childPrompt)
 	a.toolCalls += child.toolCalls
 	a.runTokens += child.runTokens
+	a.runCost += child.runCost
+	if a.unpriced == "" {
+		a.unpriced = child.unpriced
+	}
 	a.usageMissing += child.usageMissing // a child's unreported usage stays visible
 	summary := ""
 	for i := len(child.History) - 1; i >= 0; i-- {

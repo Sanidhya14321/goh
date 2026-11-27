@@ -72,6 +72,9 @@ func (a *Agent) budgetNote(ctx context.Context) string {
 	if n := a.Config.MaxRunTokens; n > 0 {
 		check("tokens", float64(a.runTokens), float64(n), fmt.Sprintf("%d of %d tokens left", max(0, n-a.runTokens), n))
 	}
+	if limit := a.Config.MaxRunCost; limit > 0 {
+		check("cost", a.runCost, limit, fmt.Sprintf("$%.2f of $%.2f left", max(0, limit-a.runCost), limit))
+	}
 	if !crossed {
 		return ""
 	}

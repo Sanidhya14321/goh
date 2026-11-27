@@ -128,7 +128,11 @@ type Agent struct {
 	// runTokens counts model tokens (input+output) used by this run;
 	// usageMissing counts model calls whose provider reported no usage.
 	runTokens, usageMissing int
-	budget                  budgetState
+	// runCost is the run's estimated spend (USD) for max_run_cost;
+	// unpriced names a model the run used that has no price.
+	runCost  float64
+	unpriced string
+	budget   budgetState
 	// bytesPerToken converts request bytes to estimated tokens; 0 means not
 	// calibrated yet (one token per byte). capAdapts counts the requests
 	// this run resent after a provider stated its per-request cap.
@@ -796,7 +800,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 		}
 		if e != nil {
 			var finish *provider.FinishError
-			if errors.As(e, &finish) && finish.Reason == "length" || errors.Is(e, errRunTokens) {
+			if errors.As(e, &finish) && finish.Reason == "length" || errors.Is(e, errRunTokens) || errors.Is(e, errRunCost) {
 				return "budget_exhausted", e
 			}
 			return "failed", e
@@ -1336,6 +1340,7 @@ var errNothingToCompact = errors.New("nothing to compact: the conversation is al
 // calibration and cooldowns keep their longer lifetime.
 func (a *Agent) resetRunCounters() {
 	a.runTokens, a.capAdapts, a.usageMissing = 0, 0, 0
+	a.runCost, a.unpriced = 0, ""
 }
 
 // completedData is the assistant_completed payload. fallback (additive,
@@ -1362,7 +1367,7 @@ func compactionStatus(ctx context.Context, err error) string {
 	switch {
 	case ctx.Err() != nil || errors.Is(err, context.Canceled):
 		return "cancelled"
-	case errors.Is(err, errContextBudget), errors.Is(err, errRunTokens),
+	case errors.Is(err, errContextBudget), errors.Is(err, errRunTokens), errors.Is(err, errRunCost),
 		errors.As(err, &http) && http.TooLarge(),
 		errors.As(err, &finish) && finish.Reason == "length":
 		return "budget_exhausted"

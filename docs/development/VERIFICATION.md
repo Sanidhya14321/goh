@@ -8,6 +8,13 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: max_run_cost
+
+`TestPriceCost` (cached input at its own price; dated names use the base entry, a name without the dash
+does not), `TestMaxRunCostStopsTheRun` ($2.70 per request, a $6 cap stops before the fourth request as
+`budget_exhausted`), `TestMaxRunCostNeedsPrices` (no price for the main model stops before any request; a
+request served by an unpriced model stops the run), `TestCostBudgetNote`.
+
 ## Unreleased: webfetch render
 
 `TestRenderProxyAddressRule` (the proxy refuses plain requests and CONNECT to loopback, `localhost`, `::1`,

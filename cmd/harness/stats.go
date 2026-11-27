@@ -69,7 +69,7 @@ func stats(args []string) error {
 // applyPrices estimates cost for models with a configured price.
 func applyPrices(st *session.Stats, prices map[string]core.ModelPrice) {
 	for i := range st.Models {
-		if p, ok := prices[st.Models[i].Model]; ok {
+		if p, ok := (core.Config{Prices: prices}).PriceFor(st.Models[i].Model); ok {
 			st.Models[i].Estimate(p.Input, p.Output, p.CacheRead, p.CacheWrite)
 		}
 	}

@@ -19,8 +19,8 @@ func (a *Agent) maybeAutoTitle(ctx context.Context) {
 	if !a.Config.AutoTitle || a.depth > 0 || a.Config.SessionDir == "" || ctx.Err() != nil {
 		return
 	}
-	if a.Config.MaxRunTokens > 0 && a.runTokens >= a.Config.MaxRunTokens {
-		return // the run's token allowance is spent; a title is optional
+	if a.tokenBudgetErr() != nil {
+		return // the run's allowance is spent; a title is optional
 	}
 	users := 0
 	for _, m := range a.History {

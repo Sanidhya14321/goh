@@ -50,6 +50,11 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Dollar budgets**
+- `max_run_cost` (`--max-run-cost`) stops a run once its estimated spend reaches a USD amount, priced from
+  `prices` per model (child tasks included; budget notes report it). `goh stats` prices dated model names
+  from their base entry.
+
 **Web search without a search service**
 - `"websearch": "provider"` lets `websearch` search through the model provider's hosted search (the
   ChatGPT sign-in, OpenAI Responses, Anthropic), in a request of its own: a short answer and the URLs it

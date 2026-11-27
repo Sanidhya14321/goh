@@ -195,6 +195,10 @@ type Config struct {
 	// reports them) per run, child tasks included (0 = no limit). A
 	// provider-neutral spending cap; checked between model turns.
 	MaxRunTokens int `json:"max_run_tokens,omitempty"`
+	// MaxRunCost bounds a run's estimated spend in USD from prices, child
+	// tasks included (0 = no limit). Every model the run uses needs a price;
+	// checked between model turns, like max_run_tokens.
+	MaxRunCost float64 `json:"max_run_cost,omitempty"`
 	// RetryInterruptedStreams (0-2, default 0) re-sends a model request whose
 	// stream broke before it finished. Off unless configured: the partial reply
 	// is discarded and none of its tool calls ran, so the retry is a new
@@ -298,7 +302,7 @@ func LoadConfig(path string) (Config, error) {
 			return c, fmt.Errorf("verify: command is required, repair_attempts 0-3, timeout_seconds up to 600")
 		}
 	}
-	if c.MaxToolCalls < 0 || c.MaxRunSeconds < 0 || c.MaxRunTokens < 0 {
+	if c.MaxToolCalls < 0 || c.MaxRunSeconds < 0 || c.MaxRunTokens < 0 || c.MaxRunCost < 0 {
 		return c, fmt.Errorf("max_tool_calls, max_run_seconds and max_run_tokens must not be negative")
 	}
 	if c.Sandbox != nil {
@@ -479,6 +483,36 @@ var ErrNoProvider = errors.New("no model provider is connected yet; run goh to c
 // ProviderEndpoint resolves the request URL after configuration overlays.
 // WebsearchEnabled reports whether the websearch tool is offered.
 func (c Config) WebsearchEnabled() bool { return c.WebsearchURL != "" || c.Websearch == "provider" }
+
+// PriceFor returns the configured price for model: an exact entry, else the
+// longest entry that model extends with "-" (a dated version such as
+// "gpt-5-2026-08-07" uses the "gpt-5" price).
+func (c Config) PriceFor(model string) (ModelPrice, bool) {
+	if p, ok := c.Prices[model]; ok {
+		return p, true
+	}
+	best, found := "", false
+	for name := range c.Prices {
+		if len(name) > len(best) && strings.HasPrefix(model, name+"-") {
+			best, found = name, true
+		}
+	}
+	return c.Prices[best], found
+}
+
+// Cost prices one request's usage in USD; cached input uses CacheRead and
+// CacheWrite when set, else the input price.
+func (p ModelPrice) Cost(prompt, completion, cacheRead, cacheWrite int) float64 {
+	read, write := p.CacheRead, p.CacheWrite
+	if read == 0 {
+		read = p.Input
+	}
+	if write == 0 {
+		write = p.Input
+	}
+	fresh := max(0, prompt-cacheRead-cacheWrite)
+	return (float64(fresh)*p.Input + float64(cacheRead)*read + float64(cacheWrite)*write + float64(completion)*p.Output) / 1e6
+}
 
 func (c Config) ProviderEndpoint() (string, error) {
 	if c.EffectiveProtocol() == ChatGPTProtocol {

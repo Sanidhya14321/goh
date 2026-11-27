@@ -313,7 +313,7 @@ goh doctor
   the next goh start in that session storage offers to stop them. A shell command's own background
   processes (`server &`) are always stopped when it finishes, and the result says so. `job_output` can
   wait (`wait_seconds`) for a job to exit or for its output to match `until`.
-- With `--max-run-seconds`, `--max-tool-calls` or `--max-run-tokens`, the model is told what is left
+- With `--max-run-seconds`, `--max-tool-calls`, `--max-run-tokens` or `--max-run-cost`, the model is told what is left
   when a budget passes 50%, 75% and 90%.
 - `GOH_PHASES=1` reports where the run's time went: setup, each model request (first text, retry
   wait), tools, approval and question waits, and the finishing steps. Text mode prints one `phases:` line
@@ -539,8 +539,18 @@ Run budgets (child tasks count against the parent):
 | `max_tool_calls` | Tool calls per run |
 | `max_run_seconds` | Wall time per run |
 | `max_run_tokens` | Input + output tokens as reported by the provider |
+| `max_run_cost` | Estimated spend in USD, from `prices` |
 
-Hitting a budget ends the run as `budget_exhausted` (exit 5).
+Hitting a budget ends the run as `budget_exhausted` (exit 5). `max_run_cost` prices each request's
+reported usage (cached input at `cache_read`/`cache_write` when given) with the `prices` entry for the
+model that served it; a dated name such as `gpt-5-2026-08-07` uses the `gpt-5` entry. goh ships no price
+table, so every model the run uses needs an entry; a run whose model has none stops before its first
+request, and one served by an unpriced model stops after that request. Like `max_run_tokens`, it is
+checked between requests, so one request can finish above it.
+
+```json
+{"prices": {"gpt-5": {"input": 1.25, "output": 10, "cache_read": 0.125}}, "max_run_cost": 0.50}
+```
 
 ---
 
