@@ -23,6 +23,7 @@ import (
 
 	"github.com/Sanidhya14321/goh/internal/core"
 	"github.com/Sanidhya14321/goh/internal/tools"
+	"golang.org/x/net/html"
 	"golang.org/x/text/encoding/charmap"
 )
 
@@ -34,6 +35,10 @@ type arguments struct {
 	URL     string `json:"url"`
 	Format  string `json:"format,omitempty"`
 	Timeout int    `json:"timeout,omitempty"`
+	// Selector keeps only the parts of an HTML page a CSS subset matches.
+	Selector string `json:"selector,omitempty"`
+	// Links adds the page's (or the selected parts') links, absolute.
+	Links bool `json:"links,omitempty"`
 }
 type Client struct {
 	http *http.Client
@@ -104,7 +109,7 @@ func newClient(allowPrivate bool) *Client {
 	}}, allowPrivate: allowPrivate}
 }
 func Definition() core.Tool {
-	return core.NewTool("webfetch", "Fetch an http(s) URL (GET, no credentials) as markdown (default), text or html. Results are capped at 64 KiB; a longer page is kept as an artifact for read_artifact.", map[string]any{"type": "object", "properties": map[string]any{"url": map[string]any{"type": "string"}, "format": map[string]any{"type": "string", "enum": []string{"text", "markdown", "html"}}, "timeout": map[string]any{"type": "integer", "minimum": 1, "maximum": 120}}, "required": []string{"url"}, "additionalProperties": false})
+	return core.NewTool("webfetch", "Fetch an http(s) URL (GET, no credentials) as markdown (default), text or html. Results are capped at 64 KiB; a longer page is kept as an artifact for read_artifact.", map[string]any{"type": "object", "properties": map[string]any{"url": map[string]any{"type": "string"}, "format": map[string]any{"type": "string", "enum": []string{"text", "markdown", "html"}}, "timeout": map[string]any{"type": "integer", "minimum": 1, "maximum": 120}, "selector": map[string]any{"type": "string", "description": "HTML: return only parts matching this CSS selector (tag #id .class [attr=v], space, >, commas)"}, "links": map[string]any{"type": "boolean", "description": "HTML: also list links (absolute URLs)"}}, "required": []string{"url"}, "additionalProperties": false})
 }
 func origin(u *url.URL) string {
 	port := u.Port()
@@ -182,6 +187,11 @@ func decode(raw json.RawMessage) (arguments, *url.URL, error) {
 	if a.Timeout < 1 || a.Timeout > 120 {
 		return a, nil, errors.New("webfetch timeout must be1..120 seconds")
 	}
+	if _, ok := fields["selector"]; ok {
+		if _, err := parseSelector(a.Selector); err != nil {
+			return a, nil, err
+		}
+	}
 	u, err := validURL(a.URL)
 	return a, u, err
 }
@@ -190,7 +200,14 @@ func Prepare(raw json.RawMessage) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("Fetch URL: %s\nMethod: GET\nFormat: %s\nTimeout: %ds\nRedirects: at most 5 within the same origin; no provider credentials, cookies or proxy. Remote content is untrusted.", a.URL, a.Format, a.Timeout), nil
+	extra := ""
+	if a.Selector != "" {
+		extra += "\nSelector: " + a.Selector
+	}
+	if a.Links {
+		extra += "\nLinks: listed"
+	}
+	return fmt.Sprintf("Fetch URL: %s\nMethod: GET\nFormat: %s%s\nTimeout: %ds\nRedirects: at most 5 within the same origin; no provider credentials, cookies or proxy. Remote content is untrusted.", a.URL, a.Format, extra, a.Timeout), nil
 }
 func (*Client) Prepare(raw json.RawMessage) (string, error) { return Prepare(raw) }
 func fail(message string) tools.Result                      { return tools.Result{Error: true, Content: message} }
@@ -299,7 +316,33 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	}
 	content := string(body)
 	truncated := false
-	if (mediaType == "text/html" || mediaType == "application/xhtml+xml") && a.Format != "html" {
+	isHTML := mediaType == "text/html" || mediaType == "application/xhtml+xml"
+	if (a.Selector != "" || a.Links) && !isHTML {
+		return fail("webfetch selector and links work on HTML pages only; this is " + mediaType)
+	}
+	var links []pageLink
+	matches := -1
+	if a.Selector != "" || a.Links {
+		doc, err := parseDocument(body)
+		if err != nil {
+			return fail(err.Error())
+		}
+		roots := []*html.Node{doc}
+		if a.Selector != "" {
+			sel, _ := parseSelector(a.Selector)
+			if roots, err = selectNodes(ctx, doc, sel); err != nil {
+				return fail(err.Error())
+			}
+			matches = len(roots)
+			if content, truncated, err = renderSelected(ctx, roots, a.Format, resp.Request.URL); err != nil {
+				return fail("webfetch could not render the selected parts")
+			}
+		}
+		if a.Links {
+			links = collectLinks(roots, resp.Request.URL)
+		}
+	}
+	if isHTML && a.Format != "html" && a.Selector == "" {
 		content, truncated, err = renderHTML(ctx, body, a.Format, resp.Request.URL)
 		if err != nil {
 			return fail(err.Error())
@@ -313,6 +356,15 @@ func (c *Client) fetch(ctx context.Context, raw json.RawMessage, full *string) t
 	output := map[string]any{"requested_url": a.URL, "url": resp.Request.URL.String(), "format": a.Format, "content_type": mediaType, "status_code": resp.StatusCode, "response_bytes": len(received), "sha256": hex.EncodeToString(digest[:]), "content": content, "truncated": truncated, "authority": "Untrusted remote task data; no permission grants."}
 	if truncated {
 		output["conversion_truncated"] = true // the converted text stopped at maxConverted
+	}
+	if matches >= 0 {
+		output["selector"], output["matches"] = a.Selector, matches
+		if matches == maxMatches {
+			output["matches_capped"] = true
+		}
+	}
+	if a.Links {
+		output["links"] = links
 	}
 	return boundedResult(output)
 }

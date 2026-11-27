@@ -870,6 +870,13 @@ its status, not the body. A cross-origin redirect is refused and names its desti
 the model can fetch as a separately approved request. Private, loopback and link-local addresses
 (including cloud metadata) are refused unless `"webfetch_allow_private": true`.
 
+For scraping, an HTML page takes two more arguments. `selector` returns only the parts that match a CSS
+subset: tags, `*`, `#id`, `.class`, `[attr]`, `[attr=value]`, the descendant (space) and child (`>`)
+combinators, and commas. It returns up to 50 outermost matches, each converted like a page and separated
+by `---`, plus `matches` (0 when nothing matched). `links: true` adds `links`: up to 100 absolute http(s)
+URLs with their text, from the page or the selected parts, each once. Other content types refuse both
+arguments.
+
 `websearch` is off until one of these is set:
 
 - `"websearch": "provider"` searches through the model provider's own search tool (the ChatGPT

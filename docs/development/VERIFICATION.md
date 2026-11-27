@@ -8,6 +8,14 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: webfetch selector and links
+
+`TestWebfetchSelectorAndLinks` (class, child, attribute and descendant selectors against a fixture page;
+outermost matches only; HTML of the matches; no match; links absolute, deduplicated, without `javascript:`
+or script contents, limited to the selection; JSON refuses both), `TestSelectorParsing` (unsupported
+pseudo-classes and combinators are refused before approval; the approval preview names the selector), and
+`FuzzSelector` (30 s, parse, match, render and links never panic). `go test` on webfetch, runtime, cmd.
+
 ## Unreleased: provider web search
 
 `TestWebSearchResponses` (the ChatGPT service's streamed items with an empty completed event, and a

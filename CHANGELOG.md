@@ -55,6 +55,11 @@ Each entry lists user-visible changes; evidence for each is in
   ChatGPT sign-in, OpenAI Responses, Anthropic), in a request of its own: a short answer and the URLs it
   cites. Before, web search needed a self-hosted SearXNG endpoint.
 
+**Scraping with webfetch**
+- `webfetch` takes `selector` (a CSS subset: tag, `#id`, `.class`, `[attr=value]`, descendant, `>`,
+  commas) to return only the matching parts of an HTML page, and `links: true` to list its links as
+  absolute URLs.
+
 **Research round after Terminal-Bench** (list and reasons in [design decisions](docs/development/DESIGN_DECISIONS.md#after-terminal-bench-20-november-2026))
 - A run capped by `max_run_seconds`, `max_tool_calls` or `max_run_tokens` tells the model what is left when a
   budget passes 50%, 75% and 90% (one line on the newest tool result; uncapped runs are unchanged). The
