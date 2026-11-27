@@ -1,7 +1,7 @@
 // Package mcpclient admits explicitly configured MCP servers, local over stdio
 // or remote over Streamable HTTP. Discovery and calls use the official SDK;
-// sampling, OAuth, executable installation and automatic call replay are not
-// supported.
+// sampling, URL-mode elicitation, executable installation and automatic call
+// replay are not supported; form elicitation goes to the user (SetAsk).
 package mcpclient
 
 import (
@@ -60,6 +60,8 @@ type Manager struct {
 	// reconnects counts restarts per server; reconnectMu serialises them.
 	reconnects  map[string]int
 	reconnectMu sync.Mutex
+	// ask, when set, answers servers' requests for input (elicitation).
+	ask AskFunc
 }
 
 // maxReconnects bounds automatic restarts of one server per run.
@@ -237,7 +239,15 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 	m.processes = append(m.processes, p)
 	m.mu.Unlock()
 	initCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	client := mcp.NewClient(&mcp.Implementation{Name: core.ProductName, Version: core.ProductVersion}, &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}})
+	options := &mcp.ClientOptions{Capabilities: &mcp.ClientCapabilities{}, MultiRoundTrip: &mcp.MultiRoundTripOptions{Disabled: true}}
+	m.mu.Lock()
+	ask := m.ask
+	m.mu.Unlock()
+	if ask != nil {
+		options.ElicitationHandler = m.elicitHandler(name, ask)
+		options.Capabilities.Elicitation = &mcp.ElicitationCapabilities{Form: &mcp.FormElicitationCapabilities{}}
+	}
+	client := mcp.NewClient(&mcp.Implementation{Name: core.ProductName, Version: core.ProductVersion}, options)
 	var transport mcp.Transport = &mcp.IOTransport{Reader: p.stdout, Writer: p.stdin, MaxLineLength: maxFrame}
 	if cfg.URL != "" {
 		httpClient, err := remoteClient(cfg)

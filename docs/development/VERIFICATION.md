@@ -8,6 +8,14 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: MCP elicitation
+
+`TestElicitationAsksTheUser` (an SDK server elicits a five-field form mid-call; the questions name the
+server and say answers go to it; enum labels, integer, boolean and multi-select answers come back as the
+schema's values), `TestElicitationDeclined` (dismissal and a wrong type decline; without anyone to ask the
+capability is not advertised), `TestElicitFields` (unsupported schemas refused), `TestAskForIntegration`
+(headless refuses; answers validated).
+
 ## Unreleased: goh mcp add/remove, SSE transport
 
 `TestMCPAddAndRemove` (a local command resolved to an absolute path with args and env, a remote SSE server

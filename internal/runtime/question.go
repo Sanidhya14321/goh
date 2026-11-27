@@ -145,3 +145,26 @@ func ValidateQuestionReply(request core.QuestionRequest, reply core.QuestionRepl
 	}
 	return body, nil
 }
+
+// AskForIntegration puts an integration's questions (an MCP server's
+// request for input) to the user. It fails when nobody can answer (a
+// headless run), so the integration's request is declined, not left waiting.
+func (a *Agent) AskForIntegration(ctx context.Context, request core.QuestionRequest) (core.QuestionReply, error) {
+	ask := a.Ask
+	if ask == nil {
+		return core.QuestionReply{}, ErrNeedsInput
+	}
+	a.event("question_requested", request)
+	waitStart := time.Now()
+	reply, err := ask(ctx, request)
+	a.phases.waited(true, time.Since(waitStart).Milliseconds())
+	if err == nil {
+		_, err = ValidateQuestionReply(request, reply)
+	}
+	if err != nil {
+		a.event("question_resolved", map[string]any{"dismissed": true})
+		return core.QuestionReply{}, err
+	}
+	a.event("question_resolved", reply)
+	return reply, nil
+}

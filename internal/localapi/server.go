@@ -288,7 +288,9 @@ func (s *Server) prompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer a.Tools.StopJobs() // background jobs end with the request
-	a.ExternalFactory = func() agent.External { return mcpclient.New(s.config.MCP, store.Project, a.Permission) }
+	a.ExternalFactory = func() agent.External {
+		return mcpclient.ForAgent(mcpclient.New(s.config.MCP, store.Project, a.Permission), a.Ask != nil, a.AskForIntegration)
+	}
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	controller := http.NewResponseController(w)
 	encoder := json.NewEncoder(w)

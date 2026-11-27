@@ -823,6 +823,14 @@ never open a browser: a server that still refuses fails to start with "requires 
 `goh mcp login NAME`". For an authorization server without dynamic client registration, set the
 client registered with it: `"oauth_client_id": "…"` (a public client; PKCE is always used).
 
+### Questions from servers
+
+A server can ask you for input during a call (MCP elicitation, form mode): each field appears as a chat
+question headed `MCP NAME`, and your answers go to that server. Yes/no, choice, multiple-choice, text and
+number fields are supported, up to 8 per form, required fields first. Dismissing the question, or an answer
+of the wrong type, declines; a run nobody can answer (`goh run`, ACP) does not offer servers the feature.
+URL-mode requests (opening a page) are declined.
+
 ### Resources and prompts
 
 Servers offering resources add `mcp_resources` and `mcp_read_resource`. Prompt templates are listed

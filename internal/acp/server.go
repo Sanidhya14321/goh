@@ -339,7 +339,7 @@ func (t *turn) run(ctx context.Context, text string, mcp map[string]core.MCPConf
 	}
 	defer a.Tools.StopJobs() // background jobs end with the prompt
 	a.ExternalFactory = func() agent.External {
-		return mcpclient.New(mcp, store.Project, a.Permission)
+		return mcpclient.ForAgent(mcpclient.New(mcp, store.Project, a.Permission), a.Ask != nil, a.AskForIntegration)
 	}
 	a.Emit = t.event
 	a.Approve = t.approve
