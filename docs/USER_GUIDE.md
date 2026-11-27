@@ -342,6 +342,22 @@ effect: if it is interrupted or its cleanup is uncertain, the run stops and the 
 `--acknowledge-uncertain`. A verifier that changes files is run once more on its own result; if it
 changes files again, the outcome is `unverified`.
 
+### Several tasks at once
+
+```sh
+goh parallel "fix the flaky parser test" "add --json to goh stats" -- --access edits --allow shell
+goh parallel --file tasks.txt --jobs 3 --commit --name docs
+```
+
+Each task runs as a headless `goh run` in its own Git worktree, `<repo>-NAME-N` on branch `goh/NAME-N`
+from the last commit (uncommitted changes in your checkout are not included; goh says so), up to 4 at
+a time (`--jobs`, at most 8; at most 16 tasks). Flags after `--` go to every run; give the access or
+`--allow` the tasks need, since nobody is there to approve. The summary lists each task's outcome,
+changed files, final reply, worktree and session (continue one with `goh chat --session ID` in its
+worktree); `--commit` commits each worktree's changes on its branch, and `--format json` prints the
+summary as JSON. Ctrl+C interrupts every run so it settles as usual. Worktrees are never removed;
+`git worktree remove` them when merged. The exit status is non-zero when any task did not complete.
+
 ---
 
 ## Configuration

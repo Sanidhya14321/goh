@@ -50,6 +50,11 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Several tasks at once**
+- `goh parallel TASK... [-- RUN FLAGS]` runs each task headless in its own Git worktree and branch,
+  up to 4 at a time, then lists each outcome, changed files, reply and session; `--commit` commits each
+  branch, `--file` reads tasks from a file.
+
 **Dollar budgets**
 - `max_run_cost` (`--max-run-cost`) stops a run once its estimated spend reaches a USD amount, priced from
   `prices` per model (child tasks included; budget notes report it). `goh stats` prices dated model names

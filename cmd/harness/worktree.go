@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -35,23 +36,9 @@ func runWorktree(args []string, open func() error) error {
 		return cmd.Run()
 	}
 	root := filepath.Clean(strings.TrimSpace(string(out)))
-	name := args[0]
-	path := root + "-" + name
-	branch := "goh/" + name
-	if _, err := os.Stat(path); err == nil {
-		if top, err := gitTop(git, path); err != nil || !sameDir(top, path) || !isWorktreeOf(git, path) {
-			return fmt.Errorf("%s exists and is not a worktree of this repository; choose another name", path)
-		}
-	} else {
-		add := []string{"worktree", "add", "-b", branch, path}
-		if exec.Command(git, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch).Run() == nil {
-			add = []string{"worktree", "add", path, branch}
-		}
-		cmd := exec.Command(git, add...)
-		cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
-		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("git worktree add failed: %w", err)
-		}
+	path, branch, err := ensureWorktree(git, root, args[0], os.Stderr)
+	if err != nil {
+		return err
 	}
 	// A reused worktree may have moved to another branch: report what it
 	// is on, not what it was created with.
@@ -67,6 +54,30 @@ func runWorktree(args []string, open func() error) error {
 		return err
 	}
 	return open()
+}
+
+// ensureWorktree creates (or reuses) the worktree <root>-NAME on branch
+// goh/NAME, writing git's own output to log.
+func ensureWorktree(git, root, name string, log io.Writer) (path, branch string, err error) {
+	path = root + "-" + name
+	branch = "goh/" + name
+	if _, err := os.Stat(path); err == nil {
+		if top, err := gitTop(git, path); err != nil || !sameDir(top, path) || !isWorktreeOf(git, path) {
+			return "", "", fmt.Errorf("%s exists and is not a worktree of this repository; choose another name", path)
+		}
+		return path, branch, nil
+	}
+	add := []string{"worktree", "add", "-b", branch, path}
+	if exec.Command(git, "rev-parse", "--verify", "--quiet", "refs/heads/"+branch).Run() == nil {
+		add = []string{"worktree", "add", path, branch}
+	}
+	cmd := exec.Command(git, add...)
+	cmd.Dir = root
+	cmd.Stdout, cmd.Stderr = log, log
+	if err := cmd.Run(); err != nil {
+		return "", "", fmt.Errorf("git worktree add failed: %w", err)
+	}
+	return path, branch, nil
 }
 
 // isWorktreeOf reports whether dir is listed as a worktree of the repository

@@ -8,6 +8,15 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: goh parallel
+
+`TestParallelArguments` (no tasks, empty task file, too many jobs or tasks, a bad name, a bad format,
+`--project`/`--prompt` after `--` are refused before git is touched), `TestParallelSummary` (text and
+JSON). By hand in a scratch repository with `cmd/scripted-model -scenario edit`: three tasks with
+`--commit --name t` ran at once, each edited `note.txt` in its own worktree and committed on
+`goh/t-1`..`goh/t-3`, and the main checkout was unchanged; exit 0. `goh worktree` uses the same
+worktree helper (`TestWorktree*` pass).
+
 ## Unreleased: max_run_cost
 
 `TestPriceCost` (cached input at its own price; dated names use the base entry, a name without the dash
