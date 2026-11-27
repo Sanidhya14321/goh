@@ -57,6 +57,7 @@ type Evidence struct {
 func (a *Agent) resetOutcome(fingerprint bool) {
 	a.changedFiles, a.verifiedAfterChange, a.changeUnknown = false, false, false
 	a.repairsUsed, a.verifyFailed, a.completionChecked, a.wroteTestDouble = 0, false, false, false
+	a.recited = false
 	a.narrowTestPassed, a.fullTestPassed = false, false
 	a.evidence = nil
 	a.runCommands, a.evidenceSubmitted, a.evidenceRevision = nil, false, ""

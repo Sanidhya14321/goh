@@ -224,3 +224,35 @@ func (a *Agent) experimentDefinitions() []core.Tool {
 	}
 	return defs
 }
+
+// --- task-recitation -----------------------------------------------------
+
+// recitationMinCalls is how long a run must be before its task is recited:
+// in a short run the prompt is still near the end of the context.
+const recitationMinCalls = 8
+
+// recitationMaxBytes caps the quoted task.
+const recitationMaxBytes = 8 << 10
+
+// needsRecitation reports whether a finishing run should first re-read its
+// task. On Terminal-Bench 2.0, four of twelve wrong solutions passed the
+// model's own checks but missed an explicit requirement (a socket path, a
+// CSV's columns, input that had to stay unchanged). Reciting goals into the
+// end of the context follows Manus's todo recitation and the lost-in-the-
+// middle finding (arXiv:2307.03172). Once per run, after any completion
+// check, and only for top-level runs of at least recitationMinCalls calls.
+func (a *Agent) needsRecitation() bool {
+	return a.Config.Experiment(core.ExperimentTaskRecitation) && !a.recited && a.depth == 0 && !a.isPlan() &&
+		a.toolCalls >= recitationMinCalls && strings.TrimSpace(a.runPrompt) != ""
+}
+
+func recitationPrompt(task string) string {
+	if len(task) > recitationMaxBytes {
+		cut := recitationMaxBytes
+		for cut > 0 && !utf8.RuneStart(task[cut]) {
+			cut--
+		}
+		task = task[:cut] + "\n[…]"
+	}
+	return "Before finishing, re-read the task you were given and check each explicit requirement against what is in place now: names, paths, formats, values, things that must stay unchanged, and services that must keep running. Fix any mismatch. If every requirement is met, reply with your final answer and make no further changes.\n\nThe task:\n" + task
+}

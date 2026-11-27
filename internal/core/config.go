@@ -348,10 +348,13 @@ const (
 	// ExperimentRetrievalExpansion adds a capped one-hop list of files that
 	// reference repo_map's matching symbols.
 	ExperimentRetrievalExpansion = "retrieval-expansion"
+	// ExperimentTaskRecitation quotes the run's task back once before a
+	// long run finishes, to check each explicit requirement.
+	ExperimentTaskRecitation = "task-recitation"
 )
 
 // KnownExperiments lists the accepted experiment names.
-var KnownExperiments = []string{ExperimentSubmissionEvidence, ExperimentRecoverableCompression, ExperimentRetrievalExpansion}
+var KnownExperiments = []string{ExperimentSubmissionEvidence, ExperimentRecoverableCompression, ExperimentRetrievalExpansion, ExperimentTaskRecitation}
 
 // Experiment reports whether the named experiment is on.
 func (c Config) Experiment(name string) bool {

@@ -137,9 +137,11 @@ type Agent struct {
 	capAdapts         int
 	verifyFailed      bool
 	completionChecked bool
-	wroteTestDouble   bool // a test fake/mock/stub was written this run
-	narrowTestPassed  bool // since the last change, a passing test run picked tests by name
-	fullTestPassed    bool // since the last change, a passing test run covered whole suites
+	recited           bool   // task-recitation ran this run
+	runPrompt         string // the prompt this run started with
+	wroteTestDouble   bool   // a test fake/mock/stub was written this run
+	narrowTestPassed  bool   // since the last change, a passing test run picked tests by name
+	fullTestPassed    bool   // since the last change, a passing test run covered whole suites
 	// scopedGrants are session approvals bound to a scope (see GrantScope).
 	scopedGrants map[string]bool
 	runID        string
@@ -610,6 +612,7 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 	a.invalid = map[string]int{}
 	a.lastCall, a.repeats = "", 0
 	a.operation, a.titleSource = "run", prompt
+	a.runPrompt = prompt
 	a.resetOutcome(true)
 	a.toolCalls = 0
 	a.resetRunCounters()
@@ -810,6 +813,14 @@ func (a *Agent) Run(ctx context.Context, prompt string) (status string, err erro
 					return "failed", e
 				}
 				a.event("completion_check", map[string]any{"reason": reason})
+				continue
+			}
+			if a.needsRecitation() {
+				a.recited = true
+				if e := a.commit(core.Message{Role: "user", Content: recitationPrompt(a.runPrompt), Automatic: true}); e != nil {
+					return "failed", e
+				}
+				a.event("completion_check", map[string]any{"reason": "task recited before finishing", "experiment": core.ExperimentTaskRecitation})
 				continue
 			}
 			verifyStart := time.Now()

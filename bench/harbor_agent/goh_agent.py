@@ -58,6 +58,9 @@ class GohOptions(InstalledAgentOptions):
     reasoning_effort: Annotated[str | None, Cli("--reasoning-effort")] = Field(
         default="medium", description="Reasoning effort passed to goh."
     )
+    experiment: str | None = Field(
+        default=None, description="Comma-separated goh research experiments to turn on (A/B arms)."
+    )
 
 
 class Goh(BaseInstalledAgent):
@@ -184,13 +187,15 @@ class Goh(BaseInstalledAgent):
         effort = getattr(self.options, "reasoning_effort", None) or "medium"
         has_ca = " || ".join(f"[ -s {p} ]" for p in SYSTEM_CA)
         limit = self._time_limit()
+        names = getattr(self.options, "experiment", None) or ""
+        experiments = "".join(f"--experiment {shlex.quote(n.strip())} " for n in names.split(",") if n.strip())
         budget = f"--max-run-seconds {limit} " if limit else ""
         command = (
             f'if ! {{ {has_ca}; }}; then export SSL_CERT_FILE={CA_PATH}; fi; '
             'goh run --project "$PWD" --prompt "$GOH_TASK" --format json '
             "--protocol openai_chatgpt "
             f"--model {shlex.quote(self._model())} --reasoning-effort {shlex.quote(effort)} "
-            f"--access full --allow all --keep-jobs {budget}--session-dir /logs/agent/sessions "
+            f"--access full --allow all --keep-jobs {budget}{experiments}--session-dir /logs/agent/sessions "
             "> /logs/agent/goh.jsonl 2> /logs/agent/goh.stderr; "
             "status=$?; tail -c 2000 /logs/agent/goh.stderr; exit $status"
         )
