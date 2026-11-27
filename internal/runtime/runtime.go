@@ -1129,7 +1129,11 @@ func (a *Agent) prepare(name string, b json.RawMessage) (string, bool, error) {
 	}
 	if name == "websearch" {
 		if a.Config.WebsearchURL == "" {
-			return "", true, errors.New("websearch is not configured; set websearch_url")
+			if a.providerSearch() == nil {
+				return "", true, errors.New(`websearch is not configured; set "websearch": "provider" or websearch_url`)
+			}
+			preview, e := websearch.PrepareProvider(b)
+			return preview, true, e
 		}
 		preview, e := websearch.Prepare(a.Config.WebsearchURL, b)
 		return preview, true, e
@@ -1198,6 +1202,11 @@ func (a *Agent) executeTool(ctx context.Context, c core.Call) tools.Result {
 	}
 	if c.Function.Name == "websearch" && a.Config.WebsearchURL != "" {
 		return websearch.Search(ctx, a.Config.WebsearchURL, json.RawMessage(c.Function.Arguments), nil)
+	}
+	if c.Function.Name == "websearch" {
+		if s := a.providerSearch(); s != nil {
+			return websearch.SearchProvider(ctx, s, json.RawMessage(c.Function.Arguments))
+		}
 	}
 	if c.Function.Name == "webfetch" {
 		return a.retainFetchedPage(a.Web.FetchPage(ctx, json.RawMessage(c.Function.Arguments)))

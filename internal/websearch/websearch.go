@@ -135,3 +135,42 @@ func clip(s string, n int) string {
 	}
 	return s
 }
+
+// ProviderSearcher is a model provider with a hosted search tool. The answer
+// is JSON: {"answer", "sources": [{"title", "url"}]}.
+type ProviderSearcher interface {
+	SupportsWebSearch() bool
+	WebSearchJSON(ctx context.Context, query string) (json.RawMessage, error)
+}
+
+// ProviderDefinition is the websearch tool when searches go through the
+// model provider rather than a search service.
+func ProviderDefinition() core.Tool {
+	return core.NewTool("websearch", "Search the web. Returns a short answer from current pages and the URLs it cites; use webfetch to read a page. Each search needs the user's approval.",
+		map[string]any{"type": "object", "properties": map[string]any{
+			"query": map[string]any{"type": "string", "description": "What to search for"}},
+			"additionalProperties": false,
+			"required":             []string{"query"}})
+}
+
+// PrepareProvider returns the approval preview for a provider search.
+func PrepareProvider(raw json.RawMessage) (string, error) {
+	a, err := parse(raw)
+	if err != nil {
+		return "", err
+	}
+	return "Search the web (through the model provider) for: " + a.Query, nil
+}
+
+// SearchProvider runs the query through the provider's hosted search.
+func SearchProvider(ctx context.Context, s ProviderSearcher, raw json.RawMessage) tools.Result {
+	a, err := parse(raw)
+	if err != nil {
+		return tools.Result{Error: true, Content: err.Error()}
+	}
+	answer, err := s.WebSearchJSON(ctx, a.Query)
+	if err != nil {
+		return tools.Result{Error: true, Content: "search failed: " + err.Error()}
+	}
+	return tools.Result{Content: string(answer)}
+}

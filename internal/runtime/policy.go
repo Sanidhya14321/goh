@@ -38,6 +38,8 @@ func (a *Agent) localDefinitions() []core.Tool {
 	defs = append(defs, questionDefinition(), webfetch.Definition())
 	if a.Config.WebsearchURL != "" {
 		defs = append(defs, websearch.Definition())
+	} else if a.providerSearch() != nil {
+		defs = append(defs, websearch.ProviderDefinition())
 	}
 	if a.depth == 0 {
 		defs = append(defs, a.taskDefinition())
@@ -80,3 +82,16 @@ func (a *Agent) localDefinitions() []core.Tool {
 // and inspects runs with /undo, /redo, /changes and /snapshots.
 var unadvertisedTools = map[string]bool{"search": true, "create_file": true,
 	"snapshot_list": true, "snapshot_diff": true, "snapshot_undo": true, "snapshot_redo": true}
+
+// providerSearch is the provider's hosted search when "websearch": "provider"
+// is set and the provider has one; nil otherwise.
+func (a *Agent) providerSearch() websearch.ProviderSearcher {
+	if a.Config.Websearch != "provider" {
+		return nil
+	}
+	s, ok := a.Provider.(websearch.ProviderSearcher)
+	if !ok || !s.SupportsWebSearch() {
+		return nil
+	}
+	return s
+}

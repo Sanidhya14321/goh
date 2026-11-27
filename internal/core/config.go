@@ -137,6 +137,9 @@ type Config struct {
 	AnthropicThinking string `json:"anthropic_thinking,omitempty"`
 	// WebsearchURL is a SearXNG-compatible base URL enabling the websearch tool.
 	WebsearchURL string `json:"websearch_url,omitempty"`
+	// Websearch "provider" enables websearch through the model provider's
+	// hosted search (OpenAI Responses, the ChatGPT sign-in, Anthropic).
+	Websearch string `json:"websearch,omitempty"`
 	// CompactionMasking (default true) masks old tool output before summarizing.
 	CompactionMasking *bool `json:"compaction_masking,omitempty"`
 	// Keybinds remaps chat actions; see DefaultKeybinds.
@@ -414,6 +417,12 @@ func (c Config) Validate() error {
 			return fmt.Errorf("thinking_budget must be at least 1024 and below output_budget (%d)", c.OutputBudget)
 		}
 	}
+	if c.Websearch != "" && c.Websearch != "provider" {
+		return fmt.Errorf(`websearch must be "provider" (or leave it unset and use websearch_url)`)
+	}
+	if c.Websearch != "" && c.WebsearchURL != "" {
+		return fmt.Errorf("set either websearch or websearch_url, not both")
+	}
 	if c.WebsearchURL != "" {
 		u, err := url.Parse(c.WebsearchURL)
 		local := err == nil && (u.Hostname() == "localhost" || u.Hostname() == "127.0.0.1" || u.Hostname() == "::1")
@@ -459,6 +468,9 @@ func (c Config) Validate() error {
 var ErrNoProvider = errors.New("no model provider is connected yet; run goh to connect one (or goh providers, or goh auth login for ChatGPT)")
 
 // ProviderEndpoint resolves the request URL after configuration overlays.
+// WebsearchEnabled reports whether the websearch tool is offered.
+func (c Config) WebsearchEnabled() bool { return c.WebsearchURL != "" || c.Websearch == "provider" }
+
 func (c Config) ProviderEndpoint() (string, error) {
 	if c.EffectiveProtocol() == ChatGPTProtocol {
 		if (c.Endpoint != "" && c.Endpoint != ChatGPTEndpoint) ||

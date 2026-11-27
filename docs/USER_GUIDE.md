@@ -870,8 +870,15 @@ its status, not the body. A cross-origin redirect is refused and names its desti
 the model can fetch as a separately approved request. Private, loopback and link-local addresses
 (including cloud metadata) are refused unless `"webfetch_allow_private": true`.
 
-Set `websearch_url` to a SearXNG-compatible JSON endpoint to enable `websearch`. Each search needs
-approval and returns titles, links and snippets.
+`websearch` is off until one of these is set:
+
+- `"websearch": "provider"` searches through the model provider's own search tool (the ChatGPT
+  sign-in, the OpenAI Responses API or Anthropic): no service to run. Each search is a separate small
+  request (the conversation and its prompt cache are untouched, usage counts against your plan) and
+  returns a short answer with the URLs it cites. Other providers do not offer the tool.
+- `websearch_url`: a SearXNG-compatible JSON endpoint; returns titles, links and snippets.
+
+Each search needs approval.
 
 ---
 

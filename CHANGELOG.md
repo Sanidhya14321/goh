@@ -50,6 +50,11 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Web search without a search service**
+- `"websearch": "provider"` lets `websearch` search through the model provider's hosted search (the
+  ChatGPT sign-in, OpenAI Responses, Anthropic), in a request of its own: a short answer and the URLs it
+  cites. Before, web search needed a self-hosted SearXNG endpoint.
+
 **Research round after Terminal-Bench** (list and reasons in [design decisions](docs/development/DESIGN_DECISIONS.md#after-terminal-bench-20-november-2026))
 - A run capped by `max_run_seconds`, `max_tool_calls` or `max_run_tokens` tells the model what is left when a
   budget passes 50%, 75% and 90% (one line on the newest tool result; uncapped runs are unchanged). The

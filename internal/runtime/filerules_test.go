@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/Sanidhya14321/goh/internal/core"
@@ -61,5 +62,48 @@ func TestWebsearchOnlyWhenConfigured(t *testing.T) {
 	}
 	if _, side, err := a.prepare("websearch", []byte(`{"query":"go"}`)); err != nil || !side {
 		t.Fatal("websearch must need approval", err)
+	}
+}
+
+type fakeSearcher struct {
+	modelFunc
+	supported bool
+	queries   []string
+}
+
+func (f *fakeSearcher) SupportsWebSearch() bool { return f.supported }
+func (f *fakeSearcher) WebSearchJSON(_ context.Context, q string) (json.RawMessage, error) {
+	f.queries = append(f.queries, q)
+	return json.RawMessage(`{"answer":"yes","sources":[]}`), nil
+}
+
+func TestProviderWebsearch(t *testing.T) {
+	a, _ := testAgent(t)
+	searcher := &fakeSearcher{}
+	a.Provider = searcher
+	has := func() bool {
+		for _, d := range a.localDefinitions() {
+			if d.Function.Name == "websearch" {
+				return true
+			}
+		}
+		return false
+	}
+	a.Config.Websearch = "provider"
+	if has() {
+		t.Fatal("offered for a provider without hosted search")
+	}
+	searcher.supported = true
+	if !has() {
+		t.Fatal("missing with websearch: provider")
+	}
+	preview, side, err := a.prepare("websearch", []byte(`{"query":"go release"}`))
+	if err != nil || !side || !strings.Contains(preview, "go release") {
+		t.Fatal("provider search must need approval", preview, err)
+	}
+	var call core.Call
+	call.Function.Name, call.Function.Arguments = "websearch", `{"query":"go release"}`
+	if r := a.execute(context.Background(), call); r.Error || r.Content != `{"answer":"yes","sources":[]}` || len(searcher.queries) != 1 {
+		t.Fatalf("%+v %v", r, searcher.queries)
 	}
 }

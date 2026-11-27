@@ -8,6 +8,16 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: provider web search
+
+`TestWebSearchResponses` (the ChatGPT service's streamed items with an empty completed event, and a
+completed event with output; citations kept once, non-http(s) dropped; the request carries only the hosted
+`web_search` tool and `store: false`), `TestWebSearchAnthropic`, `TestWebSearchFailures` (no body echoed;
+Chat Completions has no hosted search), `TestProviderWebsearch` (offered only with the setting and a provider
+that supports it; needs approval), `TestWebsearchSetting`. Live with the ChatGPT sign-in (`gpt-6.2-sol`):
+one search in 12 s answered with go.dev as source; a `goh run` asked for a library's latest release called
+`websearch`, then checked it with `webfetch` (19 s run).
+
 ## Unreleased: faster journal open
 
 `TestFastRecordMatchesStrict` (records in goh's own form take the fast path; other key orders, escapes,
