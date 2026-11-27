@@ -43,7 +43,7 @@ func TestRealClangd(t *testing.T) {
 			return core.Decision{Allow: true}, nil
 		})
 	defer m.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	run := func(op string, line, char int) map[string]any {
 		in, _ := json.Marshal(map[string]any{"operation": op, "filePath": "main.c", "line": line, "character": char})
@@ -55,10 +55,11 @@ func TestRealClangd(t *testing.T) {
 		json.Unmarshal([]byte(r.Content), &out)
 		return out
 	}
-	// Diagnostics may arrive after the first request; poll briefly.
+	// Diagnostics may arrive well after start-up on a loaded runner (a
+	// Windows run spent 45 s with none); poll for up to 90 s.
 	var errs, failures []string
 	started := time.Now()
-	for deadline := time.Now().Add(45 * time.Second); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
+	for deadline := time.Now().Add(90 * time.Second); time.Now().Before(deadline); time.Sleep(300 * time.Millisecond) {
 		// "Not published yet" is expected while the server warms up.
 		in, _ := json.Marshal(map[string]any{"operation": "diagnostics", "filePath": "main.c", "line": 1, "character": 1})
 		if r := m.Execute(ctx, "lsp", in); r.Error && !strings.Contains(r.Content, "not published") && !strings.Contains(r.Content, "pending") {
