@@ -108,7 +108,7 @@ func TestLSPInterruptedOperationIsNotReplayed(t *testing.T) {
 	a.Provider = modelFunc(func(context.Context, []core.Message, []core.Tool, func(string)) (core.Reply, error) {
 		return answer(toolCall("hover", "lsp", map[string]any{"operation": "hover", "filePath": "a.lsptest", "line": 1, "character": 1})), nil
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 150*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second) // the hover hangs; leave room for a slow server start
 	defer cancel()
 	status, e := a.Run(ctx, "cancel hover")
 	if status != "cancelled" || e == nil || len(a.Store.Pending()) == 0 {
