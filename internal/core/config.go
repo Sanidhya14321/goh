@@ -30,6 +30,9 @@ type MCPConfig struct {
 	// server, for servers that do not support dynamic registration; the
 	// sign-in (`goh mcp login`) then uses it as a public client with PKCE.
 	OAuthClientID string `json:"oauth_client_id,omitempty"`
+	// Transport "sse" selects the older HTTP+SSE transport (MCP 2024-11-05)
+	// for a remote server that does not offer Streamable HTTP.
+	Transport string `json:"transport,omitempty"`
 }
 type CommandConfig struct {
 	Description string `json:"description"`

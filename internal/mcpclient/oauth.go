@@ -68,7 +68,7 @@ func UsesOAuth(cfg core.MCPConfig) bool { return usesOAuth(cfg) }
 // usesOAuth reports whether a server's requests are authorized by a saved
 // sign-in: remote, and not already given an Authorization header.
 func usesOAuth(cfg core.MCPConfig) bool {
-	if cfg.URL == "" {
+	if cfg.URL == "" || cfg.Transport == "sse" {
 		return false
 	}
 	for name := range cfg.Headers {
@@ -177,6 +177,9 @@ func Login(ctx context.Context, name string, cfg core.MCPConfig, open func(strin
 	}
 	if err := checkRemoteURL(cfg.URL); err != nil {
 		return 0, fmt.Errorf("MCP server %s: %w", name, err)
+	}
+	if cfg.Transport == "sse" {
+		return 0, fmt.Errorf("MCP server %s uses the older SSE transport, which goh does not sign in to; set its token with headers_env", name)
 	}
 	if !usesOAuth(cfg) {
 		return 0, fmt.Errorf("MCP server %s sends its own Authorization header (headers_env); remove it to sign in instead", name)

@@ -19,12 +19,17 @@ import (
 	"github.com/Sanidhya14321/goh/internal/tui"
 )
 
-// runMCP implements `goh mcp list|login|logout`. list reports configuration
+// runMCP implements `goh mcp list|add|remove|login|logout`. list reports configuration
 // only: no server is started, and secret values (env values, header values,
 // URL credentials and queries) are never printed. login signs in to a remote
 // server with OAuth in the browser; logout forgets that sign-in.
 func runMCP(args []string) error {
-	usage := errors.New("usage: goh mcp list [--config FILE] | goh mcp login NAME [--config FILE] | goh mcp logout NAME [--config FILE]")
+	usage := errors.New("usage: goh mcp list [--config FILE] | goh mcp add NAME [--env K=V]... -- COMMAND [ARGS]... | " +
+		"goh mcp add NAME --url URL [--header NAME=ENV_VAR]... [--sse] [--oauth-client-id ID] | goh mcp remove NAME | " +
+		"goh mcp login NAME [--config FILE] | goh mcp logout NAME [--config FILE]")
+	if len(args) > 0 && (args[0] == "add" || args[0] == "remove") {
+		return runMCPEdit(os.Stdout, args)
+	}
 	if len(args) == 0 || (args[0] != "list" && args[0] != "login" && args[0] != "logout") {
 		return usage
 	}
@@ -97,7 +102,7 @@ func plural(n int, one, many string) string {
 
 func writeMCP(w io.Writer, servers map[string]core.MCPConfig, lookup func(string) (string, bool)) {
 	if len(servers) == 0 {
-		fmt.Fprintln(w, "No MCP servers configured (add them under \"mcp\" in the config).")
+		fmt.Fprintln(w, "No MCP servers configured (goh mcp add NAME -- COMMAND, or goh mcp add NAME --url URL).")
 		return
 	}
 	names := make([]string, 0, len(servers))
@@ -110,6 +115,9 @@ func writeMCP(w io.Writer, servers map[string]core.MCPConfig, lookup func(string
 		kind, target := "local", strings.Join(append([]string{s.Command}, s.Args...), " ")
 		if s.URL != "" {
 			kind, target = "remote", redactURL(s.URL)
+			if s.Transport == "sse" {
+				target += " (SSE)"
+			}
 		}
 		fmt.Fprintf(w, "%-16s %-6s %s\n", tui.Safe(name), kind, tui.Safe(target))
 		if mcpclient.UsesOAuth(s) {

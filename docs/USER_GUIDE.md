@@ -770,6 +770,17 @@ appended. Expansion is text-only: shell syntax and `@file` stay literal.
 
 ## MCP
 
+```sh
+goh mcp add files -- npx -y @modelcontextprotocol/server-filesystem .   # local: the command after --
+goh mcp add docs --url https://mcp.example.com/mcp                      # remote (Streamable HTTP)
+goh mcp add legacy --url https://example.com/sse --sse --header Authorization=LEGACY_TOKEN
+goh mcp remove files
+```
+
+`add` writes the `mcp` section of your user settings (a local command is saved as an absolute path;
+`--env NAME=VALUE` values are saved too, so pass secrets to remote servers with `--header NAME=ENV_VAR`).
+Nothing starts until a chat or run asks for approval.
+
 ### Local servers
 
 ```json
@@ -790,7 +801,9 @@ Limits: 128 tools per server, 1 MiB frames, 64 KiB arguments and results, 15 s i
 ```
 
 Streamable HTTP over HTTPS only (HTTP for localhost); redirects are refused. Approval prompts show
-header names, never values.
+header names, never values. A server that still uses the older HTTP+SSE transport takes
+`"transport": "sse"`; the message URL it names must be on the same origin, and it cannot use
+`goh mcp login` (give its token with `headers_env`).
 
 **Signing in (OAuth).** A remote server without an `Authorization` header that asks for sign-in is
 signed in to once, in the browser:

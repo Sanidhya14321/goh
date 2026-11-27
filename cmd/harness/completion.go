@@ -13,7 +13,7 @@ var subcommands = map[string][]string{
 	"providers":  {"list", "use", "remove"},
 	"workspaces": {"list", "forget"},
 	"auth":       {"login", "switch", "status", "refresh", "models", "logout", "list", "store", "export"},
-	"mcp":        {"list"},
+	"mcp":        {"list", "add", "remove", "login", "logout"},
 	"memory":     {"add", "list", "recall", "delete"},
 	"completion": {"bash", "zsh", "fish"},
 	"worktree":   {"list"},

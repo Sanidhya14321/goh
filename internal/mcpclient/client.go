@@ -184,6 +184,9 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 		return fmt.Errorf("MCP server %s: set either command or url", name)
 	}
 	var description []byte
+	if cfg.Transport != "" && (cfg.URL == "" || cfg.Transport != "http" && cfg.Transport != "sse") {
+		return fmt.Errorf(`MCP server %s: transport must be "http" or "sse", for a server with a url`, name)
+	}
 	if cfg.URL != "" {
 		if err := checkRemoteURL(cfg.URL); err != nil {
 			return fmt.Errorf("MCP server %s: %w", name, err)
@@ -242,16 +245,22 @@ func (m *Manager) connectServer(ctx context.Context, name string) (err error) {
 			cancel()
 			return fmt.Errorf("MCP server %s: %w", name, err)
 		}
-		remote := &mcp.StreamableClientTransport{Endpoint: cfg.URL, HTTPClient: httpClient, MaxRetries: -1, DisableStandaloneSSE: true}
-		if usesOAuth(cfg) {
-			handler, err := runHandler(name, cfg)
-			if err != nil {
-				cancel()
-				return err
+		if cfg.Transport == "sse" {
+			// The server names the URL for messages in its first event; the
+			// client keeps requests (and their headers) on the configured origin.
+			transport = sseTransport{&mcp.SSEClientTransport{Endpoint: cfg.URL, HTTPClient: sameOrigin(httpClient, cfg.URL), MaxEventSize: maxFrame}}
+		} else {
+			remote := &mcp.StreamableClientTransport{Endpoint: cfg.URL, HTTPClient: httpClient, MaxRetries: -1, DisableStandaloneSSE: true}
+			if usesOAuth(cfg) {
+				handler, err := runHandler(name, cfg)
+				if err != nil {
+					cancel()
+					return err
+				}
+				remote.OAuthHandler = handler
 			}
-			remote.OAuthHandler = handler
+			transport = remote
 		}
-		transport = remote
 	}
 	session, e := client.Connect(initCtx, transport, nil)
 	if e != nil {

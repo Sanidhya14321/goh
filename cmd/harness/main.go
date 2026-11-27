@@ -64,7 +64,7 @@ var commandGroups = []struct {
 	}},
 	{"Integrations", [][2]string{
 		{"agents", "list built-in, configured and project agents"},
-		{"mcp", "MCP servers: goh mcp list | login NAME | logout NAME"},
+		{"mcp", "MCP servers: goh mcp list | add NAME | remove NAME | login NAME | logout NAME"},
 		{"memory", "opt-in project notes: add, list, recall, delete"},
 		{"serve", "local HTTP API"},
 		{"attach", "terminal UI for a running goh serve: goh attach [ADDRESS]"},

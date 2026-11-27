@@ -8,6 +8,15 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: goh mcp add/remove, SSE transport
+
+`TestMCPAddAndRemove` (a local command resolved to an absolute path with args and env, a remote SSE server
+with a header variable, other settings kept, bad names and flag mixes refused, the section removed with its
+last server); by hand in a temporary home, `add`, `list` (marks SSE) and `remove`. `TestSSEMCPServer` (an
+SDK SSE server: discovery, a call after start-up, the header sent), `TestSSEMessageEndpointStaysOnOrigin`
+(a message URL on another origin is refused before any request reaches it), `TestMCPTransportSetting`.
+`-race -count 3` on mcpclient.
+
 ## Unreleased: webfetch selector and links
 
 `TestWebfetchSelectorAndLinks` (class, child, attribute and descendant selectors against a fixture page;

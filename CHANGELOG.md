@@ -60,6 +60,12 @@ Each entry lists user-visible changes; evidence for each is in
   commas) to return only the matching parts of an HTML page, and `links: true` to list its links as
   absolute URLs.
 
+**MCP**
+- `goh mcp add NAME -- COMMAND ARGS…` and `goh mcp add NAME --url URL [--header H=ENV] [--sse]` add a
+  server to the user settings; `goh mcp remove NAME` removes it.
+- Remote servers on the older HTTP+SSE transport work with `"transport": "sse"`; requests stay on the
+  server's origin.
+
 **Research round after Terminal-Bench** (list and reasons in [design decisions](docs/development/DESIGN_DECISIONS.md#after-terminal-bench-20-november-2026))
 - A run capped by `max_run_seconds`, `max_tool_calls` or `max_run_tokens` tells the model what is left when a
   budget passes 50%, 75% and 90% (one line on the newest tool result; uncapped runs are unchanged). The
