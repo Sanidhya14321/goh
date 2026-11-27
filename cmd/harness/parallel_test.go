@@ -20,6 +20,8 @@ func TestParallelArguments(t *testing.T) {
 		{"--format", "yaml", "a"},
 		{"a", "--", "--project", "/tmp"},
 		{"a", "--", "--prompt=x"},
+		{"--models", "a,b", "t", "--", "--model", "c"},
+		{"--models", "a,b,c,d,e,f,g,h,i", "t1", "t2"},
 		append([]string{}, strings.Split(strings.Repeat("t ", 17), " ")[:17]...),
 	} {
 		if err := runParallel(bad, &bytes.Buffer{}); err == nil {
@@ -31,14 +33,14 @@ func TestParallelArguments(t *testing.T) {
 func TestParallelSummary(t *testing.T) {
 	results := []parallelResult{
 		{Task: "fix the parser\nmore detail", Branch: "goh/p-1", Worktree: "/r-p-1", Session: "s1", Status: "completed", Changed: 2, Commit: "abc1234", Reply: "Fixed.\nDetails"},
-		{Task: "add docs", Branch: "goh/p-2", Worktree: "/r-p-2", Status: "needs_permission", Error: "explicit permission required"},
+		{Task: "add docs", Model: "m-large", Tokens: 1200, Branch: "goh/p-2", Worktree: "/r-p-2", Status: "needs_permission", Error: "explicit permission required"},
 	}
 	var b bytes.Buffer
 	if failed := writeParallel(&b, results, "text"); failed != 1 {
 		t.Fatal(failed)
 	}
 	out := b.String()
-	for _, want := range []string{"1. completed  goh/p-1  2 files", "task: fix the parser\n", "reply: Fixed.\n", "commit: abc1234", "goh chat --session s1", "2. needs_permission", "error: explicit permission required"} {
+	for _, want := range []string{"1. completed  goh/p-1  2 files", "task: fix the parser\n", "reply: Fixed.\n", "commit: abc1234", "goh chat --session s1", "2. needs_permission  goh/p-2  0 files  0s  m-large  1200 tokens", "error: explicit permission required"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("missing %q in\n%s", want, out)
 		}

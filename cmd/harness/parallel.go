@@ -28,6 +28,8 @@ const (
 // parallelResult is one task's outcome.
 type parallelResult struct {
 	Task     string `json:"task"`
+	Model    string `json:"model,omitempty"`
+	Tokens   int    `json:"tokens,omitempty"`
 	Worktree string `json:"worktree"`
 	Branch   string `json:"branch"`
 	Session  string `json:"session_id,omitempty"`
@@ -57,6 +59,7 @@ func runParallel(args []string, stdout io.Writer) error {
 	name := f.String("name", "", "worktree and branch name prefix (default p-MMDD-HHMM)")
 	commit := f.Bool("commit", false, "commit each worktree's changes on its branch")
 	format := f.String("format", "text", "summary format: text or json")
+	modelList := f.String("models", "", "comma-separated models: run every task once with each, to compare them")
 	if err := f.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -75,14 +78,28 @@ func runParallel(args []string, stdout io.Writer) error {
 			}
 		}
 	}
-	if len(tasks) == 0 || len(tasks) > maxParallelTasks {
-		return fmt.Errorf("usage: goh parallel [--jobs N] [--name PREFIX] [--commit] [--file TASKS] TASK... [-- RUN FLAGS]; 1-%d tasks", maxParallelTasks)
+	var models []string
+	for _, m := range strings.Split(*modelList, ",") {
+		if m = strings.TrimSpace(m); m != "" {
+			models = append(models, m)
+		}
+	}
+	if len(models) > 0 {
+		for _, a := range passthrough {
+			if a == "--model" || strings.HasPrefix(a, "--model=") {
+				return errors.New("--model after -- conflicts with --models")
+			}
+		}
+	}
+	runs := len(tasks) * max(1, len(models))
+	if len(tasks) == 0 || runs > maxParallelTasks {
+		return fmt.Errorf("usage: goh parallel [--jobs N] [--models A,B] [--name PREFIX] [--commit] [--file TASKS] TASK... [-- RUN FLAGS]; 1-%d runs (tasks × models)", maxParallelTasks)
 	}
 	if *format != "text" && *format != "json" {
 		return errors.New("--format must be text or json")
 	}
 	if *jobs == 0 {
-		*jobs = min(4, len(tasks))
+		*jobs = min(4, runs)
 	}
 	if *jobs < 1 || *jobs > maxParallelJobs {
 		return fmt.Errorf("--jobs must be 1-%d", maxParallelJobs)
@@ -114,18 +131,26 @@ func runParallel(args []string, stdout io.Writer) error {
 	if dirty, _ := exec.Command(git, "-C", root, "status", "--porcelain", "--untracked-files=no").Output(); len(dirty) > 0 {
 		fmt.Fprintln(os.Stderr, "Note: the worktrees start from the last commit; uncommitted changes here are not in them.")
 	}
-	results := make([]parallelResult, len(tasks))
+	results := make([]parallelResult, 0, runs)
 	// Worktrees are added one at a time (git locks its metadata).
-	for i, task := range tasks {
+	for _, task := range tasks {
+		for _, model := range append([]string(nil), models...) {
+			results = append(results, parallelResult{Task: task, Model: model})
+		}
+		if len(models) == 0 {
+			results = append(results, parallelResult{Task: task})
+		}
+	}
+	for i := range results {
 		path, branch, err := ensureWorktree(git, root, fmt.Sprintf("%s-%d", *name, i+1), io.Discard)
 		if err != nil {
-			return fmt.Errorf("task %d: %w", i+1, err)
+			return fmt.Errorf("run %d: %w", i+1, err)
 		}
-		results[i] = parallelResult{Task: task, Worktree: path, Branch: branch}
+		results[i].Worktree, results[i].Branch = path, branch
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	fmt.Fprintf(os.Stderr, "Running %d tasks, %d at a time…\n", len(tasks), *jobs)
+	fmt.Fprintf(os.Stderr, "Running %d tasks, %d at a time…\n", len(results), *jobs)
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	slots := make(chan struct{}, *jobs)
@@ -158,6 +183,9 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 	start := time.Now()
 	defer func() { r.Seconds = int(time.Since(start).Seconds() + 0.5) }()
 	args := append([]string{"run", "--project", r.Worktree, "--format", "json"}, passthrough...)
+	if r.Model != "" {
+		args = append(args, "--model", r.Model)
+	}
 	args = append(args, "--prompt", r.Task)
 	cmd := exec.CommandContext(ctx, self, args...)
 	cmd.Dir = r.Worktree
@@ -174,6 +202,7 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 		r.Status, r.Error = "failed", err.Error()
 		return
 	}
+	asked := ""
 	scanner := bufio.NewScanner(pipe)
 	scanner.Buffer(make([]byte, 64<<10), 32<<20)
 	for scanner.Scan() {
@@ -181,11 +210,18 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 			Session string `json:"session_id"`
 			Type    string `json:"type"`
 			Data    struct {
+				Tool    string `json:"tool"`
+				Preview string `json:"preview"`
 				Status  string `json:"status"`
 				Error   string `json:"error"`
 				Message struct {
 					Content string `json:"content"`
 				} `json:"message"`
+				Usage *struct {
+					Prompt     int `json:"prompt_tokens"`
+					Completion int `json:"completion_tokens"`
+					Total      int `json:"total_tokens"`
+				} `json:"usage"`
 			} `json:"data"`
 		}
 		if json.Unmarshal(scanner.Bytes(), &event) != nil {
@@ -199,8 +235,16 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 			if c := strings.TrimSpace(event.Data.Message.Content); c != "" {
 				r.Reply = c
 			}
+			if u := event.Data.Usage; u != nil {
+				r.Tokens += max(u.Total, u.Prompt+u.Completion)
+			}
+		case "permission_requested":
+			asked = event.Data.Tool + ": " + firstLine(event.Data.Preview, 100)
 		case "run_finished":
 			r.Status, r.Error = event.Data.Status, event.Data.Error
+			if r.Status == "needs_permission" && asked != "" {
+				r.Error = "needs approval for " + asked + " (allow it after --, for example --allow " + strings.SplitN(asked, ":", 2)[0] + ")"
+			}
 		}
 	}
 	waitErr := cmd.Wait()
@@ -275,7 +319,14 @@ func writeParallel(w io.Writer, results []parallelResult, format string) int {
 		if r.Changed == 1 {
 			changed = "1 file"
 		}
-		fmt.Fprintf(w, "%d. %s  %s  %s  %ds\n", i+1, tui.Safe(r.Status), tui.Safe(r.Branch), changed, r.Seconds)
+		extra := ""
+		if r.Model != "" {
+			extra += "  " + tui.Safe(r.Model)
+		}
+		if r.Tokens > 0 {
+			extra += fmt.Sprintf("  %d tokens", r.Tokens)
+		}
+		fmt.Fprintf(w, "%d. %s  %s  %s  %ds%s\n", i+1, tui.Safe(r.Status), tui.Safe(r.Branch), changed, r.Seconds, extra)
 		fmt.Fprintf(w, "   task: %s\n", tui.Safe(firstLine(r.Task, 100)))
 		if r.Reply != "" {
 			fmt.Fprintf(w, "   reply: %s\n", tui.Safe(firstLine(r.Reply, 100)))

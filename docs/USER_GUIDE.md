@@ -347,6 +347,7 @@ changes files again, the outcome is `unverified`.
 ```sh
 goh parallel "fix the flaky parser test" "add --json to goh stats" -- --access edits --allow shell
 goh parallel --file tasks.txt --jobs 3 --commit --name docs
+goh parallel --models gpt-5,gpt-5-mini "fix the flaky parser test" -- --access auto   # compare models
 ```
 
 Each task runs as a headless `goh run` in its own Git worktree, `<repo>-NAME-N` on branch `goh/NAME-N`
@@ -355,7 +356,9 @@ a time (`--jobs`, at most 8; at most 16 tasks). Flags after `--` go to every run
 `--allow` the tasks need, since nobody is there to approve. The summary lists each task's outcome,
 changed files, final reply, worktree and session (continue one with `goh chat --session ID` in its
 worktree); `--commit` commits each worktree's changes on its branch, and `--format json` prints the
-summary as JSON. Ctrl+C interrupts every run so it settles as usual. Worktrees are never removed;
+summary as JSON. `--models A,B` runs every task once with each model (tasks × models, at most 16
+runs) and the summary shows each run's model and tokens, to compare them on your own work. A run that
+stopped for an approval names the tool it needed. Ctrl+C interrupts every run so it settles as usual. Worktrees are never removed;
 `git worktree remove` them when merged. The exit status is non-zero when any task did not complete.
 
 ---

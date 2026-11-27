@@ -15,7 +15,10 @@ pinned in `go.mod` at the time, and live inference used loopback fixtures.
 JSON). By hand in a scratch repository with `cmd/scripted-model -scenario edit`: three tasks with
 `--commit --name t` ran at once, each edited `note.txt` in its own worktree and committed on
 `goh/t-1`..`goh/t-3`, and the main checkout was unchanged; exit 0. `goh worktree` uses the same
-worktree helper (`TestWorktree*` pass).
+worktree helper (`TestWorktree*` pass). `--models scripted,scripted-large` gave one run per model with
+its tokens. Live with the ChatGPT sign-in: two tasks in a scratch repository with `--access edits`
+stopped for `shell` and the summary named it; with `--allow shell` added, both completed in 17 s side
+by side (`calc.py` fixed, `README.md` added), each committed on its branch.
 
 ## Unreleased: max_run_cost
 

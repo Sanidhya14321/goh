@@ -53,7 +53,8 @@ Each entry lists user-visible changes; evidence for each is in
 **Several tasks at once**
 - `goh parallel TASK... [-- RUN FLAGS]` runs each task headless in its own Git worktree and branch,
   up to 4 at a time, then lists each outcome, changed files, reply and session; `--commit` commits each
-  branch, `--file` reads tasks from a file.
+  branch, `--file` reads tasks from a file, and `--models A,B` runs each task with several models to
+  compare them.
 
 **Dollar budgets**
 - `max_run_cost` (`--max-run-cost`) stops a run once its estimated spend reaches a USD amount, priced from
