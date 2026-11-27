@@ -8,6 +8,18 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: goh watch
+
+`TestWatchFixTreeAndPatch` (a modified, a deleted and an untracked file are copied into `<repo>-watch`,
+an ignored folder is not; an untouched copy yields no patch; the fix's patch applies to the working copy
+only on apply; a second copy starts from the new working copy; a stale patch is refused),
+`TestWatchRefusesForeignFolder`, `TestWatchFingerprint` (a second edit to a modified file is seen, an
+ignored file is not), `TestWatchTests` (pass, fail with output, time limit), `TestWatchDetectAndArguments`.
+By hand with `cmd/scripted-model` scripting an `edit_file` fix: `goh watch --auto --test "sh check.sh"`
+saw the failing check, fixed it in `repo-watch`, reported "the tests pass with it" and saved the patch
+while `calc.txt` in the checkout stayed wrong; `git apply` of the patch made the next test run pass. In a
+PTY without `--auto`: `f` started the fix, `a` applied it, the tests reran and passed, `q` exited 0.
+
 ## Unreleased: goh parallel
 
 `TestParallelArguments` (no tasks, empty task file, too many jobs or tasks, a bad name, a bad format,

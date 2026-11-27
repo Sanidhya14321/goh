@@ -361,6 +361,26 @@ runs) and the summary shows each run's model and tokens, to compare them on your
 stopped for an approval names the tool it needed. Ctrl+C interrupts every run so it settles as usual. Worktrees are never removed;
 `git worktree remove` them when merged. The exit status is non-zero when any task did not complete.
 
+### Tests on every save
+
+```sh
+goh watch                                   # tests from verify.command, or detected (go test, cargo test, npm test, pytest, make test)
+goh watch --test "go test ./internal/..." -- --allow shell
+goh watch --auto                            # start a fix whenever the tests fail
+```
+
+`goh watch` reruns the test command whenever files in the repository change and then stay unchanged for
+2 s (`--quiet`; ignored files are not watched). When the tests fail, press Enter (or `f`): goh copies your
+working copy, uncommitted changes and untracked files included, into the worktree `<repo>-watch`, fixes
+the failure there with a headless run, checks the fix with the same test command, and saves it as a patch
+under `.git/goh-watch/`. Your files are never edited while you work: type `a` to apply the latest fix
+(refused if those files changed since; `git apply --3way PATCH` then), or apply it later with `git apply`.
+`t` tests now, `q` quits. With `--auto` fixes start by themselves, at most `--max-fixes` (5) per session
+and once per failing state; without a terminal only `--auto` starts fixes. Fix runs get `--access edits`
+unless you pass access after `--`; add `--allow shell` so the fix can run the tests itself. Ignored files
+(installed dependencies, build caches) are not copied, so the tests in `<repo>-watch` need what they need
+to run there; the test time limit is `--timeout` (5 m).
+
 ---
 
 ## Configuration

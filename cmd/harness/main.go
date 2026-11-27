@@ -43,6 +43,7 @@ var commandGroups = []struct {
 		{"pr", "check out a GitHub pull request with gh, then open the UI"},
 		{"worktree", "open the UI in a separate git worktree: goh worktree NAME|list"},
 		{"parallel", "run tasks at once, each headless in its own git worktree: goh parallel TASK... [-- RUN FLAGS]"},
+		{"watch", "rerun the tests as files change; fix failures on the side as a patch: goh watch [--test CMD] [--auto]"},
 	}},
 	{"Sessions and changes", [][2]string{
 		{"sessions", "list, rename, export, import, delete or salvage sessions"},
@@ -256,6 +257,9 @@ func runCommand(args []string, skipChooser bool, notice, draft string) error {
 	}
 	if args[0] == "parallel" {
 		return runParallel(args[1:], os.Stdout)
+	}
+	if args[0] == "watch" {
+		return runWatch(args[1:], os.Stdin, os.Stdout)
 	}
 	if args[0] == "worktree" {
 		return runWorktree(args[1:], func() error { return chatFirst([]string{"chat"}) })

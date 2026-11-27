@@ -50,6 +50,12 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Tests on every save**
+- `goh watch` reruns the tests whenever files change and settle. A failure can be fixed on the side (press
+  Enter, or `--auto`): your working copy is copied into `<repo>-watch`, a headless run fixes it there, the
+  fix is checked with the same tests and saved as a patch, and `a` applies it. Your own files are only
+  changed when you apply.
+
 **Several tasks at once**
 - `goh parallel TASK... [-- RUN FLAGS]` runs each task headless in its own Git worktree and branch,
   up to 4 at a time, then lists each outcome, changed files, reply and session; `--commit` commits each

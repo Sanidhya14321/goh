@@ -180,13 +180,37 @@ func runParallel(args []string, stdout io.Writer) error {
 }
 
 func runParallelTask(ctx context.Context, self, git string, r *parallelResult, passthrough []string, commit bool) {
+	runHeadless(ctx, self, r, r.Task, passthrough)
+	status, _ := exec.Command(git, "-C", r.Worktree, "status", "--porcelain").Output()
+	for _, line := range strings.Split(strings.TrimSpace(string(status)), "\n") {
+		if line != "" {
+			r.Changed++
+		}
+	}
+	if commit && r.Changed > 0 && ctx.Err() == nil {
+		message := "goh: " + firstLine(r.Task, 72)
+		out, err := exec.Command(git, "-C", r.Worktree, "add", "-A").CombinedOutput()
+		if err == nil {
+			out, err = exec.Command(git, "-C", r.Worktree, "commit", "-q", "-m", message, "-m", "Task: "+r.Task).CombinedOutput()
+		}
+		if err != nil {
+			r.Error = strings.TrimSpace("commit failed: " + firstLine(string(out), 160) + " " + r.Error)
+		} else if head, err := exec.Command(git, "-C", r.Worktree, "rev-parse", "--short", "HEAD").Output(); err == nil {
+			r.Commit = strings.TrimSpace(string(head))
+		}
+	}
+}
+
+// runHeadless runs `goh run` on prompt in r.Worktree and fills r from its
+// JSON events: status, error, session, final reply, tokens and duration.
+func runHeadless(ctx context.Context, self string, r *parallelResult, prompt string, passthrough []string) {
 	start := time.Now()
 	defer func() { r.Seconds = int(time.Since(start).Seconds() + 0.5) }()
 	args := append([]string{"run", "--project", r.Worktree, "--format", "json"}, passthrough...)
 	if r.Model != "" {
 		args = append(args, "--model", r.Model)
 	}
-	args = append(args, "--prompt", r.Task)
+	args = append(args, "--prompt", prompt)
 	cmd := exec.CommandContext(ctx, self, args...)
 	cmd.Dir = r.Worktree
 	cmd.Cancel = func() error { return cmd.Process.Signal(os.Interrupt) } // goh run settles its effects
@@ -255,24 +279,6 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 		}
 		if r.Error = strings.TrimSpace(stderr.String()); r.Error == "" && waitErr != nil {
 			r.Error = waitErr.Error()
-		}
-	}
-	status, _ := exec.Command(git, "-C", r.Worktree, "status", "--porcelain").Output()
-	for _, line := range strings.Split(strings.TrimSpace(string(status)), "\n") {
-		if line != "" {
-			r.Changed++
-		}
-	}
-	if commit && r.Changed > 0 && ctx.Err() == nil {
-		message := "goh: " + firstLine(r.Task, 72)
-		out, err := exec.Command(git, "-C", r.Worktree, "add", "-A").CombinedOutput()
-		if err == nil {
-			out, err = exec.Command(git, "-C", r.Worktree, "commit", "-q", "-m", message, "-m", "Task: "+r.Task).CombinedOutput()
-		}
-		if err != nil {
-			r.Error = strings.TrimSpace("commit failed: " + firstLine(string(out), 160) + " " + r.Error)
-		} else if head, err := exec.Command(git, "-C", r.Worktree, "rev-parse", "--short", "HEAD").Output(); err == nil {
-			r.Commit = strings.TrimSpace(string(head))
 		}
 	}
 }
