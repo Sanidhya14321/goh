@@ -181,6 +181,12 @@ func runParallel(args []string, stdout io.Writer) error {
 
 func runParallelTask(ctx context.Context, self, git string, r *parallelResult, passthrough []string, commit bool) {
 	runHeadless(ctx, self, r, r.Task, passthrough)
+	finishWorktree(ctx, git, r, commit, "goh: "+firstLine(r.Task, 72), "Task: "+r.Task)
+}
+
+// finishWorktree counts r's changed files and, with commit, commits them on
+// the worktree's branch.
+func finishWorktree(ctx context.Context, git string, r *parallelResult, commit bool, subject, body string) {
 	status, _ := exec.Command(git, "-C", r.Worktree, "status", "--porcelain").Output()
 	for _, line := range strings.Split(strings.TrimSpace(string(status)), "\n") {
 		if line != "" {
@@ -188,10 +194,9 @@ func runParallelTask(ctx context.Context, self, git string, r *parallelResult, p
 		}
 	}
 	if commit && r.Changed > 0 && ctx.Err() == nil {
-		message := "goh: " + firstLine(r.Task, 72)
 		out, err := exec.Command(git, "-C", r.Worktree, "add", "-A").CombinedOutput()
 		if err == nil {
-			out, err = exec.Command(git, "-C", r.Worktree, "commit", "-q", "-m", message, "-m", "Task: "+r.Task).CombinedOutput()
+			out, err = exec.Command(git, "-C", r.Worktree, "commit", "-q", "-m", subject, "-m", body).CombinedOutput()
 		}
 		if err != nil {
 			r.Error = strings.TrimSpace("commit failed: " + firstLine(string(out), 160) + " " + r.Error)

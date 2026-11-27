@@ -361,6 +361,21 @@ runs) and the summary shows each run's model and tokens, to compare them on your
 stopped for an approval names the tool it needed. Ctrl+C interrupts every run so it settles as usual. Worktrees are never removed;
 `git worktree remove` them when merged. The exit status is non-zero when any task did not complete.
 
+### Replay a session on other models
+
+```sh
+goh replay ID --models gpt-5,gpt-5-mini -- --access edits     # ID from goh sessions list
+goh replay ID --models a,b --from v1.0.0 --turns 1
+```
+
+`goh replay` sends a saved session's prompts again, in order, to each model, each in its own worktree
+(`<repo>-r-MMDD-HHMM-N` on branch `goh/r-…`, from HEAD or `--from REF`). The first prompt starts a
+headless run and the rest continue that run's session, so each model holds the same conversation from
+its side. The summary is the `goh parallel` one: status, changed files, tokens, time and the new session
+per model; `--commit`, `--jobs`, `--name` and `--format json` work as there. The session must have been
+started at the repository root; goh's own messages (checks, reminders) are not replayed. A replay stops
+at the first prompt that does not complete. Arguments after `--` go to every `goh run`.
+
 ### Tests on every save
 
 ```sh

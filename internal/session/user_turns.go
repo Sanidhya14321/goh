@@ -53,3 +53,17 @@ func (s *Store) RecentUserTurns(limit int) []UserTurn {
 	}
 	return turns
 }
+
+// Prompts lists the session's own user prompts, oldest first (automatic
+// messages such as continuation nudges are left out).
+func (s *Store) Prompts() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var prompts []string
+	for _, record := range s.records {
+		if isUserRecord(record) {
+			prompts = append(prompts, userRecordContent(record))
+		}
+	}
+	return prompts
+}

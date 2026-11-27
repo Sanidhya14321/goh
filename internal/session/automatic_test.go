@@ -28,4 +28,7 @@ func TestAutomaticMessagesAreNotUserTurns(t *testing.T) {
 	if len(turns) != 1 || turns[0].Prompt != "real request" {
 		t.Fatalf("turns %+v", turns)
 	}
+	if p := s.Prompts(); len(p) != 1 || p[0] != "real request" {
+		t.Fatalf("prompts %q", p)
+	}
 }

@@ -8,6 +8,15 @@ for open gaps see [STATUS.md](STATUS.md).
 Unless an entry says otherwise, local runs are on macOS ARM64 (Apple M5 Pro) with the Go version
 pinned in `go.mod` at the time, and live inference used loopback fixtures.
 
+## Unreleased: goh replay
+
+`TestReplayArguments` (missing session or models, too many jobs, a negative turn count, a bad name,
+`--model`, `--session` or `--prompt` after `--`, an unknown session), `TestAutomaticMessagesAreNotUserTurns`
+(`Prompts` leaves out goh's own messages). By hand with `cmd/scripted-model`: a two-prompt session (each
+prompt writes a file) replayed with `--models m1,m2` made two worktrees from HEAD; each model ran both
+prompts, the second continuing its own new session, and each worktree held both files while the
+original checkout was unchanged.
+
 ## Unreleased: goh watch
 
 `TestWatchFixTreeAndPatch` (a modified, a deleted and an untracked file are copied into `<repo>-watch`,

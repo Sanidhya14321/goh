@@ -50,6 +50,11 @@ Each entry lists user-visible changes; evidence for each is in
   started was gone when the tests ran). A shell command that leaves processes in the background now says
   they were stopped and to use `job_start`.
 
+**Replay a session on other models**
+- `goh replay SESSION --models A,B` sends a saved session's prompts again, in order, to each model, each
+  in its own worktree from HEAD (or `--from REF`), and lists each model's outcome, changed files, tokens
+  and time. `--turns N` replays only the first N prompts.
+
 **Tests on every save**
 - `goh watch` reruns the tests whenever files change and settle. A failure can be fixed on the side (press
   Enter, or `--auto`): your working copy is copied into `<repo>-watch`, a headless run fixes it there, the
